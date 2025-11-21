@@ -1,0 +1,96 @@
+/**
+ * Checkbox Component
+ * 
+ * A styled checkbox component wrapping React Native Paper's Checkbox
+ * 
+ * @module components/ui/Checkbox
+ */
+
+import React from 'react';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Checkbox as PaperCheckbox, Text } from 'react-native-paper';
+import { KindlingColors } from '../../styles/theme';
+import { Spacing } from '../../styles/constants';
+
+/**
+ * Checkbox component props
+ */
+export interface CheckboxProps {
+  /**
+   * Checkbox label
+   */
+  label?: string;
+  
+  /**
+   * Whether checkbox is checked
+   */
+  checked: boolean;
+  
+  /**
+   * Change handler
+   */
+  onCheckedChange: (checked: boolean) => void;
+  
+  /**
+   * Whether checkbox is disabled
+   */
+  disabled?: boolean;
+}
+
+/**
+ * Checkbox component
+ * 
+ * @example
+ * ```tsx
+ * <Checkbox
+ *   label="I agree to the terms"
+ *   checked={agreed}
+ *   onCheckedChange={setAgreed}
+ * />
+ * ```
+ */
+export const Checkbox: React.FC<CheckboxProps> = ({
+  label,
+  checked,
+  onCheckedChange,
+  disabled = false,
+}) => {
+  return (
+    <TouchableOpacity
+      onPress={() => !disabled && onCheckedChange(!checked)}
+      disabled={disabled}
+      style={styles.container}
+      activeOpacity={0.7}
+    >
+      <PaperCheckbox
+        status={checked ? 'checked' : 'unchecked'}
+        onPress={() => !disabled && onCheckedChange(!checked)}
+        disabled={disabled}
+        color={KindlingColors.green}
+      />
+      {label && (
+        <Text style={[styles.label, disabled && styles.labelDisabled]}>
+          {label}
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Spacing.sm,
+  },
+  label: {
+    fontSize: 16,
+    color: KindlingColors.navy,
+    marginLeft: Spacing.sm,
+    flex: 1,
+  },
+  labelDisabled: {
+    opacity: 0.5,
+  },
+});
+
