@@ -1,0 +1,7 @@
+[tools]
+ruby = "3.4.7"
+
+[env]
+# Rails environment
+RAILS_ENV = "development"
+
