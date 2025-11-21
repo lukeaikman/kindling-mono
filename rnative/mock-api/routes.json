@@ -1,0 +1,18 @@
+{
+  "/api/*": "/$1",
+  "/api/will": "/will",
+  "/api/people": "/people",
+  "/api/people/:id": "/people/:id",
+  "/api/assets": "/assets",
+  "/api/assets/:type": "/assets/:type",
+  "/api/businesses": "/businesses",
+  "/api/businesses/:id": "/businesses/:id",
+  "/api/trusts": "/trusts",
+  "/api/trusts/:id": "/trusts/:id",
+  "/api/relationships": "/relationships",
+  "/api/relationships/:id": "/relationships/:id",
+  "/api/beneficiary-groups": "/beneficiaryGroups",
+  "/api/beneficiary-groups/:id": "/beneficiaryGroups/:id",
+  "/api/estate-remainder": "/estateRemainder"
+}
+

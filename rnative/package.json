@@ -6,7 +6,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "mock-api": "json-server --watch mock-api/db.json --routes mock-api/routes.json --port 3001",
+    "dev": "concurrently \"npm run mock-api\" \"npm start\""
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -25,6 +27,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "concurrently": "^9.2.1",
+    "json-server": "^1.0.0-beta.3",
     "typescript": "~5.9.2"
   },
   "private": true
