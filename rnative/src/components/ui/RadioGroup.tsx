@@ -1,13 +1,20 @@
 /**
  * RadioGroup Component
  * 
- * A radio button group component using React Native Paper's RadioButton
+ * A radio button group component built manually with React Native primitives
+ * and Paper's RadioButton for the circle visual.
+ * 
+ * We build this manually instead of using RadioButton.Item because:
+ * - RadioButton.Item wasn't rendering the radio circle properly
+ * - Manual build gives full control over styling
+ * - Designer can customize every aspect later
+ * - Consistent pattern with our Checkbox component
  * 
  * @module components/ui/RadioGroup
  */
 
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { RadioButton, Text } from 'react-native-paper';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing } from '../../styles/constants';
@@ -51,7 +58,13 @@ export interface RadioGroupProps {
 }
 
 /**
- * RadioGroup component
+ * RadioGroup component with manual layout for full control
+ * 
+ * Each option is a clickable row with:
+ * - Radio circle (left) - uses Paper's RadioButton for the circle visual
+ * - Label text (right) - fully customizable typography
+ * - Subtle background highlight when selected
+ * - Active opacity for press feedback
  * 
  * @example
  * ```tsx
@@ -63,6 +76,18 @@ export interface RadioGroupProps {
  *     { label: 'Simple Will', value: 'simple' },
  *     { label: 'Complex Will', value: 'complex' },
  *   ]}
+ * />
+ * ```
+ * 
+ * @example
+ * ```tsx
+ * // Disabled state
+ * <RadioGroup
+ *   label="Locked Options"
+ *   value={selected}
+ *   onChange={setSelected}
+ *   options={options}
+ *   disabled={true}
  * />
  * ```
  */
@@ -79,15 +104,32 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
       
       <RadioButton.Group onValueChange={onChange} value={value}>
         {options.map((option) => (
-          <RadioButton.Item
+          <TouchableOpacity
             key={option.value}
-            label={option.label}
-            value={option.value}
+            onPress={() => !disabled && onChange(option.value)}
             disabled={disabled}
-            color={KindlingColors.green}
-            labelStyle={styles.itemLabel}
-            style={styles.item}
-          />
+            activeOpacity={0.7}
+            style={[
+              styles.optionContainer,
+              value === option.value && styles.optionContainerSelected,
+              disabled && styles.optionContainerDisabled
+            ]}
+          >
+            <RadioButton
+              value={option.value}
+              status={value === option.value ? 'checked' : 'unchecked'}
+              disabled={disabled}
+              color={KindlingColors.green}
+              uncheckedColor={KindlingColors.border}
+            />
+            <Text style={[
+              styles.optionLabel,
+              value === option.value && styles.optionLabelSelected,
+              disabled && styles.optionLabelDisabled
+            ]}>
+              {option.label}
+            </Text>
+          </TouchableOpacity>
         ))}
       </RadioButton.Group>
     </View>
@@ -104,12 +146,33 @@ const styles = StyleSheet.create({
     color: KindlingColors.navy,
     marginBottom: Spacing.sm,
   },
-  item: {
-    paddingVertical: Spacing.xs,
+  optionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: 8,
+    marginBottom: Spacing.xs,
+    backgroundColor: KindlingColors.background,
   },
-  itemLabel: {
+  optionContainerSelected: {
+    backgroundColor: `${KindlingColors.green}10`, // 10% opacity green background
+  },
+  optionContainerDisabled: {
+    opacity: 0.5,
+  },
+  optionLabel: {
     fontSize: 16,
     color: KindlingColors.navy,
+    marginLeft: Spacing.sm,
+    flex: 1,
+  },
+  optionLabelSelected: {
+    fontWeight: '600',
+    color: KindlingColors.green,
+  },
+  optionLabelDisabled: {
+    opacity: 0.5,
   },
 });
 
