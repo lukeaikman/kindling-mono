@@ -342,9 +342,18 @@ export const useAppState = () => {
 
   const personActions: PersonActions = {
     addPerson: (personData) => {
+      // Generate UUID - crypto.randomUUID() not available in React Native
+      const generateId = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+      
       const newPerson: Person = {
         ...personData,
-        id: crypto.randomUUID(),
+        id: generateId(),
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -658,9 +667,17 @@ export const useAppState = () => {
 
   const businessActions: BusinessActions = {
     addBusiness: (businessData) => {
+      const generateId = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+      
       const newBusiness: Business = {
         ...businessData,
-        id: crypto.randomUUID(),
+        id: generateId(),
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -816,9 +833,17 @@ export const useAppState = () => {
 
   const bequeathalActions: BequeathalActions = {
     addAsset: (assetType, assetData) => {
+      const generateId = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+      
       const newAsset = {
         ...assetData,
-        id: crypto.randomUUID(),
+        id: generateId(),
         type: assetType,
         title: assetData.title || 'Untitled Asset',
         description: assetData.description || '',
@@ -974,9 +999,17 @@ export const useAppState = () => {
         return existing;
       }
 
+      const generateId = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+
       const now = new Date();
       const edge: RelationshipEdge = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         aId,
         bId,
         type,

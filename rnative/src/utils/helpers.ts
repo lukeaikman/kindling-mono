@@ -319,16 +319,11 @@ export const formatPostcode = (postcode: string): string => {
 
 /**
  * Generate a random UUID (React Native compatible)
- * Uses crypto.randomUUID() if available, otherwise falls back to a simple implementation
+ * crypto.randomUUID() is not available in React Native, so we use a fallback
  * @returns {string} UUID string
  */
 export const generateUUID = (): string => {
-  // Check if crypto.randomUUID is available
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  
-  // Fallback implementation for older React Native versions
+  // React Native doesn't have crypto.randomUUID(), use fallback
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
