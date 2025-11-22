@@ -1,4 +1,5 @@
 import { MD3LightTheme as DefaultTheme } from 'react-native-paper';
+import { configureFonts } from 'react-native-paper';
 
 /**
  * Kindling Brand Colors
@@ -25,6 +26,8 @@ export const KindlingColors = {
 /**
  * Kindling theme configuration for React Native Paper
  * Extends the Material Design 3 light theme with custom brand colors
+ * 
+ * Note: Icons are configured in app/_layout.tsx using @expo/vector-icons
  */
 export const kindlingTheme = {
   ...DefaultTheme,
@@ -45,6 +48,8 @@ export const kindlingTheme = {
   },
   // Custom theme extensions
   roundness: 8,
+  // Ensure Paper v5 uses proper Material Design 3 defaults
+  version: 3,
 };
 
 /**
