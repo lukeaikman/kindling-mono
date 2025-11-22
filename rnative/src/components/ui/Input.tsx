@@ -204,9 +204,9 @@ export const Input: React.FC<InputProps> = ({
       numberOfLines={numberOfLines}
       left={leftIcon ? <PaperTextInput.Icon icon={leftIcon} /> : undefined}
       right={rightIcon ? <PaperTextInput.Icon icon={rightIcon} /> : undefined}
-      mode="outlined"
-      outlineColor={KindlingColors.border}
-      activeOutlineColor={KindlingColors.navy}
+      mode="flat"
+      underlineColor={KindlingColors.border}
+      activeUnderlineColor={KindlingColors.navy}
       textColor={KindlingColors.navy}
       style={[styles.input, style]}
       contentStyle={[styles.inputContent, textStyle]}
