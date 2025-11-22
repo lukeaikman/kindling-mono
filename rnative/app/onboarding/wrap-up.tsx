@@ -126,9 +126,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   card: {
-    padding: Spacing.lg,
+    marginHorizontal: Spacing.lg,
     marginVertical: 0,
-    marginHorizontal: 0,
+    padding: Spacing.lg,
   },
   iconContainer: {
     alignItems: 'center',

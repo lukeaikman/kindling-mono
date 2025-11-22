@@ -6,7 +6,8 @@
  */
 
 import React from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

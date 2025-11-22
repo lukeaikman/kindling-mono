@@ -8,7 +8,8 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Pressable, SafeAreaView } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -255,13 +256,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingVertical: Spacing.lg, // Only vertical padding - let content go edge-to-edge
+    paddingVertical: Spacing.lg, // Only vertical padding for scroll comfort
     flexGrow: 1,
   },
   card: {
-    padding: Spacing.lg,
-    marginVertical: 0, // Override Card's default marginVertical
-    marginHorizontal: 0, // Ensure no horizontal margins
+    marginHorizontal: Spacing.lg, // Horizontal spacing from edges
+    marginVertical: 0,
+    padding: Spacing.lg, // Internal content padding
   },
   iconContainer: {
     alignItems: 'center',

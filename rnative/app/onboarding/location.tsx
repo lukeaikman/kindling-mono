@@ -6,7 +6,8 @@
  */
 
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -171,9 +172,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   card: {
-    padding: Spacing.lg,
+    marginHorizontal: Spacing.lg,
     marginVertical: 0,
-    marginHorizontal: 0,
+    padding: Spacing.lg,
   },
   iconContainer: {
     alignItems: 'center',
