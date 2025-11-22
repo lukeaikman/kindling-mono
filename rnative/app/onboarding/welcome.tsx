@@ -54,7 +54,17 @@ export default function OnboardingWelcomeScreen() {
     if (user) {
       setFirstName(user.firstName || '');
       setLastName(user.lastName || '');
-      setDateOfBirth(user.dateOfBirth || '');
+      
+      // Convert stored YYYY-MM-DD to DD-MM-YYYY for display
+      if (user.dateOfBirth) {
+        const parts = user.dateOfBirth.split('-');
+        if (parts.length === 3) {
+          const [year, month, day] = parts;
+          setDateOfBirth(`${day}-${month}-${year}`);
+        } else {
+          setDateOfBirth(user.dateOfBirth);
+        }
+      }
       
       // Middle names are not stored separately in Person model
       // TODO: Add middleNames field to Person interface if needed
@@ -78,17 +88,27 @@ export default function OnboardingWelcomeScreen() {
   
   /**
    * Handle date of birth change with age validation
+   * Accepts DD-MM-YYYY format
    */
   const handleDateOfBirthChange = (value: string) => {
     setDateOfBirth(value);
     
-    // Validate age
-    const age = calculateAge(value);
-    if (age !== null && !isNaN(age)) {
-      if (age < 18) {
-        setAgeError(`under-18:${age}`);
-      } else if (age > 90) {
-        setAgeError(`over-90:${age}`);
+    // Parse DD-MM-YYYY format to calculate age
+    // Convert DD-MM-YYYY to YYYY-MM-DD for Date parsing
+    const parts = value.split('-');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      const isoDate = `${year}-${month}-${day}`;
+      
+      const age = calculateAge(isoDate);
+      if (age !== null && !isNaN(age)) {
+        if (age < 18) {
+          setAgeError(`under-18:${age}`);
+        } else if (age > 90) {
+          setAgeError(`over-90:${age}`);
+        } else {
+          setAgeError(null);
+        }
       } else {
         setAgeError(null);
       }
@@ -106,12 +126,18 @@ export default function OnboardingWelcomeScreen() {
     // Create or update user as Person with 'will-maker' role
     const existingUser = personActions.getPeopleByRole('will-maker')[0];
     
+    // Convert DD-MM-YYYY to YYYY-MM-DD for storage
+    const parts = dateOfBirth.split('-');
+    const storageDateOfBirth = parts.length === 3 
+      ? `${parts[2]}-${parts[1]}-${parts[0]}` // DD-MM-YYYY → YYYY-MM-DD
+      : dateOfBirth;
+    
     if (existingUser) {
       // Update existing user
       personActions.updatePerson(existingUser.id, {
         firstName,
         lastName,
-        dateOfBirth,
+        dateOfBirth: storageDateOfBirth,
       });
       console.log('✅ Updated existing will-maker:', existingUser.id);
     } else {
@@ -121,7 +147,7 @@ export default function OnboardingWelcomeScreen() {
         lastName,
         email: '',
         phone: '',
-        dateOfBirth,
+        dateOfBirth: storageDateOfBirth,
         relationship: 'other', // Will-maker doesn't have a relationship to themselves
         roles: ['will-maker']
       });
@@ -199,7 +225,7 @@ export default function OnboardingWelcomeScreen() {
               label="Date of Birth"
               value={dateOfBirth}
               onChangeText={handleDateOfBirthChange}
-              placeholder="YYYY-MM-DD"
+              placeholder="DD-MM-YYYY"
               leftIcon="calendar"
             />
             
