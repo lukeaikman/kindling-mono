@@ -13,7 +13,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -47,7 +47,7 @@ export default function OnboardingFamilyScreen() {
   const isValid = relationshipStatus && hasChildren;
   
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -120,7 +120,7 @@ export default function OnboardingFamilyScreen() {
           Continue
         </Button>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -145,9 +145,11 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: Spacing.lg,
+    flexGrow: 1,
   },
   card: {
     padding: Spacing.lg,
+    width: '100%',
   },
   iconContainer: {
     alignItems: 'center',

@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -71,7 +71,7 @@ export default function DeveloperDashboard() {
   };
   
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -166,7 +166,7 @@ export default function DeveloperDashboard() {
           </View>
         </Card>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

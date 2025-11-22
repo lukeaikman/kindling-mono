@@ -39,7 +39,7 @@ export default function OnboardingWrapUpScreen() {
   };
   
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -97,7 +97,7 @@ export default function OnboardingWrapUpScreen() {
           Continue to Next Steps
         </Button>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -122,9 +122,11 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: Spacing.lg,
+    flexGrow: 1,
   },
   card: {
     padding: Spacing.lg,
+    width: '100%',
   },
   iconContainer: {
     alignItems: 'center',

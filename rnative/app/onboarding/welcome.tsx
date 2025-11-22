@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Pressable, SafeAreaView } from 'react-native';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -138,7 +138,7 @@ export default function OnboardingWelcomeScreen() {
   const isValid = firstName && lastName && dateOfBirth && !ageError;
   
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -225,7 +225,7 @@ export default function OnboardingWelcomeScreen() {
           Continue
         </Button>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -255,9 +255,11 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: Spacing.lg,
+    flexGrow: 1,
   },
   card: {
     padding: Spacing.lg,
+    width: '100%',
   },
   iconContainer: {
     alignItems: 'center',

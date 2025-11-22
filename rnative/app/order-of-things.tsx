@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -76,7 +76,7 @@ export default function OrderOfThingsScreen() {
   };
   
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
       {/* Header */}
@@ -145,7 +145,7 @@ export default function OrderOfThingsScreen() {
           />
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -166,6 +166,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: Spacing.lg,
+    flexGrow: 1,
   },
   titleContainer: {
     marginBottom: Spacing.xl,
