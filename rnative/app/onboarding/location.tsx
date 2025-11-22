@@ -155,7 +155,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     backgroundColor: KindlingColors.background,
   },
   stepText: {
@@ -171,7 +172,8 @@ const styles = StyleSheet.create({
   },
   card: {
     padding: Spacing.lg,
-    width: '100%',
+    marginVertical: 0,
+    marginHorizontal: 0,
   },
   iconContainer: {
     alignItems: 'center',

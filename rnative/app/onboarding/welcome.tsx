@@ -238,7 +238,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md, // Reduced from lg (24) to md (16) = 33% reduction
     backgroundColor: KindlingColors.background,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -259,7 +260,8 @@ const styles = StyleSheet.create({
   },
   card: {
     padding: Spacing.lg,
-    width: '100%',
+    marginVertical: 0, // Override Card's default marginVertical
+    marginHorizontal: 0, // Ensure no horizontal margins
   },
   iconContainer: {
     alignItems: 'center',
