@@ -11,7 +11,6 @@ import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '../../src/components/ui/Button';
-import { Card } from '../../src/components/ui/Card';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { useAppState } from '../../src/hooks/useAppState';
 import { getPersonFullName } from '../../src/utils/helpers';
@@ -51,7 +50,7 @@ export default function OnboardingWrapUpScreen() {
       
       {/* Content */}
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        <Card style={styles.card}>
+        <View style={styles.contentCard}>
           {/* Icon Circle */}
           <View style={styles.iconContainer}>
             <View style={styles.iconCircle}>
@@ -85,7 +84,7 @@ export default function OnboardingWrapUpScreen() {
               <Text style={styles.summaryValue}>{people.length - 1} person(s)</Text>
             </View>
           </View>
-        </Card>
+        </View>
       </ScrollView>
       
       {/* Action Button */}
@@ -125,10 +124,16 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
     flexGrow: 1,
   },
-  card: {
+  contentCard: {
+    backgroundColor: KindlingColors.background,
+    borderRadius: 12,
     marginHorizontal: Spacing.lg,
-    marginVertical: 0,
     padding: Spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   iconContainer: {
     alignItems: 'center',

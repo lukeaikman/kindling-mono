@@ -14,7 +14,6 @@ import { StatusBar } from 'expo-status-bar';
 import { Select } from '../../src/components/ui/Select';
 import { RadioGroup } from '../../src/components/ui/RadioGroup';
 import { Button } from '../../src/components/ui/Button';
-import { Card } from '../../src/components/ui/Card';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
@@ -63,7 +62,7 @@ export default function OnboardingLocationScreen() {
       
       {/* Content */}
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        <Card style={styles.card}>
+        <View style={styles.contentCard}>
           {/* Icon Circle */}
           <View style={styles.iconContainer}>
             <View style={styles.iconCircle}>
@@ -130,7 +129,7 @@ export default function OnboardingLocationScreen() {
               ]}
             />
           </View>
-        </Card>
+        </View>
       </ScrollView>
       
       {/* Action Button */}
@@ -171,10 +170,16 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
     flexGrow: 1,
   },
-  card: {
+  contentCard: {
+    backgroundColor: KindlingColors.background,
+    borderRadius: 12,
     marginHorizontal: Spacing.lg,
-    marginVertical: 0,
     padding: Spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   iconContainer: {
     alignItems: 'center',
