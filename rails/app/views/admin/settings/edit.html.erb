@@ -1,0 +1,59 @@
+<div class="row">
+  <div class="col-md-8 col-lg-6 mx-auto">
+    <h1 class="mb-4">Settings</h1>
+    
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Profile Information</h5>
+        
+        <%= form_with model: @user, url: admin_settings_path, method: :patch, local: true do |f| %>
+          <% if @user.errors.any? %>
+            <div class="alert alert-danger">
+              <h6>Please fix the following errors:</h6>
+              <ul class="mb-0">
+                <% @user.errors.full_messages.each do |message| %>
+                  <li><%= message %></li>
+                <% end %>
+              </ul>
+            </div>
+          <% end %>
+          
+          <div class="mb-3">
+            <%= f.label :first_name, class: "form-label" %>
+            <%= f.text_field :first_name, class: "form-control", required: true %>
+          </div>
+          
+          <div class="mb-3">
+            <%= f.label :last_name, class: "form-label" %>
+            <%= f.text_field :last_name, class: "form-control", required: true %>
+          </div>
+          
+          <div class="mb-3">
+            <%= f.label :email_address, "Email", class: "form-label" %>
+            <%= f.email_field :email_address, class: "form-control", required: true %>
+          </div>
+          
+          <hr class="my-4">
+          
+          <h6 class="mb-3">Change Password (leave blank to keep current)</h6>
+          
+          <div class="mb-3">
+            <%= f.label :password, "New Password", class: "form-label" %>
+            <%= f.password_field :password, class: "form-control", autocomplete: "new-password" %>
+            <div class="form-text">Leave blank if you don't want to change it</div>
+          </div>
+          
+          <div class="mb-3">
+            <%= f.label :password_confirmation, class: "form-label" %>
+            <%= f.password_field :password_confirmation, class: "form-control", autocomplete: "new-password" %>
+          </div>
+          
+          <div class="d-grid gap-2">
+            <%= f.submit "Update Profile", class: "btn btn-primary" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
