@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: Spacing.lg,
+    paddingVertical: Spacing.lg,
     flexGrow: 1,
   },
   card: {

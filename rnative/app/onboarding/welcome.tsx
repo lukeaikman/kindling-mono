@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: Spacing.lg,
+    paddingVertical: Spacing.lg, // Only vertical padding - let content go edge-to-edge
     flexGrow: 1,
   },
   card: {
