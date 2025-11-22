@@ -1,27 +1,29 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Button } from 'react-native-paper';
+import { useEffect } from 'react';
+import { router } from 'expo-router';
+import { Button } from '../src/components/ui/Button';
 import { KindlingColors } from '../src/styles/theme';
 import { Typography, Spacing } from '../src/styles/constants';
 
 /**
  * Main entry screen for the Kindling app
- * This will be replaced with the actual onboarding/splash screen
- * 
- * Currently shows a placeholder screen demonstrating the theme system
+ * Redirects to onboarding welcome screen
  */
 export default function Index() {
+  useEffect(() => {
+    // Auto-redirect to onboarding after a brief delay
+    const timer = setTimeout(() => {
+      router.replace('/onboarding/welcome');
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Kindling App</Text>
-      <Text style={styles.subtitle}>React Native Migration - Phase 1 Complete</Text>
-      <Button 
-        mode="contained" 
-        style={styles.button}
-        onPress={() => console.log('Button pressed')}
-      >
-        Get Started
-      </Button>
+      <Text style={styles.text}>Kindling</Text>
+      <Text style={styles.subtitle}>Loading...</Text>
       <StatusBar style="auto" />
     </View>
   );
