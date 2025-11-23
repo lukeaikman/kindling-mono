@@ -14,7 +14,7 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { RadioButton, Text } from 'react-native-paper';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing } from '../../styles/constants';
@@ -115,13 +115,21 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
               disabled && styles.optionContainerDisabled
             ]}
           >
-            <RadioButton
-              value={option.value}
-              status={value === option.value ? 'checked' : 'unchecked'}
-              disabled={disabled}
-              color={KindlingColors.green}
-              uncheckedColor={KindlingColors.border}
-            />
+            {/* Use platform-specific RadioButton components for guaranteed rendering */}
+            {Platform.OS === 'android' ? (
+              <RadioButton.Android
+                value={option.value}
+                disabled={disabled}
+                color={KindlingColors.green}
+                uncheckedColor={KindlingColors.border}
+              />
+            ) : (
+              <RadioButton.IOS
+                value={option.value}
+                disabled={disabled}
+                color={KindlingColors.green}
+              />
+            )}
             <Text style={[
               styles.optionLabel,
               value === option.value && styles.optionLabelSelected,
