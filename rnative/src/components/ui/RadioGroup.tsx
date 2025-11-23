@@ -115,21 +115,13 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
               disabled && styles.optionContainerDisabled
             ]}
           >
-            {/* Use platform-specific RadioButton components for guaranteed rendering */}
-            {Platform.OS === 'android' ? (
-              <RadioButton.Android
-                value={option.value}
-                disabled={disabled}
-                color={KindlingColors.green}
-                uncheckedColor={KindlingColors.border}
-              />
-            ) : (
-              <RadioButton.IOS
-                value={option.value}
-                disabled={disabled}
-                color={KindlingColors.green}
-              />
-            )}
+            {/* Always use Android-style radio for visible circles on all platforms */}
+            <RadioButton.Android
+              value={option.value}
+              disabled={disabled}
+              color={KindlingColors.green}
+              uncheckedColor={KindlingColors.border}
+            />
             <Text style={[
               styles.optionLabel,
               value === option.value && styles.optionLabelSelected,
@@ -137,6 +129,10 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
             ]}>
               {option.label}
             </Text>
+            {/* Show ? for unselected, remove when selected */}
+            {value !== option.value && (
+              <Text style={styles.questionMark}>?</Text>
+            )}
           </TouchableOpacity>
         ))}
       </RadioButton.Group>
@@ -162,9 +158,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: Spacing.xs,
     backgroundColor: KindlingColors.background,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: KindlingColors.border,
   },
   optionContainerSelected: {
     backgroundColor: `${KindlingColors.green}10`, // 10% opacity green background
+    borderStyle: 'solid', // Solid border when selected
+    borderColor: KindlingColors.green,
   },
   optionContainerDisabled: {
     opacity: 0.5,
@@ -181,6 +182,12 @@ const styles = StyleSheet.create({
   },
   optionLabelDisabled: {
     opacity: 0.5,
+  },
+  questionMark: {
+    fontSize: 16,
+    color: KindlingColors.mutedForeground,
+    marginLeft: Spacing.xs,
+    fontWeight: '600',
   },
 });
 
