@@ -1,0 +1,477 @@
+# .cursorrules — Kindling React Native App
+
+Purpose: Enforce consistent, maintainable code for a mobile-first React Native application for estate planning and will creation with AsyncStorage persistence, offline-first architecture, and complex asset/beneficiary management.
+
+---
+
+## Rule 0 — Privacy, Safety & PII (ALWAYS)
+**Triggers:** Any change touching persistence, logs, network, or analytics
+
+**You must:**
+1. Confirm **NO PII leaves device** in production (V1 is local-only).
+2. Store **all data locally** in AsyncStorage; do **not** log sensitive user content (names, addresses, asset values, beneficiaries).
+3. Ensure **console logs and stack traces** never include user content (personal details, asset values, beneficiary information).
+4. Add a **privacy disclaimer** explaining local-only storage in Settings/Help.
+5. If a network client is added, it must be **DEV-only** and behind a **feature flag**.
+
+---
+
+## Rule 1 — Code Ownership & Structure
+- Keep UI, domain logic, and data access **separate**.
+- Do not access `AsyncStorage` directly in components; use `useAppState` hook only.
+- All data persistence logic lives in `src/hooks/useAppState.ts`.
+
+**Project layout (enforced)**
+```
+native-app/
+  app/                   # Expo Router screens (file-based routing)
+    onboarding/         # Onboarding flow screens
+    developer/          # Developer tools
+    *.tsx               # Other screens
+  src/
+    components/
+      ui/               # Base UI components (Button, Input, etc.)
+      forms/            # Form-specific components
+      screens/          # Screen-specific components
+    hooks/              # Custom hooks (useAppState, useNetworkState)
+    types/              # TypeScript types and interfaces (source of truth)
+    constants/          # Initial state and constants
+    utils/              # Utility functions and helpers
+    services/           # API, Storage, Sync services
+    styles/             # Theme and style constants
+  mock-api/             # JSON Server mock API
+  storybook/            # Storybook configuration (future)
+```
+
+---
+
+## Rule 2 — Type Safety & Validation
+- Every external boundary (AsyncStorage, navigation params, form inputs) must have **type validation**.
+- Use TypeScript interfaces from `src/types/index.ts` as source of truth.
+- When adding new asset types or data structures, update types first, then implement.
+- **Strict mode enabled** - all TypeScript checks must pass before commit.
+
+---
+
+## Rule 3 — State Management Pattern (AsyncStorage)
+**Triggers:** Any code touching state or AsyncStorage
+
+**You must:**
+1. All state management goes through **`useAppState` hook**—never direct AsyncStorage access.
+2. State is persisted automatically via custom hook in `useAppState`.
+3. Use `storage` service from `src/services/storage.ts` for any storage operations.
+4. Action interfaces (WillActions, PersonActions, BequeathalActions, etc.) define the API.
+5. When adding new data types, add to `useAppState` with proper storage key and initial state.
+
+**AsyncStorage Keys (canonical):**
+- `kindling-will-data` → WillData
+- `kindling-person-data` → Person[]
+- `kindling-business-data` → Business[]
+- `kindling-bequeathal-data` → BequeathalData
+- `kindling-trusts` → Trust[]
+- `kindling-beneficiary-groups` → BeneficiaryGroup[]
+- `kindling-estate-remainder` → EstateRemainderState
+- `kindling-relationships` → RelationshipEdge[]
+
+---
+
+## Rule 4 — Navigation System (Expo Router)
+**Triggers:** Adding new screens or modifying navigation flow
+
+**You must:**
+1. Create screen files in `app/` directory following Expo Router conventions.
+2. Use `router.push()`, `router.back()`, `router.replace()` for navigation.
+3. Add new screen type to `Screen` union type in `types/index.ts`.
+4. Follow naming convention: `{category}-{action}` (e.g., `property-entry`, `bank-accounts-intro`).
+5. Group related screens in folders (e.g., `app/onboarding/`, `app/executors/`).
+6. Use `_layout.tsx` files for nested navigation configuration.
+
+---
+
+## Rule 5 — Component Architecture (CRITICAL - Learn from Mistakes)
+**Triggers:** Creating or modifying UI components
+
+**You must:**
+1. **Use primitives (View, Text, TouchableOpacity) for layout control** - don't use abstracted components (Card) for main content areas.
+2. **Padding on parent = constrained children** - use margins on children instead.
+3. **Build manually when library components fail** - don't fight the library, build with primitives.
+4. **Platform-specific components when needed** - use RadioButton.Android/RadioButton.IOS, not generic RadioButton.
+5. **Test on both iOS and Android** - components behave differently on each platform.
+6. **Read the actual code, not documentation** - verify what props actually do before using them.
+
+**Component Patterns:**
+- **Layout containers**: Use plain `View` with explicit styles
+- **Repeated elements**: Use abstracted components (Card, Button)
+- **Forms**: Build with Paper primitives + TouchableOpacity wrappers
+- **Platform differences**: Use `Platform.OS` checks when needed
+
+**Box Model Rules:**
+- Parent `padding` reduces available space for children
+- Child `margins` control positioning without constraining width
+- For full-width content: no horizontal padding on parent, margins on child
+
+---
+
+## Rule 6 — React Native Specific Patterns
+**Triggers:** Any React Native development
+
+**You must:**
+1. Use `SafeAreaView` from `react-native-safe-area-context` (not deprecated RN version).
+2. Use `ScrollView` with `contentContainerStyle` for scrollable content.
+3. Use `FlatList` for long lists (>20 items) instead of `.map()`.
+4. Handle keyboard with `KeyboardAvoidingView` on forms.
+5. Use `Platform.OS` for platform-specific code.
+6. Test on actual devices, not just simulators.
+
+---
+
+## Rule 7 — Storybook Coverage (Future - Requires Node 20.19+)
+**Triggers:** Creating or modifying a reusable component
+
+**You must:**
+1. Create `.stories.tsx` file alongside component.
+2. Add stories for: default, selected, disabled, error states.
+3. Document props and usage in story.
+4. Stories ready in codebase for when Storybook is set up.
+
+---
+
+## Rule 8 — Form & Input UX
+**Triggers:** Creating/editing forms, inputs, selects, pickers
+
+**You must:**
+1. Use components from `src/components/ui/` for consistency.
+2. Provide clear labels and placeholder text.
+3. Show inline validation errors tied to fields.
+4. Use `CurrencyInput` for monetary values.
+5. Use `PercentageInput` for percentage values.
+6. Use `DatePicker` for dates (format: DD-MM-YYYY for display, YYYY-MM-DD for storage).
+7. Ensure keyboard types match input purpose (email, phone, number, etc.).
+8. Add proper `autoCapitalize` and `autoCorrect` settings.
+
+---
+
+## Rule 9 — Data Persistence & Backward Compatibility
+**Triggers:** Changing data structures, adding required fields, or modifying AsyncStorage schema
+
+**You must:**
+1. Handle backward compatibility in `useAppState` when loading stored data.
+2. Provide migration logic for old data formats.
+3. Make new fields optional initially, or provide sensible defaults.
+4. Test with existing AsyncStorage data to ensure no data loss.
+5. Document breaking changes in migration notes.
+
+**Migration Pattern:**
+```typescript
+// Handle backward compatibility
+let storedData = await storage.load(KEY, getInitialData(), []);
+if (storedData && 'oldFormat' in storedData) {
+  storedData = migrateOldFormat(storedData);
+}
+```
+
+---
+
+## Rule 10 — JSDoc Documentation (REQUIRED)
+**Triggers:** Adding new components, functions, or interfaces
+
+**You must:**
+1. Add JSDoc comments to ALL exported components and functions.
+2. Document props interfaces with descriptions.
+3. Include usage examples in JSDoc.
+4. Document complex logic and architectural decisions.
+5. Keep documentation up to date with code changes.
+
+**Example:**
+```typescript
+/**
+ * RadioGroup Component
+ * 
+ * A radio button group for single-choice selection.
+ * Uses platform-specific RadioButton components for reliable rendering.
+ * 
+ * @example
+ * ```tsx
+ * <RadioGroup
+ *   label="Will Type"
+ *   value={willType}
+ *   onChange={setWillType}
+ *   options={[...]}
+ * />
+ * ```
+ */
+```
+
+---
+
+## Rule 11 — Error Handling & Resilience
+**Triggers:** Data operations, form submissions, AsyncStorage access, API calls
+
+**You must:**
+1. Wrap AsyncStorage operations in try/catch; show friendly error messages.
+2. Handle missing or corrupted AsyncStorage data gracefully.
+3. Provide fallback to initial state if data cannot be loaded.
+4. Never crash the app—always show user-friendly error states.
+5. Log errors to console in development, use error tracking (Sentry) in production.
+
+---
+
+## Rule 12 — Performance & Rendering
+**Triggers:** Lists, large data sets, or render-heavy components
+
+**You must:**
+1. Use `FlatList` for lists (not `.map()` for >20 items).
+2. Use `useMemo` for expensive calculations.
+3. Use `useCallback` for event handlers passed to children.
+4. Avoid unnecessary re-renders—check hook dependencies.
+5. Test performance on low-end Android devices.
+
+---
+
+## Rule 13 — Git Commit Standards
+**Triggers:** Every commit
+
+**You must:**
+1. Use conventional commit format: `type: description`
+   - `feat:` for new features
+   - `fix:` for bug fixes
+   - `docs:` for documentation
+   - `style:` for styling changes
+   - `refactor:` for code refactoring
+   - `test:` for tests
+   - `chore:` for maintenance
+2. Write descriptive commit messages explaining WHAT and WHY.
+3. **Test before every commit** - app must run without errors.
+4. Commit frequently (after each working feature/fix).
+5. Never commit broken code or TypeScript errors.
+
+---
+
+## Rule 14 — Screen Implementation Pattern
+**Triggers:** Creating new screens
+
+**You must:**
+1. Create screen in appropriate `app/` directory.
+2. Use `SafeAreaView` from react-native-safe-area-context.
+3. Follow structure:
+   - SafeAreaView container
+   - Header (with Back button, Logo, Step indicator)
+   - ScrollView content with contentContainerStyle
+   - Content card/view (marginHorizontal for spacing)
+   - Footer with action buttons
+4. Load existing data on mount (if editing).
+5. Save data before navigation.
+6. Handle back and forward navigation.
+
+---
+
+## Rule 15 — Offline-First Architecture
+**Triggers:** API calls, data mutations, network operations
+
+**You must:**
+1. All data operations work offline by default (AsyncStorage).
+2. Queue mutations when offline (using sync service).
+3. Sync to backend when connection restored.
+4. Use `useNetworkState` hook to detect connectivity.
+5. Show offline indicators to users.
+6. Never block UI waiting for network.
+
+---
+
+## Rule 16 — Testing Before Commit
+**Triggers:** EVERY commit
+
+**You must:**
+1. Run app on simulator/device - verify no crashes.
+2. Navigate through affected screens - verify functionality.
+3. Check AsyncStorage in Developer Dashboard - verify data persists.
+4. Run TypeScript check - no errors allowed.
+5. Check for console errors/warnings - fix critical ones.
+
+**Quick Test Checklist:**
+- [ ] App compiles and runs
+- [ ] Affected screens work correctly
+- [ ] Data saves to AsyncStorage
+- [ ] Navigation works (back/forward)
+- [ ] No TypeScript errors
+- [ ] No critical console errors
+
+---
+
+## Rule 17 — Lessons Learned (DO NOT REPEAT)
+
+### 1. Container Padding Mistake
+**DON'T:**
+```typescript
+contentContainer: { padding: Spacing.lg }  // Squashes children
+card: { marginHorizontal: 0 }  // Doesn't help
+```
+**DO:**
+```typescript
+contentContainer: { paddingVertical: Spacing.lg }  // Only vertical
+card: { marginHorizontal: Spacing.lg }  // Child controls spacing
+```
+
+### 2. Using Wrong Components for Layout
+**DON'T:**
+```typescript
+<Card style={...}>  // Card has built-in margins, can't override
+```
+**DO:**
+```typescript
+<View style={...}>  // Full control with primitives
+```
+
+### 3. Assuming Library Components Work
+**DON'T:**
+- Assume `RadioButton` works without reading docs
+- Use generic components when platform-specific exist
+**DO:**
+- Use `RadioButton.Android`/`RadioButton.IOS` explicitly
+- Read actual API documentation, not assumptions
+
+### 4. UUID Generation
+**DON'T:**
+```typescript
+crypto.randomUUID()  // Doesn't exist in React Native
+```
+**DO:**
+```typescript
+generateUUID()  // Use custom fallback implementation
+```
+
+---
+
+## Rule 18 — Developer Tools (REQUIRED)
+**Triggers:** Building the app
+
+**You must:**
+1. Maintain Developer Dashboard for debugging.
+2. Provide data visualization (AsyncStorage viewer).
+3. Provide seed data functions for testing.
+4. Provide purge data function for reset.
+5. Make dev tools easily accessible (double-tap, button).
+
+---
+
+## Rule 19 — JSON Server Mock API (Staging for Rails)
+**Triggers:** API development
+
+**You must:**
+1. Keep JSON Server endpoints matching future Rails API structure.
+2. Use same JSON structures as Rails will use.
+3. Document all endpoints in `mock-api/README.md`.
+4. Keep `db.json` structure in sync with AsyncStorage structure.
+5. Migration to Rails = change API_BASE_URL only.
+
+---
+
+## Rule 20 — Ask-Before-Commit Confirmations
+Add confirmations before large edits:
+- Asset type changes: confirm interface updates, seed data updates, screen modifications.
+- Navigation flow changes: verify all screen transitions still work.
+- Data structure changes: ensure backward compatibility and migration paths.
+- Component architecture changes: test on both iOS and Android.
+- Removing fields: confirm removal from all affected files.
+
+---
+
+## Development Commands
+
+```bash
+# Start development
+npm start                    # Expo development server
+npm run ios                  # iOS simulator
+npm run android              # Android emulator
+
+# Mock API
+npm run mock-api             # JSON Server on port 3001
+npm run dev                  # Run both Expo + JSON Server
+
+# Quality Checks
+npx tsc --noEmit            # TypeScript check (REQUIRED before commit)
+npm test                     # Run tests (when configured)
+
+# Documentation
+# Storybook (requires Node 20.19+)
+npm run storybook           # When available
+```
+
+---
+
+## Current State (Updated 2025-11-23)
+
+**Completed:**
+- ✅ Phase 1: Foundation (Expo, Paper, Router, Theme)
+- ✅ Phase 2: Data Layer (Types, useAppState, AsyncStorage)
+- ✅ Phase 3: JSON Server Mock API
+- ✅ Phase 4: Component Library (16 components)
+- ✅ Phase 5: Onboarding Flow (proof of concept)
+
+**In Progress:**
+- Full onboarding screens (family management, extended family)
+- Executor selection screens
+- Asset management screens
+- Testing and polish
+
+**Known Issues:**
+- RadioButton circles not rendering on iOS (worked around with visual cues)
+- Storybook requires Node 20.19+ (not yet set up)
+
+---
+
+## Component Philosophy
+
+**Use primitives for layout, components for repeated elements:**
+- ✅ Main content containers: `View` (not Card)
+- ✅ Form inputs: Custom wrappers around Paper primitives
+- ✅ Platform-specific: Use `.Android`/`.IOS` variants when needed
+- ✅ Manual build when library fails: Don't fight the library
+
+**Global styling:**
+- All components support global style changes
+- Modify component file → affects entire app
+- Designer-friendly: Single file changes cascade everywhere
+
+---
+
+## Notes & Considerations
+
+### Data Privacy
+- All data stored locally in AsyncStorage.
+- No server communication in current version (JSON Server for dev only).
+- User data never leaves the device.
+- Offline-first by design.
+
+### Asset Types
+- Migrated from web prototype: property, bank-accounts, investment, pensions, life-insurance, private-company-shares, assets-held-through-business, agricultural-assets, crypto-currency, important-items.
+- When adding new types, ensure consistency with web prototype.
+
+### Navigation Flow
+- Expo Router file-based navigation.
+- Categories can be selected/deselected in bequeathal flow.
+- Navigation uses router.push/back/replace.
+
+### Styling
+- React Native Paper for base components.
+- Kindling brand colors in `src/styles/theme.ts`.
+- StyleSheet for all component styling.
+- No inline styles - use StyleSheet.create().
+
+---
+
+## Progress Tracking
+
+**Current Focus:**
+- Building remaining onboarding screens
+- Asset entry screen implementations
+- Executor and guardianship flows
+
+**Future Considerations:**
+- Rails backend integration (JSON Server → Rails)
+- Offline sync queue activation
+- Storybook setup (Node upgrade needed)
+- Testing suite (Jest + React Native Testing Library)
+- Performance optimization
+- Designer handoff and component restyling
+
