@@ -4,6 +4,9 @@
  * A radio button group component built manually with React Native primitives
  * and Paper's RadioButton for the circle visual.
  * 
+ * Supports a "collapse on select" variant (default) where only the selected option
+ * is shown after selection, with a refresh button to change the choice.
+ * 
  * We build this manually instead of using RadioButton.Item because:
  * - RadioButton.Item wasn't rendering the radio circle properly
  * - Manual build gives full control over styling
@@ -13,11 +16,16 @@
  * @module components/ui/RadioGroup
  */
 
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { RadioButton, Text } from 'react-native-paper';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { RadioButton, Text, IconButton } from 'react-native-paper';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing } from '../../styles/constants';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 /**
  * Radio option interface
@@ -55,6 +63,13 @@ export interface RadioGroupProps {
    * Whether group is disabled
    */
   disabled?: boolean;
+  
+  /**
+   * When true, only the selected option is shown after selection.
+   * A refresh icon appears to allow changing the selection.
+   * @default true
+   */
+  collapseOnSelect?: boolean;
 }
 
 /**
@@ -66,8 +81,12 @@ export interface RadioGroupProps {
  * - Subtle background highlight when selected
  * - Active opacity for press feedback
  * 
+ * By default, the group collapses to show only the selected option after selection.
+ * A refresh icon allows the user to expand and change their selection.
+ * 
  * @example
  * ```tsx
+ * // Default behavior - collapses after selection
  * <RadioGroup
  *   label="Will Type"
  *   value={willType}
@@ -81,13 +100,13 @@ export interface RadioGroupProps {
  * 
  * @example
  * ```tsx
- * // Disabled state
+ * // Always show all options (no collapse)
  * <RadioGroup
  *   label="Locked Options"
  *   value={selected}
  *   onChange={setSelected}
  *   options={options}
- *   disabled={true}
+ *   collapseOnSelect={false}
  * />
  * ```
  */
@@ -97,16 +116,61 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
   onChange,
   options,
   disabled = false,
+  collapseOnSelect = true,
 }) => {
+  // Track whether the group is expanded (showing all options)
+  // Start expanded if no value is selected, or if collapseOnSelect is false
+  const [isExpanded, setIsExpanded] = useState(!value || !collapseOnSelect);
+  
+  // When a selection is made and collapseOnSelect is true, collapse the group
+  useEffect(() => {
+    if (collapseOnSelect && value) {
+      // Small delay to let the selection visual show before collapsing
+      const timer = setTimeout(() => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setIsExpanded(false);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [value, collapseOnSelect]);
+  
+  // When collapseOnSelect changes to false, expand
+  useEffect(() => {
+    if (!collapseOnSelect) {
+      setIsExpanded(true);
+    }
+  }, [collapseOnSelect]);
+  
+  // Handle option selection
+  const handleSelect = (optionValue: string) => {
+    if (disabled) return;
+    onChange(optionValue);
+  };
+  
+  // Handle refresh/reset button press - expand to show all options
+  const handleRefresh = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsExpanded(true);
+    onChange(''); // Clear the selection
+  };
+  
+  // Determine which options to show
+  const visibleOptions = collapseOnSelect && !isExpanded && value
+    ? options.filter(opt => opt.value === value)
+    : options;
+  
+  // Check if we're in collapsed state (showing refresh icon)
+  const isCollapsed = collapseOnSelect && !isExpanded && value;
+  
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
       
-      <RadioButton.Group onValueChange={onChange} value={value}>
-        {options.map((option) => (
+      <RadioButton.Group onValueChange={handleSelect} value={value}>
+        {visibleOptions.map((option) => (
           <TouchableOpacity
             key={option.value}
-            onPress={() => !disabled && onChange(option.value)}
+            onPress={() => !isCollapsed && handleSelect(option.value)}
             disabled={disabled}
             activeOpacity={0.7}
             style={[
@@ -129,10 +193,24 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
             ]}>
               {option.label}
             </Text>
-            {/* Show ? for unselected, remove when selected */}
-            {value !== option.value && (
+            
+            {/* Right side icon: refresh for collapsed selected, ? for unselected */}
+            {value === option.value && isCollapsed ? (
+              <TouchableOpacity 
+                onPress={handleRefresh}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.refreshButton}
+              >
+                <IconButton
+                  icon="refresh"
+                  size={20}
+                  iconColor={KindlingColors.green}
+                  style={styles.refreshIcon}
+                />
+              </TouchableOpacity>
+            ) : value !== option.value ? (
               <Text style={styles.questionMark}>?</Text>
-            )}
+            ) : null}
           </TouchableOpacity>
         ))}
       </RadioButton.Group>
@@ -189,5 +267,10 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.xs,
     fontWeight: '600',
   },
+  refreshButton: {
+    marginRight: -8,
+  },
+  refreshIcon: {
+    margin: 0,
+  },
 });
-

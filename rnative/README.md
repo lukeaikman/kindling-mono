@@ -150,16 +150,22 @@ npm run lint:fix      # Fix linting issues
 - [x] Specialized components (KindlingLogo created)
 - [ ] List components (will be created as needed)
 
-### Phase 5 - Onboarding Flow ✅ PROOF OF CONCEPT COMPLETE
+### Phase 5 - Onboarding Flow ✅ COMPLETE (Enhanced)
 - [x] OnboardingWelcomeScreen (name, DOB, age validation)
 - [x] OnboardingLocationScreen (UK region, nationality, domicile)
-- [x] OnboardingFamilyScreen (relationship status, children - simplified)
-- [x] OnboardingWrapUpScreen (summary and completion)
-- [x] OrderOfThingsScreen (next steps navigation hub)
+- [x] **OnboardingFamilyScreen (ENHANCED)** - Full spouse/partner forms, children management with add/edit/remove, relationship edge creation
+- [x] **OnboardingExtendedFamilyScreen (NEW)** - Parents, siblings, and other important people management
+- [x] **OnboardingWrapUpScreen (ENHANCED)** - Dynamic summary with family statistics and next steps preview
+- [x] **OrderOfThingsScreen (ENHANCED)** - Progress tracking, dynamic section visibility, "Coming Soon" placeholders, family overview stats
 - [x] Developer Dashboard (AsyncStorage data viewer)
 
+### Phase 5.5 - Relationship System ✅ COMPLETE
+- [x] Full relationship edge creation (spouse, children, siblings, parents, friends)
+- [x] Children under 18 detection and care category assignment
+- [x] Bidirectional relationship querying
+- [x] Clear onboarding family members functionality
+
 ### Phase 6+ - Remaining Screens (In Progress)
-- [ ] Full family management screens (complex forms)
 - [ ] Executors flow (5 screens)
 - [ ] Asset management (40+ screens)
 - [ ] Guardianship (3 screens)

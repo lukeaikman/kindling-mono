@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -23,10 +24,17 @@ import { Spacing, Typography } from '../../src/styles/constants';
  * Shows summary of onboarding data and completes the flow
  */
 export default function OnboardingWrapUpScreen() {
-  const { willActions, personActions } = useAppState();
+  const { willActions, personActions, relationshipActions } = useAppState();
   
   const user = willActions.getUser();
   const people = personActions.getPeople();
+  
+  // Get family statistics
+  const spouse = user ? relationshipActions.getSpouse(user.id, 'active') : undefined;
+  const children = user ? relationshipActions.getChildren(user.id) : [];
+  const childrenUnder18 = children.filter(c => c.isUnder18);
+  const siblings = user ? relationshipActions.getSiblings(user.id) : [];
+  const familyMemberCount = people.filter(p => p.roles.includes('family-member')).length;
   
   const handleFinish = () => {
     console.log('✅ Onboarding completed');
@@ -70,18 +78,61 @@ export default function OnboardingWrapUpScreen() {
           
           {/* Summary */}
           <View style={styles.summary}>
-            <Text style={styles.summaryTitle}>Summary</Text>
+            <Text style={styles.summaryTitle}>What we know so far</Text>
             
             {user && (
               <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Will Maker:</Text>
+                <Text style={styles.summaryLabel}>Will Maker</Text>
                 <Text style={styles.summaryValue}>{getPersonFullName(user)}</Text>
               </View>
             )}
             
+            {spouse && (
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Spouse/Partner</Text>
+                <Text style={styles.summaryValue}>{getPersonFullName(spouse)}</Text>
+              </View>
+            )}
+            
+            {children.length > 0 && (
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Children</Text>
+                <Text style={styles.summaryValue}>
+                  {children.length} {children.length === 1 ? 'child' : 'children'}
+                  {childrenUnder18.length > 0 && ` (${childrenUnder18.length} under 18)`}
+                </Text>
+              </View>
+            )}
+            
+            {siblings.length > 0 && (
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Siblings</Text>
+                <Text style={styles.summaryValue}>{siblings.length}</Text>
+              </View>
+            )}
+            
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Family Members:</Text>
-              <Text style={styles.summaryValue}>{people.length - 1} person(s)</Text>
+              <Text style={styles.summaryLabel}>Total People Added</Text>
+              <Text style={styles.summaryValue}>{familyMemberCount}</Text>
+            </View>
+          </View>
+          
+          {/* Next Steps Preview */}
+          <View style={styles.nextSteps}>
+            <Text style={styles.nextStepsTitle}>What's next?</Text>
+            <View style={styles.nextStepItem}>
+              <IconButton icon="account-supervisor" size={18} iconColor={KindlingColors.green} />
+              <Text style={styles.nextStepText}>Choose your executors</Text>
+            </View>
+            {childrenUnder18.length > 0 && (
+              <View style={styles.nextStepItem}>
+                <IconButton icon="human-child" size={18} iconColor={KindlingColors.green} />
+                <Text style={styles.nextStepText}>Appoint guardians for your children</Text>
+              </View>
+            )}
+            <View style={styles.nextStepItem}>
+              <IconButton icon="chart-pie" size={18} iconColor={KindlingColors.green} />
+              <Text style={styles.nextStepText}>Decide how to divide your estate</Text>
             </View>
           </View>
         </View>
@@ -185,6 +236,30 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.medium,
     color: KindlingColors.navy,
+  },
+  nextSteps: {
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+    backgroundColor: `${KindlingColors.green}10`,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: KindlingColors.green,
+  },
+  nextStepsTitle: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+    marginBottom: Spacing.sm,
+  },
+  nextStepItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  nextStepText: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.navy,
+    flex: 1,
   },
   footer: {
     padding: Spacing.lg,
