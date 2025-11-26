@@ -1,105 +1,91 @@
 /**
- * Order of Things Screen
+ * Order of Things Screen - Remediated Version
  * 
- * Shows the next steps in the will creation process
- * Central navigation hub for the main will-building sections
+ * Main dashboard screen after onboarding
+ * Matches web prototype exactly
  * 
  * Features:
- * - Dynamic section visibility based on user's situation
- * - Progress tracking (completed/pending)
- * - Navigation to each major section
+ * - "Your Will Dashboard" title
+ * - Simple progress percentage
+ * - Two card groups: "Build Your Will" and "Finalize Your Will"
+ * - Square/CheckSquare icons for completion status
+ * - HelpCircle icons on all options
+ * - Will type option in Finalize section
+ * - Tax & Estate Summary button at bottom
+ * - NO family overview card
+ * - NO edit family button
+ * - NO coming soon badges
+ * - NO dynamic assets display
  */
 
-import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React from 'react';
+import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text, IconButton } from 'react-native-paper';
+import { Text, IconButton, Divider } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '../src/components/ui/Button';
+import { Tooltip } from '../src/components/ui/Tooltip';
 import { KindlingLogo } from '../src/components/ui/KindlingLogo';
 import { useAppState } from '../src/hooks/useAppState';
-import { getPersonFullName } from '../src/utils/helpers';
 import { KindlingColors } from '../src/styles/theme';
 import { Spacing, Typography } from '../src/styles/constants';
 
 /**
- * Section definitions for the will journey
+ * Section option component
  */
-interface Section {
-  id: string;
-  title: string;
-  description: string;
+interface SectionOptionProps {
   icon: string;
-  route?: string;
-  isComingSoon?: boolean;
-  showCondition?: () => boolean;
-  completedCondition?: () => boolean;
-}
-
-/**
- * Section card component for navigation
- */
-interface SectionCardProps {
-  section: Section;
+  title: string;
+  tooltip: string;
+  completed?: boolean;
   onPress: () => void;
-  completed: boolean;
-  locked?: boolean;
 }
 
-const SectionCard: React.FC<SectionCardProps> = ({
-  section,
+const SectionOption: React.FC<SectionOptionProps> = ({
+  icon,
+  title,
+  tooltip,
+  completed = false,
   onPress,
-  completed,
-  locked = false,
 }) => {
   return (
-    <TouchableOpacity 
-      onPress={onPress} 
-      activeOpacity={locked ? 1 : 0.7}
-      disabled={locked}
+    <TouchableOpacity
+      style={[styles.optionCard, completed && styles.optionCardCompleted]}
+      onPress={onPress}
+      activeOpacity={0.7}
     >
-      <View style={[
-        styles.sectionCard, 
-        completed && styles.sectionCardCompleted,
-        locked && styles.sectionCardLocked,
-      ]}>
-        <View style={[
-          styles.sectionIcon,
-          completed && styles.sectionIconCompleted,
-        ]}>
-          <IconButton
-            icon={completed ? 'check-circle' : section.icon}
-            iconColor={completed ? KindlingColors.green : locked ? KindlingColors.mutedForeground : KindlingColors.navy}
-            size={24}
-          />
-        </View>
-        <View style={styles.sectionContent}>
-          <View style={styles.sectionHeader}>
-            <Text style={[
-              styles.sectionTitle,
-              locked && styles.sectionTitleLocked,
-            ]}>
-              {section.title}
-            </Text>
-            {section.isComingSoon && (
-              <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>Coming Soon</Text>
-              </View>
-            )}
-          </View>
-          <Text style={[
-            styles.sectionDescription,
-            locked && styles.sectionDescriptionLocked,
-          ]}>
-            {section.description}
-          </Text>
-        </View>
+      <View style={styles.optionContent}>
+        {/* Completion checkbox */}
         <IconButton
-          icon="chevron-right"
-          iconColor={locked ? KindlingColors.border : KindlingColors.mutedForeground}
+          icon={completed ? 'checkbox-marked' : 'checkbox-blank-outline'}
           size={20}
+          iconColor={completed ? KindlingColors.green : `${KindlingColors.navy}99`}
         />
+        
+        {/* Section icon */}
+        <IconButton
+          icon={icon}
+          size={20}
+          iconColor={KindlingColors.navy}
+        />
+        
+        {/* Title and completion status */}
+        <View style={styles.optionTextContainer}>
+          <Text style={styles.optionTitle}>{title}</Text>
+          {completed && (
+            <Text style={styles.completedBadge}>Completed</Text>
+          )}
+        </View>
+        
+        {/* Help icon */}
+        <Tooltip content={tooltip}>
+          <IconButton
+            icon="help-circle"
+            size={20}
+            iconColor={`${KindlingColors.navy}66`}
+          />
+        </Tooltip>
       </View>
     </TouchableOpacity>
   );
@@ -107,131 +93,92 @@ const SectionCard: React.FC<SectionCardProps> = ({
 
 /**
  * OrderOfThingsScreen component
- * 
- * Main navigation hub for will creation process
  */
 export default function OrderOfThingsScreen() {
-  const { willActions, personActions, relationshipActions, bequeathalActions } = useAppState();
+  const { willActions, personActions } = useAppState();
   
-  const user = willActions.getUser();
-  const executors = personActions.getExecutors();
-  const childrenInCare = personActions.getPeopleInCare();
-  const assets = bequeathalActions.getAllAssets();
-  const willData = willActions.getWillData();
-  
-  // Get children to check for guardianship needs
-  const children = user ? relationshipActions.getChildren(user.id) : [];
-  const childrenUnder18 = children.filter(c => c.isUnder18);
-  
-  // Check if guardianship section should show
-  const needsGuardianship = childrenUnder18.length > 0 || childrenInCare.length > 0;
-  
-  // Check guardianship completion
-  const hasGuardians = Object.keys(willData.guardianship || {}).length > 0;
-  
-  /**
-   * Define all sections of the will journey
-   */
-  const sections: Section[] = [
-    {
-      id: 'executors',
-      title: 'Choose Your Executors',
-      description: 'Who will carry out your wishes',
-      icon: 'account-supervisor',
-      route: '/executors',
-      isComingSoon: true,
-      completedCondition: () => executors.length > 0,
-    },
-    {
-      id: 'guardianship',
-      title: 'Guardianship',
-      description: 'Who will care for your children',
-      icon: 'human-child',
-      route: '/guardianship',
-      isComingSoon: true,
-      showCondition: () => needsGuardianship,
-      completedCondition: () => hasGuardians,
-    },
-    {
-      id: 'assets',
-      title: 'Your Assets',
-      description: 'Tell us about your property, savings, and valuables',
-      icon: 'home-city',
-      route: '/assets',
-      isComingSoon: true,
-      completedCondition: () => assets.length > 0,
-    },
-    {
-      id: 'estate-division',
-      title: 'Divide Your Estate',
-      description: 'How your assets will be distributed',
-      icon: 'chart-pie',
-      route: '/estate-division',
-      isComingSoon: true,
-      completedCondition: () => false, // TODO: Check estate remainder state
-    },
-    {
-      id: 'warnings',
-      title: 'Warning Flags',
-      description: 'Issues that need attention',
-      icon: 'alert-circle',
-      route: '/warnings',
-      isComingSoon: true,
-      completedCondition: () => false,
-    },
-    {
-      id: 'optimisations',
-      title: 'Optimisations',
-      description: 'Tax planning opportunities',
-      icon: 'lightbulb',
-      route: '/optimisations',
-      isComingSoon: true,
-      completedCondition: () => false,
-    },
-    {
-      id: 'review',
-      title: 'Review & Sign',
-      description: 'Final review before completion',
-      icon: 'file-document-check',
-      route: '/review',
-      isComingSoon: true,
-      completedCondition: () => willData.status === 'final',
-    },
-  ];
-  
-  /**
-   * Filter sections based on show conditions
-   */
-  const visibleSections = sections.filter(section => 
-    !section.showCondition || section.showCondition()
-  );
-  
-  /**
-   * Handle section navigation
-   */
-  const handleSectionPress = (section: Section) => {
-    if (section.isComingSoon) {
-      Alert.alert(
-        'Coming Soon',
-        `The "${section.title}" section is currently being developed. Check back soon!`,
-        [{ text: 'OK' }]
-      );
-    } else if (section.route) {
-      router.push(section.route as any);
+  // Check completion status
+  const checkSectionCompletion = () => {
+    try {
+      const willData = willActions.getWillData();
+      const executors = willData.executors || [];
+      const hasExecutorsComplete = executors.length >= 1;
+      
+      const guardians = personActions.getPeopleByRole('guardian') || [];
+      const hasGuardians = guardians.length > 0;
+      
+      const hasEstateDivision = false; // Not implemented yet
+      
+      return {
+        executorsComplete: hasExecutorsComplete,
+        guardiansComplete: hasGuardians,
+        estateDivisionComplete: hasEstateDivision,
+        anyComplete: hasExecutorsComplete || hasGuardians || hasEstateDivision,
+      };
+    } catch (error) {
+      console.log('Error checking section completion:', error);
+      return {
+        executorsComplete: false,
+        guardiansComplete: false,
+        estateDivisionComplete: false,
+        anyComplete: false,
+      };
     }
   };
+  
+  const sectionCompletion = checkSectionCompletion();
+  
+  // Calculate overall progress - matches prototype
+  const totalSections = 7; // 3 main + 4 finalize
+  const completedSections = 
+    (sectionCompletion.executorsComplete ? 1 : 0) +
+    (sectionCompletion.guardiansComplete ? 1 : 0) +
+    (sectionCompletion.estateDivisionComplete ? 1 : 0);
+  const progressPercentage = Math.round((completedSections / totalSections) * 100);
   
   const handleBack = () => {
     router.back();
   };
   
-  /**
-   * Calculate progress
-   */
-  const completedCount = visibleSections.filter(s => 
-    s.completedCondition && s.completedCondition()
-  ).length;
-  const progressPercentage = Math.round((completedCount / visibleSections.length) * 100);
+  const handleNavigateToExecutors = () => {
+    console.log('Navigate to Executors');
+    // router.push('/executors');
+  };
+  
+  const handleNavigateToGuardianship = () => {
+    console.log('Navigate to Guardianship');
+    // router.push('/guardianship');
+  };
+  
+  const handleNavigateToEstateDivision = () => {
+    console.log('Navigate to Estate Division');
+    // router.push('/estate-division');
+  };
+  
+  const handleNavigateToWarningFlags = () => {
+    console.log('Navigate to Warning Flags');
+    // router.push('/warning-flags');
+  };
+  
+  const handleNavigateToOptimisations = () => {
+    console.log('Navigate to Optimisations');
+    // router.push('/optimisations');
+  };
+  
+  const handleNavigateToWillType = () => {
+    console.log('Navigate to Will Type');
+    // router.push('/will-type');
+  };
+  
+  const handleNavigateToReviewSign = () => {
+    console.log('Navigate to Review, Sign & Store');
+    // router.push('/review-sign');
+  };
+  
+  const handleSummary = () => {
+    console.log('Navigate to Tax & Estate Summary');
+    // router.push('/estate-summary');
+  };
   
   return (
     <SafeAreaView style={styles.container}>
@@ -241,84 +188,125 @@ export default function OrderOfThingsScreen() {
       <View style={styles.header}>
         <Button variant="outline" onPress={handleBack}>Back</Button>
         <KindlingLogo size="sm" variant="dark" showText={false} />
-        <Button variant="outline" onPress={() => router.push('/developer/dashboard')}>
-          Dev
-        </Button>
+        <Text style={styles.stepText}>Dashboard</Text>
       </View>
       
       {/* Content */}
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-        {/* Title Section */}
+        {/* Title - matches prototype */}
         <View style={styles.titleContainer}>
-          <Text style={styles.pageTitle}>Your Will Journey</Text>
-          <Text style={styles.pageSubtitle}>
-            {user ? `Hi ${user.firstName}! ` : ''}Here's what we'll cover together to create your will
-          </Text>
-          
-          {/* Progress Bar */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${progressPercentage}%` }]} />
-            </View>
-            <Text style={styles.progressText}>
-              {completedCount} of {visibleSections.length} sections complete
-            </Text>
+          <Text style={styles.title}>Your Will Dashboard</Text>
+        </View>
+        
+        {/* Progress Overview - simple percentage */}
+        <View style={styles.progressCard}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>Overall Progress</Text>
+            <Text style={styles.progressPercentage}>{progressPercentage}%</Text>
+          </View>
+          <View style={styles.progressBarContainer}>
+            <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
           </View>
         </View>
         
-        {/* Sections */}
-        <View style={styles.sections}>
-          {visibleSections.map((section, index) => (
-            <SectionCard
-              key={section.id}
-              section={section}
-              onPress={() => handleSectionPress(section)}
-              completed={section.completedCondition ? section.completedCondition() : false}
+        {/* Build Your Will Section */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconCircle}>
+              <IconButton
+                icon="target"
+                size={20}
+                iconColor={KindlingColors.navy}
+              />
+            </View>
+            <Text style={styles.sectionTitle}>Build Your Will</Text>
+          </View>
+          
+          <View style={styles.sectionContent}>
+            <SectionOption
+              icon="account-group"
+              title="Choose your executors"
+              tooltip="Executors manage your estate after you pass away. Choose trusted people to handle your affairs."
+              completed={sectionCompletion.executorsComplete}
+              onPress={handleNavigateToExecutors}
             />
-          ))}
+            
+            <SectionOption
+              icon="baby-face"
+              title="Choose guardianship of your children"
+              tooltip="If you have children under 18, you can appoint guardians to care for them if needed."
+              completed={sectionCompletion.guardiansComplete}
+              onPress={handleNavigateToGuardianship}
+            />
+            
+            <SectionOption
+              icon="gift"
+              title="Divide your estate"
+              tooltip="Decide who receives what from your estate. You can leave specific gifts or percentages."
+              completed={sectionCompletion.estateDivisionComplete}
+              onPress={handleNavigateToEstateDivision}
+            />
+          </View>
         </View>
         
-        {/* Family Summary Card */}
-        <View style={styles.familySummaryCard}>
-          <Text style={styles.familySummaryTitle}>Family Overview</Text>
-          <View style={styles.familySummaryRow}>
-            <View style={styles.familyStat}>
-              <Text style={styles.familyStatNumber}>
-                {children.length}
-              </Text>
-              <Text style={styles.familyStatLabel}>
-                {children.length === 1 ? 'Child' : 'Children'}
-              </Text>
+        {/* Finalize Your Will Section */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIconCircle, styles.sectionIconCircleGreen]}>
+              <IconButton
+                icon="check-circle"
+                size={20}
+                iconColor={KindlingColors.green}
+              />
             </View>
-            <View style={styles.familyStat}>
-              <Text style={styles.familyStatNumber}>
-                {executors.length}
-              </Text>
-              <Text style={styles.familyStatLabel}>
-                {executors.length === 1 ? 'Executor' : 'Executors'}
-              </Text>
-            </View>
-            <View style={styles.familyStat}>
-              <Text style={styles.familyStatNumber}>
-                {assets.length}
-              </Text>
-              <Text style={styles.familyStatLabel}>
-                {assets.length === 1 ? 'Asset' : 'Assets'}
-              </Text>
-            </View>
+            <Text style={styles.sectionTitle}>Finalize Your Will</Text>
           </View>
           
-          {/* Edit Family Button */}
-          <TouchableOpacity 
-            style={styles.editFamilyButton}
-            onPress={() => router.push('/onboarding/family')}
-            activeOpacity={0.7}
-          >
-            <IconButton icon="pencil" size={16} iconColor={KindlingColors.green} />
-            <Text style={styles.editFamilyText}>Edit Family Details</Text>
-          </TouchableOpacity>
+          <View style={styles.sectionContent}>
+            <SectionOption
+              icon="alert-circle"
+              title="Review any warning flags"
+              tooltip="We'll highlight any potential issues or risks with your current will setup."
+              onPress={handleNavigateToWarningFlags}
+            />
+            
+            <SectionOption
+              icon="trending-up"
+              title="Review potential optimisations for tax & beneficiary care"
+              tooltip="Explore ways to reduce inheritance tax and protect your beneficiaries."
+              onPress={handleNavigateToOptimisations}
+            />
+            
+            <SectionOption
+              icon="file-document"
+              title="Will type"
+              tooltip="Choose the type of will that best suits your needs."
+              onPress={handleNavigateToWillType}
+            />
+            
+            <SectionOption
+              icon="check-circle"
+              title="Review, sign & store!"
+              tooltip="Final review of your will before signing and securely storing it."
+              onPress={handleNavigateToReviewSign}
+            />
+          </View>
         </View>
       </ScrollView>
+      
+      {/* Tax & Estate Summary Button - Fixed at bottom */}
+      <View style={styles.footer}>
+        <Button
+          variant="primary"
+          onPress={handleSummary}
+          disabled={!sectionCompletion.anyComplete}
+        >
+          Tax & Estate Summary
+        </Button>
+        <Text style={styles.footerCaption}>
+          View comprehensive breakdown of your estate
+        </Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -336,157 +324,138 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     backgroundColor: KindlingColors.background,
   },
+  stepText: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.mutedForeground,
+  },
   content: {
     flex: 1,
   },
   contentContainer: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing.xl * 2,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    flexGrow: 1,
   },
   titleContainer: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
   },
-  pageTitle: {
+  title: {
     fontSize: Typography.fontSize.xxl,
     fontWeight: Typography.fontWeight.bold,
     color: KindlingColors.navy,
-    marginBottom: Spacing.sm,
   },
-  pageSubtitle: {
-    fontSize: Typography.fontSize.md,
-    color: KindlingColors.brown,
+  progressCard: {
+    backgroundColor: KindlingColors.background,
+    borderRadius: 8,
+    padding: Spacing.md,
     marginBottom: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  progressContainer: {
-    marginTop: Spacing.sm,
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
   },
-  progressBar: {
+  progressLabel: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.navy,
+  },
+  progressPercentage: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.navy,
+    fontWeight: Typography.fontWeight.medium,
+  },
+  progressBarContainer: {
+    width: '100%',
     height: 8,
-    backgroundColor: KindlingColors.muted,
+    backgroundColor: KindlingColors.cream,
     borderRadius: 4,
     overflow: 'hidden',
   },
-  progressFill: {
+  progressBar: {
     height: '100%',
     backgroundColor: KindlingColors.green,
     borderRadius: 4,
   },
-  progressText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.mutedForeground,
-    marginTop: Spacing.xs,
-  },
-  sections: {
-    gap: Spacing.sm,
-  },
   sectionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
     backgroundColor: KindlingColors.background,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: KindlingColors.border,
-  },
-  sectionCardCompleted: {
-    borderColor: KindlingColors.green,
-    backgroundColor: `${KindlingColors.green}05`,
-  },
-  sectionCardLocked: {
-    opacity: 0.6,
-    backgroundColor: KindlingColors.muted,
-  },
-  sectionIcon: {
-    marginRight: Spacing.md,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: `${KindlingColors.navy}10`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionIconCompleted: {
-    backgroundColor: `${KindlingColors.green}15`,
-  },
-  sectionContent: {
-    flex: 1,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-  },
-  sectionTitle: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  sectionTitleLocked: {
-    color: KindlingColors.mutedForeground,
-  },
-  sectionDescription: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.mutedForeground,
-    marginTop: 2,
-  },
-  sectionDescriptionLocked: {
-    color: KindlingColors.border,
-  },
-  comingSoonBadge: {
-    backgroundColor: `${KindlingColors.brown}20`,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  comingSoonText: {
-    fontSize: Typography.fontSize.xs,
-    color: KindlingColors.brown,
-    fontWeight: Typography.fontWeight.medium,
-  },
-  familySummaryCard: {
-    marginTop: Spacing.xl,
-    padding: Spacing.lg,
-    backgroundColor: KindlingColors.background,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: KindlingColors.border,
-  },
-  familySummaryTitle: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
     marginBottom: Spacing.md,
+    gap: Spacing.sm,
   },
-  familySummaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: Spacing.md,
-  },
-  familyStat: {
-    alignItems: 'center',
-  },
-  familyStatNumber: {
-    fontSize: Typography.fontSize.xxl,
-    fontWeight: Typography.fontWeight.bold,
-    color: KindlingColors.green,
-  },
-  familyStatLabel: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.mutedForeground,
-  },
-  editFamilyButton: {
-    flexDirection: 'row',
+  sectionIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${KindlingColors.navy}1a`,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: KindlingColors.border,
-    marginTop: Spacing.sm,
   },
-  editFamilyText: {
-    fontSize: Typography.fontSize.sm,
+  sectionIconCircleGreen: {
+    backgroundColor: `${KindlingColors.green}1a`,
+  },
+  sectionTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+  },
+  sectionContent: {
+    gap: Spacing.sm,
+  },
+  optionCard: {
+    backgroundColor: KindlingColors.background,
+    borderRadius: 8,
+    padding: Spacing.md,
+    borderWidth: 2,
+    borderColor: `${KindlingColors.navy}33`,
+  },
+  optionCardCompleted: {
+    borderColor: `${KindlingColors.green}66`,
+    backgroundColor: `${KindlingColors.green}0d`,
+  },
+  optionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  optionTextContainer: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontSize: Typography.fontSize.md,
+    color: KindlingColors.navy,
+  },
+  completedBadge: {
+    fontSize: Typography.fontSize.xs,
     color: KindlingColors.green,
-    fontWeight: Typography.fontWeight.medium,
+    marginTop: Spacing.xs / 2,
+  },
+  footer: {
+    padding: Spacing.lg,
+    backgroundColor: KindlingColors.cream,
+    borderTopWidth: 1,
+    borderTopColor: `${KindlingColors.navy}1a`,
+  },
+  footerCaption: {
+    fontSize: Typography.fontSize.xs,
+    color: `${KindlingColors.brown}99`,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
   },
 });

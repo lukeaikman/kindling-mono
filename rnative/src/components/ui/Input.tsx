@@ -110,6 +110,21 @@ export interface InputProps {
    * Auto-correct enabled
    */
   autoCorrect?: boolean;
+  
+  /**
+   * Focus handler
+   */
+  onFocus?: () => void;
+  
+  /**
+   * Blur handler
+   */
+  onBlur?: () => void;
+  
+  /**
+   * Keyboard type override
+   */
+  keyboardType?: KeyboardTypeOptions;
 }
 
 /**
@@ -183,8 +198,11 @@ export const Input: React.FC<InputProps> = ({
   textStyle,
   autoCapitalize: autoCapitalizeProp,
   autoCorrect = true,
+  onFocus,
+  onBlur,
+  keyboardType: keyboardTypeProp,
 }) => {
-  const keyboardType = getKeyboardType(type);
+  const keyboardType = keyboardTypeProp || getKeyboardType(type);
   const autoCapitalize = autoCapitalizeProp || getAutoCapitalize(type);
   
   return (
@@ -202,6 +220,8 @@ export const Input: React.FC<InputProps> = ({
       maxLength={maxLength}
       multiline={multiline}
       numberOfLines={numberOfLines}
+      onFocus={onFocus}
+      onBlur={onBlur}
       left={leftIcon ? <PaperTextInput.Icon icon={leftIcon} /> : undefined}
       right={rightIcon ? <PaperTextInput.Icon icon={rightIcon} /> : undefined}
       mode="flat"

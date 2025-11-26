@@ -1,19 +1,23 @@
 /**
- * Onboarding Family Screen - Enhanced Version
+ * Onboarding Family Screen - Remediated Version
  * 
  * Third screen in the onboarding flow
- * Collects comprehensive information about spouse/partner and children
- * Creates relationship edges in the data model
+ * Matches web prototype exactly (except RadioGroup for relationship status - design decision)
  * 
  * Features:
- * - Relationship status selection (married, civil partnership, living with partner, single, divorced, widowed)
- * - Spouse/partner details form (name, DOB, email, phone) - conditional on relationship status
- * - Children management (add, edit, remove children with full details)
- * - Relationship edge creation between will-maker and family members
- * - Data persistence via useAppState hook
+ * - Relationship status selection (Single, Married, Civil partnership, Cohabiting, Widowed)
+ * - Spouse/partner details form (first name + last name ONLY)
+ * - Divorce question with 8 options
+ * - Children management with inline cards (no modals)
+ * - Per-child: relationship type, parental responsibility, capacity as guardian
+ * - Co-guardian inline form
+ * - Auto-add first child on "Yes"
+ * - Delete button only shown when >1 children
+ * - Last name pre-population from user's details
+ * - HelpCircle tooltips on questions
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton, Divider } from 'react-native-paper';
@@ -22,72 +26,123 @@ import { StatusBar } from 'expo-status-bar';
 import { RadioGroup } from '../../src/components/ui/RadioGroup';
 import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
-import { Dialog } from '../../src/components/ui/Dialog';
+import { Select } from '../../src/components/ui/Select';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
+import { Tooltip } from '../../src/components/ui/Tooltip';
 import { useAppState } from '../../src/hooks/useAppState';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
-import { RelationshipType, Person, PersonRelationshipType } from '../../src/types';
-import { calculateAge } from '../../src/utils/helpers';
+import { RelationshipType, PersonRelationshipType } from '../../src/types';
 
 /**
- * Relationship status options
+ * Relationship status options - matches prototype exactly
  */
 const RELATIONSHIP_STATUSES = [
-  { label: 'Married', value: 'married' },
-  { label: 'Civil Partnership', value: 'civil-partnership' },
-  { label: 'Living with Partner', value: 'living-with-partner' },
   { label: 'Single', value: 'single' },
-  { label: 'Divorced', value: 'divorced' },
+  { label: 'Married', value: 'married' },
+  { label: 'Civil partnership', value: 'civil-partnership' },
+  { label: 'Cohabiting', value: 'cohabiting' },
   { label: 'Widowed', value: 'widowed' },
+];
+
+/**
+ * Divorce status options - matches prototype exactly
+ */
+const DIVORCE_OPTIONS = [
+  { label: 'No, never divorced', value: 'no' },
+  { label: 'Yes, divorced once', value: 'yes-once' },
+  { label: 'Yes, divorced multiple times', value: 'yes-multiple' },
+  { label: 'Currently going through divorce', value: 'currently-divorcing' },
+  { label: 'Separated but not divorced', value: 'separated' },
+  { label: 'Marriage was annulled', value: 'annulled' },
+  { label: 'Prefer not to say', value: 'prefer-not-to-say' },
+  { label: 'Other', value: 'other' },
+];
+
+/**
+ * Child relationship options - matches prototype
+ */
+const CHILD_RELATIONSHIP_OPTIONS = [
+  { label: 'Biological child', value: 'biological-child' },
+  { label: 'Adopted child', value: 'adopted-child' },
+  { label: 'Stepchild', value: 'stepchild' },
+  { label: 'Foster child', value: 'foster-child' },
+  { label: 'Other', value: 'other' },
+];
+
+/**
+ * Capacity as guardian options - matches prototype
+ */
+const CAPACITY_OPTIONS = [
+  { label: 'Child is under 18', value: 'under-18' },
+  { label: 'Child is over 18 but lacks mental capacity', value: 'over-18-lacks-capacity' },
+  { label: 'Child is over 18 with full capacity', value: 'over-18-full-capacity' },
+  { label: 'Special circumstances', value: 'special-circumstances' },
 ];
 
 /**
  * Check if relationship status indicates having a partner
  */
 const hasPartner = (status: string): boolean => {
-  return ['married', 'civil-partnership', 'living-with-partner'].includes(status);
+  return ['married', 'civil-partnership', 'cohabiting'].includes(status);
 };
 
 /**
- * Child data for local state management before saving
+ * Child data interface - matches prototype
  */
-interface ChildFormData {
-  id?: string; // Only present for existing children
+interface Child {
+  id: string;
   firstName: string;
   lastName: string;
-  dateOfBirth: string;
-  isUnder18?: boolean;
+  dateOfBirth?: string;
+  relationship: string;
+  guardianIds: string[];
+  capacityStatus: 'under-18' | 'over-18-lacks-capacity' | 'over-18-full-capacity' | 'special-circumstances';
+}
+
+/**
+ * Co-guardian form data
+ */
+interface CoGuardianFormData {
+  firstName: string;
+  lastName: string;
+  relationship: string;
 }
 
 /**
  * OnboardingFamilyScreen component
- * 
- * Enhanced version with full spouse/partner and children management
  */
 export default function OnboardingFamilyScreen() {
   const { personActions, willActions, relationshipActions } = useAppState();
   
-  // Relationship status
+  // Form state - matches prototype
   const [relationshipStatus, setRelationshipStatus] = useState('');
+  const [divorced, setDivorced] = useState('no');
+  const [hasChildren, setHasChildren] = useState('');
+  const [children, setChildren] = useState<Child[]>([]);
   
-  // Spouse/Partner details
+  // Spouse details - first and last name only (matches prototype)
   const [spouseFirstName, setSpouseFirstName] = useState('');
   const [spouseLastName, setSpouseLastName] = useState('');
-  const [spouseDateOfBirth, setSpouseDateOfBirth] = useState('');
-  const [spouseEmail, setSpouseEmail] = useState('');
-  const [spousePhone, setSpousePhone] = useState('');
   
-  // Children
-  const [hasChildren, setHasChildren] = useState('');
-  const [children, setChildren] = useState<ChildFormData[]>([]);
+  // Last name pre-population tracking
+  const [spouseLastNamePrePopulated, setSpouseLastNamePrePopulated] = useState(false);
+  const [spouseLastNameTouched, setSpouseLastNameTouched] = useState(false);
+  const [childLastNamePrePopulated, setChildLastNamePrePopulated] = useState<{[key: string]: boolean}>({});
+  const [childLastNameTouched, setChildLastNameTouched] = useState<{[key: string]: boolean}>({});
   
-  // Child dialog
-  const [isChildDialogVisible, setIsChildDialogVisible] = useState(false);
-  const [editingChildIndex, setEditingChildIndex] = useState<number | null>(null);
-  const [childFormFirstName, setChildFormFirstName] = useState('');
-  const [childFormLastName, setChildFormLastName] = useState('');
-  const [childFormDateOfBirth, setChildFormDateOfBirth] = useState('');
+  // Co-guardian management
+  const [coGuardians, setCoGuardians] = useState<any[]>([]);
+  const [showCoGuardianForm, setShowCoGuardianForm] = useState<string | null>(null);
+  const [coGuardianForm, setCoGuardianForm] = useState<CoGuardianFormData>({
+    firstName: '',
+    lastName: '',
+    relationship: '',
+  });
+  
+  // Get user's last name for pre-population
+  const user = willActions.getUser();
+  const userLastName = user?.lastName || '';
   
   // Load existing data on mount
   useEffect(() => {
@@ -98,130 +153,273 @@ export default function OnboardingFamilyScreen() {
    * Load existing family data from storage
    */
   const loadExistingData = () => {
-    const user = willActions.getUser();
-    if (!user) return;
+    const currentUser = willActions.getUser();
+    if (!currentUser) return;
     
     // Load spouse/partner
-    const existingSpouse = relationshipActions.getSpouse(user.id, 'active');
+    const existingSpouse = relationshipActions.getSpouse(currentUser.id, 'active');
     if (existingSpouse) {
       setSpouseFirstName(existingSpouse.firstName);
       setSpouseLastName(existingSpouse.lastName);
-      if (existingSpouse.dateOfBirth) {
-        // Convert YYYY-MM-DD to DD-MM-YYYY for display
-        const parts = existingSpouse.dateOfBirth.split('-');
-        if (parts.length === 3) {
-          setSpouseDateOfBirth(`${parts[2]}-${parts[1]}-${parts[0]}`);
-        }
-      }
-      setSpouseEmail(existingSpouse.email || '');
-      setSpousePhone(existingSpouse.phone || '');
       
-      // Determine relationship status from spouse relationship
+      // Determine relationship status
       if (existingSpouse.relationship === 'spouse') {
         setRelationshipStatus('married');
       } else if (existingSpouse.relationship === 'partner') {
-        setRelationshipStatus('living-with-partner');
+        setRelationshipStatus('cohabiting');
       }
     }
     
     // Load children
-    const existingChildren = relationshipActions.getChildren(user.id);
+    const existingChildren = relationshipActions.getChildren(currentUser.id);
     if (existingChildren.length > 0) {
       setHasChildren('yes');
       setChildren(existingChildren.map(child => ({
         id: child.id,
         firstName: child.firstName,
         lastName: child.lastName,
-        dateOfBirth: child.dateOfBirth ? formatDateForDisplay(child.dateOfBirth) : '',
-        isUnder18: child.isUnder18,
+        dateOfBirth: child.dateOfBirth,
+        relationship: child.relationship || 'biological-child',
+        guardianIds: child.guardianIds || [],
+        capacityStatus: (child.capacityStatus as Child['capacityStatus']) || 'under-18',
       })));
     }
   };
   
   /**
-   * Format date from YYYY-MM-DD to DD-MM-YYYY for display
+   * Handle relationship status change with spouse last name pre-population
    */
-  const formatDateForDisplay = (isoDate: string): string => {
-    const parts = isoDate.split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  const handleRelationshipStatusChange = (value: string) => {
+    setRelationshipStatus(value);
+    
+    // Pre-populate spouse last name if has partner and user has a last name
+    if (hasPartner(value) && userLastName && !spouseLastNameTouched) {
+      setSpouseLastName(userLastName);
+      setSpouseLastNamePrePopulated(true);
     }
-    return isoDate;
-  };
-  
-  /**
-   * Format date from DD-MM-YYYY to YYYY-MM-DD for storage
-   */
-  const formatDateForStorage = (displayDate: string): string => {
-    const parts = displayDate.split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    
+    // Clear spouse details if no partner
+    if (!hasPartner(value)) {
+      setSpouseFirstName('');
+      setSpouseLastName('');
+      setSpouseLastNamePrePopulated(false);
+      setSpouseLastNameTouched(false);
     }
-    return displayDate;
   };
   
   /**
-   * Calculate if a person is under 18 based on date of birth
+   * Handle spouse last name focus - clear pre-populated value on first focus
    */
-  const isUnder18FromDOB = (displayDate: string): boolean => {
-    const isoDate = formatDateForStorage(displayDate);
-    const age = calculateAge(isoDate);
-    return age !== null && age < 18;
+  const handleSpouseLastNameFocus = () => {
+    if (spouseLastNamePrePopulated && !spouseLastNameTouched) {
+      setSpouseLastName('');
+      setSpouseLastNameTouched(true);
+    }
   };
   
   /**
-   * Handle opening child dialog for new child
+   * Handle spouse last name change
    */
-  const handleAddChild = () => {
-    setEditingChildIndex(null);
-    setChildFormFirstName('');
-    setChildFormLastName('');
-    setChildFormDateOfBirth('');
-    setIsChildDialogVisible(true);
+  const handleSpouseLastNameChange = (value: string) => {
+    setSpouseLastName(value);
+    setSpouseLastNameTouched(true);
   };
   
   /**
-   * Handle opening child dialog for editing
+   * Add a new child - matches prototype logic
    */
-  const handleEditChild = (index: number) => {
-    const child = children[index];
-    setEditingChildIndex(index);
-    setChildFormFirstName(child.firstName);
-    setChildFormLastName(child.lastName);
-    setChildFormDateOfBirth(child.dateOfBirth);
-    setIsChildDialogVisible(true);
-  };
-  
-  /**
-   * Handle saving child from dialog
-   */
-  const handleSaveChild = () => {
-    const newChild: ChildFormData = {
-      id: editingChildIndex !== null ? children[editingChildIndex].id : undefined,
-      firstName: childFormFirstName,
-      lastName: childFormLastName,
-      dateOfBirth: childFormDateOfBirth,
-      isUnder18: isUnder18FromDOB(childFormDateOfBirth),
+  const addChild = useCallback(() => {
+    const userId = 'user-placeholder';
+    const spouseId = 'spouse-placeholder';
+    
+    // Default guardians based on relationship status
+    const defaultGuardianIds = hasPartner(relationshipStatus)
+      ? [userId, spouseId]
+      : [userId];
+    
+    // Pre-populate last name if spouse has been entered
+    const shouldPrePopulate = spouseLastName.trim() !== '';
+    const childLastName = shouldPrePopulate ? userLastName : '';
+    
+    const newChild: Child = {
+      id: Date.now().toString(),
+      firstName: '',
+      lastName: childLastName,
+      relationship: 'biological-child',
+      guardianIds: defaultGuardianIds,
+      capacityStatus: 'under-18',
     };
     
-    if (editingChildIndex !== null) {
-      // Update existing child
-      const updatedChildren = [...children];
-      updatedChildren[editingChildIndex] = newChild;
-      setChildren(updatedChildren);
-    } else {
-      // Add new child
-      setChildren([...children, newChild]);
-    }
+    setChildren(prev => [...prev, newChild]);
     
-    setIsChildDialogVisible(false);
+    // Track pre-population
+    if (shouldPrePopulate) {
+      setChildLastNamePrePopulated(prev => ({ ...prev, [newChild.id]: true }));
+    }
+    setChildLastNameTouched(prev => ({ ...prev, [newChild.id]: false }));
+  }, [relationshipStatus, spouseLastName, userLastName]);
+  
+  /**
+   * Handle hasChildren change - auto-add first child on "Yes"
+   */
+  const handleHasChildrenChange = (value: string) => {
+    setHasChildren(value);
+    if (value === 'yes' && children.length === 0) {
+      addChild();
+    } else if (value === 'no') {
+      setChildren([]);
+    }
   };
   
   /**
-   * Handle removing a child
+   * Remove a child
    */
-  const handleRemoveChild = (index: number) => {
-    setChildren(children.filter((_, i) => i !== index));
+  const removeChild = (id: string) => {
+    setChildren(prev => prev.filter(child => child.id !== id));
+    // Clean up tracking
+    setChildLastNamePrePopulated(prev => {
+      const updated = { ...prev };
+      delete updated[id];
+      return updated;
+    });
+    setChildLastNameTouched(prev => {
+      const updated = { ...prev };
+      delete updated[id];
+      return updated;
+    });
+  };
+  
+  /**
+   * Update a child field
+   */
+  const updateChild = (id: string, field: keyof Omit<Child, 'id'>, value: any) => {
+    setChildren(prev => prev.map(child =>
+      child.id === id ? { ...child, [field]: value } : child
+    ));
+  };
+  
+  /**
+   * Handle child last name focus - clear if pre-populated
+   */
+  const handleChildLastNameFocus = (childId: string) => {
+    if (childLastNamePrePopulated[childId] && !childLastNameTouched[childId]) {
+      updateChild(childId, 'lastName', '');
+      setChildLastNameTouched(prev => ({ ...prev, [childId]: true }));
+    }
+  };
+  
+  /**
+   * Handle child last name change
+   */
+  const handleChildLastNameChange = (childId: string, value: string) => {
+    updateChild(childId, 'lastName', value);
+    setChildLastNameTouched(prev => ({ ...prev, [childId]: true }));
+    setChildLastNamePrePopulated(prev => ({ ...prev, [childId]: false }));
+  };
+  
+  /**
+   * Get parental responsibility options
+   */
+  const getParentalResponsibilityOptions = () => {
+    const options = [
+      { label: 'Sole responsibility', value: 'sole-responsibility' },
+    ];
+    
+    if (hasPartner(relationshipStatus)) {
+      const partnerLabel = relationshipStatus === 'married' ? 'spouse' : 
+                           relationshipStatus === 'civil-partnership' ? 'civil partner' : 'partner';
+      options.push({
+        label: `Co-responsibility with ${partnerLabel}`,
+        value: 'co-responsibility-with-spouse',
+      });
+    }
+    
+    // Add existing co-guardians
+    coGuardians.forEach(cg => {
+      options.push({
+        label: `Co-responsibility with ${cg.firstName} ${cg.lastName}`,
+        value: `co-guardian-${cg.id}`,
+      });
+    });
+    
+    options.push({ label: 'Add co-guardian', value: 'add-co-guardian' });
+    
+    return options;
+  };
+  
+  /**
+   * Handle parental responsibility change
+   */
+  const handleParentalResponsibilityChange = (childId: string, value: string) => {
+    const userId = 'user-placeholder';
+    const spouseId = 'spouse-placeholder';
+    
+    if (value === 'add-co-guardian') {
+      setShowCoGuardianForm(childId);
+      setCoGuardianForm({ firstName: '', lastName: '', relationship: '' });
+    } else if (value === 'sole-responsibility') {
+      updateChild(childId, 'guardianIds', [userId]);
+    } else if (value === 'co-responsibility-with-spouse') {
+      updateChild(childId, 'guardianIds', [userId, spouseId]);
+    } else if (value.startsWith('co-guardian-')) {
+      const coGuardianId = value.replace('co-guardian-', '');
+      updateChild(childId, 'guardianIds', [userId, coGuardianId]);
+    }
+  };
+  
+  /**
+   * Get parental responsibility value from guardianIds
+   */
+  const getParentalResponsibilityValue = (child: Child): string => {
+    const userId = 'user-placeholder';
+    const spouseId = hasPartner(relationshipStatus) ? 'spouse-placeholder' : undefined;
+    
+    if (!child.guardianIds || child.guardianIds.length === 0) {
+      return 'sole-responsibility';
+    }
+    
+    if (spouseId && child.guardianIds.includes(spouseId)) {
+      return 'co-responsibility-with-spouse';
+    }
+    
+    const otherGuardianId = child.guardianIds.find(id => id !== userId && id !== spouseId);
+    if (otherGuardianId) {
+      return `co-guardian-${otherGuardianId}`;
+    }
+    
+    return 'sole-responsibility';
+  };
+  
+  /**
+   * Handle co-guardian form submit
+   */
+  const handleCoGuardianSubmit = (childId: string) => {
+    if (!coGuardianForm.firstName.trim()) return;
+    
+    const newCoGuardian = {
+      id: Date.now().toString(),
+      firstName: coGuardianForm.firstName.trim(),
+      lastName: coGuardianForm.lastName.trim(),
+      relationship: coGuardianForm.relationship || 'Co-guardian',
+    };
+    
+    setCoGuardians(prev => [...prev, newCoGuardian]);
+    
+    // Add to child's guardians
+    const userId = 'user-placeholder';
+    updateChild(childId, 'guardianIds', [userId, newCoGuardian.id]);
+    
+    // Reset form
+    setCoGuardianForm({ firstName: '', lastName: '', relationship: '' });
+    setShowCoGuardianForm(null);
+  };
+  
+  /**
+   * Cancel co-guardian form
+   */
+  const handleCoGuardianCancel = () => {
+    setCoGuardianForm({ firstName: '', lastName: '', relationship: '' });
+    setShowCoGuardianForm(null);
   };
   
   /**
@@ -230,71 +428,75 @@ export default function OnboardingFamilyScreen() {
   const handleContinue = () => {
     if (!isValid) return;
     
-    const user = willActions.getUser();
-    if (!user) {
-      console.error('❌ No will-maker found');
+    const currentUser = willActions.getUser();
+    if (!currentUser) {
+      console.error('No will-maker found');
       return;
     }
     
-    // Clear any existing onboarding family members before re-creating
+    // Clear existing onboarding family members
     personActions.clearOnboardingFamilyMembers();
     
-    console.log('👨‍👩‍👧‍👦 Saving family data...');
+    console.log('Saving family data...');
     
-    // Save spouse/partner if applicable
+    // Save spouse/partner
     if (hasPartner(relationshipStatus) && spouseFirstName && spouseLastName) {
       const spouseRelationship: PersonRelationshipType = 
-        relationshipStatus === 'married' || relationshipStatus === 'civil-partnership' 
-          ? 'spouse' 
+        relationshipStatus === 'married' || relationshipStatus === 'civil-partnership'
+          ? 'spouse'
           : 'partner';
       
       const spouseId = personActions.addPerson({
         firstName: spouseFirstName,
         lastName: spouseLastName,
-        email: spouseEmail,
-        phone: spousePhone,
-        dateOfBirth: spouseDateOfBirth ? formatDateForStorage(spouseDateOfBirth) : undefined,
+        email: '',
+        phone: '',
         relationship: spouseRelationship,
         roles: ['family-member', 'beneficiary'],
         createdInOnboarding: true,
       });
       
-      // Create relationship edge
       const relType = spouseRelationship === 'spouse' ? RelationshipType.SPOUSE : RelationshipType.PARTNER;
-      relationshipActions.addRelationship(user.id, spouseId, relType, { phase: 'active' });
+      relationshipActions.addRelationship(currentUser.id, spouseId, relType, { phase: 'active' });
       
-      console.log('✅ Created spouse/partner:', spouseId);
+      console.log('Created spouse/partner:', spouseId);
     }
     
-    // Save children if applicable
+    // Save children
     if (hasChildren === 'yes' && children.length > 0) {
       children.forEach((child, index) => {
+        // Determine qualifiers from relationship type
+        const qualifiers: Record<string, boolean> = {};
+        if (child.relationship === 'biological-child') qualifiers.biological = true;
+        if (child.relationship === 'adopted-child') qualifiers.adoptive = true;
+        if (child.relationship === 'stepchild') qualifiers.step = true;
+        if (child.relationship === 'foster-child') qualifiers.foster = true;
+        
         const childId = personActions.addPerson({
           firstName: child.firstName,
           lastName: child.lastName,
           email: '',
           phone: '',
-          dateOfBirth: child.dateOfBirth ? formatDateForStorage(child.dateOfBirth) : undefined,
-          relationship: 'biological-child',
+          dateOfBirth: child.dateOfBirth,
+          relationship: child.relationship as PersonRelationshipType,
           roles: ['family-member', 'beneficiary'],
-          isUnder18: child.isUnder18,
-          inCare: child.isUnder18, // Children under 18 are in care
-          careCategory: child.isUnder18 ? 'child-under-18' : undefined,
+          isUnder18: child.capacityStatus === 'under-18',
+          inCare: child.capacityStatus === 'under-18' || child.capacityStatus === 'over-18-lacks-capacity',
+          careCategory: child.capacityStatus === 'under-18' ? 'child-under-18' : undefined,
+          capacityStatus: child.capacityStatus,
+          guardianIds: child.guardianIds,
           createdInOnboarding: true,
         });
         
-        // Create parent-child relationship edge
-        relationshipActions.addRelationship(user.id, childId, RelationshipType.PARENT_OF, {
-          qualifiers: { biological: true }
+        relationshipActions.addRelationship(currentUser.id, childId, RelationshipType.PARENT_OF, {
+          qualifiers,
         });
         
-        console.log(`✅ Created child ${index + 1}:`, childId);
+        console.log(`Created child ${index + 1}:`, childId);
       });
     }
     
-    console.log('✅ Family data saved successfully');
-    
-    // Navigate to extended family screen
+    console.log('Family data saved successfully');
     router.push('/onboarding/extended-family');
   };
   
@@ -302,13 +504,14 @@ export default function OnboardingFamilyScreen() {
     router.back();
   };
   
-  // Validation
+  // Validation - matches prototype
   const isSpouseValid = !hasPartner(relationshipStatus) || (spouseFirstName && spouseLastName);
-  const isChildrenValid = hasChildren !== 'yes' || children.length > 0;
-  const isValid = relationshipStatus && hasChildren && isSpouseValid && isChildrenValid;
-  
-  // Child dialog validation
-  const isChildFormValid = childFormFirstName && childFormLastName && childFormDateOfBirth;
+  const areChildrenValid = hasChildren === 'no' || (
+    children.length > 0 && children.every(child => 
+      child.firstName && child.lastName && child.relationship
+    )
+  );
+  const isValid = relationshipStatus && divorced && hasChildren && isSpouseValid && areChildrenValid;
   
   return (
     <SafeAreaView style={styles.container}>
@@ -328,38 +531,57 @@ export default function OnboardingFamilyScreen() {
           <View style={styles.iconContainer}>
             <View style={styles.iconCircle}>
               <IconButton
-                icon="account-group"
+                icon="heart"
                 iconColor={KindlingColors.green}
                 size={24}
               />
             </View>
           </View>
           
-          {/* Title */}
-          <Text style={styles.title}>Tell us about your family</Text>
+          {/* Title - matches prototype */}
+          <Text style={styles.title}>Your family</Text>
           <Text style={styles.subtitle}>
-            This helps us understand who might inherit from you and who might need guardians
+            This helps us make sure the right people are protected
           </Text>
           
           {/* Form */}
           <View style={styles.form}>
-            {/* Relationship Status */}
-            <RadioGroup
-              label="What's your relationship status?"
-              value={relationshipStatus}
-              onChange={setRelationshipStatus}
-              options={RELATIONSHIP_STATUSES}
-            />
+            {/* Relationship Status - with tooltip */}
+            <View style={styles.questionContainer}>
+              <View style={styles.labelRow}>
+                <Text style={styles.questionLabel}>Which best describes your current situation?</Text>
+                <Tooltip content="Your relationship status affects inheritance rights and tax allowances for your partner.">
+                  <IconButton
+                    icon="help-circle"
+                    size={16}
+                    iconColor={KindlingColors.mutedForeground}
+                  />
+                </Tooltip>
+              </View>
+              <RadioGroup
+                value={relationshipStatus}
+                onChange={handleRelationshipStatusChange}
+                options={RELATIONSHIP_STATUSES}
+              />
+            </View>
             
             {/* Spouse/Partner Details - Conditional */}
             {hasPartner(relationshipStatus) && (
-              <View style={styles.section}>
-                <Divider style={styles.divider} />
-                <Text style={styles.sectionTitle}>
-                  {relationshipStatus === 'married' || relationshipStatus === 'civil-partnership' 
-                    ? 'Your spouse/partner details' 
-                    : 'Your partner details'}
-                </Text>
+              <View style={styles.spouseSection}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.sectionTitle}>
+                    {relationshipStatus === 'married' ? 'Spouse details' : 
+                     relationshipStatus === 'civil-partnership' ? 'Civil partner details' : 
+                     'Partner details'}
+                  </Text>
+                  <Tooltip content="We need these details to ensure your spouse/partner can be properly identified in your will.">
+                    <IconButton
+                      icon="help-circle"
+                      size={16}
+                      iconColor={KindlingColors.mutedForeground}
+                    />
+                  </Tooltip>
+                </View>
                 
                 <View style={styles.nameRow}>
                   <View style={styles.nameField}>
@@ -367,7 +589,7 @@ export default function OnboardingFamilyScreen() {
                       label="First name"
                       value={spouseFirstName}
                       onChangeText={setSpouseFirstName}
-                      placeholder="First name"
+                      placeholder="Enter first name"
                       autoCapitalize="words"
                     />
                   </View>
@@ -375,118 +597,218 @@ export default function OnboardingFamilyScreen() {
                     <Input
                       label="Last name"
                       value={spouseLastName}
-                      onChangeText={setSpouseLastName}
-                      placeholder="Last name"
+                      onChangeText={handleSpouseLastNameChange}
+                      onFocus={handleSpouseLastNameFocus}
+                      placeholder="Enter last name"
                       autoCapitalize="words"
                     />
                   </View>
                 </View>
-                
-                <Input
-                  label="Date of Birth"
-                  value={spouseDateOfBirth}
-                  onChangeText={setSpouseDateOfBirth}
-                  placeholder="DD-MM-YYYY"
-                  leftIcon="calendar"
-                />
-                
-                <Input
-                  label="Email (optional)"
-                  value={spouseEmail}
-                  onChangeText={setSpouseEmail}
-                  placeholder="email@example.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-                
-                <Input
-                  label="Phone (optional)"
-                  value={spousePhone}
-                  onChangeText={setSpousePhone}
-                  placeholder="+44 7xxx xxxxxx"
-                  keyboardType="phone-pad"
-                />
               </View>
             )}
             
             <Divider style={styles.divider} />
             
-            {/* Children Question */}
-            <RadioGroup
-              label="Do you have any children?"
-              value={hasChildren}
-              onChange={(value) => {
-                setHasChildren(value);
-                if (value === 'no') {
-                  setChildren([]);
-                }
-              }}
-              options={[
-                { label: 'Yes', value: 'yes' },
-                { label: 'No', value: 'no' },
-              ]}
-            />
+            {/* Divorce Question - with tooltip */}
+            <View style={styles.questionContainer}>
+              <View style={styles.labelRow}>
+                <Text style={styles.questionLabel}>Have you ever been divorced?</Text>
+                <Tooltip content="Divorce can affect how your estate is distributed.">
+                  <IconButton
+                    icon="help-circle"
+                    size={16}
+                    iconColor={KindlingColors.mutedForeground}
+                  />
+                </Tooltip>
+              </View>
+              <Select
+                value={divorced}
+                onChange={setDivorced}
+                options={DIVORCE_OPTIONS}
+                placeholder="Select divorce status"
+              />
+            </View>
             
-            {/* Children List - Conditional */}
+            <Divider style={styles.divider} />
+            
+            {/* Children Question - with tooltip, correct wording */}
+            <View style={styles.questionContainer}>
+              <View style={styles.labelRow}>
+                <Text style={styles.questionLabel}>Do you have children or guardianship responsibilities?</Text>
+                <Tooltip content="Include all children: biological, adopted, step-children, and those you consider as your own.">
+                  <IconButton
+                    icon="help-circle"
+                    size={16}
+                    iconColor={KindlingColors.mutedForeground}
+                  />
+                </Tooltip>
+              </View>
+              <RadioGroup
+                value={hasChildren}
+                onChange={handleHasChildrenChange}
+                options={[
+                  { label: 'Yes', value: 'yes' },
+                  { label: 'No', value: 'no' },
+                ]}
+              />
+            </View>
+            
+            {/* Children Inline Cards - matches prototype */}
             {hasChildren === 'yes' && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Your children</Text>
-                <Text style={styles.sectionSubtitle}>
-                  Add each of your children below. We'll ask about stepchildren and adopted children later.
-                </Text>
+              <View style={styles.childrenSection}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.sectionTitle}>Tell us about those in your care</Text>
+                  <Tooltip content="Providing names helps us identify them clearly in your will and plan for guardianship if needed.">
+                    <IconButton
+                      icon="help-circle"
+                      size={16}
+                      iconColor={KindlingColors.mutedForeground}
+                    />
+                  </Tooltip>
+                </View>
                 
-                {/* Children Cards */}
                 {children.map((child, index) => (
-                  <View key={index} style={styles.childCard}>
-                    <View style={styles.childInfo}>
-                      <Text style={styles.childName}>
-                        {child.firstName} {child.lastName}
-                      </Text>
-                      {child.dateOfBirth && (
-                        <Text style={styles.childDetails}>
-                          DOB: {child.dateOfBirth}
-                          {child.isUnder18 && ' • Under 18'}
-                        </Text>
-                      )}
+                  <View key={child.id} style={styles.childCard}>
+                    {/* Delete button - only show when >1 children */}
+                    {children.length > 1 && (
+                      <View style={styles.childDeleteRow}>
+                        <TouchableOpacity
+                          onPress={() => removeChild(child.id)}
+                          style={styles.deleteButton}
+                        >
+                          <IconButton
+                            icon="delete"
+                            size={18}
+                            iconColor={KindlingColors.destructive}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    
+                    {/* Name fields */}
+                    <View style={styles.nameRow}>
+                      <View style={styles.nameField}>
+                        <Input
+                          label="First name"
+                          value={child.firstName}
+                          onChangeText={(value) => updateChild(child.id, 'firstName', value)}
+                          placeholder="Enter first name"
+                          autoCapitalize="words"
+                        />
+                      </View>
+                      <View style={styles.nameField}>
+                        <Input
+                          label="Last name"
+                          value={child.lastName}
+                          onChangeText={(value) => handleChildLastNameChange(child.id, value)}
+                          onFocus={() => handleChildLastNameFocus(child.id)}
+                          placeholder="Enter last name"
+                          autoCapitalize="words"
+                        />
+                      </View>
                     </View>
-                    <View style={styles.childActions}>
-                      <IconButton
-                        icon="pencil"
-                        size={20}
-                        iconColor={KindlingColors.navy}
-                        onPress={() => handleEditChild(index)}
-                      />
-                      <IconButton
-                        icon="delete"
-                        size={20}
-                        iconColor={KindlingColors.destructive}
-                        onPress={() => handleRemoveChild(index)}
-                      />
-                    </View>
+                    
+                    {/* Date of birth (optional) */}
+                    <Input
+                      label="Date of birth (optional)"
+                      value={child.dateOfBirth || ''}
+                      onChangeText={(value) => updateChild(child.id, 'dateOfBirth', value)}
+                      placeholder="YYYY-MM-DD"
+                    />
+                    
+                    {/* Relationship dropdown */}
+                    <Select
+                      label="Relationship to you"
+                      value={child.relationship}
+                      onChange={(value) => updateChild(child.id, 'relationship', value)}
+                      options={CHILD_RELATIONSHIP_OPTIONS}
+                      placeholder="Select relationship"
+                    />
+                    
+                    {/* Parental responsibility dropdown */}
+                    <Select
+                      label="Responsibility"
+                      value={getParentalResponsibilityValue(child)}
+                      onChange={(value) => handleParentalResponsibilityChange(child.id, value)}
+                      options={getParentalResponsibilityOptions()}
+                      placeholder="Select parental responsibility"
+                    />
+                    
+                    {/* Capacity as Guardian dropdown */}
+                    <Select
+                      label="Capacity as Guardian"
+                      value={child.capacityStatus}
+                      onChange={(value) => updateChild(child.id, 'capacityStatus', value)}
+                      options={CAPACITY_OPTIONS}
+                      placeholder="Select capacity status"
+                    />
+                    
+                    {/* Co-guardian inline form - matches prototype */}
+                    {showCoGuardianForm === child.id && (
+                      <View style={styles.coGuardianForm}>
+                        <Text style={styles.coGuardianTitle}>Add Co-guardian</Text>
+                        
+                        <View style={styles.nameRow}>
+                          <View style={styles.nameField}>
+                            <Input
+                              label="First name"
+                              value={coGuardianForm.firstName}
+                              onChangeText={(value) => setCoGuardianForm(prev => ({ ...prev, firstName: value }))}
+                              placeholder="Enter first name"
+                              autoCapitalize="words"
+                            />
+                          </View>
+                          <View style={styles.nameField}>
+                            <Input
+                              label="Last name"
+                              value={coGuardianForm.lastName}
+                              onChangeText={(value) => setCoGuardianForm(prev => ({ ...prev, lastName: value }))}
+                              placeholder="Enter last name"
+                              autoCapitalize="words"
+                            />
+                          </View>
+                        </View>
+                        
+                        <Input
+                          label="Relationship (optional)"
+                          value={coGuardianForm.relationship}
+                          onChangeText={(value) => setCoGuardianForm(prev => ({ ...prev, relationship: value }))}
+                          placeholder="e.g., Ex-partner, Friend"
+                        />
+                        
+                        <View style={styles.coGuardianActions}>
+                          <Button
+                            variant="outline"
+                            onPress={handleCoGuardianCancel}
+                            style={styles.coGuardianButton}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="primary"
+                            onPress={() => handleCoGuardianSubmit(child.id)}
+                            disabled={!coGuardianForm.firstName.trim()}
+                            style={styles.coGuardianButton}
+                          >
+                            Add
+                          </Button>
+                        </View>
+                      </View>
+                    )}
                   </View>
                 ))}
                 
-                {/* Add Child Button */}
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={handleAddChild}
-                  activeOpacity={0.7}
-                >
-                  <IconButton
-                    icon="plus"
-                    size={20}
-                    iconColor={KindlingColors.green}
-                  />
-                  <Text style={styles.addButtonText}>
-                    {children.length === 0 ? 'Add your first child' : 'Add another child'}
-                  </Text>
-                </TouchableOpacity>
-                
-                {/* Validation message */}
-                {hasChildren === 'yes' && children.length === 0 && (
-                  <Text style={styles.validationText}>
-                    Please add at least one child to continue
-                  </Text>
+                {/* Add another child button - matches prototype */}
+                {children.length > 0 && (
+                  <View style={styles.addAnotherContainer}>
+                    <Button
+                      variant="outline"
+                      onPress={addChild}
+                      icon="plus"
+                    >
+                      Add another
+                    </Button>
+                  </View>
                 )}
               </View>
             )}
@@ -504,64 +826,6 @@ export default function OnboardingFamilyScreen() {
           Continue
         </Button>
       </View>
-      
-      {/* Child Dialog */}
-      <Dialog
-        visible={isChildDialogVisible}
-        onDismiss={() => setIsChildDialogVisible(false)}
-        title={editingChildIndex !== null ? 'Edit Child' : 'Add Child'}
-        actions={[
-          {
-            label: 'Cancel',
-            onPress: () => setIsChildDialogVisible(false),
-            variant: 'outline',
-          },
-          {
-            label: 'Save',
-            onPress: handleSaveChild,
-            disabled: !isChildFormValid,
-          },
-        ]}
-      >
-        <View style={styles.dialogContent}>
-          <Input
-            label="First name"
-            value={childFormFirstName}
-            onChangeText={setChildFormFirstName}
-            placeholder="Enter first name"
-            autoCapitalize="words"
-          />
-          
-          <Input
-            label="Last name"
-            value={childFormLastName}
-            onChangeText={setChildFormLastName}
-            placeholder="Enter last name"
-            autoCapitalize="words"
-          />
-          
-          <Input
-            label="Date of Birth"
-            value={childFormDateOfBirth}
-            onChangeText={setChildFormDateOfBirth}
-            placeholder="DD-MM-YYYY"
-            leftIcon="calendar"
-          />
-          
-          {childFormDateOfBirth && isUnder18FromDOB(childFormDateOfBirth) && (
-            <View style={styles.under18Badge}>
-              <IconButton
-                icon="baby-face"
-                size={16}
-                iconColor={KindlingColors.green}
-              />
-              <Text style={styles.under18Text}>
-                This child is under 18 - we'll ask about guardians later
-              </Text>
-            </View>
-          )}
-        </View>
-      </Dialog>
     </SafeAreaView>
   );
 }
@@ -606,9 +870,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: `${KindlingColors.green}15`,
     alignItems: 'center',
     justifyContent: 'center',
@@ -618,7 +882,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
     textAlign: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   subtitle: {
     fontSize: Typography.fontSize.sm,
@@ -627,25 +891,39 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   form: {
-    gap: Spacing.md,
+    gap: Spacing.lg,
   },
-  section: {
-    gap: Spacing.md,
+  questionContainer: {
+    gap: Spacing.sm,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  questionLabel: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.medium,
+    color: KindlingColors.navy,
+    flex: 1,
   },
   divider: {
-    marginVertical: Spacing.md,
+    marginVertical: Spacing.sm,
     backgroundColor: KindlingColors.border,
+  },
+  spouseSection: {
+    backgroundColor: `${KindlingColors.cream}50`,
+    borderRadius: 8,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: KindlingColors.border,
+    gap: Spacing.md,
   },
   sectionTitle: {
     fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
+    fontWeight: Typography.fontWeight.medium,
     color: KindlingColors.navy,
-    marginBottom: Spacing.xs,
-  },
-  sectionSubtitle: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.mutedForeground,
-    marginBottom: Spacing.sm,
+    flex: 1,
   },
   nameRow: {
     flexDirection: 'row',
@@ -654,65 +932,50 @@ const styles = StyleSheet.create({
   nameField: {
     flex: 1,
   },
+  childrenSection: {
+    gap: Spacing.md,
+  },
   childCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: KindlingColors.muted,
+    backgroundColor: KindlingColors.background,
     borderRadius: 8,
-    padding: Spacing.sm,
-    marginBottom: Spacing.xs,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: KindlingColors.cream,
+    gap: Spacing.sm,
   },
-  childInfo: {
-    flex: 1,
+  childDeleteRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
-  childName: {
-    fontSize: Typography.fontSize.md,
+  deleteButton: {
+    marginRight: -Spacing.sm,
+    marginTop: -Spacing.sm,
+  },
+  coGuardianForm: {
+    backgroundColor: `${KindlingColors.green}08`,
+    borderRadius: 8,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: `${KindlingColors.green}30`,
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  coGuardianTitle: {
+    fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.medium,
     color: KindlingColors.navy,
   },
-  childDetails: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.mutedForeground,
-  },
-  childActions: {
+  coGuardianActions: {
     flexDirection: 'row',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: KindlingColors.green,
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: Spacing.sm,
+    gap: Spacing.sm,
     marginTop: Spacing.sm,
   },
-  addButtonText: {
-    fontSize: Typography.fontSize.md,
-    color: KindlingColors.green,
-    fontWeight: Typography.fontWeight.medium,
-  },
-  validationText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.destructive,
-    fontStyle: 'italic',
-    marginTop: Spacing.sm,
-  },
-  dialogContent: {
-    gap: Spacing.md,
-  },
-  under18Badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: `${KindlingColors.green}15`,
-    borderRadius: 8,
-    padding: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
-  under18Text: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.green,
+  coGuardianButton: {
     flex: 1,
+  },
+  addAnotherContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
   },
   footer: {
     padding: Spacing.lg,
