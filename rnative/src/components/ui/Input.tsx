@@ -4,12 +4,14 @@
  * A styled text input component wrapping React Native Paper's TextInput
  * with support for various input types (text, email, phone, number)
  * 
+ * Supports auto-focus chaining for smooth form navigation.
+ * 
  * @module components/ui/Input
  */
 
-import React from 'react';
-import { TextInput as PaperTextInput } from 'react-native-paper';
-import { StyleSheet, ViewStyle, TextStyle, KeyboardTypeOptions } from 'react-native';
+import React, { forwardRef, RefObject } from 'react';
+import { TextInput as PaperTextInput, TextInput } from 'react-native-paper';
+import { StyleSheet, ViewStyle, TextStyle, KeyboardTypeOptions, TextInput as RNTextInput } from 'react-native';
 import { KindlingColors } from '../../styles/theme';
 
 /**
@@ -125,6 +127,30 @@ export interface InputProps {
    * Keyboard type override
    */
   keyboardType?: KeyboardTypeOptions;
+  
+  /**
+   * Enable auto-focus to next field when "next" is pressed on keyboard
+   * @default false
+   */
+  autoFocusNext?: boolean;
+  
+  /**
+   * Ref to the next input field to focus
+   * Required when autoFocusNext is true
+   */
+  nextFieldRef?: RefObject<RNTextInput>;
+  
+  /**
+   * Return key type override
+   * Auto-set based on autoFocusNext if not provided
+   */
+  returnKeyType?: 'done' | 'next' | 'go' | 'search' | 'send';
+  
+  /**
+   * Callback before auto-focusing next field
+   * Useful for validation or side effects
+   */
+  onBeforeAutoFocus?: () => void;
 }
 
 /**
@@ -162,6 +188,7 @@ const getAutoCapitalize = (type: InputType): 'none' | 'sentences' | 'words' | 'c
  * 
  * @example
  * ```tsx
+ * // Basic input
  * <Input
  *   label="Email Address"
  *   value={email}
@@ -170,16 +197,36 @@ const getAutoCapitalize = (type: InputType): 'none' | 'sentences' | 'words' | 'c
  *   placeholder="Enter your email"
  * />
  * 
+ * // Auto-focus chain
+ * const lastNameRef = useRef<TextInput>(null);
+ * const dobRef = useRef<TextInput>(null);
+ * 
  * <Input
- *   label="Phone Number"
- *   value={phone}
- *   onChangeText={setPhone}
- *   type="phone"
- *   leftIcon="phone"
+ *   label="First name"
+ *   value={firstName}
+ *   onChangeText={setFirstName}
+ *   autoFocusNext={true}
+ *   nextFieldRef={lastNameRef}
+ * />
+ * 
+ * <Input
+ *   ref={lastNameRef}
+ *   label="Last name"
+ *   value={lastName}
+ *   onChangeText={setLastName}
+ *   autoFocusNext={true}
+ *   nextFieldRef={dobRef}
+ * />
+ * 
+ * <Input
+ *   ref={dobRef}
+ *   label="Date of Birth"
+ *   value={dob}
+ *   onChangeText={setDob}
  * />
  * ```
  */
-export const Input: React.FC<InputProps> = ({
+export const Input = forwardRef<RNTextInput, InputProps>(({
   label,
   value,
   onChangeText,
@@ -201,12 +248,29 @@ export const Input: React.FC<InputProps> = ({
   onFocus,
   onBlur,
   keyboardType: keyboardTypeProp,
-}) => {
+  autoFocusNext = false,
+  nextFieldRef,
+  returnKeyType: returnKeyTypeProp,
+  onBeforeAutoFocus,
+}, ref) => {
   const keyboardType = keyboardTypeProp || getKeyboardType(type);
   const autoCapitalize = autoCapitalizeProp || getAutoCapitalize(type);
   
+  // Auto-determine return key type if not provided
+  const returnKeyType = returnKeyTypeProp || (autoFocusNext ? 'next' : 'done');
+  
+  // Handle submit editing (when user presses keyboard return key)
+  const handleSubmitEditing = () => {
+    if (autoFocusNext && nextFieldRef?.current) {
+      onBeforeAutoFocus?.();
+      // Small delay ensures smooth transition
+      setTimeout(() => nextFieldRef.current?.focus(), 50);
+    }
+  };
+  
   return (
     <PaperTextInput
+      ref={ref}
       label={label}
       value={value}
       onChangeText={onChangeText}
@@ -222,6 +286,9 @@ export const Input: React.FC<InputProps> = ({
       numberOfLines={numberOfLines}
       onFocus={onFocus}
       onBlur={onBlur}
+      returnKeyType={returnKeyType}
+      onSubmitEditing={handleSubmitEditing}
+      blurOnSubmit={!autoFocusNext}
       left={leftIcon ? <PaperTextInput.Icon icon={leftIcon} /> : undefined}
       right={rightIcon ? <PaperTextInput.Icon icon={rightIcon} /> : undefined}
       mode="flat"
@@ -232,7 +299,7 @@ export const Input: React.FC<InputProps> = ({
       contentStyle={[styles.inputContent, textStyle]}
     />
   );
-};
+});
 
 const styles = StyleSheet.create({
   input: {

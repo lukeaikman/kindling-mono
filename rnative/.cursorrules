@@ -148,6 +148,86 @@ native-app/
 6. Use `DatePicker` for dates (format: DD-MM-YYYY for display, YYYY-MM-DD for storage).
 7. Ensure keyboard types match input purpose (email, phone, number, etc.).
 8. Add proper `autoCapitalize` and `autoCorrect` settings.
+9. Use auto-focus chaining for text input sequences (see Rule 8a).
+10. Consider auto-scroll for selection fields based on UX needs (see Rule 8a).
+
+---
+
+## Rule 8a — Auto-Focus & Auto-Scroll Patterns
+**Triggers:** Forms with multiple inputs or selection fields
+
+**Component-Level (Use 80% of cases):**
+For text input chains, use `Input` component with `autoFocusNext` prop:
+
+```tsx
+const lastNameRef = useRef<TextInput>(null);
+const dobRef = useRef<TextInput>(null);
+
+<Input
+  label="First name"
+  value={firstName}
+  onChangeText={setFirstName}
+  autoFocusNext={true}
+  nextFieldRef={lastNameRef}
+/>
+
+<Input
+  ref={lastNameRef}
+  label="Last name"
+  value={lastName}
+  onChangeText={setLastName}
+  autoFocusNext={true}
+  nextFieldRef={dobRef}
+/>
+
+<Input
+  ref={dobRef}
+  label="Date of Birth"
+  value={dob}
+  onChangeText={setDob}
+/>
+```
+
+For selection fields, use `RadioGroup` with `autoScrollOnSelect` prop:
+
+```tsx
+const scrollViewRef = useRef<ScrollView>(null);
+
+<ScrollView ref={scrollViewRef}>
+  <RadioGroup
+    label="Relationship status"
+    value={status}
+    onChange={setStatus}
+    options={options}
+    autoScrollOnSelect={true}
+    scrollViewRef={scrollViewRef}
+    scrollOffset={400}
+    scrollDelay={400}
+  />
+</ScrollView>
+```
+
+**Inline/Page-Level (Use 20% of cases):**
+For complex conditional logic or custom behavior:
+
+```tsx
+<RadioGroup
+  onChange={(value) => {
+    setRelationshipStatus(value);
+    // Custom: Only scroll if "married" selected
+    if (value === 'married') {
+      scrollToSpouseSection();
+      setTimeout(() => spouseNameRef.current?.focus(), 400);
+    }
+  }}
+/>
+```
+
+**Guidelines:**
+- ✅ Text input chains → Always use component-level `autoFocusNext`
+- ⚠️ Selection fields → Use component-level for simple cases, inline for conditional logic
+- ⚠️ Consider UX: Auto-scroll can be disorienting if overused
+- ✅ Test on actual devices (simulator keyboard behavior differs)
 
 ---
 

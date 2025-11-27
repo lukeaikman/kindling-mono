@@ -16,8 +16,8 @@
  * @module components/ui/RadioGroup
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
+import React, { useState, useEffect, RefObject } from 'react';
+import { View, StyleSheet, TouchableOpacity, LayoutAnimation, Platform, UIManager, ScrollView } from 'react-native';
 import { RadioButton, Text, IconButton } from 'react-native-paper';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing } from '../../styles/constants';
@@ -70,6 +70,37 @@ export interface RadioGroupProps {
    * @default true
    */
   collapseOnSelect?: boolean;
+  
+  /**
+   * Enable auto-scroll to next section after selection
+   * @default false
+   */
+  autoScrollOnSelect?: boolean;
+  
+  /**
+   * Ref to the parent ScrollView
+   * Required when autoScrollOnSelect is true
+   */
+  scrollViewRef?: RefObject<ScrollView>;
+  
+  /**
+   * Y-offset to scroll to (in pixels)
+   * Required when autoScrollOnSelect is true
+   */
+  scrollOffset?: number;
+  
+  /**
+   * Delay (ms) before auto-scrolling
+   * Allows user to see their selection before scrolling
+   * @default 400
+   */
+  scrollDelay?: number;
+  
+  /**
+   * Callback after selection is made
+   * Useful for custom logic after selection
+   */
+  onAfterSelect?: (value: string) => void;
 }
 
 /**
@@ -109,6 +140,22 @@ export interface RadioGroupProps {
  *   collapseOnSelect={false}
  * />
  * ```
+ * 
+ * @example
+ * ```tsx
+ * // Auto-scroll to next section after selection
+ * const scrollViewRef = useRef<ScrollView>(null);
+ * 
+ * <RadioGroup
+ *   label="Relationship status"
+ *   value={status}
+ *   onChange={setStatus}
+ *   options={options}
+ *   autoScrollOnSelect={true}
+ *   scrollViewRef={scrollViewRef}
+ *   scrollOffset={400}
+ * />
+ * ```
  */
 export const RadioGroup: React.FC<RadioGroupProps> = ({
   label,
@@ -117,6 +164,11 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
   options,
   disabled = false,
   collapseOnSelect = true,
+  autoScrollOnSelect = false,
+  scrollViewRef,
+  scrollOffset = 0,
+  scrollDelay = 400,
+  onAfterSelect,
 }) => {
   // Track whether the group is expanded (showing all options)
   // Start expanded if no value is selected, or if collapseOnSelect is false
@@ -145,6 +197,19 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
   const handleSelect = (optionValue: string) => {
     if (disabled) return;
     onChange(optionValue);
+    
+    // Call after-select callback
+    onAfterSelect?.(optionValue);
+    
+    // Auto-scroll if enabled
+    if (autoScrollOnSelect && scrollViewRef?.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: scrollOffset,
+          animated: true,
+        });
+      }, scrollDelay);
+    }
   };
   
   // Handle refresh/reset button press - expand to show all options
