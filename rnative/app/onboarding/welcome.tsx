@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -175,8 +175,17 @@ export default function OnboardingWelcomeScreen() {
         </Pressable>
       </View>
       
-      {/* Content */}
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      {/* Content with Keyboard Handling */}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
+        <ScrollView 
+          style={styles.content} 
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.contentCard}>
           {/* Icon Circle */}
           <View style={styles.iconContainer}>
@@ -239,7 +248,8 @@ export default function OnboardingWelcomeScreen() {
             )}
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
       
       {/* Action Button */}
       <View style={styles.footer}>
@@ -276,6 +286,9 @@ const styles = StyleSheet.create({
   stepText: {
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.mutedForeground,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   content: {
     flex: 1,

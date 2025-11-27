@@ -6,7 +6,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -60,8 +60,17 @@ export default function OnboardingLocationScreen() {
         <Text style={styles.stepText}>Step 2 of 5</Text>
       </View>
       
-      {/* Content */}
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      {/* Content with Keyboard Handling */}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
+        <ScrollView 
+          style={styles.content} 
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.contentCard}>
           {/* Icon Circle */}
           <View style={styles.iconContainer}>
@@ -130,7 +139,8 @@ export default function OnboardingLocationScreen() {
             />
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
       
       {/* Action Button */}
       <View style={styles.footer}>
@@ -162,6 +172,9 @@ const styles = StyleSheet.create({
   stepText: {
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.mutedForeground,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   content: {
     flex: 1,

@@ -19,7 +19,7 @@
  */
 
 import React from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton, Divider } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -191,8 +191,17 @@ export default function OrderOfThingsScreen() {
         <Text style={styles.stepText}>Dashboard</Text>
       </View>
       
-      {/* Content */}
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      {/* Content with Keyboard Handling */}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
+        <ScrollView 
+          style={styles.content} 
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Title - matches prototype */}
         <View style={styles.titleContainer}>
           <Text style={styles.title}>Your Will Dashboard</Text>
@@ -292,7 +301,8 @@ export default function OrderOfThingsScreen() {
             />
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
       
       {/* Tax & Estate Summary Button - Fixed at bottom */}
       <View style={styles.footer}>
@@ -327,6 +337,9 @@ const styles = StyleSheet.create({
   stepText: {
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.mutedForeground,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   content: {
     flex: 1,

@@ -18,7 +18,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton, Divider } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -524,8 +524,17 @@ export default function OnboardingFamilyScreen() {
         <Text style={styles.stepText}>Step 3 of 5</Text>
       </View>
       
-      {/* Content */}
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      {/* Content with Keyboard Handling */}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
+        <ScrollView 
+          style={styles.content} 
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.contentCard}>
           {/* Icon Circle */}
           <View style={styles.iconContainer}>
@@ -814,7 +823,8 @@ export default function OnboardingFamilyScreen() {
             )}
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
       
       {/* Action Button */}
       <View style={styles.footer}>
@@ -846,6 +856,9 @@ const styles = StyleSheet.create({
   stepText: {
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.mutedForeground,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   content: {
     flex: 1,
