@@ -1,65 +1,85 @@
 /**
- * DatePicker Component
+ * DatePicker Component - Native Implementation
  * 
- * A native date picker component for React Native
- * Simple wrapper around platform date pickers
+ * Uses @react-native-community/datetimepicker with Modal wrapper for iOS
+ * 
+ * Implementation follows strict minimal structure:
+ * - Modal -> View (overlay) -> View (picker container) -> DateTimePicker
+ * - No extra wrappers, no width constraints unless proven necessary
  * 
  * @module components/forms/DatePicker
  */
 
 import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform, Modal } from 'react-native';
-import { Button } from 'react-native-paper';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { View, Modal, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Input } from '../ui/Input';
+import { Button } from '../ui/Button';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing } from '../../styles/constants';
 
+/**
+ * DatePicker component props
+ */
 export interface DatePickerProps {
+  /**
+   * Label for the date picker
+   */
   label?: string;
-  value: string;
-  onChange: (date: string) => void;
+  
+  /**
+   * Current date value
+   */
+  value: Date | null;
+  
+  /**
+   * Change handler
+   */
+  onChange: (date: Date | null) => void;
+  
+  /**
+   * Placeholder text
+   */
   placeholder?: string;
+  
+  /**
+   * Whether picker is disabled
+   */
   disabled?: boolean;
-  error?: boolean;
-  errorMessage?: string;
+  
+  /**
+   * Minimum selectable date
+   */
   minimumDate?: Date;
+  
+  /**
+   * Maximum selectable date
+   */
   maximumDate?: Date;
 }
 
 /**
- * Convert YYYY-MM-DD to DD-MM-YYYY for display
+ * Format date for display (DD-MM-YYYY)
  */
-const formatDateForDisplay = (isoDate: string): string => {
-  if (!isoDate) return '';
-  const parts = isoDate.split('-');
-  if (parts.length === 3) {
-    const [year, month, day] = parts;
-    return `${day}-${month}-${year}`;
-  }
-  return isoDate;
-};
-
-/**
- * Convert YYYY-MM-DD string to Date object
- */
-const stringToDate = (isoDate: string): Date => {
-  if (!isoDate) return new Date();
-  return new Date(isoDate);
-};
-
-/**
- * Convert Date object to YYYY-MM-DD string
- */
-const dateToString = (date: Date): string => {
+const formatDateForDisplay = (date: Date | null): string => {
+  if (!date) return '';
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${day}-${month}-${year}`;
 };
 
 /**
- * DatePicker component
+ * DatePicker component with native picker
+ * 
+ * @example
+ * ```tsx
+ * <DatePicker
+ *   label="Date of Birth"
+ *   value={dateOfBirth}
+ *   onChange={setDateOfBirth}
+ * />
+ * ```
  */
 export const DatePicker: React.FC<DatePickerProps> = ({
   label,
@@ -67,115 +87,152 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   onChange,
   placeholder = 'DD-MM-YYYY',
   disabled = false,
-  error = false,
-  errorMessage,
   minimumDate,
   maximumDate,
 }) => {
   const [showPicker, setShowPicker] = useState(false);
-  const [tempDate, setTempDate] = useState<Date>(value ? stringToDate(value) : new Date());
-  
-  const displayValue = value ? formatDateForDisplay(value) : '';
-  
-  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+  const displayDate = value || new Date();
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
       setShowPicker(false);
     }
     
     if (event.type === 'set' && selectedDate) {
-      const isoDate = dateToString(selectedDate);
-      setTempDate(selectedDate);
-      onChange(isoDate);
+      onChange(selectedDate);
       if (Platform.OS === 'ios') {
         setShowPicker(false);
       }
     } else if (event.type === 'dismissed') {
+      // User cancelled - don't update value
       setShowPicker(false);
     }
   };
-  
-  const handlePress = () => {
-    if (!disabled) {
-      setShowPicker(true);
-    }
+
+  const handleDone = () => {
+    setShowPicker(false);
   };
-  
-  return (
-    <View style={styles.container}>
-      <TouchableOpacity onPress={handlePress} disabled={disabled} activeOpacity={0.7}>
-        <View pointerEvents="none">
+
+  const handleCancel = () => {
+    setShowPicker(false);
+  };
+
+  // Android: Show picker directly (native modal)
+  if (Platform.OS === 'android') {
+    return (
+      <>
+        <TouchableOpacity
+          onPress={() => !disabled && setShowPicker(true)}
+          disabled={disabled}
+        >
           <Input
             label={label}
-            value={displayValue}
-            onChangeText={() => {}}
+            value={formatDateForDisplay(value)}
+            onChangeText={() => {}} // Read-only, opens picker
             placeholder={placeholder}
             disabled={disabled}
-            error={error}
-            errorMessage={errorMessage}
             leftIcon="calendar"
           />
-        </View>
-      </TouchableOpacity>
-      
-      {showPicker && (
-        Platform.OS === 'ios' ? (
-          <Modal
-            transparent
-            animationType="slide"
-            visible={showPicker}
-            onRequestClose={() => setShowPicker(false)}
-          >
-            <View style={styles.iosModal}>
-              <View style={styles.iosPickerWrapper}>
-                <View style={styles.iosHeader}>
-                  <Button onPress={() => setShowPicker(false)} textColor={KindlingColors.green}>
-                    Done
-                  </Button>
-                </View>
-                <DateTimePicker
-                  value={tempDate}
-                  mode="date"
-                  display="spinner"
-                  onChange={handleDateChange}
-                  minimumDate={minimumDate}
-                  maximumDate={maximumDate}
-                />
-              </View>
-            </View>
-          </Modal>
-        ) : (
+        </TouchableOpacity>
+        {showPicker && (
           <DateTimePicker
-            value={tempDate}
+            value={displayDate}
             mode="date"
             display="default"
             onChange={handleDateChange}
             minimumDate={minimumDate}
             maximumDate={maximumDate}
           />
-        )
-      )}
-    </View>
+        )}
+      </>
+    );
+  }
+
+  // iOS: Show in Modal with minimal structure
+  // STEP 1: Absolute minimum - Modal -> View (overlay) -> View (container) -> DateTimePicker
+  return (
+    <>
+      <TouchableOpacity
+        onPress={() => !disabled && setShowPicker(true)}
+        disabled={disabled}
+      >
+        <Input
+          label={label}
+          value={formatDateForDisplay(value)}
+          onChangeText={() => {}} // Read-only, opens picker
+          placeholder={placeholder}
+          disabled={disabled}
+          leftIcon="calendar"
+        />
+      </TouchableOpacity>
+      
+      <Modal
+        visible={showPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={handleCancel}
+      >
+        {/* Overlay: flex: 1, justifyContent: 'flex-end', backgroundColor */}
+        <TouchableOpacity
+          style={styles.iosOverlay}
+          activeOpacity={1}
+          onPress={handleCancel}
+        >
+          {/* Picker container: backgroundColor ONLY (no width, no alignSelf, no constraints) */}
+          <View style={styles.iosPickerContainer}>
+            <DateTimePicker
+              value={displayDate}
+              mode="date"
+              display="spinner"
+              onChange={handleDateChange}
+              minimumDate={minimumDate}
+              maximumDate={maximumDate}
+            />
+            
+            {/* Action buttons */}
+            <View style={styles.iosActions}>
+              <Button
+                variant="outline"
+                onPress={handleCancel}
+                style={styles.actionButton}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onPress={handleDone}
+                style={styles.actionButton}
+              >
+                Done
+              </Button>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: Spacing.xs,
-  },
-  iosModal: {
+  iosOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  iosPickerWrapper: {
+  iosPickerContainer: {
     backgroundColor: KindlingColors.background,
-    alignSelf: 'stretch',
+    // NO width, NO alignSelf, NO constraints
+    // Let DateTimePicker handle its own layout
   },
-  iosHeader: {
-    alignItems: 'flex-end',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: KindlingColors.border,
+  iosActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: KindlingColors.border,
+  },
+  actionButton: {
+    flex: 1,
+    marginHorizontal: Spacing.xs,
   },
 });
