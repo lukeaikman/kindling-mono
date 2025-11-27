@@ -27,6 +27,7 @@ import { RadioGroup } from '../../src/components/ui/RadioGroup';
 import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import { Select } from '../../src/components/ui/Select';
+import { DatePicker } from '../../src/components/forms/DatePicker';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { Tooltip } from '../../src/components/ui/Tooltip';
 import { useAppState } from '../../src/hooks/useAppState';
@@ -718,11 +719,11 @@ export default function OnboardingFamilyScreen() {
                     </View>
                     
                     {/* Date of birth (optional) */}
-                    <Input
+                    <DatePicker
                       label="Date of birth (optional)"
                       value={child.dateOfBirth || ''}
-                      onChangeText={(value) => updateChild(child.id, 'dateOfBirth', value)}
-                      placeholder="YYYY-MM-DD"
+                      onChange={(value) => updateChild(child.id, 'dateOfBirth', value)}
+                      placeholder="DD-MM-YYYY"
                     />
                     
                     {/* Relationship dropdown */}
