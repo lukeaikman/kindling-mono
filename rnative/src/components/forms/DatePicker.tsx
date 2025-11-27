@@ -217,30 +217,30 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           animationType="slide"
           onRequestClose={handleIOSDone}
         >
-          <View style={styles.modalOverlay}>
-            <TouchableOpacity 
-              style={styles.modalBackdrop}
-              activeOpacity={1}
-              onPress={handleIOSDone}
-            />
-            <View style={styles.iosPickerContainer}>
-              <View style={styles.iosPickerHeader}>
-                <TouchableOpacity onPress={handleIOSDone}>
-                  <Text style={styles.iosDoneButton}>Done</Text>
-                </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={handleIOSDone}
+          >
+            <TouchableOpacity activeOpacity={1}>
+              <View style={styles.iosPickerContainer}>
+                <View style={styles.iosPickerHeader}>
+                  <TouchableOpacity onPress={handleIOSDone}>
+                    <Text style={styles.iosDoneButton}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={tempDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={handleDateChange}
+                  minimumDate={minimumDate}
+                  maximumDate={maximumDate}
+                  textColor={KindlingColors.navy}
+                />
               </View>
-              <DateTimePicker
-                value={tempDate}
-                mode="date"
-                display="spinner"
-                onChange={handleDateChange}
-                minimumDate={minimumDate}
-                maximumDate={maximumDate}
-                textColor={KindlingColors.navy}
-                style={styles.datePicker}
-              />
-            </View>
-          </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Modal>
       )}
       
@@ -264,19 +264,13 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
   },
   iosPickerContainer: {
     backgroundColor: KindlingColors.background,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
-    borderTopWidth: 1,
-    borderTopColor: KindlingColors.border,
-    width: '100%',
   },
   iosPickerHeader: {
     flexDirection: 'row',
@@ -290,9 +284,5 @@ const styles = StyleSheet.create({
     color: KindlingColors.green,
     fontSize: 16,
     fontWeight: '600',
-  },
-  datePicker: {
-    width: '100%',
-    backgroundColor: KindlingColors.background,
   },
 });
