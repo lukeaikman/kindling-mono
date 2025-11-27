@@ -15,7 +15,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform, Modal } from 'react-native';
 import { Text } from 'react-native-paper';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Input } from '../ui/Input';
@@ -210,9 +210,18 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       </TouchableOpacity>
       
       {/* Native Date Picker */}
-      {showPicker && (
-        <>
-          {Platform.OS === 'ios' && (
+      {showPicker && Platform.OS === 'ios' && (
+        <Modal
+          visible={showPicker}
+          transparent
+          animationType="slide"
+          onRequestClose={handleIOSDone}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={handleIOSDone}
+          >
             <View style={styles.iosPickerContainer}>
               <View style={styles.iosPickerHeader}>
                 <TouchableOpacity onPress={handleIOSDone}>
@@ -229,19 +238,19 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 textColor={KindlingColors.navy}
               />
             </View>
-          )}
-          
-          {Platform.OS === 'android' && (
-            <DateTimePicker
-              value={tempDate}
-              mode="date"
-              display="default"
-              onChange={handleDateChange}
-              minimumDate={minimumDate}
-              maximumDate={maximumDate}
-            />
-          )}
-        </>
+          </TouchableOpacity>
+        </Modal>
+      )}
+      
+      {showPicker && Platform.OS === 'android' && (
+        <DateTimePicker
+          value={tempDate}
+          mode="date"
+          display="default"
+          onChange={handleDateChange}
+          minimumDate={minimumDate}
+          maximumDate={maximumDate}
+        />
       )}
     </View>
   );
@@ -251,15 +260,17 @@ const styles = StyleSheet.create({
   container: {
     marginVertical: Spacing.xs,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
   iosPickerContainer: {
     backgroundColor: KindlingColors.background,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
     borderTopWidth: 1,
     borderTopColor: KindlingColors.border,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
   },
   iosPickerHeader: {
     flexDirection: 'row',
