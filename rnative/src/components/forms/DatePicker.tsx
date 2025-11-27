@@ -2,75 +2,28 @@
  * DatePicker Component
  * 
  * A native date picker component for React Native
- * Uses platform-specific native date pickers (iOS UIDatePicker, Android DatePickerDialog)
- * 
- * Features:
- * - Native date picker UI on iOS and Android
- * - Display format: DD-MM-YYYY (UK standard)
- * - Storage format: YYYY-MM-DD (ISO standard)
- * - Validates date inputs
- * - Consistent with Kindling brand styling
+ * Simple wrapper around platform date pickers
  * 
  * @module components/forms/DatePicker
  */
 
 import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, Platform, Modal } from 'react-native';
-import { Text } from 'react-native-paper';
+import { Button } from 'react-native-paper';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Input } from '../ui/Input';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing } from '../../styles/constants';
 
-/**
- * DatePicker component props
- */
 export interface DatePickerProps {
-  /**
-   * Label for the date picker
-   */
   label?: string;
-  
-  /**
-   * Current date value in YYYY-MM-DD format
-   * @example "1990-05-15"
-   */
   value: string;
-  
-  /**
-   * Change handler - receives date in YYYY-MM-DD format
-   */
   onChange: (date: string) => void;
-  
-  /**
-   * Placeholder text
-   * @default "DD-MM-YYYY"
-   */
   placeholder?: string;
-  
-  /**
-   * Whether picker is disabled
-   */
   disabled?: boolean;
-  
-  /**
-   * Error state
-   */
   error?: boolean;
-  
-  /**
-   * Error message
-   */
   errorMessage?: string;
-  
-  /**
-   * Minimum selectable date (YYYY-MM-DD format)
-   */
   minimumDate?: Date;
-  
-  /**
-   * Maximum selectable date (YYYY-MM-DD format)
-   */
   maximumDate?: Date;
 }
 
@@ -85,19 +38,6 @@ const formatDateForDisplay = (isoDate: string): string => {
     return `${day}-${month}-${year}`;
   }
   return isoDate;
-};
-
-/**
- * Convert DD-MM-YYYY to YYYY-MM-DD for storage
- */
-const formatDateForStorage = (displayDate: string): string => {
-  if (!displayDate) return '';
-  const parts = displayDate.split('-');
-  if (parts.length === 3) {
-    const [day, month, year] = parts;
-    return `${year}-${month}-${day}`;
-  }
-  return displayDate;
 };
 
 /**
@@ -119,32 +59,7 @@ const dateToString = (date: Date): string => {
 };
 
 /**
- * DatePicker component with native picker UI
- * 
- * On iOS: Shows inline wheel picker or modal based on iOS version
- * On Android: Shows native DatePickerDialog
- * 
- * @example
- * ```tsx
- * <DatePicker
- *   label="Date of Birth"
- *   value={dateOfBirth}
- *   onChange={setDateOfBirth}
- *   placeholder="DD-MM-YYYY"
- * />
- * ```
- * 
- * @example
- * ```tsx
- * // With min/max dates
- * <DatePicker
- *   label="Start Date"
- *   value={startDate}
- *   onChange={setStartDate}
- *   minimumDate={new Date()}
- *   maximumDate={new Date(2030, 11, 31)}
- * />
- * ```
+ * DatePicker component
  */
 export const DatePicker: React.FC<DatePickerProps> = ({
   label,
@@ -160,12 +75,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const [showPicker, setShowPicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date>(value ? stringToDate(value) : new Date());
   
-  // Display value in DD-MM-YYYY format
   const displayValue = value ? formatDateForDisplay(value) : '';
   
-  // Handle date change from native picker
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    // On Android, picker closes automatically
     if (Platform.OS === 'android') {
       setShowPicker(false);
     }
@@ -174,17 +86,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       const isoDate = dateToString(selectedDate);
       setTempDate(selectedDate);
       onChange(isoDate);
+      if (Platform.OS === 'ios') {
+        setShowPicker(false);
+      }
     } else if (event.type === 'dismissed') {
       setShowPicker(false);
     }
   };
   
-  // Handle iOS "Done" button (close picker)
-  const handleIOSDone = () => {
-    setShowPicker(false);
-  };
-  
-  // Open the picker
   const handlePress = () => {
     if (!disabled) {
       setShowPicker(true);
@@ -193,13 +102,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   
   return (
     <View style={styles.container}>
-      {/* Input field (acts as trigger) */}
       <TouchableOpacity onPress={handlePress} disabled={disabled} activeOpacity={0.7}>
         <View pointerEvents="none">
           <Input
             label={label}
             value={displayValue}
-            onChangeText={() => {}} // No-op, handled by picker
+            onChangeText={() => {}}
             placeholder={placeholder}
             disabled={disabled}
             error={error}
@@ -209,25 +117,20 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         </View>
       </TouchableOpacity>
       
-      {/* Native Date Picker */}
-      {showPicker && Platform.OS === 'ios' && (
-        <Modal
-          visible={showPicker}
-          transparent
-          animationType="slide"
-          onRequestClose={handleIOSDone}
-        >
-          <TouchableOpacity 
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={handleIOSDone}
+      {showPicker && (
+        Platform.OS === 'ios' ? (
+          <Modal
+            transparent
+            animationType="slide"
+            visible={showPicker}
+            onRequestClose={() => setShowPicker(false)}
           >
-            <TouchableOpacity activeOpacity={1}>
-              <View style={styles.iosPickerContainer}>
-                <View style={styles.iosPickerHeader}>
-                  <TouchableOpacity onPress={handleIOSDone}>
-                    <Text style={styles.iosDoneButton}>Done</Text>
-                  </TouchableOpacity>
+            <View style={styles.iosModal}>
+              <View style={styles.iosPickerWrapper}>
+                <View style={styles.iosHeader}>
+                  <Button onPress={() => setShowPicker(false)} textColor={KindlingColors.green}>
+                    Done
+                  </Button>
                 </View>
                 <DateTimePicker
                   value={tempDate}
@@ -236,23 +139,20 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   onChange={handleDateChange}
                   minimumDate={minimumDate}
                   maximumDate={maximumDate}
-                  textColor={KindlingColors.navy}
                 />
               </View>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
-      )}
-      
-      {showPicker && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={tempDate}
-          mode="date"
-          display="default"
-          onChange={handleDateChange}
-          minimumDate={minimumDate}
-          maximumDate={maximumDate}
-        />
+            </View>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={tempDate}
+            mode="date"
+            display="default"
+            onChange={handleDateChange}
+            minimumDate={minimumDate}
+            maximumDate={maximumDate}
+          />
+        )
       )}
     </View>
   );
@@ -262,27 +162,19 @@ const styles = StyleSheet.create({
   container: {
     marginVertical: Spacing.xs,
   },
-  modalOverlay: {
+  iosModal: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  iosPickerContainer: {
+  iosPickerWrapper: {
     backgroundColor: KindlingColors.background,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
   },
-  iosPickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    padding: Spacing.md,
+  iosHeader: {
+    alignItems: 'flex-end',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: KindlingColors.border,
-    backgroundColor: KindlingColors.background,
-  },
-  iosDoneButton: {
-    color: KindlingColors.green,
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
