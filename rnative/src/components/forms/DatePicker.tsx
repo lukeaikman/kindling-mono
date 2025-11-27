@@ -11,7 +11,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, Modal, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { View, Modal, StyleSheet, Platform, TouchableOpacity, Pressable } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -117,23 +117,29 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     setShowPicker(false);
   };
 
+  // Handle press - opens picker (prevents keyboard)
+  const handlePress = () => {
+    if (!disabled) {
+      setShowPicker(true);
+    }
+  };
+
   // Android: Show picker directly (native modal)
   if (Platform.OS === 'android') {
     return (
       <>
-        <TouchableOpacity
-          onPress={() => !disabled && setShowPicker(true)}
-          disabled={disabled}
-        >
+        <Pressable onPress={handlePress} disabled={disabled}>
           <Input
             label={label}
             value={formatDateForDisplay(value)}
             onChangeText={() => {}} // Read-only, opens picker
             placeholder={placeholder}
             disabled={disabled}
+            editable={false}
             leftIcon="calendar"
+            onFocus={handlePress} // Also handle focus as fallback
           />
-        </TouchableOpacity>
+        </Pressable>
         {showPicker && (
           <DateTimePicker
             value={displayDate}
@@ -152,19 +158,18 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   // STEP 1: Absolute minimum - Modal -> View (overlay) -> View (container) -> DateTimePicker
   return (
     <>
-      <TouchableOpacity
-        onPress={() => !disabled && setShowPicker(true)}
-        disabled={disabled}
-      >
+      <Pressable onPress={handlePress} disabled={disabled}>
         <Input
           label={label}
           value={formatDateForDisplay(value)}
           onChangeText={() => {}} // Read-only, opens picker
           placeholder={placeholder}
           disabled={disabled}
+          editable={false}
           leftIcon="calendar"
+          onFocus={handlePress} // Also handle focus as fallback
         />
-      </TouchableOpacity>
+      </Pressable>
       
       <Modal
         visible={showPicker}

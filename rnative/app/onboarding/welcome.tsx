@@ -15,7 +15,6 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Input } from '../../src/components/ui/Input';
 import { Button } from '../../src/components/ui/Button';
-import { DatePicker } from '../../src/components/forms/DatePicker';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { useAppState } from '../../src/hooks/useAppState';
 import { KindlingColors } from '../../src/styles/theme';
@@ -56,9 +55,15 @@ export default function OnboardingWelcomeScreen() {
       setFirstName(user.firstName || '');
       setLastName(user.lastName || '');
       
-      // DatePicker uses YYYY-MM-DD format directly
+      // Convert stored YYYY-MM-DD to DD-MM-YYYY for display
       if (user.dateOfBirth) {
-        setDateOfBirth(user.dateOfBirth);
+        const parts = user.dateOfBirth.split('-');
+        if (parts.length === 3) {
+          const [year, month, day] = parts;
+          setDateOfBirth(`${day}-${month}-${year}`);
+        } else {
+          setDateOfBirth(user.dateOfBirth);
+        }
       }
       
       // Middle names are not stored separately in Person model
@@ -83,18 +88,27 @@ export default function OnboardingWelcomeScreen() {
   
   /**
    * Handle date of birth change with age validation
-   * Accepts YYYY-MM-DD format from DatePicker
+   * Accepts DD-MM-YYYY format
    */
   const handleDateOfBirthChange = (value: string) => {
     setDateOfBirth(value);
     
-    // Calculate age from YYYY-MM-DD format
-    const age = calculateAge(value);
-    if (age !== null && !isNaN(age)) {
-      if (age < 18) {
-        setAgeError(`under-18:${age}`);
-      } else if (age > 90) {
-        setAgeError(`over-90:${age}`);
+    // Parse DD-MM-YYYY format to calculate age
+    // Convert DD-MM-YYYY to YYYY-MM-DD for Date parsing
+    const parts = value.split('-');
+    if (parts.length === 3) {
+      const [day, month, year] = parts;
+      const isoDate = `${year}-${month}-${day}`;
+      
+      const age = calculateAge(isoDate);
+      if (age !== null && !isNaN(age)) {
+        if (age < 18) {
+          setAgeError(`under-18:${age}`);
+        } else if (age > 90) {
+          setAgeError(`over-90:${age}`);
+        } else {
+          setAgeError(null);
+        }
       } else {
         setAgeError(null);
       }
@@ -112,8 +126,11 @@ export default function OnboardingWelcomeScreen() {
     // Create or update user as Person with 'will-maker' role
     const existingUser = personActions.getPeopleByRole('will-maker')[0];
     
-    // DatePicker already returns YYYY-MM-DD format
-    const storageDateOfBirth = dateOfBirth;
+    // Convert DD-MM-YYYY to YYYY-MM-DD for storage
+    const parts = dateOfBirth.split('-');
+    const storageDateOfBirth = parts.length === 3 
+      ? `${parts[2]}-${parts[1]}-${parts[0]}` // DD-MM-YYYY → YYYY-MM-DD
+      : dateOfBirth;
     
     if (existingUser) {
       // Update existing user
@@ -213,11 +230,12 @@ export default function OnboardingWelcomeScreen() {
               autoCapitalize="words"
             />
             
-            <DatePicker
+            <Input
               label="Date of Birth"
               value={dateOfBirth}
-              onChange={handleDateOfBirthChange}
+              onChangeText={handleDateOfBirthChange}
               placeholder="DD-MM-YYYY"
+              leftIcon="calendar"
             />
             
             {/* Age Warning */}
