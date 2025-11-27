@@ -217,11 +217,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           animationType="slide"
           onRequestClose={handleIOSDone}
         >
-          <TouchableOpacity 
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={handleIOSDone}
-          >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity 
+              style={styles.modalBackdrop}
+              activeOpacity={1}
+              onPress={handleIOSDone}
+            />
             <View style={styles.iosPickerContainer}>
               <View style={styles.iosPickerHeader}>
                 <TouchableOpacity onPress={handleIOSDone}>
@@ -236,9 +237,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 minimumDate={minimumDate}
                 maximumDate={maximumDate}
                 textColor={KindlingColors.navy}
+                style={styles.datePicker}
               />
             </View>
-          </TouchableOpacity>
+          </View>
         </Modal>
       )}
       
@@ -262,8 +264,11 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   iosPickerContainer: {
     backgroundColor: KindlingColors.background,
@@ -271,6 +276,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 12,
     borderTopWidth: 1,
     borderTopColor: KindlingColors.border,
+    width: '100%',
   },
   iosPickerHeader: {
     flexDirection: 'row',
@@ -278,10 +284,15 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: KindlingColors.border,
+    backgroundColor: KindlingColors.background,
   },
   iosDoneButton: {
     color: KindlingColors.green,
     fontSize: 16,
     fontWeight: '600',
+  },
+  datePicker: {
+    width: '100%',
+    backgroundColor: KindlingColors.background,
   },
 });
