@@ -169,6 +169,7 @@ const styles = StyleSheet.create({
   },
   iosPickerWrapper: {
     backgroundColor: KindlingColors.background,
+    alignSelf: 'stretch',
   },
   iosHeader: {
     alignItems: 'flex-end',
