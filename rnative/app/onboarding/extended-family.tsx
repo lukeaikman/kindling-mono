@@ -143,7 +143,9 @@ export default function OnboardingExtendedFamilyScreen() {
             {showParentsInLaw && (
               <View style={styles.questionContainer}>
                 <View style={styles.labelRow}>
-                  <Text style={styles.questionLabel}>Are either of your partner's parents still alive?</Text>
+                  <Text style={styles.questionLabel}>
+                    Are either of your <Text style={{ textDecorationLine: 'underline' }}>partner's parents</Text> still alive?
+                  </Text>
                   <Tooltip content="Your partner's family may become relevant if your partner passes away before you.">
                     <IconButton
                       icon="help-circle"
