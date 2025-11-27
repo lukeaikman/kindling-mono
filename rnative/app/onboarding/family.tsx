@@ -26,6 +26,7 @@ import { StatusBar } from 'expo-status-bar';
 import { RadioGroup } from '../../src/components/ui/RadioGroup';
 import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
+import { DatePicker } from '../../src/components/ui/DatePicker';
 import { Select } from '../../src/components/ui/Select';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { Tooltip } from '../../src/components/ui/Tooltip';
@@ -718,11 +719,19 @@ export default function OnboardingFamilyScreen() {
                     </View>
                     
                     {/* Date of birth (optional) */}
-                    <Input
+                    <DatePicker
                       label="Date of birth (optional)"
-                      value={child.dateOfBirth || ''}
-                      onChangeText={(value) => updateChild(child.id, 'dateOfBirth', value)}
-                      placeholder="YYYY-MM-DD"
+                      value={child.dateOfBirth}
+                      onChange={(date) => {
+                        // Format to YYYY-MM-DD
+                        const day = date.getDate().toString().padStart(2, '0');
+                        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                        const year = date.getFullYear();
+                        const isoDate = `${year}-${month}-${day}`;
+                        updateChild(child.id, 'dateOfBirth', isoDate);
+                      }}
+                      placeholder="DD-MM-YYYY"
+                      maxDate={new Date()}
                     />
                     
                     {/* Relationship dropdown */}

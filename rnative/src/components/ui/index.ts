@@ -45,3 +45,5 @@ export type { CurrencyInputProps } from './CurrencyInput';
 export { PercentageInput } from './PercentageInput';
 export type { PercentageInputProps } from './PercentageInput';
 
+export { DatePicker } from './DatePicker';
+export type { DatePickerProps } from './DatePicker';

@@ -14,6 +14,7 @@ import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Input } from '../../src/components/ui/Input';
+import { DatePicker } from '../../src/components/ui/DatePicker';
 import { Button } from '../../src/components/ui/Button';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { useAppState } from '../../src/hooks/useAppState';
@@ -55,15 +56,8 @@ export default function OnboardingWelcomeScreen() {
       setFirstName(user.firstName || '');
       setLastName(user.lastName || '');
       
-      // Convert stored YYYY-MM-DD to DD-MM-YYYY for display
       if (user.dateOfBirth) {
-        const parts = user.dateOfBirth.split('-');
-        if (parts.length === 3) {
-          const [year, month, day] = parts;
-          setDateOfBirth(`${day}-${month}-${year}`);
-        } else {
-          setDateOfBirth(user.dateOfBirth);
-        }
+        setDateOfBirth(user.dateOfBirth); // Keep as YYYY-MM-DD
       }
       
       // Middle names are not stored separately in Person model
@@ -88,27 +82,22 @@ export default function OnboardingWelcomeScreen() {
   
   /**
    * Handle date of birth change with age validation
-   * Accepts DD-MM-YYYY format
    */
-  const handleDateOfBirthChange = (value: string) => {
-    setDateOfBirth(value);
+  const handleDateOfBirthChange = (date: Date) => {
+    // Format to YYYY-MM-DD for storage
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const isoDate = `${year}-${month}-${day}`;
     
-    // Parse DD-MM-YYYY format to calculate age
-    // Convert DD-MM-YYYY to YYYY-MM-DD for Date parsing
-    const parts = value.split('-');
-    if (parts.length === 3) {
-      const [day, month, year] = parts;
-      const isoDate = `${year}-${month}-${day}`;
-      
-      const age = calculateAge(isoDate);
-      if (age !== null && !isNaN(age)) {
-        if (age < 18) {
-          setAgeError(`under-18:${age}`);
-        } else if (age > 90) {
-          setAgeError(`over-90:${age}`);
-        } else {
-          setAgeError(null);
-        }
+    setDateOfBirth(isoDate);
+    
+    const age = calculateAge(isoDate);
+    if (age !== null && !isNaN(age)) {
+      if (age < 18) {
+        setAgeError(`under-18:${age}`);
+      } else if (age > 90) {
+        setAgeError(`over-90:${age}`);
       } else {
         setAgeError(null);
       }
@@ -126,18 +115,12 @@ export default function OnboardingWelcomeScreen() {
     // Create or update user as Person with 'will-maker' role
     const existingUser = personActions.getPeopleByRole('will-maker')[0];
     
-    // Convert DD-MM-YYYY to YYYY-MM-DD for storage
-    const parts = dateOfBirth.split('-');
-    const storageDateOfBirth = parts.length === 3 
-      ? `${parts[2]}-${parts[1]}-${parts[0]}` // DD-MM-YYYY → YYYY-MM-DD
-      : dateOfBirth;
-    
     if (existingUser) {
       // Update existing user
       personActions.updatePerson(existingUser.id, {
         firstName,
         lastName,
-        dateOfBirth: storageDateOfBirth,
+        dateOfBirth,
       });
       console.log('✅ Updated existing will-maker:', existingUser.id);
     } else {
@@ -147,7 +130,7 @@ export default function OnboardingWelcomeScreen() {
         lastName,
         email: '',
         phone: '',
-        dateOfBirth: storageDateOfBirth,
+        dateOfBirth,
         relationship: 'other', // Will-maker doesn't have a relationship to themselves
         roles: ['will-maker']
       });
@@ -230,12 +213,12 @@ export default function OnboardingWelcomeScreen() {
               autoCapitalize="words"
             />
             
-            <Input
+            <DatePicker
               label="Date of Birth"
               value={dateOfBirth}
-              onChangeText={handleDateOfBirthChange}
+              onChange={handleDateOfBirthChange}
               placeholder="DD-MM-YYYY"
-              leftIcon="calendar"
+              maxDate={new Date()}
             />
             
             {/* Age Warning */}

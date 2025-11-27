@@ -151,13 +151,6 @@ export interface InputProps {
    * Useful for validation or side effects
    */
   onBeforeAutoFocus?: () => void;
-  
-  /**
-   * Whether input is editable
-   * When false, input is read-only and keyboard won't show
-   * @default true
-   */
-  editable?: boolean;
 }
 
 /**
@@ -259,7 +252,6 @@ export const Input = forwardRef<RNTextInput, InputProps>(({
   nextFieldRef,
   returnKeyType: returnKeyTypeProp,
   onBeforeAutoFocus,
-  editable = true,
 }, ref) => {
   const keyboardType = keyboardTypeProp || getKeyboardType(type);
   const autoCapitalize = autoCapitalizeProp || getAutoCapitalize(type);
@@ -284,7 +276,6 @@ export const Input = forwardRef<RNTextInput, InputProps>(({
       onChangeText={onChangeText}
       placeholder={placeholder}
       disabled={disabled}
-      editable={editable}
       error={error}
       keyboardType={keyboardType}
       secureTextEntry={secureTextEntry || type === 'password'}

@@ -98,7 +98,7 @@ export default function OnboardingWrapUpScreen() {
                 iconColor={KindlingColors.green}
               />
               <Text style={styles.checklistText}>Family situation</Text>
-            </View>
+              </View>
             <View style={styles.checklistItem}>
               <IconButton
                 icon="check-circle"
@@ -119,7 +119,7 @@ export default function OnboardingWrapUpScreen() {
             <Text style={styles.bulletItem}>• Structuring to reduce tax</Text>
           </View>
         </View>
-        </ScrollView>
+      </ScrollView>
       </KeyboardAvoidingView>
       
       {/* Action Button */}
