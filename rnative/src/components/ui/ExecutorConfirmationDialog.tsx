@@ -89,7 +89,7 @@ export const ExecutorConfirmationDialog: React.FC<ExecutorConfirmationDialogProp
     >
       <View style={styles.content}>
         <Text style={styles.message}>
-          While not a requirement, we would recommend 3 executors. 
+          While not a requirement, we would recommend 3 or more executors. 
           This provides better security and reduces the risk if one executor 
           is unable to fulfill their duties.
         </Text>
