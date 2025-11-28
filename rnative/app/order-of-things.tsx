@@ -25,6 +25,7 @@ import { Text, IconButton, Divider } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '../src/components/ui/Button';
+import { BackButton } from '../src/components/ui/BackButton';
 import { Tooltip } from '../src/components/ui/Tooltip';
 import { KindlingLogo } from '../src/components/ui/KindlingLogo';
 import { useAppState } from '../src/hooks/useAppState';
@@ -196,7 +197,7 @@ export default function OrderOfThingsScreen() {
       
       {/* Header */}
       <View style={styles.header}>
-        <Button variant="outline" onPress={handleBack}>Back</Button>
+        <BackButton onPress={handleBack} />
         <KindlingLogo size="sm" variant="dark" showText={false} />
         <Text style={styles.stepText}>Dashboard</Text>
       </View>

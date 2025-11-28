@@ -47,3 +47,6 @@ export type { PercentageInputProps } from './PercentageInput';
 
 export { DatePicker } from './DatePicker';
 export type { DatePickerProps } from './DatePicker';
+
+export { BackButton } from './BackButton';
+export type { BackButtonProps } from './BackButton';

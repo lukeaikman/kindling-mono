@@ -18,6 +18,7 @@ import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '../../src/components/ui/Button';
+import { BackButton } from '../../src/components/ui/BackButton';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
@@ -41,7 +42,7 @@ export default function OnboardingWrapUpScreen() {
       
       {/* Header */}
       <View style={styles.header}>
-        <Button variant="outline" onPress={handleBack}>Back</Button>
+        <BackButton onPress={handleBack} />
         <KindlingLogo size="sm" variant="dark" showText={false} />
         <Text style={styles.stepText}>Step 5 of 5</Text>
       </View>

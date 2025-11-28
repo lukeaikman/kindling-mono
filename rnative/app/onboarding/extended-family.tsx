@@ -22,6 +22,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { RadioGroup } from '../../src/components/ui/RadioGroup';
 import { Button } from '../../src/components/ui/Button';
+import { BackButton } from '../../src/components/ui/BackButton';
 import { Input } from '../../src/components/ui/Input';
 import { Tooltip } from '../../src/components/ui/Tooltip';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
@@ -89,7 +90,7 @@ export default function OnboardingExtendedFamilyScreen() {
       
       {/* Header */}
       <View style={styles.header}>
-        <Button variant="outline" onPress={handleBack}>Back</Button>
+        <BackButton onPress={handleBack} />
         <KindlingLogo size="sm" variant="dark" showText={false} />
         <Text style={styles.stepText}>Step 4 of 5</Text>
       </View>
