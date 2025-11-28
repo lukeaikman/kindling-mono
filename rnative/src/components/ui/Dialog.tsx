@@ -9,7 +9,7 @@
 
 import React, { useMemo } from 'react';
 import { Dialog as PaperDialog, Portal, Text } from 'react-native-paper';
-import { StyleSheet, ViewStyle } from 'react-native';
+import { StyleSheet, ViewStyle, View, StyleProp } from 'react-native';
 import { Button } from './Button';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing } from '../../styles/constants';
@@ -121,17 +121,20 @@ export const Dialog: React.FC<DialogProps> = ({
         
         {actionsToRender.length > 0 && (
           <PaperDialog.Actions style={styles.actions}>
-            {actionsToRender.map((action, index) => (
-              <Button
-                key={index}
-                variant={action.variant || 'secondary'}
-                onPress={action.onPress}
-                mode={action.variant === 'primary' ? 'contained' : 'outlined'}
-                style={styles.actionButton}
-              >
-                {action.label}
-              </Button>
-            ))}
+            <View style={styles.actionsContainer}>
+              {actionsToRender.map((action, index) => (
+                <View key={index} style={index > 0 ? styles.actionButtonWrapper : undefined}>
+                  <Button
+                    variant={action.variant || 'secondary'}
+                    onPress={action.onPress}
+                    mode={action.variant === 'primary' ? 'contained' : 'outlined'}
+                    style={styles.actionButton}
+                  >
+                    {action.label}
+                  </Button>
+                </View>
+              ))}
+            </View>
           </PaperDialog.Actions>
         )}
       </PaperDialog>
@@ -158,8 +161,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,
   },
+  actionsContainer: {
+    flexDirection: 'column',
+    width: '100%',
+  },
+  actionButtonWrapper: {
+    marginTop: Spacing.sm,
+  },
   actionButton: {
-    marginLeft: Spacing.sm,
+    width: '100%',
   },
 });
 
