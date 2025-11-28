@@ -342,11 +342,8 @@ export default function ExecutorSelectionScreen() {
   const handleContinue = () => {
     if (!hasPrimaryExecutor) return;
     
-    if (executors.length === 1) {
-      // Proceed with 1 executor
-      router.push('/executors/invitation');
-    } else if (executors.length === 2) {
-      // Show confirmation dialog
+    if (executors.length <= 2) {
+      // Show confirmation dialog recommending 3 executors
       setShowConfirmDialog(true);
     } else {
       // 3+ executors, proceed directly
