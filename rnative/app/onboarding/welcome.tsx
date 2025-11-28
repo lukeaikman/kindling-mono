@@ -45,9 +45,8 @@ export default function OnboardingWelcomeScreen() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [ageError, setAgeError] = useState<string | null>(null);
   
-  // Double tap functionality for dev dashboard
+  // Double tap functionality for dev dashboard (on header)
   const lastTapRef = useRef<number>(0);
-  const tapCount = useRef<number>(0);
   
   // Load existing user data on mount
   useEffect(() => {
@@ -66,17 +65,13 @@ export default function OnboardingWelcomeScreen() {
   }, []);
   
   /**
-   * Handle double-tap on step indicator to access dev tools
+   * Handle double-tap on header to access dev tools
    */
-  const handleStepPress = () => {
+  const handleHeaderPress = () => {
     const now = Date.now();
-    const timeDiff = now - lastTapRef.current;
-    
-    if (timeDiff < 300 && timeDiff > 0) {
-      // Double tap detected - navigate to dev dashboard
+    if (now - lastTapRef.current < 300) {
       router.push('/developer/dashboard');
     }
-    
     lastTapRef.current = now;
   };
   
@@ -151,12 +146,12 @@ export default function OnboardingWelcomeScreen() {
       <StatusBar style="dark" />
       
       {/* Header */}
-      <View style={styles.header}>
-        <KindlingLogo size="sm" variant="dark" showText={false} />
-        <Pressable onPress={handleStepPress}>
+      <TouchableOpacity onPress={handleHeaderPress} activeOpacity={0.9}>
+        <View style={styles.header}>
+          <KindlingLogo size="sm" variant="dark" showText={false} />
           <Text style={styles.stepText}>Step 1 of 5</Text>
-        </Pressable>
-      </View>
+        </View>
+      </TouchableOpacity>
       
       {/* Content with Keyboard Handling */}
       <KeyboardAvoidingView

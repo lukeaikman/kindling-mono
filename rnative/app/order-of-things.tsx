@@ -18,7 +18,7 @@
  * - NO dynamic assets display
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton, Divider } from 'react-native-paper';
@@ -98,6 +98,17 @@ const SectionOption: React.FC<SectionOptionProps> = ({
 export default function OrderOfThingsScreen() {
   const { willActions, personActions } = useAppState();
   
+  // Double tap functionality for dev dashboard (on header)
+  const lastTapRef = useRef<number>(0);
+  
+  const handleHeaderPress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      router.push('/developer/dashboard');
+    }
+    lastTapRef.current = now;
+  };
+  
   // Check completion status
   const checkSectionCompletion = () => {
     try {
@@ -142,8 +153,7 @@ export default function OrderOfThingsScreen() {
   };
   
   const handleNavigateToExecutors = () => {
-    console.log('Navigate to Executors');
-    // router.push('/executors');
+    router.push('/executors/intro');
   };
   
   const handleNavigateToGuardianship = () => {
@@ -196,11 +206,13 @@ export default function OrderOfThingsScreen() {
       <StatusBar style="dark" />
       
       {/* Header */}
-      <View style={styles.header}>
-        <BackButton onPress={handleBack} />
-        <KindlingLogo size="sm" variant="dark" showText={false} />
-        <Text style={styles.stepText}>Dashboard</Text>
-      </View>
+      <TouchableOpacity onPress={handleHeaderPress} activeOpacity={0.9}>
+        <View style={styles.header}>
+          <BackButton onPress={handleBack} />
+          <KindlingLogo size="sm" variant="dark" showText={false} />
+          <Text style={styles.stepText}>Dashboard</Text>
+        </View>
+      </TouchableOpacity>
       
       {/* Content with Keyboard Handling */}
       <KeyboardAvoidingView

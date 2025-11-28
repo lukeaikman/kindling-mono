@@ -5,8 +5,8 @@
  * Collects user's location and residency information
  */
 
-import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -34,6 +34,17 @@ export default function OnboardingLocationScreen() {
   const [domiciledInUK, setDomiciledInUK] = useState('');
   const [currentlyResident, setCurrentlyResident] = useState('');
   
+  // Double tap functionality for dev dashboard (on header)
+  const lastTapRef = useRef<number>(0);
+  
+  const handleHeaderPress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      router.push('/developer/dashboard');
+    }
+    lastTapRef.current = now;
+  };
+  
   const handleContinue = () => {
     if (!isValid) return;
     
@@ -55,11 +66,13 @@ export default function OnboardingLocationScreen() {
       <StatusBar style="dark" />
       
       {/* Header */}
-      <View style={styles.header}>
-        <BackButton onPress={handleBack} />
-        <KindlingLogo size="sm" variant="dark" showText={false} />
-        <Text style={styles.stepText}>Step 2 of 5</Text>
-      </View>
+      <TouchableOpacity onPress={handleHeaderPress} activeOpacity={0.9}>
+        <View style={styles.header}>
+          <BackButton onPress={handleBack} />
+          <KindlingLogo size="sm" variant="dark" showText={false} />
+          <Text style={styles.stepText}>Step 2 of 5</Text>
+        </View>
+      </TouchableOpacity>
       
       {/* Content with Keyboard Handling */}
       <KeyboardAvoidingView

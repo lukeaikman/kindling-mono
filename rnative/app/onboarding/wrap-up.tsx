@@ -11,8 +11,8 @@
  * - NO dynamic data display
  */
 
-import React from 'react';
-import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useRef } from 'react';
+import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -27,6 +27,17 @@ import { Spacing, Typography } from '../../src/styles/constants';
  * OnboardingWrapUpScreen component
  */
 export default function OnboardingWrapUpScreen() {
+  // Double tap functionality for dev dashboard (on header)
+  const lastTapRef = useRef<number>(0);
+  
+  const handleHeaderPress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      router.push('/developer/dashboard');
+    }
+    lastTapRef.current = now;
+  };
+
   const handleFinish = () => {
     console.log('✅ Onboarding completed');
     router.push('/order-of-things');
@@ -41,11 +52,13 @@ export default function OnboardingWrapUpScreen() {
       <StatusBar style="dark" />
       
       {/* Header */}
-      <View style={styles.header}>
-        <BackButton onPress={handleBack} />
-        <KindlingLogo size="sm" variant="dark" showText={false} />
-        <Text style={styles.stepText}>Step 5 of 5</Text>
-      </View>
+      <TouchableOpacity onPress={handleHeaderPress} activeOpacity={0.9}>
+        <View style={styles.header}>
+          <BackButton onPress={handleBack} />
+          <KindlingLogo size="sm" variant="dark" showText={false} />
+          <Text style={styles.stepText}>Step 5 of 5</Text>
+        </View>
+      </TouchableOpacity>
       
       {/* Content with Keyboard Handling */}
       <KeyboardAvoidingView
