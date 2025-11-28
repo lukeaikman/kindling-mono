@@ -479,24 +479,25 @@ npm run storybook           # When available
 
 ---
 
-## Current State (Updated 2025-11-23)
+## Current State (Updated 2025-11-28)
 
 **Completed:**
 - ✅ Phase 1: Foundation (Expo, Paper, Router, Theme)
 - ✅ Phase 2: Data Layer (Types, useAppState, AsyncStorage)
 - ✅ Phase 3: JSON Server Mock API
-- ✅ Phase 4: Component Library (16 components)
-- ✅ Phase 5: Onboarding Flow (proof of concept)
+- ✅ Phase 4: Component Library (21 components)
+- ✅ Phase 5: Onboarding Flow (5 screens, full family management)
+- ✅ Phase 6: Executor Selection Flow (4 screens, full CRUD, validation)
 
 **In Progress:**
-- Full onboarding screens (family management, extended family)
-- Executor selection screens
 - Asset management screens
+- Guardianship flow
 - Testing and polish
 
 **Known Issues:**
 - RadioButton circles not rendering on iOS (worked around with visual cues)
 - Storybook requires Node 20.19+ (not yet set up)
+- react-native-webview needs to be installed for VideoPlayer component
 
 ---
 

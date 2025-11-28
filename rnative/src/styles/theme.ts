@@ -49,7 +49,7 @@ export const kindlingTheme = {
   // Custom theme extensions
   roundness: 8,
   // Ensure Paper v5 uses proper Material Design 3 defaults
-  version: 3,
+  version: 3 as const,
 };
 
 /**
