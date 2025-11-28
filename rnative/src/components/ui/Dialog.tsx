@@ -7,7 +7,7 @@
  * @module components/ui/Dialog
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Dialog as PaperDialog, Portal, Text } from 'react-native-paper';
 import { StyleSheet, ViewStyle } from 'react-native';
 import { Button } from './Button';
@@ -81,22 +81,31 @@ export interface DialogProps {
  * </Dialog>
  * ```
  */
+// Empty array constant to avoid re-creating on every render
+const EMPTY_ACTIONS: DialogAction[] = [];
+
 export const Dialog: React.FC<DialogProps> = ({
   visible,
   onDismiss,
   title,
   children,
-  actions = [],
+  actions,
   dismissable = true,
   style,
 }) => {
+  // Use stable empty array reference
+  const actionsToRender = actions || EMPTY_ACTIONS;
+  
+  // Memoize the combined style to prevent re-render loops
+  const combinedStyle = useMemo(() => [styles.dialog, style], [style]);
+  
   return (
     <Portal>
       <PaperDialog
         visible={visible}
         onDismiss={onDismiss}
         dismissable={dismissable}
-        style={[styles.dialog, style]}
+        style={combinedStyle}
       >
         {title && (
           <PaperDialog.Title style={styles.title}>{title}</PaperDialog.Title>
@@ -110,9 +119,9 @@ export const Dialog: React.FC<DialogProps> = ({
           )}
         </PaperDialog.Content>
         
-        {actions.length > 0 && (
+        {actionsToRender.length > 0 && (
           <PaperDialog.Actions style={styles.actions}>
-            {actions.map((action, index) => (
+            {actionsToRender.map((action, index) => (
               <Button
                 key={index}
                 variant={action.variant || 'secondary'}

@@ -50,3 +50,12 @@ export type { DatePickerProps } from './DatePicker';
 
 export { BackButton } from './BackButton';
 export type { BackButtonProps } from './BackButton';
+
+export { Under18ExecutorDialog } from './Under18ExecutorDialog';
+export type { Under18ExecutorDialogProps } from './Under18ExecutorDialog';
+
+export { ExecutorConfirmationDialog } from './ExecutorConfirmationDialog';
+export type { ExecutorConfirmationDialogProps } from './ExecutorConfirmationDialog';
+
+export { VideoPlayer } from './VideoPlayer';
+export type { VideoPlayerProps } from './VideoPlayer';

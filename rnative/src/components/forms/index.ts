@@ -3,11 +3,10 @@
  * 
  * Barrel export for all form components
  * 
+ * Note: DatePicker has been moved to ui/DatePicker.tsx
+ * 
  * @module components/forms
  */
-
-export { DatePicker } from './DatePicker';
-export type { DatePickerProps } from './DatePicker';
 
 export { AddressSearchField } from './AddressSearchField';
 export type { AddressSearchFieldProps } from './AddressSearchField';

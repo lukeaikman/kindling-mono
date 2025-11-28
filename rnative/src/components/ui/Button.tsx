@@ -119,6 +119,7 @@ export const Button: React.FC<ButtonProps> = ({
       style={[styles.button, style]}
       contentStyle={styles.buttonContent}
       labelStyle={styles.buttonLabel}
+      compact={false}
     >
       {children}
     </PaperButton>
