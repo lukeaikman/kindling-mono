@@ -16,11 +16,12 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton, Divider } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Contacts from 'expo-contacts';
 import { Button } from '../../src/components/ui/Button';
 import { BackButton } from '../../src/components/ui/BackButton';
 import { Input } from '../../src/components/ui/Input';
@@ -174,6 +175,37 @@ export default function ExecutorSelectionScreen() {
     // Clear any existing errors
     setFormErrors({});
   }, [personActions]);
+  
+  /**
+   * Handle importing from phone contacts
+   */
+  const handleImportFromPhoneContacts = useCallback(async () => {
+    try {
+      // Use native contact picker (no permission request needed upfront)
+      const result = await Contacts.presentContactPickerAsync();
+      
+      if (result) {
+        // Populate form with contact data
+        setFormData(prev => ({
+          firstName: result.firstName || result.name?.split(' ')[0] || '',
+          lastName: result.lastName || result.name?.split(' ').slice(1).join(' ') || '',
+          email: result.emails?.[0]?.email || '',
+          phone: result.phoneNumbers?.[0]?.number || '',
+          level: prev.level, // Keep current level selection
+        }));
+        
+        // Clear any existing errors
+        setFormErrors({});
+      }
+    } catch (error) {
+      console.error('Error loading contact:', error);
+      Alert.alert(
+        'Unable to Load Contact',
+        'There was an error accessing your contacts. Please enter the details manually.',
+        [{ text: 'OK' }]
+      );
+    }
+  }, []);
   
   /**
    * Validate the executor form
@@ -467,14 +499,24 @@ export default function ExecutorSelectionScreen() {
             {/* Executor Form */}
             <View style={styles.executorForm}>
               <View style={styles.formHeader}>
-                <IconButton
-                  icon="account-plus"
-                  size={20}
-                  iconColor={KindlingColors.navy}
-                />
-                <Text style={styles.formTitle}>
-                  {editingExecutorId ? 'Edit Executor' : 'Add New Executor'}
-                </Text>
+                <View style={styles.formHeaderLeft}>
+                  <IconButton
+                    icon="account-plus"
+                    size={20}
+                    iconColor={KindlingColors.navy}
+                  />
+                  <Text style={styles.formTitle}>
+                    {editingExecutorId ? 'Edit Executor' : 'Add New Executor'}
+                  </Text>
+                </View>
+                {!editingExecutorId && (
+                  <IconButton
+                    icon="card-account-phone"
+                    size={20}
+                    iconColor={KindlingColors.green}
+                    onPress={handleImportFromPhoneContacts}
+                  />
+                )}
               </View>
               
               {/* Name Fields */}
@@ -772,8 +814,13 @@ const styles = StyleSheet.create({
   formHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    justifyContent: 'space-between',
     marginBottom: Spacing.xs,
+  },
+  formHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
     marginLeft: -8,
   },
   formTitle: {
