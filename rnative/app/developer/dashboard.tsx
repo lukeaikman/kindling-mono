@@ -130,6 +130,20 @@ export default function DeveloperDashboard() {
             >
               Onboarding Location
             </Button>
+            
+            <Button
+              variant="outline"
+              onPress={() => router.push('/executors/intro')}
+            >
+              Executor Flow
+            </Button>
+            
+            <Button
+              variant="outline"
+              onPress={() => router.push('/order-of-things')}
+            >
+              Order of Things Dashboard
+            </Button>
           </View>
         </Card>
         
