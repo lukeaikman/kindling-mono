@@ -151,7 +151,7 @@ export default function ExecutorsIntroScreen() {
       {/* Video Player Modal - Only render when visible */}
       {showVideo && (
         <VideoPlayer
-          videoUrl="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          videoUrl="https://www.youtube.com/watch?v=aqz-KE-bpKQ"
           title="Understanding Executors"
           visible={showVideo}
           onDismiss={handleDismissVideo}

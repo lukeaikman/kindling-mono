@@ -85,7 +85,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       videoId = url;
     }
     
-    return `https://www.youtube.com/embed/${videoId}`;
+    // Use nocookie domain and add autoplay parameter for better embedding support
+    return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`;
   };
   
   const embedUrl = getEmbedUrl(videoUrl);
