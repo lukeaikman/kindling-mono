@@ -128,8 +128,8 @@ export default function OrderOfThingsScreen() {
   
   const sectionCompletion = checkSectionCompletion();
   
-  // Calculate overall progress - matches prototype
-  const totalSections = 7; // 3 main + 4 finalize
+  // Calculate overall progress
+  const totalSections = 9; // 5 build + 4 generate
   const completedSections = 
     (sectionCompletion.executorsComplete ? 1 : 0) +
     (sectionCompletion.guardiansComplete ? 1 : 0) +
@@ -170,9 +170,19 @@ export default function OrderOfThingsScreen() {
     // router.push('/will-type');
   };
   
-  const handleNavigateToReviewSign = () => {
-    console.log('Navigate to Review, Sign & Store');
-    // router.push('/review-sign');
+  const handleNavigateToReview = () => {
+    console.log('Navigate to Review');
+    // router.push('/review');
+  };
+  
+  const handleNavigateToSign = () => {
+    console.log('Navigate to Sign');
+    // router.push('/sign');
+  };
+  
+  const handleNavigateToStore = () => {
+    console.log('Navigate to Store');
+    // router.push('/store');
   };
   
   const handleSummary = () => {
@@ -205,17 +215,6 @@ export default function OrderOfThingsScreen() {
         {/* Title - matches prototype */}
         <View style={styles.titleContainer}>
           <Text style={styles.title}>Your Will Dashboard</Text>
-        </View>
-        
-        {/* Progress Overview - simple percentage */}
-        <View style={styles.progressCard}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressLabel}>Overall Progress</Text>
-            <Text style={styles.progressPercentage}>{progressPercentage}%</Text>
-          </View>
-          <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
-          </View>
         </View>
         
         {/* Build Your Will Section */}
@@ -255,49 +254,63 @@ export default function OrderOfThingsScreen() {
               completed={sectionCompletion.estateDivisionComplete}
               onPress={handleNavigateToEstateDivision}
             />
-          </View>
-        </View>
-        
-        {/* Finalize Your Will Section */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconCircle, styles.sectionIconCircleGreen]}>
-              <IconButton
-                icon="check-circle"
-                size={20}
-                iconColor={KindlingColors.green}
-              />
-            </View>
-            <Text style={styles.sectionTitle}>Finalize Your Will</Text>
-          </View>
-          
-          <View style={styles.sectionContent}>
+            
             <SectionOption
               icon="alert-circle"
-              title="Review any warning flags"
+              title="Review warning flags"
               tooltip="We'll highlight any potential issues or risks with your current will setup."
               onPress={handleNavigateToWarningFlags}
             />
             
             <SectionOption
               icon="trending-up"
-              title="Review potential optimisations for tax & beneficiary care"
+              title="Tax optimisation"
               tooltip="Explore ways to reduce inheritance tax and protect your beneficiaries."
               onPress={handleNavigateToOptimisations}
             />
-            
+          </View>
+        </View>
+        
+        {/* Generate Your Will Section */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIconCircle, styles.sectionIconCircleGreen]}>
+              <IconButton
+                icon="file-document-outline"
+                size={20}
+                iconColor={KindlingColors.green}
+              />
+            </View>
+            <Text style={styles.sectionTitle}>Generate Your Will</Text>
+          </View>
+          
+          <View style={styles.sectionContent}>
             <SectionOption
               icon="file-document"
-              title="Will type"
+              title="Will Type"
               tooltip="Choose the type of will that best suits your needs."
               onPress={handleNavigateToWillType}
             />
             
             <SectionOption
-              icon="check-circle"
-              title="Review, sign & store!"
-              tooltip="Final review of your will before signing and securely storing it."
-              onPress={handleNavigateToReviewSign}
+              icon="text-box-check"
+              title="Review"
+              tooltip="Review your will to ensure all details are correct."
+              onPress={handleNavigateToReview}
+            />
+            
+            <SectionOption
+              icon="draw"
+              title="Sign"
+              tooltip="Electronically sign your will to make it legally valid."
+              onPress={handleNavigateToSign}
+            />
+            
+            <SectionOption
+              icon="safe"
+              title="Store"
+              tooltip="Securely store your will and share access with your executors."
+              onPress={handleNavigateToStore}
             />
           </View>
         </View>
