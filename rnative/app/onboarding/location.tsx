@@ -169,6 +169,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     backgroundColor: KindlingColors.background,
+    borderBottomWidth: 0.5,
+    borderBottomColor: KindlingColors.cream,
   },
   stepText: {
     fontSize: Typography.fontSize.sm,

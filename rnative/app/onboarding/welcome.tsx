@@ -260,11 +260,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md, // Reduced from lg (24) to md (16) = 33% reduction
     backgroundColor: KindlingColors.background,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderBottomWidth: 0.5,
+    borderBottomColor: KindlingColors.cream,
   },
   stepText: {
     fontSize: Typography.fontSize.sm,
