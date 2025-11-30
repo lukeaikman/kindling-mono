@@ -27,25 +27,40 @@ Kindling is a mobile application for will creation and estate planning, built wi
 ```bash
 # Install dependencies
 npm install
-
-# Start the development server
-npx expo start
 ```
 
-### Running on Different Platforms
+### Running the App
 
+**For Development (Recommended):**
 ```bash
-# Run on iOS Simulator (macOS only)
+# Start Expo development server
+npm start
+
+# Then press:
+# - i for iOS Simulator
+# - a for Android Emulator
+# - Scan QR code with Expo Go app on your device
+```
+
+**Platform-Specific Commands:**
+```bash
+# iOS Simulator (macOS only)
 npm run ios
 
-# Run on Android Emulator
+# Android Emulator
 npm run android
 
-# Run on web browser
+# Web Browser (not recommended for this app)
 npm run web
+```
 
-# Scan QR code with Expo Go app on your device
-# (QR code appears after running npx expo start)
+**Mock API (Optional - Not Currently Used):**
+```bash
+# In a separate terminal window:
+npm run mock-api
+
+# Note: The app currently uses AsyncStorage only.
+# Mock API is configured for future backend integration.
 ```
 
 ## Project Structure
@@ -165,11 +180,27 @@ npm run lint:fix      # Fix linting issues
 - [x] Bidirectional relationship querying
 - [x] Clear onboarding family members functionality
 
-### Phase 6+ - Remaining Screens (In Progress)
-- [ ] Executors flow (5 screens)
-- [ ] Asset management (40+ screens)
-- [ ] Guardianship (3 screens)
-- [ ] Estate division (5 screens)
+### Phase 6 - Executor Flow ✅ COMPLETE
+- [x] Executors Intro Screen
+- [x] Executor Selection Screen (full CRUD with level hierarchy)
+- [x] Executor Invitation Screen
+- [x] Professional Executor Screen (placeholder)
+- [x] Under-18 validation and warnings
+- [x] Phone contacts integration
+- [x] Video player integration
+
+### Phase 7 - Developer Tools ✅ COMPLETE
+- [x] Enhanced developer dashboard with organized navigation
+- [x] Data Explorer with 3-level drill-down (Interfaces → Instances → Properties)
+- [x] Role filtering, copy to clipboard, pretty renderers
+- [x] Global dev dashboard access (header double-tap)
+
+### Phase 8+ - Remaining Screens (Next)
+- [ ] Guardianship flow (3-5 screens) ← RECOMMENDED NEXT
+- [ ] Asset management (40+ screens: property, investments, pensions, etc.)
+- [ ] Estate division (5-7 screens)
+- [ ] Authentication screens (splash, login)
+- [ ] Quiz flow (7 screens)
 - [ ] And more...
 
 ## Documentation
