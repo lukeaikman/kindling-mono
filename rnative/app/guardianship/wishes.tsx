@@ -776,7 +776,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: KindlingColors.navy,
-    padding: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
@@ -809,7 +811,6 @@ const styles = StyleSheet.create({
   },
   activeContent: {
     gap: Spacing.xs,
-    marginTop: Spacing.xs,
   },
   form: {
     backgroundColor: KindlingColors.background,
