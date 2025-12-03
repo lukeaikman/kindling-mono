@@ -10,16 +10,19 @@
  */
 
 import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Button } from '../../src/components/ui/Button';
+import { BackButton } from '../../src/components/ui/BackButton';
 import { VideoPlayer } from '../../src/components/ui/VideoPlayer';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
 
 export default function GuardianshipIntroScreen() {
-  const [videoVisible, setVideoVisible] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
 
   const handleBack = () => {
     router.back();
@@ -31,36 +34,36 @@ export default function GuardianshipIntroScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <View style={styles.titleContainer}>
-            <View style={styles.iconContainer}>
-              <IconButton icon="heart" size={20} iconColor={KindlingColors.navy} />
-            </View>
-            <Text style={styles.title}>Children - Guardianship</Text>
-          </View>
+      <StatusBar style="dark" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <BackButton onPress={handleBack} />
         </View>
-
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Choose Guardians</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <IconButton
+            icon="play-circle-outline"
+            size={24}
+            iconColor={KindlingColors.navy}
+            onPress={() => setShowVideo(true)}
+          />
+        </View>
+      </View>
+      
+      <ScrollView contentContainerStyle={styles.content}>
         {/* Video Section */}
-        {videoVisible ? (
+        {showVideo && (
           <View style={styles.videoContainer}>
             <VideoPlayer
               videoId="dQw4w9WgXcQ"
               title="Choosing Guardians for Your Children"
-              onClose={() => setVideoVisible(false)}
+              onClose={() => setShowVideo(false)}
             />
           </View>
-        ) : (
-          <TouchableOpacity 
-            style={styles.videoButton}
-            onPress={() => setVideoVisible(true)}
-          >
-            <Text style={styles.videoButtonText}>▶ Watch Video: Choosing Guardians</Text>
-          </TouchableOpacity>
         )}
 
         {/* Content */}
@@ -96,50 +99,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: KindlingColors.cream,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: KindlingColors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: `${KindlingColors.border}1a`,
+  },
+  headerLeft: {
+    width: 48,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerRight: {
+    width: 48,
+    alignItems: 'flex-end',
+  },
+  headerTitle: {
+    ...Typography.h2,
+    fontSize: 18,
+    color: KindlingColors.navy,
+  },
   content: {
     padding: Spacing.lg,
     gap: Spacing.xl,
   },
-  header: {
-    gap: Spacing.md,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-  },
-  backButtonText: {
-    ...Typography.body,
-    color: KindlingColors.navy,
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: `${KindlingColors.navy}1a`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    ...Typography.h2,
-    color: KindlingColors.navy,
-  },
   videoContainer: {
-    marginVertical: Spacing.md,
-  },
-  videoButton: {
-    backgroundColor: KindlingColors.navy,
-    padding: Spacing.md,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  videoButtonText: {
-    ...Typography.body,
-    color: 'white',
-    fontWeight: '600',
+    marginBottom: Spacing.md,
   },
   section: {
     gap: Spacing.md,
