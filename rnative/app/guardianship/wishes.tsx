@@ -23,6 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Contacts from 'expo-contacts';
 import { useAppState } from '../../src/hooks/useAppState';
 import { Button } from '../../src/components/ui/Button';
 import { BackButton } from '../../src/components/ui/BackButton';
@@ -253,6 +254,26 @@ export default function GuardianWishesScreen() {
     });
   };
   
+  // Import from phone contacts
+  const handleImportFromPhoneContacts = async () => {
+    try {
+      const result = await Contacts.presentContactPickerAsync();
+      
+      if (result) {
+        setFormData({
+          ...formData,
+          firstName: result.firstName || result.name?.split(' ')[0] || '',
+          lastName: result.lastName || result.name?.split(' ').slice(1).join(' ') || '',
+          email: result.emails?.[0]?.email || '',
+          phone: result.phoneNumbers?.[0]?.number || '',
+          selectedContactId: '',
+        });
+      }
+    } catch (error) {
+      console.error('Error importing contact:', error);
+    }
+  };
+  
   // Reset form
   const resetForm = () => {
     const currentGuardians = activeChildId ? guardianData[activeChildId] || [] : [];
@@ -459,16 +480,25 @@ export default function GuardianWishesScreen() {
                       <View style={styles.activeContent}>
                         {/* Guardian Form */}
                         <View style={styles.form}>
-                          {/* Load Contact */}
-                          {getContactOptions().length > 0 && (
+                          {/* Load Contact + Address Book */}
+                          {getContactOptions().length > 0 ? (
                             <>
-                              <Select
-                                label="Load a contact"
-                                placeholder="Load a contact"
-                                value={formData.selectedContactId}
-                                options={getContactOptions()}
-                                onChange={handleLoadContact}
-                              />
+                              <View style={styles.contactRow}>
+                                <View style={styles.contactDropdown}>
+                                  <Select
+                                    placeholder="Load a contact"
+                                    value={formData.selectedContactId}
+                                    options={getContactOptions()}
+                                    onChange={handleLoadContact}
+                                  />
+                                </View>
+                                <TouchableOpacity
+                                  style={styles.addressBookButton}
+                                  onPress={handleImportFromPhoneContacts}
+                                >
+                                  <IconButton icon="card-account-phone" size={24} iconColor={KindlingColors.green} />
+                                </TouchableOpacity>
+                              </View>
                               
                               <View style={styles.divider}>
                                 <View style={styles.dividerLine} />
@@ -476,6 +506,14 @@ export default function GuardianWishesScreen() {
                                 <View style={styles.dividerLine} />
                               </View>
                             </>
+                          ) : (
+                            <TouchableOpacity
+                              style={styles.addressBookButtonFull}
+                              onPress={handleImportFromPhoneContacts}
+                            >
+                              <IconButton icon="card-account-phone" size={24} iconColor={KindlingColors.green} />
+                              <Text style={styles.addressBookButtonText}>Import from Phone Contacts</Text>
+                            </TouchableOpacity>
                           )}
                           
                           {/* Name Fields */}
@@ -808,6 +846,40 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     borderWidth: 1,
     borderColor: `${KindlingColors.border}20`,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    alignItems: 'flex-start',
+  },
+  contactDropdown: {
+    flex: 4,
+  },
+  addressBookButton: {
+    flex: 1,
+    backgroundColor: `${KindlingColors.green}20`,
+    borderRadius: 8,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: `${KindlingColors.green}40`,
+  },
+  addressBookButtonFull: {
+    flexDirection: 'row',
+    backgroundColor: `${KindlingColors.green}20`,
+    borderRadius: 8,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: `${KindlingColors.green}40`,
+    gap: Spacing.xs,
+  },
+  addressBookButtonText: {
+    ...Typography.body,
+    color: KindlingColors.navy,
+    fontWeight: Typography.fontWeight.medium,
   },
   divider: {
     flexDirection: 'row',
