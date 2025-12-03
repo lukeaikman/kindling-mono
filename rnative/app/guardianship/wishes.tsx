@@ -577,10 +577,9 @@ export default function GuardianWishesScreen() {
                               setCopyTargetChildId(dep.id);
                               setShowCopyModal(true);
                             }}
-                            style={styles.copyButton}
+                            icon="content-copy"
                           >
-                            <IconButton icon="content-copy" size={16} iconColor={KindlingColors.navy} />
-                            <Text style={styles.copyButtonText}>Copy from another child</Text>
+                            Copy from another child
                           </Button>
                         )}
                       </View>
@@ -597,10 +596,9 @@ export default function GuardianWishesScreen() {
                               setCopyTargetChildId(dep.id);
                               setShowCopyModal(true);
                             }}
-                            style={styles.copyButton}
+                            icon="content-copy"
                           >
-                            <IconButton icon="content-copy" size={16} iconColor={KindlingColors.navy} />
-                            <Text style={styles.copyButtonText}>Copy from another child</Text>
+                            Copy from another child
                           </Button>
                         )}
                       </View>
@@ -882,16 +880,6 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     padding: Spacing.xs,
-  },
-  copyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-  },
-  copyButtonText: {
-    ...Typography.body,
-    color: KindlingColors.navy,
   },
   collapsedActions: {
     marginTop: Spacing.xs,
