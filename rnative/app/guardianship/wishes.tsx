@@ -859,11 +859,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: `${KindlingColors.green}20`,
     borderRadius: 8,
-    minHeight: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: `${KindlingColors.green}40`,
+    alignSelf: 'stretch',
   },
   addressBookButtonFull: {
     flexDirection: 'row',
