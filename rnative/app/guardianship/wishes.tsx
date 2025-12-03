@@ -26,7 +26,8 @@ import { Button } from '../../src/components/ui/Button';
 import { TextInput } from '../../src/components/ui/TextInput';
 import { Select } from '../../src/components/ui/Select';
 import { Dialog } from '../../src/components/ui/Dialog';
-import { KindlingColors, Typography, Spacing } from '../../src/theme';
+import { KindlingColors } from '../../src/styles/theme';
+import { Spacing, Typography } from '../../src/styles/constants';
 import { getDisplayRoleLabel, getDropdownRoleLabel, getAvailableLevels } from '../../src/utils/executorHelpers';
 import type { Person } from '../../src/types';
 

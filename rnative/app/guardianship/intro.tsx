@@ -15,7 +15,8 @@ import { IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Button } from '../../src/components/ui/Button';
 import { VideoPlayer } from '../../src/components/ui/VideoPlayer';
-import { KindlingColors, Typography, Spacing } from '../../src/theme';
+import { KindlingColors } from '../../src/styles/theme';
+import { Spacing, Typography } from '../../src/styles/constants';
 
 export default function GuardianshipIntroScreen() {
   const [videoVisible, setVideoVisible] = useState(false);
