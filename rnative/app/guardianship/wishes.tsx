@@ -444,18 +444,14 @@ export default function GuardianWishesScreen() {
                   >
                     {/* Card Header */}
                     <View style={styles.cardHeader}>
-                      <View style={styles.childInfo}>
-                        <View>
-                          <Text style={styles.childName}>{dep.firstName} {dep.lastName}</Text>
-                          {!isActive && (
-                            <Text style={styles.guardianStatus}>
-                              {guardianCount > 0 
-                                ? `${guardianCount} guardian${guardianCount !== 1 ? 's' : ''} assigned`
-                                : 'No guardians assigned'}
-                            </Text>
-                          )}
-                        </View>
-                      </View>
+                      <Text style={styles.childName}>{dep.firstName} {dep.lastName}</Text>
+                      {!isActive && (
+                        <Text style={styles.guardianStatus}>
+                          {guardianCount > 0 
+                            ? `${guardianCount} guardian${guardianCount !== 1 ? 's' : ''} assigned`
+                            : 'No guardians assigned'}
+                        </Text>
+                      )}
                     </View>
                     
                     {/* Active Card Content */}
@@ -793,12 +789,7 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  childInfo: {
-    flex: 1,
+    gap: Spacing.xs,
   },
   childName: {
     fontSize: Typography.fontSize.xl,
