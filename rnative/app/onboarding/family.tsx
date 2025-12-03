@@ -234,11 +234,14 @@ export default function OnboardingFamilyScreen() {
    * Add a new child - matches prototype logic
    */
   const addChild = useCallback(() => {
-    const userId = 'user-placeholder';
-    const spouseId = 'spouse-placeholder';
+    // Get actual person IDs from the system
+    const userId = user?.id || '';
+    const spouse = user ? relationshipActions.getSpouse(user.id, 'active') : undefined;
+    const spouseId = spouse?.id || '';
     
     // Default guardians based on relationship status
-    const defaultGuardianIds = hasPartner(relationshipStatus)
+    // Only include spouse if they exist
+    const defaultGuardianIds = hasPartner(relationshipStatus) && spouseId
       ? [userId, spouseId]
       : [userId];
     
@@ -262,7 +265,7 @@ export default function OnboardingFamilyScreen() {
       setChildLastNamePrePopulated(prev => ({ ...prev, [newChild.id]: true }));
     }
     setChildLastNameTouched(prev => ({ ...prev, [newChild.id]: false }));
-  }, [relationshipStatus, spouseLastName, userLastName]);
+  }, [relationshipStatus, spouseLastName, userLastName, user, relationshipActions]);
   
   /**
    * Handle hasChildren change - auto-add first child on "Yes"
@@ -477,6 +480,11 @@ export default function OnboardingFamilyScreen() {
     
     // Save children
     if (hasChildren === 'yes' && children.length > 0) {
+      // Get actual guardian IDs (replace placeholders)
+      const actualUserId = currentUser.id;
+      const spouse = relationshipActions.getSpouse(currentUser.id, 'active');
+      const actualSpouseId = spouse?.id;
+      
       children.forEach((child, index) => {
         // Determine qualifiers from relationship type
         const qualifiers: Record<string, boolean> = {};
@@ -484,6 +492,15 @@ export default function OnboardingFamilyScreen() {
         if (child.relationship === 'adopted-child') qualifiers.adoptive = true;
         if (child.relationship === 'stepchild') qualifiers.step = true;
         if (child.relationship === 'foster-child') qualifiers.foster = true;
+        
+        // Replace placeholder guardian IDs with actual IDs
+        const actualGuardianIds = child.guardianIds
+          .map(id => {
+            if (id === 'user-placeholder') return actualUserId;
+            if (id === 'spouse-placeholder') return actualSpouseId;
+            return id;
+          })
+          .filter(Boolean) as string[];
         
         const childId = personActions.addPerson({
           firstName: child.firstName,
@@ -497,7 +514,7 @@ export default function OnboardingFamilyScreen() {
           inCare: child.capacityStatus === 'under-18' || child.capacityStatus === 'over-18-lacks-capacity',
           careCategory: child.capacityStatus === 'under-18' ? 'child-under-18' : undefined,
           capacityStatus: child.capacityStatus,
-          guardianIds: child.guardianIds,
+          guardianIds: actualGuardianIds,
           createdInOnboarding: true,
         });
         
@@ -505,7 +522,7 @@ export default function OnboardingFamilyScreen() {
           qualifiers,
         });
         
-        console.log(`Created child ${index + 1}:`, childId);
+        console.log(`Created child ${index + 1}:`, childId, 'with guardians:', actualGuardianIds);
       });
     }
     

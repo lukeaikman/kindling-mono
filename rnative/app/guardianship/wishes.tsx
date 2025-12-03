@@ -88,33 +88,23 @@ export default function GuardianWishesScreen() {
   const getExcludedPersonIds = (childId: string) => {
     const excluded: string[] = [];
     const child = sortedDependents.find(d => d.id === childId);
-    if (!child) {
-      console.log('⚠️ getExcludedPersonIds: Child not found', childId);
-      return excluded;
-    }
+    if (!child) return excluded;
     
     // Exclude will-maker
     const user = willActions.getUser();
     if (user?.id) {
       excluded.push(user.id);
-      console.log('❌ Excluding will-maker:', user.firstName, user.lastName, user.id);
     }
     
     // Exclude current guardians (parents) from Person.guardianIds
     if (child.guardianIds && child.guardianIds.length > 0) {
-      child.guardianIds.forEach(guardianId => {
-        const guardian = personActions.getPersonById(guardianId);
-        console.log('❌ Excluding current guardian (parent):', guardian ? `${guardian.firstName} ${guardian.lastName}` : 'Unknown', guardianId);
-        excluded.push(guardianId);
-      });
+      excluded.push(...child.guardianIds);
     }
     
     // Exclude already nominated guardians (from local state)
     const nominated = guardianData[childId] || [];
     nominated.forEach(g => {
       if (!excluded.includes(g.guardian)) {
-        const guardian = personActions.getPersonById(g.guardian);
-        console.log('❌ Excluding nominated guardian:', guardian ? `${guardian.firstName} ${guardian.lastName}` : 'Unknown', g.guardian);
         excluded.push(g.guardian);
       }
     });
@@ -122,12 +112,10 @@ export default function GuardianWishesScreen() {
     // Exclude all children
     sortedDependents.forEach(dep => {
       if (!excluded.includes(dep.id)) {
-        console.log('❌ Excluding child:', dep.firstName, dep.lastName, dep.id);
         excluded.push(dep.id);
       }
     });
     
-    console.log('📋 Total excluded for', child.firstName, ':', excluded.length);
     return excluded;
   };
   
@@ -312,17 +300,12 @@ export default function GuardianWishesScreen() {
     if (!activeChildId) return [];
     const excluded = getExcludedPersonIds(activeChildId);
     const allPeople = personActions.getPeople();
-    const available = allPeople.filter(p => !excluded.includes(p.id));
-    
-    console.log('📞 Available contacts for dropdown:', available.length);
-    available.forEach(p => {
-      console.log('  ✅', p.firstName, p.lastName, p.id);
-    });
-    
-    return available.map(p => ({
-      label: `${p.firstName} ${p.lastName}`,
-      value: p.id,
-    }));
+    return allPeople
+      .filter(p => !excluded.includes(p.id))
+      .map(p => ({
+        label: `${p.firstName} ${p.lastName}`,
+        value: p.id,
+      }));
   };
   
   // Get level options
