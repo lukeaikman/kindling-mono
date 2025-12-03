@@ -395,16 +395,16 @@ export default function GuardianWishesScreen() {
               
               return (
                 <View key={dep.id} style={styles.cardContainer}>
-                  {/* Stacked cards effect */}
+                  {/* Stacked cards effect - appear above active card */}
                   {stackedChildren.map((stackedChild, index) => (
                     <View 
                       key={stackedChild.id}
                       style={[
                         styles.stackedCard,
                         { 
-                          top: -(stackedChildren.length - index) * 8,
-                          left: (stackedChildren.length - index) * 2,
-                          zIndex: stackedChildren.length - index,
+                          top: -(stackedChildren.length - index) * 16,
+                          left: (stackedChildren.length - index) * 4,
+                          zIndex: 10 + (stackedChildren.length - index),
                         }
                       ]}
                     >
@@ -414,7 +414,7 @@ export default function GuardianWishesScreen() {
                           onPress={() => handleUnstack(stackedChild.id)}
                           style={styles.unstackButton}
                         >
-                          <IconButton icon="close" size={16} iconColor={KindlingColors.brown} />
+                          <IconButton icon="close" size={20} iconColor={KindlingColors.navy} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -715,20 +715,21 @@ const styles = StyleSheet.create({
   cardContainer: {
     position: 'relative',
     marginBottom: Spacing.md,
+    paddingTop: 24, // Space for stacked cards above
   },
   stackedCard: {
     position: 'absolute',
     width: '100%',
-    backgroundColor: KindlingColors.beige,
+    backgroundColor: KindlingColors.gold,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: `${KindlingColors.navy}20`,
-    padding: Spacing.sm,
+    borderColor: KindlingColors.navy,
+    padding: Spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
   stackedCardHeader: {
     flexDirection: 'row',
@@ -737,29 +738,33 @@ const styles = StyleSheet.create({
   },
   stackedCardName: {
     ...Typography.body,
+    fontSize: 18,
     fontWeight: '600',
     color: KindlingColors.navy,
   },
   unstackButton: {
-    padding: Spacing.xs,
+    padding: 0,
+    margin: 0,
   },
   card: {
     backgroundColor: 'white',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: `${KindlingColors.navy}20`,
+    borderColor: KindlingColors.navy,
     padding: Spacing.md,
     gap: Spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+    zIndex: 1,
   },
   cardActive: {
-    borderColor: KindlingColors.gold,
-    borderWidth: 2,
-    backgroundColor: `${KindlingColors.gold}05`,
+    borderColor: KindlingColors.navy,
+    borderWidth: 1,
+    backgroundColor: 'white',
+    zIndex: 1,
   },
   cardHeader: {
     flexDirection: 'row',
