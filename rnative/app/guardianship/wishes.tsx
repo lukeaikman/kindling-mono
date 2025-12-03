@@ -851,7 +851,7 @@ const styles = StyleSheet.create({
   contactRow: {
     flexDirection: 'row',
     gap: Spacing.xs,
-    alignItems: 'flex-end',
+    alignItems: 'stretch',
   },
   contactDropdown: {
     flex: 4,
