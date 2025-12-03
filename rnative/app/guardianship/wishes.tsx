@@ -19,8 +19,8 @@
 
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
+import { IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Heart, X, Copy } from 'lucide-react-native';
 import { useAppState } from '../../src/hooks/useAppState';
 import { Button } from '../../src/components/ui/Button';
 import { TextInput } from '../../src/components/ui/TextInput';
@@ -372,7 +372,7 @@ export default function GuardianWishesScreen() {
         {/* Children Cards */}
         {sortedDependents.length === 0 ? (
           <View style={styles.emptyState}>
-            <Heart color={KindlingColors.gold} size={48} />
+            <IconButton icon="heart" size={48} iconColor={KindlingColors.gold} />
             <Text style={styles.emptyTitle}>No Dependents Found</Text>
             <Text style={styles.emptyText}>
               You need to add dependents before assigning guardians.
@@ -411,7 +411,7 @@ export default function GuardianWishesScreen() {
                           onPress={() => handleUnstack(stackedChild.id)}
                           style={styles.unstackButton}
                         >
-                          <X color={KindlingColors.brown} size={16} />
+                          <IconButton icon="close" size={16} iconColor={KindlingColors.brown} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -425,11 +425,11 @@ export default function GuardianWishesScreen() {
                   >
                     {/* Card Header */}
                     <View style={styles.cardHeader}>
-                      <View style={styles.childInfo}>
-                        <View style={styles.iconContainer}>
-                          <Heart color={KindlingColors.gold} size={20} />
-                        </View>
-                        <View>
+                    <View style={styles.childInfo}>
+                      <View style={styles.iconContainer}>
+                        <IconButton icon="heart" size={20} iconColor={KindlingColors.gold} />
+                      </View>
+                      <View>
                           <Text style={styles.childName}>{dep.firstName} {dep.lastName}</Text>
                           {!isActive && (
                             <Text style={styles.guardianStatus}>
@@ -550,7 +550,7 @@ export default function GuardianWishesScreen() {
                                     onPress={() => handleRemoveGuardian(guardian.id)}
                                     style={styles.removeButton}
                                   >
-                                    <X color={KindlingColors.brown} size={20} />
+                                    <IconButton icon="close" size={20} iconColor={KindlingColors.brown} />
                                   </TouchableOpacity>
                                 </View>
                               ))}
@@ -567,7 +567,7 @@ export default function GuardianWishesScreen() {
                             }}
                             style={styles.copyButton}
                           >
-                            <Copy color={KindlingColors.navy} size={16} />
+                            <IconButton icon="content-copy" size={16} iconColor={KindlingColors.navy} />
                             <Text style={styles.copyButtonText}>Copy from another child</Text>
                           </Button>
                         )}
@@ -587,7 +587,7 @@ export default function GuardianWishesScreen() {
                             }}
                             style={styles.copyButton}
                           >
-                            <Copy color={KindlingColors.navy} size={16} />
+                            <IconButton icon="content-copy" size={16} iconColor={KindlingColors.navy} />
                             <Text style={styles.copyButtonText}>Copy from another child</Text>
                           </Button>
                         )}
@@ -651,7 +651,7 @@ export default function GuardianWishesScreen() {
                       {guardianCount} guardian{guardianCount !== 1 ? 's' : ''} assigned
                     </Text>
                   </View>
-                  <Copy color={KindlingColors.gold} size={20} />
+                  <IconButton icon="content-copy" size={20} iconColor={KindlingColors.gold} />
                 </TouchableOpacity>
               );
             })}

@@ -11,8 +11,8 @@
 
 import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
+import { IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Heart } from 'lucide-react-native';
 import { Button } from '../../src/components/ui/Button';
 import { VideoPlayer } from '../../src/components/ui/VideoPlayer';
 import { KindlingColors, Typography, Spacing } from '../../src/theme';
@@ -38,7 +38,7 @@ export default function GuardianshipIntroScreen() {
           </TouchableOpacity>
           <View style={styles.titleContainer}>
             <View style={styles.iconContainer}>
-              <Heart color={KindlingColors.navy} size={20} />
+              <IconButton icon="heart" size={20} iconColor={KindlingColors.navy} />
             </View>
             <Text style={styles.title}>Children - Guardianship</Text>
           </View>
