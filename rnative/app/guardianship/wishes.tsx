@@ -414,7 +414,7 @@ export default function GuardianWishesScreen() {
                           onPress={() => handleUnstack(stackedChild.id)}
                           style={styles.unstackButton}
                         >
-                          <IconButton icon="close" size={20} iconColor={KindlingColors.navy} />
+                          <IconButton icon="link-off" size={20} iconColor={KindlingColors.navy} />
                         </TouchableOpacity>
                       </View>
                     </View>
