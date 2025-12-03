@@ -851,7 +851,7 @@ const styles = StyleSheet.create({
   contactRow: {
     flexDirection: 'row',
     gap: Spacing.xs,
-    alignItems: 'stretch',
+    alignItems: 'center',
   },
   contactDropdown: {
     flex: 4,
@@ -863,11 +863,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: `${KindlingColors.green}20`,
     borderRadius: 8,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: `${KindlingColors.green}40`,
-    alignSelf: 'stretch',
   },
   addressBookButtonFull: {
     flexDirection: 'row',
