@@ -428,11 +428,8 @@ export default function GuardianWishesScreen() {
                   >
                     {/* Card Header */}
                     <View style={styles.cardHeader}>
-                    <View style={styles.childInfo}>
-                      <View style={styles.iconContainer}>
-                        <IconButton icon="heart" size={20} iconColor={KindlingColors.gold} />
-                      </View>
-                      <View>
+                      <View style={styles.childInfo}>
+                        <View>
                           <Text style={styles.childName}>{dep.firstName} {dep.lastName}</Text>
                           {!isActive && (
                             <Text style={styles.guardianStatus}>
@@ -715,7 +712,7 @@ const styles = StyleSheet.create({
   cardContainer: {
     position: 'relative',
     marginBottom: Spacing.md,
-    paddingTop: 24, // Space for stacked cards above
+    paddingTop: 32, // Space for stacked cards peeking from top
   },
   stackedCard: {
     position: 'absolute',
@@ -724,7 +721,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: KindlingColors.navy,
-    padding: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
@@ -737,9 +735,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stackedCardName: {
-    ...Typography.body,
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
   },
   unstackButton: {
@@ -772,20 +769,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   childInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: `${KindlingColors.gold}20`,
-    alignItems: 'center',
-    justifyContent: 'center',
+    flex: 1,
   },
   childName: {
-    ...Typography.h3,
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
   },
   guardianStatus: {
