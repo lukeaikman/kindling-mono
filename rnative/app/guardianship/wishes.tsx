@@ -395,7 +395,7 @@ export default function GuardianWishesScreen() {
               
               return (
                 <View key={dep.id} style={styles.cardContainer}>
-                  {/* Stacked cards effect - appear above active card */}
+                  {/* Stacked cards effect - behind active card, peeking from top */}
                   {stackedChildren.map((stackedChild, index) => (
                     <View 
                       key={stackedChild.id}
@@ -404,7 +404,7 @@ export default function GuardianWishesScreen() {
                         { 
                           top: -(stackedChildren.length - index) * 16,
                           left: (stackedChildren.length - index) * 4,
-                          zIndex: 10 + (stackedChildren.length - index),
+                          zIndex: -(stackedChildren.length - index),
                         }
                       ]}
                     >
@@ -758,13 +758,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 3,
-    zIndex: 1,
+    zIndex: 5,
   },
   cardActive: {
     borderColor: KindlingColors.navy,
     borderWidth: 1,
     backgroundColor: 'white',
-    zIndex: 1,
+    zIndex: 5,
   },
   cardHeader: {
     flexDirection: 'row',
