@@ -456,6 +456,7 @@ export default function OnboardingFamilyScreen() {
     console.log('Saving family data...');
     
     // Save spouse/partner
+    let actualSpouseId: string | undefined;
     if (hasPartner(relationshipStatus) && spouseFirstName && spouseLastName) {
       const spouseRelationship: PersonRelationshipType = 
         relationshipStatus === 'married' || relationshipStatus === 'civil-partnership'
@@ -475,6 +476,7 @@ export default function OnboardingFamilyScreen() {
       const relType = spouseRelationship === 'spouse' ? RelationshipType.SPOUSE : RelationshipType.PARTNER;
       relationshipActions.addRelationship(currentUser.id, spouseId, relType, { phase: 'active' });
       
+      actualSpouseId = spouseId; // Keep spouseId for children
       console.log('Created spouse/partner:', spouseId);
     }
     
@@ -482,8 +484,6 @@ export default function OnboardingFamilyScreen() {
     if (hasChildren === 'yes' && children.length > 0) {
       // Get actual guardian IDs (replace placeholders)
       const actualUserId = currentUser.id;
-      const spouse = relationshipActions.getSpouse(currentUser.id, 'active');
-      const actualSpouseId = spouse?.id;
       
       children.forEach((child, index) => {
         // Determine qualifiers from relationship type
