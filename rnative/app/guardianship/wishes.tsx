@@ -23,7 +23,7 @@ import { IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useAppState } from '../../src/hooks/useAppState';
 import { Button } from '../../src/components/ui/Button';
-import { TextInput } from '../../src/components/ui/TextInput';
+import { Input } from '../../src/components/ui/Input';
 import { Select } from '../../src/components/ui/Select';
 import { Dialog } from '../../src/components/ui/Dialog';
 import { KindlingColors } from '../../src/styles/theme';
@@ -470,7 +470,7 @@ export default function GuardianWishesScreen() {
                           {/* Name Fields */}
                           <View style={styles.row}>
                             <View style={styles.halfWidth}>
-                              <TextInput
+                              <Input
                                 label="First Name"
                                 value={formData.firstName}
                                 onChangeText={(value) => setFormData({ ...formData, firstName: value })}
@@ -478,7 +478,7 @@ export default function GuardianWishesScreen() {
                               />
                             </View>
                             <View style={styles.halfWidth}>
-                              <TextInput
+                              <Input
                                 label="Last Name"
                                 value={formData.lastName}
                                 onChangeText={(value) => setFormData({ ...formData, lastName: value })}
@@ -488,7 +488,7 @@ export default function GuardianWishesScreen() {
                           </View>
                           
                           {/* Email & Phone */}
-                          <TextInput
+                          <Input
                             label="Email"
                             value={formData.email}
                             onChangeText={(value) => setFormData({ ...formData, email: value })}
@@ -497,7 +497,7 @@ export default function GuardianWishesScreen() {
                             autoCapitalize="none"
                           />
                           
-                          <TextInput
+                          <Input
                             label="Phone (optional)"
                             value={formData.phone}
                             onChangeText={(value) => setFormData({ ...formData, phone: value })}
