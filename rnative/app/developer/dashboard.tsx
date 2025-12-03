@@ -9,13 +9,14 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text } from 'react-native-paper';
+import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
+import { Select } from '../../src/components/ui/Select';
 import { useAppState } from '../../src/hooks/useAppState';
 import { seedAllData } from '../../src/utils/seedData';
 import { storage } from '../../src/services/storage';
@@ -32,6 +33,12 @@ export default function DeveloperDashboard() {
   const { personActions, bequeathalActions, willActions, purgeAllData } = useAppState();
   const [storageData, setStorageData] = useState<Record<string, any>>({});
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Navigation dropdown states
+  const [onboardingScreen, setOnboardingScreen] = useState('/onboarding/welcome');
+  const [executorsScreen, setExecutorsScreen] = useState('/executors/intro');
+  const [guardianshipScreen, setGuardianshipScreen] = useState('/guardianship/intro');
+  const [dashboardScreen, setDashboardScreen] = useState('/order-of-things');
   
   // Load storage data for display
   useEffect(() => {
@@ -131,56 +138,104 @@ export default function DeveloperDashboard() {
           </View>
         </Card>
         
-        {/* Navigation Card - Organized by Category */}
+        {/* Navigation Card - Dropdown + Arrow Pattern */}
         <Card title="Quick Navigation" style={styles.card}>
-          <View style={styles.buttonGroup}>
-            <Text style={styles.categoryTitle}>Onboarding</Text>
-            <Button
-              variant="outline"
-              onPress={() => router.push('/onboarding/welcome')}
-            >
-              Welcome
-            </Button>
-            <Button
-              variant="outline"
-              onPress={() => router.push('/onboarding/location')}
-            >
-              Location
-            </Button>
-            <Button
-              variant="outline"
-              onPress={() => router.push('/onboarding/family')}
-            >
-              Family
-            </Button>
-            <Button
-              variant="outline"
-              onPress={() => router.push('/onboarding/extended-family')}
-            >
-              Extended Family
-            </Button>
+          <View style={styles.navSections}>
+            {/* Onboarding Section */}
+            <View style={styles.navSection}>
+              <Text style={styles.categoryTitle}>Onboarding</Text>
+              <View style={styles.navRow}>
+                <View style={styles.navDropdown}>
+                  <Select
+                    value={onboardingScreen}
+                    options={[
+                      { label: 'Welcome', value: '/onboarding/welcome' },
+                      { label: 'Location', value: '/onboarding/location' },
+                      { label: 'Family', value: '/onboarding/family' },
+                      { label: 'Extended Family', value: '/onboarding/extended-family' },
+                      { label: 'Wrap-up', value: '/onboarding/wrap-up' },
+                    ]}
+                    onChange={setOnboardingScreen}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={styles.navArrow}
+                  onPress={() => router.push(onboardingScreen)}
+                >
+                  <IconButton icon="arrow-right" size={20} iconColor={KindlingColors.navy} />
+                </TouchableOpacity>
+              </View>
+            </View>
             
-            <Text style={styles.categoryTitle}>Executors</Text>
-            <Button
-              variant="outline"
-              onPress={() => router.push('/executors/intro')}
-            >
-              Executors Intro
-            </Button>
-            <Button
-              variant="outline"
-              onPress={() => router.push('/executors/selection')}
-            >
-              Executor Selection
-            </Button>
+            {/* Executors Section */}
+            <View style={styles.navSection}>
+              <Text style={styles.categoryTitle}>Executors</Text>
+              <View style={styles.navRow}>
+                <View style={styles.navDropdown}>
+                  <Select
+                    value={executorsScreen}
+                    options={[
+                      { label: 'Intro', value: '/executors/intro' },
+                      { label: 'Selection', value: '/executors/selection' },
+                      { label: 'Invitation', value: '/executors/invitation' },
+                      { label: 'Professional', value: '/executors/professional' },
+                    ]}
+                    onChange={setExecutorsScreen}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={styles.navArrow}
+                  onPress={() => router.push(executorsScreen)}
+                >
+                  <IconButton icon="arrow-right" size={20} iconColor={KindlingColors.navy} />
+                </TouchableOpacity>
+              </View>
+            </View>
             
-            <Text style={styles.categoryTitle}>Dashboard</Text>
-            <Button
-              variant="outline"
-              onPress={() => router.push('/order-of-things')}
-            >
-              Order of Things
-            </Button>
+            {/* Guardianship Section */}
+            <View style={styles.navSection}>
+              <Text style={styles.categoryTitle}>Guardianship</Text>
+              <View style={styles.navRow}>
+                <View style={styles.navDropdown}>
+                  <Select
+                    value={guardianshipScreen}
+                    options={[
+                      { label: 'Intro', value: '/guardianship/intro' },
+                      { label: 'Guardian Wishes', value: '/guardianship/wishes' },
+                    ]}
+                    onChange={setGuardianshipScreen}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={styles.navArrow}
+                  onPress={() => router.push(guardianshipScreen)}
+                >
+                  <IconButton icon="arrow-right" size={20} iconColor={KindlingColors.navy} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {/* Dashboard Section */}
+            <View style={styles.navSection}>
+              <Text style={styles.categoryTitle}>Dashboard</Text>
+              <View style={styles.navRow}>
+                <View style={styles.navDropdown}>
+                  <Select
+                    value={dashboardScreen}
+                    options={[
+                      { label: 'Order of Things', value: '/order-of-things' },
+                    ]}
+                    onChange={setDashboardScreen}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={styles.navArrow}
+                  onPress={() => router.push(dashboardScreen)}
+                >
+                  <IconButton icon="arrow-right" size={20} iconColor={KindlingColors.navy} />
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </Card>
         
@@ -273,8 +328,30 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
-    marginTop: Spacing.md,
     marginBottom: Spacing.xs,
+  },
+  navSections: {
+    gap: Spacing.lg,
+    marginTop: Spacing.md,
+  },
+  navSection: {
+    gap: Spacing.xs,
+  },
+  navRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    alignItems: 'center',
+  },
+  navDropdown: {
+    flex: 4,
+  },
+  navArrow: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${KindlingColors.navy}10`,
+    borderRadius: 8,
+    height: 48,
   },
   dataViewer: {
     maxHeight: 300,
