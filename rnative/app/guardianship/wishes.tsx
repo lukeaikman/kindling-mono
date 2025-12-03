@@ -490,6 +490,7 @@ export default function GuardianWishesScreen() {
                                     value={formData.selectedContactId}
                                     options={getContactOptions()}
                                     onChange={handleLoadContact}
+                                    style={styles.noMargin}
                                   />
                                 </View>
                                 <TouchableOpacity
@@ -854,6 +855,9 @@ const styles = StyleSheet.create({
   },
   contactDropdown: {
     flex: 4,
+  },
+  noMargin: {
+    marginVertical: 0,
   },
   addressBookButton: {
     flex: 1,
