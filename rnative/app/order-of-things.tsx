@@ -157,8 +157,7 @@ export default function OrderOfThingsScreen() {
   };
   
   const handleNavigateToGuardianship = () => {
-    console.log('Navigate to Guardianship');
-    // router.push('/guardianship');
+    router.push('/guardianship/intro');
   };
   
   const handleNavigateToEstateDivision = () => {
