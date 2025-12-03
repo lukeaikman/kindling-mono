@@ -18,11 +18,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useAppState } from '../../src/hooks/useAppState';
 import { Button } from '../../src/components/ui/Button';
+import { BackButton } from '../../src/components/ui/BackButton';
 import { Input } from '../../src/components/ui/Input';
 import { Select } from '../../src/components/ui/Select';
 import { Dialog } from '../../src/components/ui/Dialog';
@@ -363,14 +366,27 @@ export default function GuardianWishesScreen() {
   
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Guardian Wishes</Text>
+      <StatusBar style="dark" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <BackButton onPress={handleBack} />
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Guardian Choices</Text>
         </View>
+        <View style={styles.headerRight} />
+      </View>
+      
+      {/* Content with Keyboard Handling */}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
         
         {/* Children Cards */}
         {sortedDependents.length === 0 ? (
@@ -607,21 +623,22 @@ export default function GuardianWishesScreen() {
             </Text>
           </View>
         )}
-      </ScrollView>
-      
-      {/* Footer */}
-      {sortedDependents.length > 0 && (
-        <View style={styles.footer}>
-          <Button
-            variant="primary"
-            onPress={handleContinue}
-            disabled={!allChildrenHaveGuardians}
-            style={styles.continueButton}
-          >
-            Continue
-          </Button>
-        </View>
-      )}
+        </ScrollView>
+        
+        {/* Footer */}
+        {sortedDependents.length > 0 && (
+          <View style={styles.footer}>
+            <Button
+              variant="primary"
+              onPress={handleContinue}
+              disabled={!allChildrenHaveGuardians}
+              style={styles.continueButton}
+            >
+              Continue
+            </Button>
+          </View>
+        )}
+      </KeyboardAvoidingView>
       
       {/* Copy From Modal */}
       <Dialog
@@ -677,23 +694,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: KindlingColors.cream,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: KindlingColors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: `${KindlingColors.border}1a`,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerRight: {
+    width: 48,
+  },
+  headerTitle: {
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   content: {
     padding: Spacing.lg,
     gap: Spacing.lg,
-  },
-  header: {
-    gap: Spacing.sm,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-  },
-  backButtonText: {
-    ...Typography.body,
-    color: KindlingColors.navy,
-  },
-  title: {
-    ...Typography.h2,
-    color: KindlingColors.navy,
   },
   emptyState: {
     alignItems: 'center',
@@ -784,10 +812,12 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   form: {
-    backgroundColor: `${KindlingColors.beige}40`,
-    borderRadius: 8,
+    backgroundColor: KindlingColors.background,
+    borderRadius: 12,
     padding: Spacing.md,
     gap: Spacing.md,
+    borderWidth: 1,
+    borderColor: `${KindlingColors.border}20`,
   },
   divider: {
     flexDirection: 'row',
