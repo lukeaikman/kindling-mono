@@ -100,9 +100,13 @@ export const Select: React.FC<SelectProps> = ({
   style,
 }) => {
   const [visible, setVisible] = useState(false);
+  const [menuKey, setMenuKey] = useState(0);
 
   const openMenu = () => !disabled && setVisible(true);
-  const closeMenu = () => setVisible(false);
+  const closeMenu = () => {
+    setVisible(false);
+    setMenuKey(prev => prev + 1);
+  };
 
   const handleSelect = (selectedValue: string) => {
     onChange(selectedValue);
@@ -118,6 +122,7 @@ export const Select: React.FC<SelectProps> = ({
       {label && <Text style={styles.label}>{label}</Text>}
       
       <Menu
+        key={menuKey}
         visible={visible}
         onDismiss={closeMenu}
         anchor={
