@@ -808,14 +808,14 @@ const styles = StyleSheet.create({
     color: KindlingColors.brown,
   },
   activeContent: {
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
   },
   form: {
     backgroundColor: KindlingColors.background,
     borderRadius: 12,
     padding: Spacing.sm,
-    gap: Spacing.sm,
+    gap: Spacing.xs,
     borderWidth: 1,
     borderColor: `${KindlingColors.border}20`,
   },
