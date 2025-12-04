@@ -451,10 +451,23 @@ export default function GuardianWishesScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
+      {/* Subtle Morphic Background */}
+      <View style={styles.backgroundOverlay} pointerEvents="none">
+        <View style={[styles.morphicBlob, styles.morphicBlob1]} />
+        <View style={[styles.morphicBlob, styles.morphicBlob2]} />
+      </View>
+      
       {/* Header */}
       <View style={styles.header}>
         <BackButton onPress={handleBack} />
         <View style={styles.headerCenter}>
+          <View style={styles.iconCircle}>
+            <IconButton
+              icon="heart"
+              size={20}
+              iconColor={KindlingColors.navy}
+            />
+          </View>
           <Text style={styles.headerTitle}>Guardian Choices</Text>
         </View>
         <View style={styles.headerRight} />
@@ -805,6 +818,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: KindlingColors.background,
   },
+  backgroundOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+  },
+  morphicBlob: {
+    position: 'absolute',
+    opacity: 0.2,
+  },
+  morphicBlob1: {
+    top: -80,
+    right: -80,
+    width: 320,
+    height: 320,
+    backgroundColor: KindlingColors.navy,
+    borderRadius: 160,
+    transform: [{ rotate: '-15deg' }],
+  },
+  morphicBlob2: {
+    bottom: -80,
+    left: -80,
+    width: 240,
+    height: 240,
+    backgroundColor: KindlingColors.navy,
+    borderRadius: 120,
+    transform: [{ rotate: '45deg' }],
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -817,13 +860,25 @@ const styles = StyleSheet.create({
   },
   headerCenter: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: `${KindlingColors.navy}1a`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -8,
   },
   headerRight: {
     width: 48,
   },
   headerTitle: {
-    fontSize: Typography.fontSize.xl,
+    fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
   },
