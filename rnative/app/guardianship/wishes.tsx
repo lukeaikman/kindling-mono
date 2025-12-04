@@ -139,8 +139,13 @@ export default function GuardianWishesScreen() {
     return guardians.length > 0;
   };
   
-  // Add guardian
+  // Add or update guardian
   const handleAddGuardian = () => {
+    if (editingGuardianId) {
+      handleUpdateGuardian();
+      return;
+    }
+    
     if (!activeChildId) return;
     if (!formData.firstName.trim() || !formData.lastName.trim()) return;
     if (!formData.email.trim()) return;
@@ -194,6 +199,63 @@ export default function GuardianWishesScreen() {
     });
     
     setGuardianData(newGuardianData);
+    
+    // Clear edit mode if removing the guardian being edited
+    if (editingGuardianId === guardianId) {
+      setEditingGuardianId(null);
+      resetForm();
+    }
+  };
+  
+  // Edit guardian
+  const handleEditGuardian = (guardianId: string) => {
+    if (!activeChildId) return;
+    
+    const person = personActions.getPersonById(guardianId);
+    if (!person) return;
+    
+    const guardians = guardianData[activeChildId] || [];
+    const guardianLevel = guardians.find(g => g.guardian === guardianId);
+    if (!guardianLevel) return;
+    
+    setFormData({
+      firstName: person.firstName,
+      lastName: person.lastName,
+      email: person.email,
+      phone: person.phone,
+      level: guardianLevel.level,
+      selectedContactId: '',
+    });
+    setEditingGuardianId(guardianId);
+  };
+  
+  // Update guardian
+  const handleUpdateGuardian = () => {
+    if (!activeChildId || !editingGuardianId) return;
+    if (!formData.firstName.trim() || !formData.lastName.trim()) return;
+    if (!formData.email.trim()) return;
+    
+    // Update person data
+    personActions.updatePerson(editingGuardianId, {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+    });
+    
+    // Update level in ALL children in stack
+    const stackMembers = getStackMembers(activeChildId);
+    const newGuardianData = { ...guardianData };
+    
+    stackMembers.forEach(childId => {
+      const current = newGuardianData[childId] || [];
+      newGuardianData[childId] = current.map(g =>
+        g.guardian === editingGuardianId ? { ...g, level: formData.level } : g
+      );
+    });
+    
+    setGuardianData(newGuardianData);
+    resetForm();
   };
   
   // Copy guardians
@@ -479,47 +541,42 @@ export default function GuardianWishesScreen() {
                     {isActive && (
                       <View style={styles.activeContent}>
                         {/* Guardian Form */}
-                        <View style={styles.form}>
-                          {/* Load Contact + Address Book */}
-                          {getContactOptions().length > 0 ? (
-                            <>
-                              <View style={styles.contactRow}>
-                                <View style={styles.contactDropdown}>
-                                  <Select
-                                    placeholder="Load a contact"
-                                    value={formData.selectedContactId}
-                                    options={getContactOptions()}
-                                    onChange={handleLoadContact}
-                                    style={styles.noMargin}
-                                  />
-                                </View>
-                                <TouchableOpacity
-                                  style={styles.addressBookButton}
-                                  onPress={handleImportFromPhoneContacts}
-                                >
-                                  <IconButton icon="card-account-phone" size={24} iconColor={KindlingColors.green} />
-                                </TouchableOpacity>
-                              </View>
-                              
-                              <View style={styles.divider}>
-                                <View style={styles.dividerLine} />
-                                <Text style={styles.dividerText}>or</Text>
-                                <View style={styles.dividerLine} />
-                              </View>
-                            </>
-                          ) : (
-                            <TouchableOpacity
-                              style={styles.addressBookButtonFull}
-                              onPress={handleImportFromPhoneContacts}
-                            >
-                              <IconButton icon="card-account-phone" size={24} iconColor={KindlingColors.green} />
-                              <Text style={styles.addressBookButtonText}>Import from Phone Contacts</Text>
-                            </TouchableOpacity>
+                        <View style={styles.guardianForm}>
+                          {/* Form Header */}
+                          <View style={styles.formHeader}>
+                            <View style={styles.formHeaderLeft}>
+                              <IconButton
+                                icon="account-plus"
+                                size={20}
+                                iconColor={KindlingColors.navy}
+                              />
+                              <Text style={styles.formTitle}>
+                                {editingGuardianId ? 'Edit Guardian' : 'Add New Guardian'}
+                              </Text>
+                            </View>
+                            {!editingGuardianId && (
+                              <IconButton
+                                icon="card-account-phone"
+                                size={20}
+                                iconColor={KindlingColors.green}
+                                onPress={handleImportFromPhoneContacts}
+                              />
+                            )}
+                          </View>
+                          
+                          {/* Load Contact */}
+                          {getContactOptions().length > 0 && !editingGuardianId && (
+                            <Select
+                              placeholder="Load a contact"
+                              value={formData.selectedContactId}
+                              options={getContactOptions()}
+                              onChange={handleLoadContact}
+                            />
                           )}
                           
                           {/* Name Fields */}
-                          <View style={styles.row}>
-                            <View style={styles.halfWidth}>
+                          <View style={styles.nameRow}>
+                            <View style={styles.nameField}>
                               <Input
                                 label="First Name"
                                 value={formData.firstName}
@@ -527,7 +584,7 @@ export default function GuardianWishesScreen() {
                                 placeholder="First name"
                               />
                             </View>
-                            <View style={styles.halfWidth}>
+                            <View style={styles.nameField}>
                               <Input
                                 label="Last Name"
                                 value={formData.lastName}
@@ -537,9 +594,9 @@ export default function GuardianWishesScreen() {
                             </View>
                           </View>
                           
-                          {/* Email & Phone */}
+                          {/* Email */}
                           <Input
-                            label="Email"
+                            label="Email Address"
                             value={formData.email}
                             onChangeText={(value) => setFormData({ ...formData, email: value })}
                             placeholder="email@example.com"
@@ -547,15 +604,16 @@ export default function GuardianWishesScreen() {
                             autoCapitalize="none"
                           />
                           
+                          {/* Phone */}
                           <Input
-                            label="Phone (optional)"
+                            label="Phone Number"
                             value={formData.phone}
                             onChangeText={(value) => setFormData({ ...formData, phone: value })}
                             placeholder="Phone number"
                             keyboardType="phone-pad"
                           />
                           
-                          {/* Level */}
+                          {/* Guardian Level */}
                           <Select
                             label="Guardian Level"
                             value={formData.level.toString()}
@@ -563,14 +621,26 @@ export default function GuardianWishesScreen() {
                             onChange={(value) => setFormData({ ...formData, level: parseInt(value) })}
                           />
                           
-                          {/* Add Button */}
-                          <Button
-                            variant="primary"
-                            onPress={handleAddGuardian}
-                            disabled={!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()}
-                          >
-                            Add Guardian
-                          </Button>
+                          {/* Form Actions */}
+                          <View style={styles.formActions}>
+                            <Button
+                              variant="primary"
+                              onPress={handleAddGuardian}
+                              disabled={!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()}
+                              style={styles.formButton}
+                            >
+                              {editingGuardianId ? 'Update Guardian' : 'Add Guardian'}
+                            </Button>
+                            {editingGuardianId && (
+                              <Button
+                                variant="outline"
+                                onPress={resetForm}
+                                style={styles.formButton}
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                          </View>
                         </View>
                         
                         {/* Guardian List */}
@@ -580,7 +650,12 @@ export default function GuardianWishesScreen() {
                             {guardians
                               .sort((a, b) => a.level - b.level)
                               .map((guardian) => (
-                                <View key={guardian.id} style={styles.guardianItem}>
+                                <TouchableOpacity
+                                  key={guardian.id}
+                                  style={styles.guardianItem}
+                                  onPress={() => handleEditGuardian(guardian.id)}
+                                  activeOpacity={0.7}
+                                >
                                   <View style={styles.guardianInfo}>
                                     <Text style={styles.guardianName}>
                                       {guardian.firstName} {guardian.lastName}
@@ -598,12 +673,15 @@ export default function GuardianWishesScreen() {
                                     </View>
                                   </View>
                                   <TouchableOpacity
-                                    onPress={() => handleRemoveGuardian(guardian.id)}
+                                    onPress={(e) => {
+                                      e?.stopPropagation?.();
+                                      handleRemoveGuardian(guardian.id);
+                                    }}
                                     style={styles.removeButton}
                                   >
                                     <IconButton icon="close" size={20} iconColor={KindlingColors.brown} />
                                   </TouchableOpacity>
-                                </View>
+                                </TouchableOpacity>
                               ))}
                           </View>
                         )}
@@ -840,70 +918,41 @@ const styles = StyleSheet.create({
   activeContent: {
     gap: Spacing.xs,
   },
-  form: {
-    backgroundColor: KindlingColors.background,
+  guardianForm: {
+    backgroundColor: `${KindlingColors.cream}4d`,
     borderRadius: 12,
-    padding: Spacing.sm,
-    gap: Spacing.xs,
-    borderWidth: 1,
-    borderColor: `${KindlingColors.border}20`,
+    padding: Spacing.lg,
+    gap: Spacing.md,
   },
-  contactRow: {
+  formHeader: {
     flexDirection: 'row',
-    gap: Spacing.xs,
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xs,
   },
-  contactDropdown: {
-    flex: 4,
-  },
-  noMargin: {
-    marginVertical: 0,
-  },
-  addressBookButton: {
-    flex: 1,
-    backgroundColor: `${KindlingColors.green}20`,
-    borderRadius: 8,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: `${KindlingColors.green}40`,
-  },
-  addressBookButtonFull: {
+  formHeaderLeft: {
     flexDirection: 'row',
-    backgroundColor: `${KindlingColors.green}20`,
-    borderRadius: 8,
-    height: 48,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: `${KindlingColors.green}40`,
     gap: Spacing.xs,
   },
-  addressBookButtonText: {
-    ...Typography.body,
+  formTitle: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
-    fontWeight: Typography.fontWeight.medium,
   },
-  divider: {
+  nameRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.md,
   },
-  dividerLine: {
+  nameField: {
     flex: 1,
-    height: 1,
-    backgroundColor: `${KindlingColors.navy}20`,
   },
-  dividerText: {
-    ...Typography.caption,
-    color: KindlingColors.brown,
-  },
-  row: {
+  formActions: {
     flexDirection: 'row',
     gap: Spacing.sm,
+    marginTop: Spacing.xs,
   },
-  halfWidth: {
+  formButton: {
     flex: 1,
   },
   guardianList: {
@@ -918,11 +967,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.sm,
-    backgroundColor: `${KindlingColors.cream}80`,
+    padding: Spacing.md,
+    backgroundColor: `${KindlingColors.cream}`,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: `${KindlingColors.beige}50`,
+    borderColor: `${KindlingColors.beige}`,
   },
   guardianInfo: {
     flex: 1,
