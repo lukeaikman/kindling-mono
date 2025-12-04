@@ -883,10 +883,8 @@ const styles = StyleSheet.create({
     margin: 0,
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: `${KindlingColors.cream}4d`,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: KindlingColors.navy,
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
@@ -898,9 +896,7 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   cardActive: {
-    borderColor: KindlingColors.navy,
-    borderWidth: 1,
-    backgroundColor: 'white',
+    backgroundColor: `${KindlingColors.cream}4d`,
     zIndex: 5,
   },
   cardHeader: {
@@ -919,9 +915,6 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   guardianForm: {
-    backgroundColor: `${KindlingColors.cream}4d`,
-    borderRadius: 12,
-    padding: Spacing.lg,
     gap: Spacing.md,
   },
   formHeader: {
