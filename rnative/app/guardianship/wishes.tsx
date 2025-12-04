@@ -998,7 +998,6 @@ const styles = StyleSheet.create({
   formActions: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    marginTop: Spacing.xs,
   },
   formButton: {
     flex: 1,
