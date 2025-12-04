@@ -803,7 +803,7 @@ export default function GuardianWishesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: KindlingColors.cream,
+    backgroundColor: KindlingColors.background,
   },
   header: {
     flexDirection: 'row',
