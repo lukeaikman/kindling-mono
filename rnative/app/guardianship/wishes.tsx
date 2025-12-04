@@ -967,7 +967,7 @@ const styles = StyleSheet.create({
     color: KindlingColors.brown,
   },
   activeContent: {
-    gap: Spacing.xs,
+    gap: Spacing.md,
   },
   guardianForm: {
     gap: Spacing.md,
