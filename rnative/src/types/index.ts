@@ -560,11 +560,16 @@ export interface AgriculturalAsset extends BaseAsset {
 /**
  * Cryptocurrency asset - digital currencies and tokens
  */
+/**
+ * Cryptocurrency asset - simplified account-based model
+ * Tracks crypto accounts/wallets rather than individual coin holdings
+ * Estate planning focused: helps executors find and access accounts
+ */
 export interface CryptoCurrencyAsset extends BaseAsset {
   type: 'crypto-currency';
-  cryptoType: string;
-  platform: string;
-  quantity: number;
+  platform: string;          // Wallet or exchange name (Coinbase, Hardware Wallet, etc.)
+  accountUsername?: string;  // Account ID/username for executor access
+  notes?: string;           // Additional details (hardware wallet location, etc.)
 }
 
 /**

@@ -460,54 +460,364 @@ File: `native-app/src/components/forms/MultiBeneficiarySelector.tsx`
 - Important Items Entry screen
 - Future: All simple asset beneficiary assignments (Phases 7-11)
 
-### Task 6.4: Beneficiary Groups Management (NEEDS DISCUSSION BEFORE IMPLEMENTATION)
-File: `native-app/app/groups/manage.tsx` OR inline in beneficiary selector
+### Task 6.4: Beneficiary Groups Management ✅
+File: `native-app/src/components/forms/GroupManagementDrawer.tsx`
 
-⚠️ **DISCUSSION REQUIRED:** Determine approach before implementing
+**Implemented:** Bottom drawer approach (Option B variant)
 
-**Option A - Standalone Groups Screen (Recommended):**
-- Dedicated screen at `/groups/manage`
-- Accessible from settings or developer menu
-- Full CRUD for groups (Create, Read, Update, Delete)
-- List of all groups with edit/delete buttons
-- Form: Group name + description
-- No member management yet (just group definitions)
-- Simple, focused implementation
+**Features:**
+- ✅ Modal drawer triggered from MultiBeneficiarySelector
+- ✅ 8 template-based group creation (Bloodline Children, All Children, Bloodline Grandchildren, All Grandchildren, Siblings, Nieces and Nephews, Cousins, Custom)
+- ✅ Accordion template selector (no Menu clipping issues)
+- ✅ Auto-fill name + description from template (editable)
+- ✅ Inline group editing (pencil icon reveals description editor)
+- ✅ List of existing groups with select buttons
+- ✅ Introduction text when no groups exist
+- ✅ "+ Add New Group" button when groups exist
+- ✅ Full CRUD operations via beneficiaryGroupActions
+- ✅ Integrated into Important Items screen
+- ✅ Tested in Component Sandbox
 
-**Option B - Inline Quick-Add:**
-- Dialog triggered from MultiBeneficiarySelector
-- Quick form: name + description only
-- No list view or management UI
-- Limited functionality
+---
 
-**Option C - Hybrid:**
-- Inline quick-add from MultiBeneficiarySelector
-- Plus full management screen for advanced editing
-- Most complete but most work
+## Phase 7: Cryptocurrency Implementation ✅ COMPLETE
 
-**Data Structure (already exists in types):**
+**Reference:** Web prototype `CryptoCurrencyIntroScreen.tsx` and `CryptoCurrencyEntryScreen.tsx`
+
+### DESIGN DECISION: Simplified Account-Based Model
+
+**Rationale:**
+- Estate planning requires knowing WHERE to find assets, not portfolio composition
+- Users think in accounts (Coinbase account, Hardware wallet), not individual holdings
+- Executors need account access, not per-coin tracking
+- Reduces friction: 1 entry per platform vs. N entries for N currencies
+- Crypto values fluctuate too much for quantity tracking to be meaningful
+
+**Web prototype over-engineered** this by tracking individual currency holdings separately.
+
+### Task 7.1: Cryptocurrency Intro Screen ✅
+File: `native-app/app/bequeathal/crypto-currency/intro.tsx`
+
+**Completed:**
+- ✅ Header: "Cryptocurrency" with bitcoin icon
+- ✅ Inline video player (16:9 aspect ratio)
+- ✅ InformationCard: "Digital Assets Need Planning" with all web prototype content
+- ✅ Bold emphasis on "lost forever" risk
+- ✅ External link: "Learn about cryptocurrency inheritance planning"
+- ✅ "Let's Go" and "Skip for now" buttons
+- ✅ Sequential navigation
+- ✅ Morphic background (5 blobs)
+
+### Task 7.2: Update CryptoCurrencyAsset Type Definition ✅
+File: `native-app/src/types/index.ts`
+
+**Completed:** Updated to simplified account-based model
+- ✅ Removed: `cryptoType`, `quantity`
+- ✅ Added: `accountUsername`, `notes`
+- ✅ Uses BaseAsset.estimatedValue instead of currentValue
+
+### Task 7.3: Cryptocurrency Entry Screen ✅
+File: `native-app/app/bequeathal/crypto-currency/entry.tsx`
+
+**Data Structure:**
 ```typescript
-interface BeneficiaryGroup {
-  id: string;
-  name: string;              // e.g., "Children", "Godchildren"
-  description: string;
-  isPredefined: boolean;     // System templates vs user-created
-  isActive: boolean;         // Soft delete flag
-  memberIds?: string[];      // Person IDs (future feature)
-  willId: string;           // Links to will-maker
+interface CryptoCurrencyAsset extends BaseAsset {
+  type: 'crypto-currency';
+  platform: string;         // Coinbase, Binance, Hardware Wallet, etc.
+  accountUsername?: string; // Username or account identifier
+  notes?: string;          // Important details for access
+  estimatedValue: number;  // Total account value in £
+  netValue: number;        // Same as estimatedValue
 }
 ```
 
-**Required Discussion Points:**
-1. Where should users access group management? (Settings? Inline? Both?)
-2. Should groups have members now or later? (Member assignment adds complexity)
-3. Do we need predefined templates (Children, Siblings, etc.) or user-created only?
-4. Should groups be shared across users or per-will?
+**Form Fields (SIMPLIFIED MODEL):**
 
-**Estimated Effort:**
-- Option A: 2-3 hours
-- Option B: 1 hour
-- Option C: 4-5 hours
+1. **Platform or Wallet** (Select with 16 options - uses hybrid Menu/Modal)
+   - Exchanges: Coinbase, Binance, Kraken, Bitstamp, Gemini, Crypto.com, KuCoin, OKX, Huobi
+   - Separator: ────────────────
+   - Wallets: Hardware Wallet, Software Wallet, Paper Wallet, Mobile Wallet, Browser Wallet
+   - Other
+   - NOTE: Searchable NOT required (only 16 items, will use Menu mode)
+
+2. **Account Username/ID** (text input)
+   - Placeholder: "e.g., john@email.com, Account ID"
+   - Optional
+   - Helps executors identify the specific account
+
+3. **Estimated Value** (CurrencyInput)
+   - Total value of ALL crypto in this account
+   - "Unsure of balance" checkbox (matching bank accounts pattern)
+   - Note: "Cryptocurrency values fluctuate - this is just for estate planning estimates"
+
+4. **Notes** (multiline Input)
+   - Placeholder: "Any other important details about this holding..."
+   - Optional
+   - For additional context (hardware wallet location, recovery info note, etc.)
+
+**Important Notice Card:**
+Display warning at top of form:
+```
+⚠️ Access Information Required Later
+We'll collect detailed access instructions and private key storage information 
+in the Executor Facilitation section to keep it secure and separate.
+```
+- Orange background, alert triangle icon
+- Informs users we're not collecting seed phrases here
+
+**UI Behavior:**
+- Form starts VISIBLE if no holdings exist
+- Form HIDDEN after first holding added (shows "Add Another Holding" button)
+- Holdings list shows: platform name, account username (if provided), value
+- Collapsible list with eye icon
+- Holdings Total displayed under last card
+- Delete button on each holding
+- Continue button HIDDEN when form visible (matching bank accounts pattern)
+
+**Display in List:**
+```
+Coinbase
+john@email.com
+£25,000
+```
+Or if no username:
+```
+Hardware Wallet
+£15,000
+```
+
+**Validation:**
+- Platform REQUIRED
+- Estimated value optional ("Unsure of balance" = £0)
+- Round to nearest £1 when saving
+
+**State Management:**
+- Load holdings via `bequeathalActions.getAssetsByType('crypto-currency')`
+- Add holding via `bequeathalActions.addAsset('crypto-currency', holdingData)`
+- Remove holding via `bequeathalActions.removeAsset(id)`
+- Calculate total: `holdings.reduce((sum, h) => sum + h.estimatedValue, 0)`
+
+**Title Generation:**
+- Format: `[Platform Name]` (simple, since it's account-based)
+- Or: `[Platform Name] - [Account Username]` if username provided
+
+**Navigation:**
+- Back → `/bequeathal/crypto-currency/intro`
+- Continue → Next selected category or `/order-of-things`
+
+**Components Needed:**
+- Select (existing - will use Menu mode for 16 items)
+- Input (existing)
+- CurrencyInput (existing)
+- Button (existing)
+- Custom checkbox for "Unsure of balance" (existing pattern)
+
+**Effort:** 3-4 hours
+
+---
+
+## Phase 8: Investments Implementation (MODERATE - 1-2 days)
+
+**Reference:** Web prototype `InvestmentsIntroScreen.tsx` and `InvestmentsEntryScreen.tsx`
+
+**CRITICAL:** ISA Integration from Phase 5
+
+### Task 8.1: Investments Intro Screen
+File: `native-app/app/bequeathal/investment/intro.tsx`
+
+**Content (from web prototype):**
+- Header: "Investment Accounts" with trending-up icon
+- Optional video player (inline at top)
+- InformationCard: "Your Investment Portfolio"
+  - "Let's record your investments and financial assets to ensure they're properly distributed. We'll help you document:"
+  - Bulleted list:
+    - stocks & shares portfolios
+    - ISAs & investment accounts
+    - bonds & government securities
+    - mutual funds & unit trusts
+    - investment platforms & brokers
+  - "Recording your investments helps ensure they transfer smoothly to your beneficiaries and provides clarity for your executors."
+  - External link: "Learn about investments in wills"
+- Primary button: "Start Adding Investments" → `/bequeathal/investment/entry`
+- Skip button: "Skip for now" → next category
+
+**Effort:** 1-2 hours
+
+### Task 8.2: Investments Entry Screen
+File: `native-app/app/bequeathal/investment/entry.tsx`
+
+**Data Structure:**
+```typescript
+interface InvestmentAsset extends BaseAsset {
+  type: 'investment';
+  investmentType: string;   // Type of investment (ISA, GIA, AIM, etc.)
+  provider: string;         // Platform/provider name
+  accountNumber?: string;   // Account number (ISAs from Bank Accounts will have this)
+  beneficiaryAssignments?: { // NEW format (multi-beneficiary support)
+    beneficiaries: Array<{
+      id: string;
+      type: 'person' | 'group' | 'estate';
+      name?: string;
+    }>;
+  };
+}
+```
+
+**NOTE:** Using `beneficiaryAssignments` (multi) instead of web prototype's `beneficiaryId` (single) for consistency with Important Items.
+
+**Form Fields (4 TOTAL - SIMPLIFIED):**
+
+1. **Investment With** (text input)
+   - Placeholder: "e.g., AJ Bell, Hargreaves Lansdown"
+   - Provider/platform name
+   - REQUIRED
+   - NOT searchable (free text input)
+
+2. **Investment Type** (Select with 9 options)
+   - Options:
+     - General Investment Account
+     - AIM holdings
+     - ISA (Stocks & Shares)
+     - Cash ISA
+     - Direct CREST Holding
+     - Junior ISA (JISA)
+     - NS&I Products
+     - Employee Share Scheme
+     - Other
+   - Optional (defaults to 'Other' if not selected)
+   - NOTE: ISAs created in Phase 5 will have investmentType = 'ISA'
+
+3. **Who will receive this?** (MultiBeneficiarySelector - multi mode)
+   - Multi-select beneficiaries
+   - Allow groups and estate
+   - At least one required
+   - Uses beneficiaryAssignments format
+
+4. **Estimated Value** (CurrencyInput)
+   - Total account value
+   - "Unsure of balance" checkbox
+   - Optional ("Unsure" = £0)
+   - Round to £1 on save
+
+**ISA INTEGRATION (CRITICAL):**
+
+**Loading ISAs from Phase 5:**
+- Load all investments: `bequeathalActions.getAssetsByType('investment')`
+- ISAs from Bank Accounts will have `investmentType === 'ISA'` and `accountNumber` populated
+- All ISAs (from Bank Accounts or manually added) appear in same list
+- No special distinction needed - treat all ISAs the same
+
+**UI Behavior:**
+
+**From Web Prototype:**
+- Add Investment button-triggered (form appears when clicked)
+- "Add Another" / "Add Investment" button based on count
+- Expanded/Collapsed view modes with toggle
+- Statistical Summary with pie charts (by type or beneficiary)
+- Edit/Delete functionality
+- Total displayed
+- Form has Cancel button
+
+**DECISIONS (APPROVED):**
+
+1. **Statistical Summary:** ❌ SKIP
+   - No pie charts, no breakdown tables
+   - Can add as future enhancement
+
+2. **View Modes:** ❌ SKIP
+   - Single list view only (no expanded/collapsed toggle)
+
+3. **Beneficiary Selection:** ✅ MULTI
+   - Use MultiBeneficiarySelector in MULTI mode
+   - Deviation from web (which uses single)
+   - Reason: Consistency with Important Items, more flexible
+
+4. **ISA Distinction:** ❌ SKIP
+   - All ISAs treated the same
+   - No special badge for Bank Accounts origin
+
+5. **"Unsure of balance" checkbox:** ✅ ADD
+   - Consistent with Bank Accounts and Crypto
+
+**APPROVED Implementation:**
+
+**UI Flow:**
+- Form starts VISIBLE if no investments exist
+- Form HIDDEN after first add (shows "Add Another Investment" button)
+- Single list view (no toggle)
+- NO statistical summary
+- List shows: account label, provider, investment type, beneficiaries, value
+- ISAs from Bank Accounts appear in list (no special treatment)
+- Total under last investment
+- Edit/Delete buttons
+- Continue button in ScrollView content (hidden when form visible)
+
+**Display in List:**
+```
+AJ Bell - ISA (Stocks & Shares)
+For: John Smith (Spouse), Jane Doe (Daughter)
+£50,000
+```
+
+ISAs from Bank Accounts (no special treatment):
+```
+Barclays - ISA
+For: The Estate
+£25,000
+```
+
+**Validation:**
+- Provider REQUIRED
+- Investment type optional (defaults to 'Other')
+- At least one beneficiary REQUIRED
+- Estimated value optional ("Unsure of balance" = £0)
+
+**State Management:**
+- Load all investments: `bequeathalActions.getAssetsByType('investment')` (includes ISAs from Phase 5)
+- Add investment via `bequeathalActions.addAsset('investment', investmentData)` with beneficiaryAssignments
+- Update investment via `bequeathalActions.updateAsset(id, updates)`
+- Remove investment via `bequeathalActions.removeAsset(id)`
+- Total calculation includes ALL investments (manual + ISAs from Bank Accounts)
+- Convert beneficiaries: MultiBeneficiarySelector format ↔ beneficiaryAssignments
+
+**Title Generation:**
+- Format: `[Provider]` (simple, user-defined)
+- Or: `[Provider] - [Investment Type]` if type selected
+
+**UI Pattern:**
+- Matches Bank Accounts and Crypto patterns
+- Form show/hide logic
+- Collapsible list with eye icon
+- Total under last card with unknown balance count
+- Edit mode pre-fills form
+- Delete with immediate removal
+
+**Navigation:**
+- Back → `/bequeathal/investment/intro`
+- Continue → Next selected category or `/order-of-things`
+
+**Components Needed:**
+- Select (existing - 9 options will use Menu mode)
+- Input (existing)
+- CurrencyInput (existing)
+- MultiBeneficiarySelector in MULTI mode (existing)
+- Button (existing)
+- Custom checkbox for "Unsure of balance" (existing pattern)
+
+**Summary of Changes from Web Prototype:**
+- ✅ Multi-beneficiary support (web uses single `beneficiaryId`)
+- ✅ "Unsure of balance" checkbox (web doesn't have)
+- ❌ Removed "Account Label" field (redundant with provider)
+- ❌ No statistical summary/pie charts (web has ~200 lines of charts)
+- ❌ No view mode toggle (web has expanded/collapsed views)
+- ❌ No special ISA badges (treat all ISAs the same)
+- ✅ Edit functionality (match web)
+- ✅ Form show/hide pattern (match Bank Accounts/Crypto)
+- ✅ 4 fields instead of 5 (simpler, faster)
+
+**Effort:** 3-4 hours (reduced from 4-6 due to simplifications)
+
+✅ **FINALIZED & READY FOR IMPLEMENTATION**
 
 ---
 
@@ -785,7 +1095,7 @@ For each asset type:
 8. ✅ **searchable-select** - Create SearchableSelect component for bank provider dropdown
 9. ✅ **multi-beneficiary-selector** - Create MultiBeneficiarySelector component for beneficiary selection
 10. ✅ **sequential-navigation** - Implement category navigation system
-11. **crypto-flow** - Implement crypto currency intro and entry screens
+11. ✅ **crypto-flow** - Implement crypto currency intro and entry screens  
 12. **investments-flow** - Implement investments intro and entry screens (MODERATE)
 13. **pensions-flow** - Implement pensions intro and entry screens
 14. **life-insurance-flow** - Implement life insurance intro and entry screens
