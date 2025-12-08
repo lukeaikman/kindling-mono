@@ -16,3 +16,6 @@ export type { PersonSelectorFieldProps } from './PersonSelectorField';
 
 export { MultiBeneficiarySelector } from './MultiBeneficiarySelector';
 export type { MultiBeneficiarySelectorProps, BeneficiarySelection } from './MultiBeneficiarySelector';
+
+export { GroupManagementDrawer } from './GroupManagementDrawer';
+export type { GroupManagementDrawerProps } from './GroupManagementDrawer';

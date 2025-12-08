@@ -12,14 +12,24 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Button, BackButton } from '../../src/components/ui';
+import { Button, BackButton, Dialog } from '../../src/components/ui';
 import { SearchableSelect } from '../../src/components/ui/SearchableSelect';
+import { GroupManagementDrawer } from '../../src/components/forms/GroupManagementDrawer';
+import { MultiBeneficiarySelector, BeneficiarySelection } from '../../src/components/forms/MultiBeneficiarySelector';
+import { useAppState } from '../../src/hooks/useAppState';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
 
 export default function SandboxScreen() {
+  const { beneficiaryGroupActions, willActions, personActions } = useAppState();
   const [selectedBank, setSelectedBank] = useState('');
   const [selectedBankWithCard, setSelectedBankWithCard] = useState('');
+  const [showGroupDrawer, setShowGroupDrawer] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [singleBeneficiary, setSingleBeneficiary] = useState<BeneficiarySelection>({ id: '', type: 'person', name: '' });
+  const [multiBeneficiaries, setMultiBeneficiaries] = useState<BeneficiarySelection[]>([]);
+  const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
+  const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);
 
   // UK Bank Providers - test data
   const bankProviders = [
@@ -117,7 +127,151 @@ export default function SandboxScreen() {
               showSelectedCards={true}
             />
           </View>
+
+          {/* Component Divider */}
+          <View style={styles.componentDivider}>
+            <View style={styles.componentDividerLine} />
+            <Text style={styles.componentDividerText}>•  •  •</Text>
+            <View style={styles.componentDividerLine} />
+          </View>
+
+          {/* Test 3: Group Management Drawer */}
+          <View style={styles.testSection}>
+            <Text style={styles.testTitle}>Group Management Drawer</Text>
+            <Text style={styles.sectionDescription}>
+              Bottom drawer for creating and managing beneficiary groups
+            </Text>
+
+            <Button
+              onPress={() => setShowGroupDrawer(true)}
+              variant="primary"
+              icon="account-multiple"
+            >
+              Manage Groups
+            </Button>
+
+            {selectedGroupId && (
+              <View style={styles.result}>
+                <Text style={styles.resultLabel}>Selected Group ID:</Text>
+                <Text style={styles.resultValue}>{selectedGroupId}</Text>
+                <Text style={styles.resultNote}>
+                  Group: {beneficiaryGroupActions.getGroupById(selectedGroupId)?.name || 'Not found'}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Component Divider */}
+          <View style={styles.componentDivider}>
+            <View style={styles.componentDividerLine} />
+            <Text style={styles.componentDividerText}>•  •  •</Text>
+            <View style={styles.componentDividerLine} />
+          </View>
+
+          {/* Test 4: MultiBeneficiarySelector - Single Mode */}
+          <View style={styles.testSection}>
+            <Text style={styles.testTitle}>MultiBeneficiarySelector (Single Mode)</Text>
+            <Text style={styles.sectionDescription}>
+              Select a single person, group, or estate
+            </Text>
+
+            <MultiBeneficiarySelector
+              mode="single"
+              value={singleBeneficiary}
+              onChange={(value) => setSingleBeneficiary(value as BeneficiarySelection)}
+              allowEstate={true}
+              allowGroups={true}
+              label="Select Beneficiary"
+              placeholder="Choose a person..."
+              personActions={personActions}
+              beneficiaryGroupActions={beneficiaryGroupActions}
+              onAddNewPerson={() => setShowAddPersonDialog(true)}
+              onAddNewGroup={() => setShowAddGroupDialog(true)}
+            />
+
+            {singleBeneficiary.id && (
+              <View style={styles.result}>
+                <Text style={styles.resultLabel}>Selected:</Text>
+                <Text style={styles.resultValue}>{singleBeneficiary.name}</Text>
+                <Text style={styles.resultNote}>Type: {singleBeneficiary.type}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Divider (within same component) */}
+          <View style={styles.divider} />
+
+          {/* Test 5: MultiBeneficiarySelector - Multi Mode */}
+          <View style={styles.testSection}>
+            <Text style={styles.testTitle}>MultiBeneficiarySelector (Multi Mode)</Text>
+            <Text style={styles.sectionDescription}>
+              Select multiple people, groups, or estate
+            </Text>
+
+            <MultiBeneficiarySelector
+              mode="multi"
+              value={multiBeneficiaries}
+              onChange={(value) => setMultiBeneficiaries(value as BeneficiarySelection[])}
+              allowEstate={true}
+              allowGroups={true}
+              label="Select Recipients *"
+              placeholder="Add recipients..."
+              personActions={personActions}
+              beneficiaryGroupActions={beneficiaryGroupActions}
+              onAddNewPerson={() => setShowAddPersonDialog(true)}
+              onAddNewGroup={() => setShowAddGroupDialog(true)}
+            />
+
+            {multiBeneficiaries.length > 0 && (
+              <View style={styles.result}>
+                <Text style={styles.resultLabel}>Selected ({multiBeneficiaries.length}):</Text>
+                {multiBeneficiaries.map((b, idx) => (
+                  <Text key={idx} style={styles.resultValue}>• {b.name}</Text>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
+
+        {/* Group Management Drawer */}
+        <GroupManagementDrawer
+          visible={showGroupDrawer}
+          onClose={() => setShowGroupDrawer(false)}
+          onSelectGroup={(groupId) => {
+            setSelectedGroupId(groupId);
+            setShowGroupDrawer(false);
+          }}
+          beneficiaryGroupActions={beneficiaryGroupActions}
+          willId={willActions.getUser()?.id || 'default-user'}
+        />
+
+        {/* Add Person Dialog Placeholder */}
+        <Dialog
+          visible={showAddPersonDialog}
+          onDismiss={() => setShowAddPersonDialog(false)}
+          title="Add New Person"
+        >
+          <Text style={styles.dialogText}>
+            Person creation to be implemented. For now, add people from Onboarding screens.
+          </Text>
+          <Button onPress={() => setShowAddPersonDialog(false)} variant="primary">
+            OK
+          </Button>
+        </Dialog>
+
+        {/* Add Group Dialog Placeholder */}
+        <Dialog
+          visible={showAddGroupDialog}
+          onDismiss={() => setShowAddGroupDialog(false)}
+          title="Create New Group"
+        >
+          <Text style={styles.dialogText}>
+            Group creation shown in Group Management Drawer above.
+          </Text>
+          <Button onPress={() => setShowAddGroupDialog(false)} variant="primary">
+            OK
+          </Button>
+        </Dialog>
       </ScrollView>
     </SafeAreaView>
   );
@@ -184,6 +338,22 @@ const styles = StyleSheet.create({
     backgroundColor: KindlingColors.border,
     marginVertical: Spacing.md,
   },
+  componentDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: Spacing.xl,
+  },
+  componentDividerLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: KindlingColors.beige,
+  },
+  componentDividerText: {
+    fontSize: Typography.fontSize.lg,
+    color: KindlingColors.beige,
+    marginHorizontal: Spacing.md,
+    letterSpacing: 4,
+  },
   result: {
     backgroundColor: `${KindlingColors.cream}66`,
     padding: Spacing.md,
@@ -206,6 +376,12 @@ const styles = StyleSheet.create({
     color: KindlingColors.brown,
     marginTop: Spacing.xs,
     fontStyle: 'italic',
+  },
+  dialogText: {
+    fontSize: Typography.fontSize.md,
+    color: KindlingColors.brown,
+    marginBottom: Spacing.md,
+    lineHeight: 22,
   },
 });
 

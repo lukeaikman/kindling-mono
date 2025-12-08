@@ -183,7 +183,7 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
   // Estate option
   if (allowEstate && !estateSelected) {
     options.push({
-      label: 'The Estate',
+      label: '🏛️ The Estate',
       value: 'estate:estate',
     });
   }
@@ -198,7 +198,7 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
 
   if (allowGroups && onAddNewGroup) {
     options.push({
-      label: '+ Create New Group',
+      label: '+ Create / Manage Groups',
       value: '__add_group__',
     });
   }
