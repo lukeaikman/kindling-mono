@@ -9,13 +9,13 @@
  * - Continue: Proceeds to next category or order-of-things
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Button, BackButton, Input, CurrencyInput, Dialog } from '../../../src/components/ui';
-import { MultiBeneficiarySelector, BeneficiarySelection } from '../../../src/components/forms/MultiBeneficiarySelector';
+import { MultiBeneficiarySelector, BeneficiarySelection, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
@@ -30,7 +30,8 @@ interface ImportantItemForm {
 }
 
 export default function ImportantItemsEntryScreen() {
-  const { bequeathalActions, personActions, beneficiaryGroupActions } = useAppState();
+  const { bequeathalActions, personActions, beneficiaryGroupActions, willActions } = useAppState();
+  const scrollViewRef = useRef<ScrollView>(null);
   const [formData, setFormData] = useState<ImportantItemForm>({
     title: '',
     beneficiaries: [],
@@ -38,6 +39,7 @@ export default function ImportantItemsEntryScreen() {
   });
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
+  const [showGroupDrawer, setShowGroupDrawer] = useState(false);
 
   // Get existing important items
   const importantItems = bequeathalActions.getAssetsByType('important-items') as ImportantItemAsset[];
@@ -79,6 +81,13 @@ export default function ImportantItemsEntryScreen() {
       title: '',
       beneficiaries: [],
       estimatedValue: 0,
+    });
+
+    // Scroll to bottom to show the new item (double RAF to ensure render complete)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      });
     });
   };
 
@@ -158,6 +167,7 @@ export default function ImportantItemsEntryScreen() {
 
       {/* Content */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
@@ -188,6 +198,7 @@ export default function ImportantItemsEntryScreen() {
               personActions={personActions}
               beneficiaryGroupActions={beneficiaryGroupActions}
               onAddNewPerson={() => setShowAddPersonDialog(true)}
+              onAddNewGroup={() => setShowGroupDrawer(true)}
             />
 
             <CurrencyInput
@@ -291,15 +302,23 @@ export default function ImportantItemsEntryScreen() {
               <Text style={styles.emptyText}>Add your first important item using the form above</Text>
             </View>
           )}
+
+          {/* Action Buttons - naturally at bottom of content */}
+          {importantItems.length > 0 && (
+            <TouchableOpacity
+              onPress={() => scrollViewRef.current?.scrollTo({ y: 0, animated: true })}
+              style={styles.addAnotherButton}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.addAnotherText}>Add Another Item</Text>
+            </TouchableOpacity>
+          )}
+          
+          <Button onPress={handleContinue} variant="primary" style={styles.continueButton}>
+            Continue
+          </Button>
         </View>
       </ScrollView>
-
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Button onPress={handleContinue} variant="primary">
-          Continue
-        </Button>
-      </View>
 
       {/* Add Person Dialog */}
       <Dialog
@@ -315,6 +334,30 @@ export default function ImportantItemsEntryScreen() {
           OK
         </Button>
       </Dialog>
+
+      {/* Group Management Drawer */}
+      <GroupManagementDrawer
+        visible={showGroupDrawer}
+        onClose={() => setShowGroupDrawer(false)}
+        onSelectGroup={(groupId) => {
+          // Add the selected group to beneficiaries
+          const group = beneficiaryGroupActions.getGroupById(groupId);
+          if (group) {
+            const groupSelection: BeneficiarySelection = {
+              id: group.id,
+              type: 'group',
+              name: group.name,
+            };
+            setFormData(prev => ({
+              ...prev,
+              beneficiaries: [...prev.beneficiaries, groupSelection]
+            }));
+          }
+          setShowGroupDrawer(false);
+        }}
+        beneficiaryGroupActions={beneficiaryGroupActions}
+        willId={willActions.getUser()?.id || 'default-user'}
+      />
     </SafeAreaView>
   );
 }
@@ -519,13 +562,23 @@ const styles = StyleSheet.create({
     color: KindlingColors.brown,
     textAlign: 'center',
   },
-  footer: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+  addAnotherButton: {
     backgroundColor: KindlingColors.background,
-    borderTopWidth: 1,
-    borderTopColor: `${KindlingColors.border}1a`,
-    zIndex: 10,
+    borderWidth: 2,
+    borderColor: KindlingColors.green,
+    borderRadius: 8,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.xl,
+  },
+  addAnotherText: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.green,
+  },
+  continueButton: {
+    marginTop: Spacing.sm,
   },
   dialogText: {
     fontSize: Typography.fontSize.md,

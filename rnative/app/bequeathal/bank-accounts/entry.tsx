@@ -99,7 +99,9 @@ export default function BankAccountsEntryScreen() {
   const allInvestments = bequeathalActions.getAssetsByType('investment') as InvestmentAsset[];
   const isaAccounts = allInvestments.filter(inv => inv.investmentType === 'ISA');
   
-  const totalValue = [...bankAccounts, ...isaAccounts].reduce((sum, acc) => sum + (acc.estimatedValue || 0), 0);
+  const allAccounts = [...bankAccounts, ...isaAccounts];
+  const totalValue = allAccounts.reduce((sum, acc) => sum + (acc.estimatedValue || 0), 0);
+  const unknownBalanceCount = allAccounts.filter(acc => (acc.estimatedValue || 0) === 0).length;
 
   // Hide form after first account if none existed initially
   useEffect(() => {
@@ -385,82 +387,88 @@ export default function BankAccountsEntryScreen() {
               {showAccountsList && (
                 <View style={styles.accountsList}>
                   {/* Bank Accounts */}
-                  {bankAccounts.map((account) => (
-                    <View key={account.id} style={styles.accountCard}>
-                      <View style={styles.accountInfo}>
-                        <Text style={styles.accountBank}>
-                          {account.isNonUkBank ? (account.nonUkBankName || account.provider) : account.provider}
-                        </Text>
-                        <Text style={styles.accountType}>
-                          {accountTypeOptions.find(opt => opt.value === account.accountType)?.label || 'Current Account'}
-                        </Text>
-                        
-                        {/* Non-UK Bank Details */}
-                        {account.isNonUkBank ? (
-                          <>
-                            {account.accountId && (
-                              <Text style={styles.accountNumber}>
-                                ID: {account.accountId}
-                              </Text>
-                            )}
-                            {account.notes && (
-                              <Text style={styles.accountNotes} numberOfLines={1}>
-                                {account.notes}
-                              </Text>
-                            )}
-                          </>
-                        ) : (
-                          // UK Bank Details
-                          (account.sortCode || account.accountNumber) && (
-                            <Text style={styles.accountNumber}>
-                              {account.sortCode && account.accountNumber 
-                                ? `${account.sortCode} ${account.accountNumber}`
-                                : account.sortCode || account.accountNumber
-                              }
+                  {bankAccounts.map((account) => {
+                    const accountTypeName = accountTypeOptions.find(opt => opt.value === account.accountType)?.label || 'Current Account';
+                    let secondLine = accountTypeName;
+                    
+                    // Build second line with account type and number
+                    if (account.isNonUkBank && account.accountId) {
+                      secondLine = `${accountTypeName} - ID: ${account.accountId}`;
+                    } else if (!account.isNonUkBank && account.accountNumber) {
+                      secondLine = `${accountTypeName} - ${account.accountNumber}`;
+                    }
+                    
+                    return (
+                      <View key={account.id} style={styles.accountCard}>
+                        <View style={styles.accountInfo}>
+                          <Text style={styles.accountBank}>
+                            {account.isNonUkBank ? (account.nonUkBankName || account.provider) : account.provider}
+                          </Text>
+                          <Text style={styles.accountType}>
+                            {secondLine}
+                          </Text>
+                          
+                          {/* Notes for non-UK banks */}
+                          {account.isNonUkBank && account.notes && (
+                            <Text style={styles.accountNotes} numberOfLines={1}>
+                              {account.notes}
                             </Text>
-                          )
-                        )}
-                        
-                        <Text style={styles.accountBalance}>
-                          {(account.estimatedValue || 0) === 0 ? 'Balance not known' : `£${(account.estimatedValue || 0).toLocaleString()}`}
-                        </Text>
+                          )}
+                          
+                          <Text style={styles.accountBalance}>
+                            {(account.estimatedValue || 0) === 0 ? 'Balance not known' : `£${(account.estimatedValue || 0).toLocaleString()}`}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleRemoveAccount(account.id)}
+                          style={styles.deleteButton}
+                        >
+                          <IconButton icon="delete" size={20} iconColor={KindlingColors.destructive} />
+                        </TouchableOpacity>
                       </View>
-                      <TouchableOpacity
-                        onPress={() => handleRemoveAccount(account.id)}
-                        style={styles.deleteButton}
-                      >
-                        <IconButton icon="delete" size={20} iconColor={KindlingColors.destructive} />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
+                    );
+                  })}
 
                   {/* ISAs (shown with note) */}
-                  {isaAccounts.map((isa) => (
-                    <View key={isa.id} style={styles.accountCard}>
-                      <View style={styles.accountInfo}>
-                        <Text style={styles.accountBank}>{isa.provider}</Text>
-                        <Text style={styles.accountType}>ISA</Text>
-                        {isa.accountNumber && (
-                          <Text style={styles.accountNumber}>
-                            {isa.accountNumber}
+                  {isaAccounts.map((isa) => {
+                    const secondLine = isa.accountNumber ? `ISA - ${isa.accountNumber}` : 'ISA';
+                    
+                    return (
+                      <View key={isa.id} style={styles.accountCard}>
+                        <View style={styles.accountInfo}>
+                          <Text style={styles.accountBank}>{isa.provider}</Text>
+                          <Text style={styles.accountType}>{secondLine}</Text>
+                          <View style={styles.isaNote}>
+                            <IconButton icon="information" size={16} iconColor={KindlingColors.green} style={styles.isaIcon} />
+                            <Text style={styles.isaText}>Will appear under Investments</Text>
+                          </View>
+                          <Text style={styles.accountBalance}>
+                            {(isa.estimatedValue || 0) === 0 ? 'Balance not known' : `£${(isa.estimatedValue || 0).toLocaleString()}`}
                           </Text>
-                        )}
-                        <View style={styles.isaNote}>
-                          <IconButton icon="information" size={16} iconColor={KindlingColors.green} style={styles.isaIcon} />
-                          <Text style={styles.isaText}>Will appear under Investments</Text>
                         </View>
-                        <Text style={styles.accountBalance}>
-                          {(isa.estimatedValue || 0) === 0 ? 'Balance not known' : `£${(isa.estimatedValue || 0).toLocaleString()}`}
-                        </Text>
+                        <TouchableOpacity
+                          onPress={() => handleRemoveAccount(isa.id)}
+                          style={styles.deleteButton}
+                        >
+                          <IconButton icon="delete" size={20} iconColor={KindlingColors.destructive} />
+                        </TouchableOpacity>
                       </View>
-                      <TouchableOpacity
-                        onPress={() => handleRemoveAccount(isa.id)}
-                        style={styles.deleteButton}
-                      >
-                        <IconButton icon="delete" size={20} iconColor={KindlingColors.destructive} />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Total Accounts Summary */}
+              {(bankAccounts.length > 0 || isaAccounts.length > 0) && (
+                <View style={styles.totalSection}>
+                  <Text style={styles.totalText}>
+                    Accounts Total: <Text style={styles.totalValue}>£{totalValue.toLocaleString()}</Text>
+                  </Text>
+                  {unknownBalanceCount > 0 && (
+                    <Text style={styles.unknownBalanceText}>
+                      (+ {unknownBalanceCount} unknown {unknownBalanceCount === 1 ? 'balance' : 'balances'})
+                    </Text>
+                  )}
                 </View>
               )}
             </View>
@@ -471,23 +479,19 @@ export default function BankAccountsEntryScreen() {
       {/* Footer */}
       <View style={styles.footer}>
         {(bankAccounts.length > 0 || isaAccounts.length > 0) && !showForm && (
-          <TouchableOpacity
-            onPress={() => setShowForm(true)}
-            style={styles.addAnotherButton}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.addAnotherText}>Add Another Account</Text>
-          </TouchableOpacity>
-        )}
+          <>
+            <TouchableOpacity
+              onPress={() => setShowForm(true)}
+              style={styles.addAnotherButton}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.addAnotherText}>Add Another Account</Text>
+            </TouchableOpacity>
 
-        <Button onPress={handleContinue} variant="primary">
-          Continue
-        </Button>
-
-        {totalValue > 0 && (
-          <Text style={styles.totalText}>
-            Total Accounts: <Text style={styles.totalValue}>£{totalValue.toLocaleString()}</Text>
-          </Text>
+            <Button onPress={handleContinue} variant="primary">
+              Continue
+            </Button>
+          </>
         )}
       </View>
     </SafeAreaView>
@@ -738,6 +742,28 @@ const styles = StyleSheet.create({
   deleteButton: {
     marginLeft: Spacing.sm,
   },
+  totalSection: {
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: `${KindlingColors.cream}66`,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: KindlingColors.beige,
+  },
+  totalText: {
+    fontSize: Typography.fontSize.md,
+    color: KindlingColors.navy,
+    textAlign: 'center',
+  },
+  totalValue: {
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  unknownBalanceText: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.brown,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+  },
   footer: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
@@ -760,15 +786,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.green,
-  },
-  totalText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.navy,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-  },
-  totalValue: {
-    fontWeight: Typography.fontWeight.semibold,
   },
 });
 
