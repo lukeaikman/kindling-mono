@@ -15,6 +15,9 @@ export type { InputProps, InputType } from './Input';
 export { Select } from './Select';
 export type { SelectProps, SelectOption } from './Select';
 
+export { SearchableSelect } from './SearchableSelect';
+export type { SearchableSelectProps, SearchableSelectOption } from './SearchableSelect';
+
 export { Checkbox } from './Checkbox';
 export type { CheckboxProps } from './Checkbox';
 

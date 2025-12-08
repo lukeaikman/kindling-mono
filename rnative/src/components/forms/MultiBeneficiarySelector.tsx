@@ -296,27 +296,7 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
       
-      {/* Multi Mode: Show selected chips */}
-      {mode === 'multi' && selections.length > 0 && (
-        <View style={styles.chipsContainer}>
-          {selections.map((beneficiary) => (
-            <View key={beneficiary.id} style={styles.chip}>
-              {beneficiary.type === 'group' && (
-                <IconButton icon="account-multiple" size={16} iconColor={KindlingColors.navy} style={styles.chipIcon} />
-              )}
-              {beneficiary.type === 'estate' && (
-                <IconButton icon="bank" size={16} iconColor={KindlingColors.navy} style={styles.chipIcon} />
-              )}
-              <Text style={styles.chipText}>{getDisplayText(beneficiary)}</Text>
-              <TouchableOpacity onPress={() => handleRemove(beneficiary.id)}>
-                <IconButton icon="close" size={16} iconColor={KindlingColors.brown} style={styles.chipRemove} />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Dropdown */}
+      {/* Dropdown - Always at top */}
       {(mode === 'multi' || selections.length === 0 || !selections[0].id) && (
         <Select
           placeholder={placeholder}
@@ -337,6 +317,26 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
           </Button>
         </View>
       )}
+      
+      {/* Multi Mode: Show selected chips below dropdown */}
+      {mode === 'multi' && selections.length > 0 && (
+        <View style={styles.chipsContainer}>
+          {selections.map((beneficiary) => (
+            <View key={beneficiary.id} style={styles.chip}>
+              {beneficiary.type === 'group' && (
+                <IconButton icon="account-multiple" size={16} iconColor={KindlingColors.navy} style={styles.chipIcon} />
+              )}
+              {beneficiary.type === 'estate' && (
+                <IconButton icon="bank" size={16} iconColor={KindlingColors.navy} style={styles.chipIcon} />
+              )}
+              <Text style={styles.chipText}>{getDisplayText(beneficiary)}</Text>
+              <TouchableOpacity onPress={() => handleRemove(beneficiary.id)}>
+                <IconButton icon="close" size={16} iconColor={KindlingColors.brown} style={styles.chipRemove} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 };
@@ -352,6 +352,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   chipsContainer: {
+    marginTop: Spacing.sm,
     gap: Spacing.xs,
   },
   chip: {

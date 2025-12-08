@@ -293,6 +293,18 @@ export default function DeveloperDashboard() {
                 </TouchableOpacity>
               </View>
             </View>
+            
+            {/* Developer Tools Section */}
+            <View style={styles.navSection}>
+              <Text style={styles.categoryTitle}>Developer Tools</Text>
+              <Button
+                variant="outline"
+                onPress={() => router.push('/developer/sandbox')}
+                icon="test-tube"
+              >
+                Component Sandbox
+              </Button>
+            </View>
           </View>
         </Card>
         

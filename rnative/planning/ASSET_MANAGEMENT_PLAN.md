@@ -149,32 +149,23 @@ All placeholders use consistent header structure and basic navigation wiring.
 
 ---
 
-## Phase 5: Bank Accounts Implementation (SIMPLE - 1-2 days)
+## Phase 5: Bank Accounts Implementation ✅ COMPLETE
 
 **Reference:** Web prototype `BankAccountsIntroScreen.tsx` and `BankAccountsEntryScreen.tsx`
 
-### Task 5.1: Bank Accounts Intro Screen
+### Task 5.1: Bank Accounts Intro Screen ✅
 File: `native-app/app/bequeathal/bank-accounts/intro.tsx`
 
-**Content (from web prototype):**
-- Header: "Bank Accounts" with piggy-bank icon
-- Optional video player (inline at top, NOT modal)
-- InformationCard: "Estimate the Balances"
-  - "Here we do a quick brain dump of what you've got so you can see your net worth and how this will be divided on your passing."
-  - "You don't need the exact balances."
-  - "If you want exact balances - later, Kindling will allow you to connect your bank accounts so that you always have a live view of your net worth."
-  - External link: "Learn more about bank accounts in wills"
-- Primary button: "Let's Go" → `/bequeathal/bank-accounts/entry`
-- Skip button: "Skip for now" → next category or `/order-of-things`
+**Completed:**
+- ✅ Header: "Bank Accounts" with piggy-bank icon
+- ✅ Inline video player at top (16:9 aspect ratio, WebView)
+- ✅ InformationCard: "Estimate the Balances" with all content matching web prototype
+- ✅ "Learn more" external link with icon
+- ✅ Primary button: "Let's Go" → `/bequeathal/bank-accounts/entry`
+- ✅ Skip button: "Skip for now" → sequential navigation to next category
+- ✅ Morphic background (3 blobs)
 
-**Components:**
-- VideoPlayer (inline embed, NOT modal - already updated in intro.tsx)
-- InformationCard (existing component)
-- Button (existing component)
-
-**Effort:** 1-2 hours
-
-### Task 5.2: Bank Accounts Entry Screen
+### Task 5.2: Bank Accounts Entry Screen ✅
 File: `native-app/app/bequeathal/bank-accounts/entry.tsx`
 
 **Data Structure (from native-app types):**
@@ -267,41 +258,68 @@ When user selects "ISA" as account type:
 - Back → `/bequeathal/bank-accounts/intro`
 - Continue → Next selected category's intro OR `/order-of-things`
 
-**Components Needed:**
-- SearchableSelectField → Create or use Select component
-- CurrencyInput (existing)
-- Input (existing)
-- Textarea → Create or use Input with multiline
-- Card (existing)
-- Button (existing)
+**Completed:**
+- ✅ All 6 form fields implemented exactly as web prototype
+- ✅ SearchableSelect component created and integrated for bank provider
+- ✅ UK/Non-UK bank conditional logic working
+- ✅ ISA detection and routing to InvestmentAsset
+- ✅ ISA warning badge in form when selected
+- ✅ Account number validation (3-8 digits, numeric only)
+- ✅ CurrencyInput with numeric-only validation
+- ✅ "Unsure of balance" checkbox (custom visible checkbox circle)
+- ✅ Form show/hide logic (hidden after first add)
+- ✅ Collapsible accounts list with eye icon
+- ✅ Account cards display all fields (including notes for non-UK, sort code for UK)
+- ✅ ISAs shown in list with green badge "Will appear under Investments"
+- ✅ Green "Add Another Account" button
+- ✅ Total value in footer
+- ✅ Delete functionality
+- ✅ Rounding to nearest £1
+- ✅ Privacy disclaimer
+- ✅ Sequential navigation to next category
 
-**Effort:** 4-6 hours
+**Components Created:**
+- ✅ SearchableSelect (`src/components/ui/SearchableSelect.tsx`)
+  - Modal-based searchable dropdown
+  - Real-time search filtering
+  - FlatList for performance
+  - Two modes: default (shows value in button) and card mode (shows value as card below with clear button)
+  - ~330 lines, fully documented
+  - Exported from ui/index.ts
+- ✅ Component Sandbox (`app/developer/sandbox.tsx`)
+  - Test page for new components
+  - Linked from Developer Dashboard
+  - Tests both SearchableSelect modes
+
+### Task 5.3: Sequential Navigation System ✅
+File: `native-app/src/utils/categoryNavigation.ts`
+
+**Completed:**
+- ✅ Centralized route mapping for all 10 asset categories
+- ✅ `getFirstCategoryRoute()` - Navigate to first selected category
+- ✅ `getNextCategoryRoute()` - Sequential flow through selected categories
+- ✅ Integrated into categories, intro, and entry screens
+- ✅ User flow: Categories → Category1 Intro → Category1 Entry → Category2 Intro → Category2 Entry → Order of Things
 
 ---
 
-## Phase 6: Important Items Implementation (SIMPLE - 1-2 days)
+## Phase 6: Important Items Implementation ✅ COMPLETE
 
 **Reference:** Web prototype `ImportantItemsIntroScreen.tsx` and `ImportantItemsEntryScreen.tsx`
 
-### Task 6.1: Important Items Intro Screen
+### Task 6.1: Important Items Intro Screen ✅
 File: `native-app/app/bequeathal/important-items/intro.tsx`
 
-**Content (from web prototype):**
-- Header: "Important Items" with gem/diamond icon
-- Optional video player (inline at top)
-- InformationCard: "Your Valuable Possessions"
-  - "Typically your items are left to your 'estate'. That means they are split by the Executor across your beneficiaries in the proportions you dictate."
-  - "It is important to list specific items if they are:"
-    1. "Very valuable (preventing them 'disappearing', and/or ensuring special care is taken by executors to have them valued and sold appropriately)"
-    2. "You want a specific person to inherit them"
-  - "If you have anything specifically insured, it should be listed."
-  - "Including these details prevents family disputes and ensures your wishes."
-- Primary button: "Start Adding Important Items" → `/bequeathal/important-items/entry`
-- Skip button: "Skip for now" → next category or `/order-of-things`
+**Completed:**
+- ✅ Header: "Important Items" with diamond icon
+- ✅ Inline video player at top (16:9 aspect ratio)
+- ✅ InformationCard: "Your Valuable Possessions" with all content matching web prototype
+- ✅ Numbered list explaining when to list items
+- ✅ Primary button: "Start Adding Important Items" → entry screen
+- ✅ Skip button: "Skip for now" → sequential navigation
+- ✅ Morphic background (5 blobs)
 
-**Effort:** 1-2 hours
-
-### Task 6.2: Important Items Entry Screen
+### Task 6.2: Important Items Entry Screen ✅
 File: `native-app/app/bequeathal/important-items/entry.tsx`
 
 **Data Structure (from native-app types - category field REMOVED):**
@@ -402,103 +420,45 @@ const getBeneficiaryDisplayName = (beneficiary: SelectedPerson, personActions): 
 - Back → `/bequeathal/important-items/intro`
 - Continue → Next selected category's intro OR `/order-of-things`
 
-**Components Needed:**
-- MultiBeneficiarySelector (NEW - see Task 6.3 below)
-- CurrencyInput (existing)
-- Input (existing)
-- Button (existing)
-- Card (existing)
+**Completed:**
+- ✅ All 3 form fields implemented
+- ✅ Item title input with placeholder
+- ✅ MultiBeneficiarySelector (multi mode, groups + estate support)
+- ✅ CurrencyInput for estimated value (numeric only, £ icon in design)
+- ✅ Form always visible at top
+- ✅ Edit/Add mode toggle with proper button text
+- ✅ Cancel button in edit mode
+- ✅ Items list with full display: title, beneficiaries with relationships, value
+- ✅ Beneficiary display: "Name (Relationship)", "The Estate", groups
+- ✅ Edit/Delete buttons on each item
+- ✅ Empty state with icon and message
+- ✅ Full CRUD operations
+- ✅ BeneficiaryAssignments format conversion
+- ✅ Sequential navigation to next category
+- ✅ Add person dialog placeholder (triggers from MultiBeneficiarySelector)
 
-**Effort:** 5-7 hours (includes MultiBeneficiarySelector component creation)
-
-### Task 6.3: Create MultiBeneficiarySelector Component
+### Task 6.3: Create MultiBeneficiarySelector Component ✅
 File: `native-app/src/components/forms/MultiBeneficiarySelector.tsx`
 
-**Purpose:** Reusable component for selecting people, groups, or estate as beneficiaries
+**Completed:** 327 lines, fully functional reusable component
 
-**Props Interface:**
-```typescript
-interface MultiBeneficiarySelectorProps {
-  // Core behavior
-  mode: 'single' | 'multi';
-  
-  // Current value
-  value: BeneficiarySelection | BeneficiarySelection[];
-  onChange: (value: BeneficiarySelection | BeneficiarySelection[]) => void;
-  
-  // Selection options
-  allowEstate?: boolean;      // Show "The Estate" option
-  allowGroups?: boolean;      // Show beneficiary groups
-  
-  // Filtering
-  excludePersonIds?: string[]; // Person IDs to exclude from dropdown
-  
-  // UI customization
-  label?: string;
-  placeholder?: string;
-  
-  // Callbacks
-  onAddNewPerson?: () => void; // Parent handles person creation dialog
-  onAddNewGroup?: () => void;  // Parent handles group creation dialog
-  
-  // Actions
-  personActions: PersonActions;
-  beneficiaryGroupActions: BeneficiaryGroupActions;
-}
+**Features Implemented:**
+- ✅ Single and multi-select modes
+- ✅ Person selection with relationship display
+- ✅ Groups support (ready for when groups are created)
+- ✅ Estate option ("The Estate")
+- ✅ Chip display in multi mode with remove buttons
+- ✅ Icons for groups (account-multiple) and estate (bank)
+- ✅ Callback pattern for adding new person/group (parent controls Dialog)
+- ✅ Filters out already-selected people
+- ✅ Helper functions for conversions
+- ✅ On-brand styling (beige borders, green accents)
+- ✅ Full JSDoc documentation
+- ✅ Exported from forms/index.ts
 
-interface BeneficiarySelection {
-  id: string;
-  type: 'person' | 'group' | 'estate';
-  name: string;
-  relationship?: string;
-}
-```
-
-**Implementation Approach:**
-1. **Dropdown with filtered people**
-   - Load people via personActions.getPeople()
-   - Filter out excludePersonIds
-   - Convert to SelectOption format
-   - Add "+ Add New Person" option at bottom (triggers onAddNewPerson callback)
-
-2. **Groups dropdown** (if allowGroups)
-   - Load groups via beneficiaryGroupActions.getActiveGroups()
-   - Show in dropdown with group icon
-   - Add "+ Create New Group" option (triggers onAddNewGroup callback)
-
-3. **Estate option** (if allowEstate)
-   - Special option in dropdown: "The Estate"
-   - When selected, adds { id: 'estate', type: 'estate', name: 'The Estate' }
-
-4. **Single mode display**
-   - Selected person shown with name and relationship
-   - "Change" button to reopen dropdown
-
-5. **Multi mode display**
-   - Chips for each selected beneficiary
-   - Person chip: "Name (Relationship)" with X button
-   - Group chip: "Group Name" with group icon and X button
-   - Estate chip: "The Estate" with X button
-   - Dropdown to add more beneficiaries
-
-6. **Helper functions in component**
-   - getBeneficiaryFromPerson(person: Person): BeneficiarySelection
-   - getBeneficiaryFromGroup(group: BeneficiaryGroup): BeneficiarySelection
-   - getDisplayName(beneficiary: BeneficiarySelection): string
-
-**Components Used:**
-- Select (existing)
-- TouchableOpacity (primitive)
-- Text (primitive)
-- View (primitive)
-- IconButton (from react-native-paper)
-
-**Styling:**
-- Follow existing chip pattern from categories screen
-- On-brand colors (beige, cream, navy, green)
-- Consistent with other form components
-
-**Effort:** 2-3 hours
+**Used in:**
+- Important Items Entry screen
+- Future: All simple asset beneficiary assignments (Phases 7-11)
 
 ### Task 6.4: Beneficiary Groups Management (NEEDS DISCUSSION BEFORE IMPLEMENTATION)
 File: `native-app/app/groups/manage.tsx` OR inline in beneficiary selector
@@ -821,15 +781,18 @@ For each asset type:
 4. ✅ **bequeathal-intro** - Implement bequeathal intro screen with video and information cards
 5. ✅ **category-selection** - Implement category selection screen with 10 asset type checkboxes
 6. ✅ **bank-accounts-flow** - Implement bank accounts intro and entry screens (SIMPLE starter)
-7. 🚧 **important-items-flow** - Implement important items intro and entry screens
-8. **crypto-flow** - Implement crypto currency intro and entry screens
-9. **investments-flow** - Implement investments intro and entry screens (MODERATE)
-10. **pensions-flow** - Implement pensions intro and entry screens
-11. **life-insurance-flow** - Implement life insurance intro and entry screens
-12. **company-shares-flow** - Implement private company shares intro and entry screens
-13. **business-assets-flow** - Implement assets-held-through-business screens (COMPLEX)
-14. **agricultural-flow** - Implement agricultural assets screens (VERY COMPLEX)
-15. **property-flow** - Implement property screens with multi-step wizard (VERY COMPLEX)
+7. ✅ **important-items-flow** - Implement important items intro and entry screens
+8. ✅ **searchable-select** - Create SearchableSelect component for bank provider dropdown
+9. ✅ **multi-beneficiary-selector** - Create MultiBeneficiarySelector component for beneficiary selection
+10. ✅ **sequential-navigation** - Implement category navigation system
+11. **crypto-flow** - Implement crypto currency intro and entry screens
+12. **investments-flow** - Implement investments intro and entry screens (MODERATE)
+13. **pensions-flow** - Implement pensions intro and entry screens
+14. **life-insurance-flow** - Implement life insurance intro and entry screens
+15. **company-shares-flow** - Implement private company shares intro and entry screens
+16. **business-assets-flow** - Implement assets-held-through-business screens (COMPLEX)
+17. **agricultural-flow** - Implement agricultural assets screens (VERY COMPLEX)
+18. **property-flow** - Implement property screens with multi-step wizard (VERY COMPLEX)
 
 ---
 

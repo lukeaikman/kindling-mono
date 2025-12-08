@@ -15,7 +15,7 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Button, BackButton, Select, Input, CurrencyInput } from '../../../src/components/ui';
+import { Button, BackButton, Select, Input, CurrencyInput, SearchableSelect } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
@@ -224,7 +224,7 @@ export default function BankAccountsEntryScreen() {
             <View style={styles.formCard}>
               <Text style={styles.formTitle}>Add Bank Account</Text>
               
-              <Select
+              <SearchableSelect
                 label="Held With *"
                 placeholder="Search bank or building society..."
                 value={formData.bankName}
