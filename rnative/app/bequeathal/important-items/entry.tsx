@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
   totalText: {
     fontSize: Typography.fontSize.md,
     color: KindlingColors.navy,
-    marginTop: Spacing.lg,
+    marginTop: 0,
     textAlign: 'center',
   },
   totalValue: {
