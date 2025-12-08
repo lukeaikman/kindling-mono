@@ -45,6 +45,10 @@ export default function ImportantItemsEntryScreen() {
   const importantItems = bequeathalActions.getAssetsByType('important-items') as ImportantItemAsset[];
   const totalValue = importantItems.reduce((sum, item) => sum + (item.estimatedValue || 0), 0);
 
+  // Get will-maker ID to exclude from beneficiary selection
+  const willMaker = willActions.getUser();
+  const excludePersonIds = willMaker?.id ? [willMaker.id] : [];
+
   const handleBeneficiariesChange = (newBeneficiaries: BeneficiarySelection | BeneficiarySelection[]) => {
     const beneficiariesArray = Array.isArray(newBeneficiaries) ? newBeneficiaries : [newBeneficiaries];
     setFormData(prev => ({ ...prev, beneficiaries: beneficiariesArray }));
@@ -194,6 +198,7 @@ export default function ImportantItemsEntryScreen() {
               onChange={handleBeneficiariesChange}
               allowEstate={true}
               allowGroups={true}
+              excludePersonIds={excludePersonIds}
               label="Who will receive this? *"
               placeholder="Select recipient(s)"
               personActions={personActions}

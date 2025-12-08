@@ -442,6 +442,13 @@ export interface InvestmentAsset extends BaseAsset {
   investmentType: string;
   provider: string;
   accountNumber?: string;
+  beneficiaryAssignments?: {
+    beneficiaries: Array<{
+      id: string;
+      type: 'person' | 'group' | 'estate';
+      name?: string;
+    }>;
+  };
 }
 
 /**

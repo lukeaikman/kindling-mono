@@ -159,8 +159,24 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
   // Check if estate is already selected
   const estateSelected = selections.some(s => s.type === 'estate');
 
-  // Build dropdown options
+  // Build dropdown options - Estate at top if allowed
   const options = [];
+  
+  // Estate option - always first if allowed
+  if (allowEstate && !estateSelected) {
+    options.push({
+      label: '🏛️ The Estate',
+      value: 'estate:estate',
+    });
+    // Add subtle separator after estate
+    if (availablePeople.length > 0 || availableGroups.length > 0) {
+      options.push({
+        label: '─────────────',
+        value: '__separator__',
+        disabled: true,
+      });
+    }
+  }
   
   // People options
   availablePeople.forEach(person => {
@@ -177,14 +193,6 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
         label: `👥 ${group.name}`,
         value: `group:${group.id}`,
       });
-    });
-  }
-
-  // Estate option
-  if (allowEstate && !estateSelected) {
-    options.push({
-      label: '🏛️ The Estate',
-      value: 'estate:estate',
     });
   }
 
@@ -241,6 +249,12 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
 
     if (selectedValue === '__add_group__') {
       onAddNewGroup?.();
+      setDropdownValue('');
+      return;
+    }
+
+    // Ignore separator
+    if (selectedValue === '__separator__') {
       setDropdownValue('');
       return;
     }
