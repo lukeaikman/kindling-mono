@@ -918,6 +918,34 @@ export const useAppState = () => {
     },
 
     getAllAssets,
+
+    getSelectedCategories: () => {
+      return Array.from(bequeathalData.selectedCategories);
+    },
+
+    setSelectedCategories: (categories) => {
+      setBequeathalData(prev => ({
+        ...prev,
+        selectedCategories: new Set(categories),
+        lastUpdated: new Date()
+      }));
+    },
+
+    toggleCategory: (category) => {
+      setBequeathalData(prev => {
+        const newSet = new Set(prev.selectedCategories);
+        if (newSet.has(category)) {
+          newSet.delete(category);
+        } else {
+          newSet.add(category);
+        }
+        return {
+          ...prev,
+          selectedCategories: newSet,
+          lastUpdated: new Date()
+        };
+      });
+    },
   };
 
   // =============================================================================

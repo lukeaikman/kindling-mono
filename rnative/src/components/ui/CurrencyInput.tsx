@@ -14,7 +14,7 @@ import { formatCurrency, parseCurrency } from '../../utils/helpers';
 /**
  * CurrencyInput component props
  */
-export interface CurrencyInputProps extends Omit<InputProps, 'type' | 'value' | 'onChangeText'> {
+export interface CurrencyInputProps extends Omit<InputProps, 'type' | 'value' | 'onChangeText' | 'onBlur' | 'keyboardType'> {
   /**
    * Numeric value (in pounds)
    */
@@ -41,19 +41,40 @@ export interface CurrencyInputProps extends Omit<InputProps, 'type' | 'value' | 
 export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   value,
   onValueChange,
+  disabled = false,
   ...props
 }) => {
-  const [displayValue, setDisplayValue] = useState(formatCurrency(value));
+  // Display value as plain number (no £ in the text itself)
+  const [displayValue, setDisplayValue] = React.useState(value > 0 ? value.toString() : '');
+  
+  // Update display when value changes externally (e.g., "Not sure" clears it)
+  React.useEffect(() => {
+    if (value === 0) {
+      setDisplayValue('');
+    } else if (value > 0) {
+      setDisplayValue(value.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+    }
+  }, [value]);
   
   const handleChange = (text: string) => {
-    setDisplayValue(text);
-    const numericValue = parseCurrency(text);
+    // Only allow digits and one decimal point
+    const filtered = text.replace(/[^\d.]/g, '');
+    // Ensure only one decimal point
+    const parts = filtered.split('.');
+    const sanitized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : filtered;
+    
+    setDisplayValue(sanitized);
+    const numericValue = parseCurrency(sanitized);
     onValueChange(numericValue);
   };
   
   const handleBlur = () => {
-    // Reformat on blur to ensure consistent formatting
-    setDisplayValue(formatCurrency(value));
+    // Format number with commas on blur (no £ symbol in text)
+    if (value > 0) {
+      setDisplayValue(value.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
+    } else {
+      setDisplayValue('');
+    }
   };
   
   return (
@@ -61,9 +82,11 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
       {...props}
       value={displayValue}
       onChangeText={handleChange}
-      type="number"
+      onBlur={handleBlur}
+      keyboardType="numeric"
       leftIcon="currency-gbp"
-      placeholder="£0"
+      placeholder="0"
+      disabled={disabled}
     />
   );
 };

@@ -392,6 +392,7 @@ export interface BaseAsset {
 
 /**
  * Property asset - real estate holdings
+ * Simplified flat structure (no basicDetails duplication)
  */
 export interface PropertyAsset extends BaseAsset {
   type: 'property';
@@ -399,16 +400,9 @@ export interface PropertyAsset extends BaseAsset {
   propertyType: 'residential' | 'commercial' | 'land' | 'other';
   ownershipType: 'sole' | 'joint-tenants' | 'tenants-in-common';
   ownershipPercentage?: number;
-  basicDetails: {
-    propertyType: string;
-    ownershipType: string;
-    ownershipPercentage: string;
-    primaryResidence: boolean;
-    hasLivedThere: boolean;
-    hasMortgage: boolean;
-    outstandingMortgage?: string;
-    estimatedValue: string;
-  };
+  primaryResidence?: boolean;
+  hasLivedThere?: boolean;
+  hasMortgage?: boolean;
   mortgage?: {
     outstandingAmount: number;
     provider: string;
@@ -416,26 +410,21 @@ export interface PropertyAsset extends BaseAsset {
   beneficiaryAssignments?: {
     beneficiaries: Array<{
       id: string;
-      type: 'person';
-      percentage: number;
-    }>;
-    groups: Array<{
-      id: string;
-      type: 'group';
-      percentage: number;
+      type: 'person' | 'group' | 'estate';
+      name?: string;
+      percentage?: number;
     }>;
   };
 }
 
 /**
  * Important items asset - jewelry, artwork, collectibles, etc.
+ * Uses beneficiaryAssignments for multi-beneficiary support
  */
 export interface ImportantItemAsset extends BaseAsset {
   type: 'important-items';
-  category: string;
   specificDetails?: string;
   sentimentalValue?: boolean;
-  // Support for multiple beneficiaries (new format)
   beneficiaryAssignments?: {
     beneficiaries: Array<{
       id: string;
@@ -443,8 +432,6 @@ export interface ImportantItemAsset extends BaseAsset {
       name?: string;
     }>;
   };
-  // Legacy field for backward compatibility - will be migrated to beneficiaryAssignments
-  beneficiaryId?: string;
 }
 
 /**
@@ -455,7 +442,6 @@ export interface InvestmentAsset extends BaseAsset {
   investmentType: string;
   provider: string;
   accountNumber?: string;
-  currentValue: number;
 }
 
 /**
@@ -463,24 +449,14 @@ export interface InvestmentAsset extends BaseAsset {
  */
 export interface PensionAsset extends BaseAsset {
   type: 'pensions';
-  // Provider & identification
   provider: string;
   policyNumber?: string;
   linkedEmployer?: string;
-  
-  // Pension type & value
   pensionType: string;
-  currentValue: number;
-  
-  // Contributions (optional)
   monthlyContribution?: number;
   employerContribution?: number;
-  
-  // Ownership tracking
   pensionOwner?: 'me' | 'spouse' | 'child' | 'other';
   customOwner?: string;
-  
-  // Beneficiary status
   beneficiaryNominated?: 'yes' | 'no' | 'not-sure';
 }
 
@@ -492,14 +468,12 @@ export interface LifeInsuranceAsset extends BaseAsset {
   policyType: string;
   provider: string;
   policyNumber: string;
-  coverAmount: number;
-  monthlyPremium?: number;
-  // Life insurance specific fields from existing implementation
   lifeAssured: string;
   sumInsured: number;
-  beneficiaryKnown: 'yes' | 'no' | 'partial';
-  premiumStatus: 'active' | 'paid-up' | 'lapsed' | 'suspended';
-  beneficiaries: Array<{
+  monthlyPremium?: number;
+  beneficiaryKnown?: 'yes' | 'no' | 'partial';
+  premiumStatus?: 'active' | 'paid-up' | 'lapsed' | 'suspended';
+  beneficiaries?: Array<{
     name: string;
     allocationMode: 'percentage' | 'currency';
     percentage?: number;
@@ -515,9 +489,12 @@ export interface BankAccountAsset extends BaseAsset {
   accountType: string;
   provider: string;
   accountNumber?: string;
-  sortCode?: string; // Kept in interface but not shown in form
-  ownershipType?: 'personal' | 'joint'; // Added field
-  currentBalance: number;
+  sortCode?: string;
+  ownershipType?: 'personal' | 'joint';
+  isNonUkBank?: boolean;
+  nonUkBankName?: string;
+  accountId?: string;
+  notes?: string;
 }
 
 /**
@@ -588,7 +565,6 @@ export interface CryptoCurrencyAsset extends BaseAsset {
   cryptoType: string;
   platform: string;
   quantity: number;
-  currentValue: number;
 }
 
 /**
@@ -731,6 +707,9 @@ export interface BequeathalActions {
   getAssetById: (id: string) => Asset | undefined;
   getAssetsByType: (type: AssetType) => Asset[];
   getAllAssets: () => Asset[];
+  getSelectedCategories: () => string[];
+  setSelectedCategories: (categories: string[]) => void;
+  toggleCategory: (category: string) => void;
 }
 
 /**

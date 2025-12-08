@@ -14,3 +14,5 @@ export type { AddressSearchFieldProps } from './AddressSearchField';
 export { PersonSelectorField } from './PersonSelectorField';
 export type { PersonSelectorFieldProps } from './PersonSelectorField';
 
+export { MultiBeneficiarySelector } from './MultiBeneficiarySelector';
+export type { MultiBeneficiarySelectorProps, BeneficiarySelection } from './MultiBeneficiarySelector';
