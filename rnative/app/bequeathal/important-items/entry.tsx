@@ -43,6 +43,7 @@ export default function ImportantItemsEntryScreen() {
 
   // Get existing important items
   const importantItems = bequeathalActions.getAssetsByType('important-items') as ImportantItemAsset[];
+  const totalValue = importantItems.reduce((sum, item) => sum + (item.estimatedValue || 0), 0);
 
   const handleBeneficiariesChange = (newBeneficiaries: BeneficiarySelection | BeneficiarySelection[]) => {
     const beneficiariesArray = Array.isArray(newBeneficiaries) ? newBeneficiaries : [newBeneficiaries];
@@ -292,6 +293,16 @@ export default function ImportantItemsEntryScreen() {
                   );
                 })}
               </View>
+
+              {/* Total Value */}
+              {totalValue > 0 && (
+                <Text style={styles.totalText}>
+                  Valuables Total: <Text style={styles.totalValue}>£{totalValue.toLocaleString('en-GB', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2
+                  })}</Text>
+                </Text>
+              )}
             </View>
           ) : (
             <View style={styles.emptyState}>
@@ -561,6 +572,15 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.brown,
     textAlign: 'center',
+  },
+  totalText: {
+    fontSize: Typography.fontSize.md,
+    color: KindlingColors.navy,
+    marginTop: Spacing.lg,
+    textAlign: 'center',
+  },
+  totalValue: {
+    fontWeight: Typography.fontWeight.semibold,
   },
   addAnotherButton: {
     backgroundColor: KindlingColors.background,
