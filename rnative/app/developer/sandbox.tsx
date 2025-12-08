@@ -7,12 +7,12 @@
  * @module screens/developer/sandbox
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Button, BackButton, Dialog } from '../../src/components/ui';
+import { Button, BackButton, Dialog, Select } from '../../src/components/ui';
 import { SearchableSelect } from '../../src/components/ui/SearchableSelect';
 import { GroupManagementDrawer } from '../../src/components/forms/GroupManagementDrawer';
 import { MultiBeneficiarySelector, BeneficiarySelection } from '../../src/components/forms/MultiBeneficiarySelector';
@@ -22,6 +22,7 @@ import { Spacing, Typography } from '../../src/styles/constants';
 
 export default function SandboxScreen() {
   const { beneficiaryGroupActions, willActions, personActions } = useAppState();
+  const scrollViewRef = useRef<ScrollView>(null);
   const [selectedBank, setSelectedBank] = useState('');
   const [selectedBankWithCard, setSelectedBankWithCard] = useState('');
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
@@ -30,6 +31,8 @@ export default function SandboxScreen() {
   const [multiBeneficiaries, setMultiBeneficiaries] = useState<BeneficiarySelection[]>([]);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);
+  const [shortSelect, setShortSelect] = useState('');
+  const [longSelect, setLongSelect] = useState('');
 
   // UK Bank Providers - test data
   const bankProviders = [
@@ -74,11 +77,75 @@ export default function SandboxScreen() {
 
       {/* Content */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
+          <Text style={styles.sectionTitle}>Component Testing</Text>
+          
+          {/* Test: Select Component - Short List (Menu mode) */}
+          <View style={styles.testSection}>
+            <Text style={styles.testTitle}>Select - Short List (≤8 items = Menu)</Text>
+            <Text style={styles.sectionDescription}>
+              Uses anchored Menu dropdown with auto-scroll
+            </Text>
+
+            <Select
+              label="Account Type"
+              placeholder="Select type..."
+              value={shortSelect}
+              options={[
+                { label: 'Current Account', value: 'current' },
+                { label: 'Savings Account', value: 'savings' },
+                { label: 'ISA', value: 'isa' },
+                { label: 'Fixed Term Deposit', value: 'fixed-term' },
+                { label: 'Other', value: 'other' },
+              ]}
+              onChange={setShortSelect}
+              scrollViewRef={scrollViewRef}
+            />
+
+            {shortSelect && (
+              <View style={styles.result}>
+                <Text style={styles.resultValue}>{shortSelect}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Divider */}
+          <View style={styles.divider} />
+
+          {/* Test: Select Component - Long List (Modal mode) */}
+          <View style={styles.testSection}>
+            <Text style={styles.testTitle}>Select - Long List ({'>'}8 items = Modal)</Text>
+            <Text style={styles.sectionDescription}>
+              Automatically uses scrollable modal for long lists
+            </Text>
+
+            <Select
+              label="Bank Provider"
+              placeholder="Select bank..."
+              value={longSelect}
+              options={bankProviders}
+              onChange={setLongSelect}
+            />
+
+            {longSelect && (
+              <View style={styles.result}>
+                <Text style={styles.resultValue}>{longSelect}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Component Divider */}
+          <View style={styles.componentDivider}>
+            <View style={styles.componentDividerLine} />
+            <Text style={styles.componentDividerText}>•  •  •</Text>
+            <View style={styles.componentDividerLine} />
+          </View>
+
           <Text style={styles.sectionTitle}>SearchableSelect Component</Text>
           
           {/* Test 1: Default mode (showSelectedCards=false) */}
