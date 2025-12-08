@@ -26,3 +26,17 @@ export {
   getFromClipboard,
 } from './clipboardHelpers';
 
+// Asset helpers
+export {
+  formatCurrency,
+  parseCurrency,
+  calculateTotalValue,
+  calculateTotalNetValue,
+  groupAssetsByType,
+  getDefaultAsset,
+  isAssetValid,
+  isAssetComplete,
+  getAssetTypeLabel,
+  getAssetDisplayTitle,
+} from './assetHelpers';
+

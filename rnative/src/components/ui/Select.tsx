@@ -19,6 +19,7 @@ import { Spacing } from '../../styles/constants';
 export interface SelectOption {
   label: string;
   value: string;
+  disabled?: boolean;
 }
 
 /**
@@ -149,9 +150,10 @@ export const Select: React.FC<SelectProps> = ({
       >
         {options.map((option) => (
           <Menu.Item
-            key={option.value}
-            onPress={() => handleSelect(option.value)}
+            key={option.value || option.label}
+            onPress={() => !option.disabled && handleSelect(option.value)}
             title={option.label}
+            disabled={option.disabled}
             titleStyle={value === option.value ? styles.selectedItem : undefined}
           />
         ))}

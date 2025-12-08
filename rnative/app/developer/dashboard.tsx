@@ -38,6 +38,7 @@ export default function DeveloperDashboard() {
   const [onboardingScreen, setOnboardingScreen] = useState('/onboarding/welcome');
   const [executorsScreen, setExecutorsScreen] = useState('/executors/intro');
   const [guardianshipScreen, setGuardianshipScreen] = useState('/guardianship/intro');
+  const [bequeathalScreen, setBequeathalScreen] = useState('/bequeathal/intro');
   const [dashboardScreen, setDashboardScreen] = useState('/order-of-things');
   
   // Load storage data for display
@@ -209,6 +210,62 @@ export default function DeveloperDashboard() {
                 <TouchableOpacity
                   style={styles.navArrow}
                   onPress={() => router.push(guardianshipScreen)}
+                >
+                  <IconButton icon="arrow-right" size={20} iconColor={KindlingColors.navy} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {/* Assets & Bequests Section */}
+            <View style={styles.navSection}>
+              <Text style={styles.categoryTitle}>Assets & Bequests</Text>
+              <View style={styles.navRow}>
+                <View style={styles.navDropdown}>
+                  <Select
+                    value={bequeathalScreen}
+                    options={[
+                      { label: 'Intro', value: '/bequeathal/intro' },
+                      { label: 'Categories', value: '/bequeathal/categories' },
+                      { label: '── Bank Accounts ──', value: '', disabled: true },
+                      { label: 'Bank: Intro', value: '/bequeathal/bank-accounts/intro' },
+                      { label: 'Bank: Entry', value: '/bequeathal/bank-accounts/entry' },
+                      { label: '── Important Items ──', value: '', disabled: true },
+                      { label: 'Items: Intro', value: '/bequeathal/important-items/intro' },
+                      { label: 'Items: Entry', value: '/bequeathal/important-items/entry' },
+                      { label: '── Crypto ──', value: '', disabled: true },
+                      { label: 'Crypto: Intro', value: '/bequeathal/crypto-currency/intro' },
+                      { label: 'Crypto: Entry', value: '/bequeathal/crypto-currency/entry' },
+                      { label: '── Investments ──', value: '', disabled: true },
+                      { label: 'Invest: Intro', value: '/bequeathal/investment/intro' },
+                      { label: 'Invest: Entry', value: '/bequeathal/investment/entry' },
+                      { label: '── Pensions ──', value: '', disabled: true },
+                      { label: 'Pensions: Intro', value: '/bequeathal/pensions/intro' },
+                      { label: 'Pensions: Entry', value: '/bequeathal/pensions/entry' },
+                      { label: '── Life Insurance ──', value: '', disabled: true },
+                      { label: 'Life: Intro', value: '/bequeathal/life-insurance/intro' },
+                      { label: 'Life: Entry', value: '/bequeathal/life-insurance/entry' },
+                      { label: '── Company Shares ──', value: '', disabled: true },
+                      { label: 'Shares: Intro', value: '/bequeathal/private-company-shares/intro' },
+                      { label: 'Shares: Entry', value: '/bequeathal/private-company-shares/entry' },
+                      { label: '── Business Assets ──', value: '', disabled: true },
+                      { label: 'Biz: Intro', value: '/bequeathal/assets-held-through-business/intro' },
+                      { label: 'Biz: Entry', value: '/bequeathal/assets-held-through-business/entry' },
+                      { label: '── Agricultural ──', value: '', disabled: true },
+                      { label: 'Agri: Intro', value: '/bequeathal/agricultural-assets/intro' },
+                      { label: 'Agri: Entry', value: '/bequeathal/agricultural-assets/entry' },
+                      { label: '── Property ──', value: '', disabled: true },
+                      { label: 'Property: Intro', value: '/bequeathal/property/intro' },
+                      { label: 'Property: Address', value: '/bequeathal/property/address' },
+                      { label: 'Property: Entry', value: '/bequeathal/property/entry' },
+                      { label: 'Property: Trust', value: '/bequeathal/property/trust-details' },
+                      { label: 'Property: Summary', value: '/bequeathal/property/summary' },
+                    ]}
+                    onChange={setBequeathalScreen}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={styles.navArrow}
+                  onPress={() => router.push(bequeathalScreen)}
                 >
                   <IconButton icon="arrow-right" size={20} iconColor={KindlingColors.navy} />
                 </TouchableOpacity>

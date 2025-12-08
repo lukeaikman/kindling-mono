@@ -160,6 +160,10 @@ export default function OrderOfThingsScreen() {
     router.push('/guardianship/intro');
   };
   
+  const handleNavigateToBequeathal = () => {
+    router.push('/bequeathal/intro');
+  };
+  
   const handleNavigateToEstateDivision = () => {
     console.log('Navigate to Estate Division');
     // router.push('/estate-division');
@@ -261,6 +265,14 @@ export default function OrderOfThingsScreen() {
             
             <SectionOption
               icon="gift"
+              title="Assets & Bequests"
+              tooltip="Record your assets and decide who inherits what."
+              completed={false}
+              onPress={handleNavigateToBequeathal}
+            />
+            
+            <SectionOption
+              icon="target"
               title="Divide your estate"
               tooltip="Decide who receives what from your estate. You can leave specific gifts or percentages."
               completed={sectionCompletion.estateDivisionComplete}

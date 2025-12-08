@@ -4,7 +4,19 @@ Purpose: Enforce consistent, maintainable code for a mobile-first React Native a
 
 ---
 
-## Rule 0 — Privacy, Safety & PII (ALWAYS)
+## Rule 0 — Planning Documents Organization
+**Triggers:** Creating or updating planning documents during development
+
+**You must:**
+1. All planning documents go in `/planning` folder.
+2. **Active plans:** UPPERCASE filename with no prefix (e.g., `FEATURE_DEVELOPMENT_LOG.md`, `COMPONENT_GUIDELINES.md`).
+3. **Completed plans:** lowercase filename with `x-` prefix (e.g., `x-feature-development-log.md`, `x-component-guidelines.md`).
+4. When a plan is confirmed complete by the user, rename it from UPPERCASE to `x-lowercase`.
+5. Keep planning folder organized—don't create planning documents in root directory.
+
+---
+
+## Rule 1 — Privacy, Safety & PII (ALWAYS)
 **Triggers:** Any change touching persistence, logs, network, or analytics
 
 **You must:**
@@ -16,7 +28,7 @@ Purpose: Enforce consistent, maintainable code for a mobile-first React Native a
 
 ---
 
-## Rule 1 — Code Ownership & Structure
+## Rule 2 — Code Ownership & Structure
 - Keep UI, domain logic, and data access **separate**.
 - Do not access `AsyncStorage` directly in components; use `useAppState` hook only.
 - All data persistence logic lives in `src/hooks/useAppState.ts`.
@@ -45,7 +57,7 @@ native-app/
 
 ---
 
-## Rule 2 — Type Safety & Validation
+## Rule 3 — Type Safety & Validation
 - Every external boundary (AsyncStorage, navigation params, form inputs) must have **type validation**.
 - Use TypeScript interfaces from `src/types/index.ts` as source of truth.
 - When adding new asset types or data structures, update types first, then implement.
@@ -53,7 +65,7 @@ native-app/
 
 ---
 
-## Rule 3 — State Management Pattern (AsyncStorage)
+## Rule 4 — State Management Pattern (AsyncStorage)
 **Triggers:** Any code touching state or AsyncStorage
 
 **You must:**
@@ -75,7 +87,7 @@ native-app/
 
 ---
 
-## Rule 4 — Navigation System (Expo Router)
+## Rule 5 — Navigation System (Expo Router)
 **Triggers:** Adding new screens or modifying navigation flow
 
 **You must:**
@@ -88,16 +100,17 @@ native-app/
 
 ---
 
-## Rule 5 — Component Architecture (CRITICAL - Learn from Mistakes)
+## Rule 6 — Component Architecture (CRITICAL - Learn from Mistakes)
 **Triggers:** Creating or modifying UI components
 
 **You must:**
-1. **Use primitives (View, Text, TouchableOpacity) for layout control** - don't use abstracted components (Card) for main content areas.
-2. **Padding on parent = constrained children** - use margins on children instead.
-3. **Build manually when library components fail** - don't fight the library, build with primitives.
-4. **Platform-specific components when needed** - use RadioButton.Android/RadioButton.IOS, not generic RadioButton.
-5. **Test on both iOS and Android** - components behave differently on each platform.
-6. **Read the actual code, not documentation** - verify what props actually do before using them.
+1. **Read and follow** `docs/COMPONENT_GUIDELINES.md` - comprehensive component philosophy and patterns
+2. **Use primitives (View, Text, TouchableOpacity) for layout control** - don't use abstracted components (Card) for main content areas
+3. **Padding on parent = constrained children** - use margins on children instead
+4. **Build manually when library components fail** - don't fight the library, build with primitives
+5. **Platform-specific components when needed** - use RadioButton.Android/RadioButton.IOS, not generic RadioButton
+6. **Test on both iOS and Android** - components behave differently on each platform
+7. **Read the actual code, not documentation** - verify what props actually do before using them
 
 **Component Patterns:**
 - **Layout containers**: Use plain `View` with explicit styles
@@ -110,9 +123,15 @@ native-app/
 - Child `margins` control positioning without constraining width
 - For full-width content: no horizontal padding on parent, margins on child
 
+**Component Guidelines:**
+- See `docs/COMPONENT_GUIDELINES.md` for full philosophy
+- All components should support global styling changes
+- JSDoc documentation required on all components
+- Manual builds preferred when library components don't meet needs
+
 ---
 
-## Rule 6 — React Native Specific Patterns
+## Rule 7 — React Native Specific Patterns
 **Triggers:** Any React Native development
 
 **You must:**
@@ -125,7 +144,7 @@ native-app/
 
 ---
 
-## Rule 7 — Storybook Coverage (Future - Requires Node 20.19+)
+## Rule 8 — Storybook Coverage (Future - Requires Node 20.19+)
 **Triggers:** Creating or modifying a reusable component
 
 **You must:**
@@ -136,7 +155,7 @@ native-app/
 
 ---
 
-## Rule 8 — Form & Input UX
+## Rule 9 — Form & Input UX
 **Triggers:** Creating/editing forms, inputs, selects, pickers
 
 **You must:**
@@ -153,7 +172,7 @@ native-app/
 
 ---
 
-## Rule 8a — Auto-Focus & Auto-Scroll Patterns
+## Rule 9a — Auto-Focus & Auto-Scroll Patterns
 **Triggers:** Forms with multiple inputs or selection fields
 
 **Component-Level (Use 80% of cases):**
@@ -231,7 +250,7 @@ For complex conditional logic or custom behavior:
 
 ---
 
-## Rule 9 — Data Persistence & Backward Compatibility
+## Rule 10 — Data Persistence & Backward Compatibility
 **Triggers:** Changing data structures, adding required fields, or modifying AsyncStorage schema
 
 **You must:**
@@ -252,7 +271,7 @@ if (storedData && 'oldFormat' in storedData) {
 
 ---
 
-## Rule 10 — JSDoc Documentation (REQUIRED)
+## Rule 11 — JSDoc Documentation (REQUIRED)
 **Triggers:** Adding new components, functions, or interfaces
 
 **You must:**
@@ -284,7 +303,7 @@ if (storedData && 'oldFormat' in storedData) {
 
 ---
 
-## Rule 11 — Error Handling & Resilience
+## Rule 12 — Error Handling & Resilience
 **Triggers:** Data operations, form submissions, AsyncStorage access, API calls
 
 **You must:**
@@ -296,7 +315,7 @@ if (storedData && 'oldFormat' in storedData) {
 
 ---
 
-## Rule 12 — Performance & Rendering
+## Rule 13 — Performance & Rendering
 **Triggers:** Lists, large data sets, or render-heavy components
 
 **You must:**
@@ -308,7 +327,7 @@ if (storedData && 'oldFormat' in storedData) {
 
 ---
 
-## Rule 13 — Git Commit Standards
+## Rule 14 — Git Commit Standards
 **Triggers:** Every commit
 
 **You must:**
@@ -327,7 +346,7 @@ if (storedData && 'oldFormat' in storedData) {
 
 ---
 
-## Rule 14 — Screen Implementation Pattern
+## Rule 15 — Screen Implementation Pattern
 **Triggers:** Creating new screens
 
 **You must:**
@@ -345,7 +364,7 @@ if (storedData && 'oldFormat' in storedData) {
 
 ---
 
-## Rule 15 — Offline-First Architecture
+## Rule 16 — Offline-First Architecture
 **Triggers:** API calls, data mutations, network operations
 
 **You must:**
@@ -358,7 +377,7 @@ if (storedData && 'oldFormat' in storedData) {
 
 ---
 
-## Rule 16 — Testing Before Commit
+## Rule 17 — Testing Before Commit
 **Triggers:** EVERY commit
 
 **You must:**
@@ -378,7 +397,7 @@ if (storedData && 'oldFormat' in storedData) {
 
 ---
 
-## Rule 17 — Lessons Learned (DO NOT REPEAT)
+## Rule 18 — Lessons Learned (DO NOT REPEAT)
 
 ### 1. Container Padding Mistake
 **DON'T:**
@@ -422,7 +441,7 @@ generateUUID()  // Use custom fallback implementation
 
 ---
 
-## Rule 18 — Developer Tools (REQUIRED)
+## Rule 19 — Developer Tools (REQUIRED)
 **Triggers:** Building the app
 
 **You must:**
@@ -434,7 +453,7 @@ generateUUID()  // Use custom fallback implementation
 
 ---
 
-## Rule 19 — JSON Server Mock API (Staging for Rails)
+## Rule 20 — JSON Server Mock API (Staging for Rails)
 **Triggers:** API development
 
 **You must:**
@@ -446,7 +465,7 @@ generateUUID()  // Use custom fallback implementation
 
 ---
 
-## Rule 20 — Ask-Before-Commit Confirmations
+## Rule 21 — Ask-Before-Commit Confirmations
 Add confirmations before large edits:
 - Asset type changes: confirm interface updates, seed data updates, screen modifications.
 - Navigation flow changes: verify all screen transitions still work.
