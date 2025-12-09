@@ -452,19 +452,26 @@ export interface InvestmentAsset extends BaseAsset {
 }
 
 /**
+ * Pension type options
+ */
+export type PensionType = 
+  | 'defined-benefit'
+  | 'defined-contribution'
+  | 'sipp'
+  | 'workplace'
+  | 'unsure';
+
+/**
  * Pension asset - workplace and personal pensions
+ * Simplified for will creation + visualization (value first, executor details later)
  */
 export interface PensionAsset extends BaseAsset {
   type: 'pensions';
   provider: string;
-  policyNumber?: string;
-  linkedEmployer?: string;
-  pensionType: string;
-  monthlyContribution?: number;
-  employerContribution?: number;
-  pensionOwner?: 'me' | 'spouse' | 'child' | 'other';
-  customOwner?: string;
+  pensionType: PensionType;
   beneficiaryNominated?: 'yes' | 'no' | 'not-sure';
+  // Fields deferred to Executor Facilitation phase:
+  // - policyNumber, linkedEmployer (for executor access, not will creation)
 }
 
 /**
