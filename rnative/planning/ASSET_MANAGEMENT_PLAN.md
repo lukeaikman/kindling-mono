@@ -821,6 +821,242 @@ For: The Estate
 
 ---
 
+## Phase 9: Pensions Implementation (MODERATE - 3-4 hours)
+
+**Reference:** Web prototype `PensionsIntroScreen.tsx` and `PensionsEntryScreen.tsx`
+
+**CRITICAL:** Pensions often bypass estate - "Beneficiary Nominated" field affects distribution visualization
+
+### DESIGN PHILOSOPHY: Value First, Details Later
+
+**For Will Creation + Visualization, we need:**
+- What pension exists (provider)
+- Rough value (for estate total)
+- Does it bypass estate? (beneficiary nominated question)
+
+**For Executor Facilitation (LATER phase):**
+- Policy numbers, account numbers, access details
+
+### Task 9.1: Clean Up PensionAsset Data Model
+File: `native-app/src/types/index.ts`
+
+**CURRENT (Bloated - 9 fields):**
+```typescript
+interface PensionAsset extends BaseAsset {
+  type: 'pensions';
+  provider: string;
+  policyNumber?: string;           // ❌ NOT USING (deferred)
+  linkedEmployer?: string;         // ❌ NOT USING (removed from plan)
+  pensionType: string;
+  monthlyContribution?: number;    // ❌ NOT USING (removed from plan)
+  employerContribution?: number;   // ❌ NOT USING (removed from plan)
+  pensionOwner?: 'me' | 'spouse' | 'child' | 'other'; // ❌ NOT USING (removed from plan)
+  customOwner?: string;            // ❌ NOT USING (removed from plan)
+  beneficiaryNominated?: 'yes' | 'no' | 'not-sure';
+}
+```
+
+**UPDATED (Clean - 3 fields):**
+```typescript
+interface PensionAsset extends BaseAsset {
+  type: 'pensions';
+  provider: string;             // Pension provider name
+  pensionType: string;          // 'defined-benefit' | 'defined-contribution' | 'sipp' | 'workplace' | 'unsure'
+  beneficiaryNominated?: 'yes' | 'no' | 'not-sure'; // Critical for distribution visualization
+  // Fields deferred to Executor Facilitation phase:
+  // - policyNumber will be added when building executor facilitation
+}
+```
+
+**Removed Fields (6 total):**
+- ❌ `policyNumber` - Deferred to Executor Facilitation (value first!)
+- ❌ `linkedEmployer` - Not needed for will creation/visualization
+- ❌ `monthlyContribution` - Not needed for will creation/visualization
+- ❌ `employerContribution` - Not needed for will creation/visualization
+- ❌ `pensionOwner` - Single will assumption
+- ❌ `customOwner` - Not needed
+
+**Result:** 67% reduction in fields, cleaner data model, faster queries
+
+### Task 9.2: Pensions Intro Screen
+File: `native-app/app/bequeathal/pensions/intro.tsx`
+
+**Content (from web prototype - TBD, needs research):**
+- Header: "Pensions" with shield icon
+- Optional video player (inline at top)
+- InformationCard with educational content about pensions in wills
+- External link to pension inheritance info
+- Primary button: "Let's Go" → `/bequeathal/pensions/entry`
+- Skip button: "Skip for now" → next category
+
+**Effort:** 1-2 hours
+
+### Task 9.3: Pensions Entry Screen
+File: `native-app/app/bequeathal/pensions/entry.tsx`
+
+**Data Structure (CLEANED UP - see Task 9.1):**
+```typescript
+export type PensionType = 
+  | 'defined-benefit'
+  | 'defined-contribution'
+  | 'sipp'
+  | 'workplace'
+  | 'unsure';
+
+interface PensionAsset extends BaseAsset {
+  type: 'pensions';
+  provider: string;
+  pensionType: PensionType;     // Strict union type
+  beneficiaryNominated?: 'yes' | 'no' | 'not-sure';
+}
+```
+
+**NOTE:** For DB pensions, estimatedValue stores ANNUAL amount (£/year), not lump sum. Display logic will need to handle this.
+
+**Form Fields (4 TOTAL - SIMPLIFIED):**
+
+1. **Provider** (text input)
+   - Placeholder: "e.g., Scottish Widows, Aviva"
+   - REQUIRED
+   - Free text entry (not searchable)
+
+2. **Pension Type** (Select with 5 options)
+   - Options:
+     - Defined Benefit (pays £X/year in retirement)
+     - Defined Contribution (lump sum pot)
+     - SIPP (Self-Invested Personal Pension)
+     - Workplace Pension (not sure which type)
+     - Unsure
+   - REQUIRED
+   - Determines value field label
+   - User-friendly labels that people recognize
+
+3. **Value** (CurrencyInput - CONDITIONAL LABEL)
+   - **IF Defined Benefit:** Label = "Annual Amount (£/year)"
+   - **IF DC, SIPP, Workplace, OR Unsure:** Label = "Total Value"
+   - "Unsure of value" checkbox (can be unsure of both type AND value)
+   - Optional ("Unsure of value" = £0)
+   - Round to £1 on save
+   - NOTE: DB pensions display differently in visualization (annual income vs lump sum)
+
+4. **Has Beneficiary Been Nominated?** (RadioGroup with 3 options)
+   - Options: Yes / No / Not Sure
+   - REQUIRED
+   - Critical for distribution visualization:
+     - YES: Pension bypasses estate, goes to nominated beneficiary
+     - NO: Pension goes to estate, distributed per will
+     - NOT SURE: Flagged for user to check with provider
+   - Default: "Not Sure" // Don'd have this help text as we can flag this later.
+
+**UI Behavior:**
+- Form starts VISIBLE if no pensions exist
+- Form HIDDEN after first pension (shows "Add Another Pension" button)
+- Pensions list shows: provider, type, value (with "/year" if DB), beneficiary status
+- Collapsible list with eye icon
+- Pensions Total under last card (with note about nominated beneficiaries)
+- Edit/Delete buttons
+- Continue button in ScrollView content
+
+**Display in List:**
+
+Defined Benefit:
+```
+Scottish Widows - Defined Benefit
+£15,000/year
+Beneficiary: Not Sure
+```
+
+SIPP:
+```
+Hargreaves Lansdown - SIPP
+£200,000
+Beneficiary: No (goes to estate)
+```
+
+Workplace (Unsure):
+```
+Company Pension - Workplace Pension
+£150,000
+Beneficiary: Yes (bypasses estate)
+```
+
+**Validation:**
+- Provider REQUIRED
+- Pension Type REQUIRED
+- Beneficiary Nominated REQUIRED (defaults to "Not Sure")
+- Value optional ("Unsure of value" = £0)
+
+**State Management:**
+- Load pensions via `bequeathalActions.getAssetsByType('pensions')`
+- Add pension via `bequeathalActions.addAsset('pensions', pensionData)`
+- Update pension via `bequeathalActions.updateAsset(id, updates)`
+- Remove pension via `bequeathalActions.removeAsset(id)`
+- Total calculation: Sum all pension values
+
+**Title Generation:**
+- Format: `[Provider]` or `[Provider] - [Pension Type]`
+
+**Special Considerations:**
+
+**Visualization Impact:**
+- Pensions with "Beneficiary: Yes" should be marked as "Paid Outside Estate"
+- Total estate calculation might exclude these
+- Future: Estate visualization screen will need to handle this
+
+**Value Display:**
+- DB pensions: Show as "£15,000/year" (not converted to lump sum)
+- DC, SIPP, Workplace, Unsure: Show as "£200,000" (lump sum)
+- Visualization screen will need to handle annual vs lump sum differently
+
+**Pension Type → Value Field Mapping:**
+- **Defined Benefit** → Shows "Annual Amount (£/year)" field
+- **All Others** (DC, SIPP, Workplace, Unsure) → Shows "Total Value" field
+
+**Navigation:**
+- Back → `/bequeathal/pensions/intro`
+- Continue → Next selected category or `/order-of-things`
+
+**Components Needed:**
+- Select (existing - 5 options will use Menu mode)
+- Input (existing)
+- CurrencyInput (existing - with conditional label)
+- RadioGroup (existing) for beneficiary nominated question
+- Button (existing)
+- Custom checkbox for "Unsure of value" (existing pattern)
+
+**Summary of Changes from Web Prototype:**
+- ❌ Removed "Policy Number" (deferred to Executor Facilitation phase - value first!)
+- ❌ Removed "Monthly Contribution" (not needed for visualization)
+- ❌ Removed "Pension Owner" field (single will assumption)
+- ❌ Removed "Linked Employer" (not needed for value visualization)
+- ✅ Expanded "Pension Type" to 5 user-friendly options (DB/DC/SIPP/Workplace/Unsure)
+- ✅ Kept "Beneficiary Nominated" (CRITICAL for distribution visualization)
+- ✅ Added "Unsure of value" checkbox (consistency with other assets)
+- ✅ Conditional value field label (DB = £/year, others = total)
+- ✅ 4 fields instead of 7 (43% reduction, faster user flow)
+
+**Effort:** 
+- Task 9.1 (Clean types): 15 minutes
+- Task 9.2 (Intro screen): 1-2 hours
+- Task 9.3 (Entry screen): 2-3 hours
+- **Total: 3-4 hours**
+
+**NOTES FOR FUTURE:**
+- Policy numbers and detailed access info will be collected in "Executor Facilitation" phase
+- This keeps initial will creation fast and focused on value/distribution
+- User gets visualization of "who gets what" without getting bogged down in admin details
+- DB pensions store ANNUAL values (£/year) in estimatedValue field - visualization must handle this
+
+---
+
+✅ **UPDATED & READY FOR REVIEW**
+
+**Phase 9 Plan Location:** Lines 823-994 in @native-app/planning/ASSET_MANAGEMENT_PLAN.md
+
+**Please review and approve before implementation** 🎯
+
+---
+
 ## Phase 5-14: Individual Asset Type Implementations (High-Level)
 
 ### High-Level Structure (per asset type)
