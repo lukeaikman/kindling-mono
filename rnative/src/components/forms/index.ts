@@ -19,3 +19,6 @@ export type { MultiBeneficiarySelectorProps, BeneficiarySelection } from './Mult
 
 export { GroupManagementDrawer } from './GroupManagementDrawer';
 export type { GroupManagementDrawerProps } from './GroupManagementDrawer';
+
+export { BeneficiaryWithPercentages } from './BeneficiaryWithPercentages';
+export type { BeneficiaryWithPercentagesProps } from './BeneficiaryWithPercentages';

@@ -1049,11 +1049,763 @@ Beneficiary: Yes (bypasses estate)
 
 ---
 
-✅ **UPDATED & READY FOR REVIEW**
+✅ **PHASE 9 COMPLETE**
 
-**Phase 9 Plan Location:** Lines 823-994 in @native-app/planning/ASSET_MANAGEMENT_PLAN.md
+---
 
-**Please review and approve before implementation** 🎯
+## Phase 9.5: Unified Beneficiary Model + BeneficiaryWithPercentages Component (3 hours)
+
+**Purpose:** Build reusable component for beneficiary selection with percentage/amount allocations
+
+**Required For:**
+- Phase 10: Life Insurance (beneficiaries with % or £ splits)
+- Future Phase 14: Property trusts (remainder beneficiaries with %)
+- Future: Estate Remainder distribution
+
+**Reference:** Web prototype `PersonSelectorField.tsx` lines 56-158 (PercentageInputWithLock) and percentage normalization logic
+
+### Unified Beneficiary Data Model
+
+**CRITICAL:** Before building the component, we need a consistent data structure across ALL asset types.
+
+**Problem:** Current native app has duplicate, inconsistent beneficiaryAssignments definitions:
+- PropertyAsset: Has `percentage` field
+- ImportantItemAsset: NO `percentage` field
+- InvestmentAsset: NO `percentage` field
+- **Same structure defined 3 times!** Maintenance nightmare.
+
+**Solution:** Create single reusable type used by all assets.
+
+#### Task 9.5.1: Define Unified Beneficiary Types
+
+**File:** `native-app/src/types/index.ts`
+
+**New Type Definitions (ULTRA-CLEAN):**
+
+```typescript
+/**
+ * Beneficiary Assignment
+ * 
+ * Minimal, denormalized beneficiary allocation structure.
+ * Stores only IDs and allocations - names/relationships looked up from Person/Group records.
+ * 
+ * Design Principles:
+ * - Single source of truth (Person/Group records for names)
+ * - No cached data (prevents stale data issues)
+ * - No calculated fields (compute when needed)
+ * - Minimal storage (4 fields max)
+ * 
+ * Usage Patterns:
+ * 
+ * SIMPLE (no allocations):
+ *   { id: 'person-123', type: 'person' }
+ *   Used in: Important Items, Investments, Crypto
+ *   Name/relationship looked up via personActions.getPersonById()
+ * 
+ * PERCENTAGE ALLOCATION:
+ *   { id: 'person-123', type: 'person', percentage: 50 }
+ *   Used in: Life Insurance, Property trusts
+ *   Validation: Use getAllocationType() and getTotalAllocated() helpers
+ * 
+ * AMOUNT ALLOCATION:
+ *   { id: 'person-123', type: 'person', amount: 250000 }
+ *   Used in: Life Insurance (partial payouts)
+ *   Validation: amounts can be partial
+ * 
+ * @property id - Person ID, Group ID, or 'estate'
+ * @property type - Discriminator ('person' | 'group' | 'estate')
+ * @property percentage - Percentage allocation 0-100 (optional, for percentage mode)
+ * @property amount - Amount allocation in £ (optional, for amount mode)
+ */
+export interface BeneficiaryAssignment {
+  id: string;
+  type: 'person' | 'group' | 'estate';
+  percentage?: number;
+  amount?: number;
+}
+
+/**
+ * Beneficiary Assignments Container
+ * 
+ * Simple array wrapper for beneficiary assignments.
+ * All metadata (allocationType, totalAllocated, names, relationships) are COMPUTED not stored.
+ * 
+ * Data Integrity:
+ * - Person names come from Person records (single source of truth)
+ * - Allocation totals calculated when needed (no stale cached totals)
+ * - Allocation type inferred from data (no redundant type field)
+ * 
+ * Storage in AsyncStorage:
+ * {
+ *   "beneficiaries": [
+ *     { "id": "person-123", "type": "person", "percentage": 50 },
+ *     { "id": "person-456", "type": "person", "percentage": 50 }
+ *   ]
+ * }
+ * 
+ * Display: Use helper functions to get names/totals/types
+ * 
+ * @property beneficiaries - Array of beneficiary assignments (4 fields each max)
+ */
+export interface BeneficiaryAssignments {
+  beneficiaries: BeneficiaryAssignment[];
+}
+```
+
+**Helper Functions (src/utils/beneficiaryHelpers.ts):**
+
+```typescript
+import type { BeneficiaryAssignments, BeneficiaryAssignment } from '../types';
+import type { PersonActions, BeneficiaryGroupActions } from '../types';
+
+/**
+ * Get allocation type by inspecting data
+ * No need to store it - just check if percentage/amount fields exist
+ * 
+ * @param assignments - Beneficiary assignments object
+ * @returns Allocation type ('none', 'percentage', or 'amount')
+ */
+export function getAllocationType(
+  assignments?: BeneficiaryAssignments
+): 'none' | 'percentage' | 'amount' {
+  if (!assignments?.beneficiaries.length) return 'none';
+  
+  const hasPercentage = assignments.beneficiaries.some(b => 
+    b.percentage !== undefined && b.percentage !== null
+  );
+  if (hasPercentage) return 'percentage';
+  
+  const hasAmount = assignments.beneficiaries.some(b => 
+    b.amount !== undefined && b.amount !== null
+  );
+  if (hasAmount) return 'amount';
+  
+  return 'none';
+}
+
+/**
+ * Calculate total allocated (percentage or amount)
+ * Always computed fresh - never stale
+ * 
+ * @param assignments - Beneficiary assignments object
+ * @returns Total percentage (0-100) or total amount (£)
+ */
+export function getTotalAllocated(
+  assignments?: BeneficiaryAssignments
+): number {
+  if (!assignments?.beneficiaries.length) return 0;
+  
+  const type = getAllocationType(assignments);
+  
+  if (type === 'percentage') {
+    return assignments.beneficiaries.reduce((sum, b) => sum + (b.percentage || 0), 0);
+  }
+  
+  if (type === 'amount') {
+    return assignments.beneficiaries.reduce((sum, b) => sum + (b.amount || 0), 0);
+  }
+  
+  return 0;
+}
+
+/**
+ * Validate percentage allocations
+ * Ensures percentages total 100% (with floating point tolerance)
+ * 
+ * @param assignments - Beneficiary assignments object
+ * @returns True if valid (totals 100% within tolerance)
+ */
+export function validatePercentageAllocation(
+  assignments?: BeneficiaryAssignments
+): boolean {
+  if (getAllocationType(assignments) !== 'percentage') return true;
+  
+  const total = getTotalAllocated(assignments);
+  return Math.abs(total - 100) < 0.01; // 0.01 tolerance for floating point
+}
+
+/**
+ * Get display name for beneficiary
+ * Looks up from Person/Group records (never stale)
+ * 
+ * @param beneficiary - Beneficiary assignment
+ * @param personActions - Person actions for lookups
+ * @param beneficiaryGroupActions - Group actions for lookups
+ * @returns Display name with relationship if person
+ */
+export function getBeneficiaryDisplayName(
+  beneficiary: BeneficiaryAssignment,
+  personActions: PersonActions,
+  beneficiaryGroupActions: BeneficiaryGroupActions
+): string {
+  if (beneficiary.type === 'estate') {
+    return 'The Estate';
+  }
+  
+  if (beneficiary.type === 'group') {
+    const group = beneficiaryGroupActions.getGroupById(beneficiary.id);
+    return group?.name || 'Unknown Group';
+  }
+  
+  if (beneficiary.type === 'person') {
+    const person = personActions.getPersonById(beneficiary.id);
+    if (!person) return 'Unknown Person';
+    
+    const fullName = getPersonFullName(person);
+    const relationship = getPersonRelationshipDisplay(person);
+    return relationship ? `${fullName} (${relationship})` : fullName;
+  }
+  
+  return 'Unknown';
+}
+
+/**
+ * Get all assets for a specific beneficiary
+ * Useful for "Who inherits what?" visualization
+ * 
+ * @param beneficiaryId - Person, group, or 'estate' ID
+ * @param allAssets - All assets in the estate
+ * @returns Assets where beneficiary is assigned
+ */
+export function getAssetsForBeneficiary(
+  beneficiaryId: string,
+  allAssets: Asset[]
+): Asset[] {
+  return allAssets.filter(asset =>
+    asset.beneficiaryAssignments?.beneficiaries.some(b => b.id === beneficiaryId)
+  );
+}
+
+/**
+ * Calculate total value allocated to beneficiary across all assets
+ * Handles percentage and amount allocations
+ * 
+ * @param beneficiaryId - Person, group, or 'estate' ID
+ * @param allAssets - All assets in the estate
+ * @returns Total £ value allocated to this beneficiary
+ */
+export function calculateBeneficiaryInheritance(
+  beneficiaryId: string,
+  allAssets: Asset[]
+): number {
+  return allAssets.reduce((total, asset) => {
+    const beneficiary = asset.beneficiaryAssignments?.beneficiaries.find(
+      b => b.id === beneficiaryId
+    );
+    
+    if (!beneficiary) return total;
+    
+    const assetValue = asset.estimatedValue || 0;
+    
+    // Percentage allocation
+    if (beneficiary.percentage) {
+      return total + (assetValue * (beneficiary.percentage / 100));
+    }
+    
+    // Amount allocation
+    if (beneficiary.amount) {
+      return total + beneficiary.amount;
+    }
+    
+    // Simple allocation (split equally among all beneficiaries)
+    const beneficiaryCount = asset.beneficiaryAssignments?.beneficiaries.length || 1;
+    return total + (assetValue / beneficiaryCount);
+  }, 0);
+}
+```
+
+**Update All Asset Types to Use Unified Type:**
+
+```typescript
+// Remove ALL duplicate beneficiaryAssignments inline definitions
+// Replace with single BeneficiaryAssignments type reference
+
+export interface ImportantItemAsset extends BaseAsset {
+  type: 'important-items';
+  beneficiaryAssignments?: BeneficiaryAssignments;  // ← Unified type (no percentages)
+}
+
+export interface InvestmentAsset extends BaseAsset {
+  type: 'investment';
+  investmentType: string;
+  provider: string;
+  accountNumber?: string;
+  beneficiaryAssignments?: BeneficiaryAssignments;  // ← Unified type (no percentages)
+}
+
+export interface LifeInsuranceAsset extends BaseAsset {
+  type: 'life-insurance';
+  provider: string;
+  policyType: string;
+  sumInsured: number;
+  beneficiaryAssignments?: BeneficiaryAssignments;  // ← Unified type (WITH percentages/amounts)
+}
+
+export interface PensionAsset extends BaseAsset {
+  type: 'pensions';
+  provider: string;
+  pensionType: PensionType;
+  beneficiaryNominated?: 'yes' | 'no' | 'not-sure';
+  beneficiaryAssignments?: BeneficiaryAssignments;  // ← Unified type (optional future enhancement)
+}
+
+export interface PropertyAsset extends BaseAsset {
+  type: 'property';
+  address: AddressData;
+  propertyType: string;
+  beneficiaryAssignments?: BeneficiaryAssignments;  // ← Unified type (WITH percentages for trusts)
+}
+
+// Cryptocurrency and Bank Accounts: No beneficiaries (left to estate by default)
+```
+
+**Benefits of Ultra-Clean Model:**
+- ✅ **Single source of truth** - Person names in Person records, not cached
+- ✅ **No stale data** - John Smith changes name, immediately reflects everywhere
+- ✅ **No redundant calculations** - totalAllocated computed when needed
+- ✅ **Minimal storage** - 4 fields per beneficiary max (vs 6 with caching)
+- ✅ **DRY principle** - One BeneficiaryAssignment type for all assets
+- ✅ **Type-safe** - TypeScript prevents errors
+- ✅ **Flexible** - Simple assets use 2 fields, complex use 4 fields
+- ✅ **Fast queries** - AsyncStorage lookups are instant (offline-first)
+
+**Storage Examples in AsyncStorage (JSON):**
+
+**Simple Beneficiaries (Important Items):**
+```json
+{
+  "id": "item-001",
+  "type": "important-items",
+  "title": "Wedding Ring",
+  "estimatedValue": 2500,
+  "beneficiaryAssignments": {
+    "beneficiaries": [
+      { "id": "person-123", "type": "person" },
+      { "id": "estate", "type": "estate" }
+    ]
+  }
+}
+```
+Names looked up when displaying: `getBeneficiaryDisplayName(b, personActions, groupActions)`
+
+**Percentage Allocation (Life Insurance):**
+```json
+{
+  "id": "life-001",
+  "type": "life-insurance",
+  "title": "Aviva Life Policy",
+  "estimatedValue": 500000,
+  "beneficiaryAssignments": {
+    "beneficiaries": [
+      { "id": "person-123", "type": "person", "percentage": 60 },
+      { "id": "person-456", "type": "person", "percentage": 40 }
+    ]
+  }
+}
+```
+Total calculated: `getTotalAllocated(assignments)` → 100
+Type inferred: `getAllocationType(assignments)` → 'percentage'
+
+**Amount Allocation (Life Insurance Partial Payout):**
+```json
+{
+  "id": "life-002",
+  "type": "life-insurance",
+  "title": "Scottish Widows Policy",
+  "estimatedValue": 1000000,
+  "beneficiaryAssignments": {
+    "beneficiaries": [
+      { "id": "person-123", "type": "person", "amount": 200000 },
+      { "id": "person-456", "type": "person", "amount": 100000 },
+      { "id": "estate", "type": "estate", "amount": 700000 }
+    ]
+  }
+}
+```
+Total calculated: `getTotalAllocated(assignments)` → 1000000
+Type inferred: `getAllocationType(assignments)` → 'amount'
+
+**Validation Patterns Using Helper Functions:**
+
+```typescript
+import { getAllocationType, getTotalAllocated, validatePercentageAllocation } from '../utils/beneficiaryHelpers';
+
+// Validate before saving life insurance
+const type = getAllocationType(beneficiaryAssignments);
+if (type === 'percentage' && !validatePercentageAllocation(beneficiaryAssignments)) {
+  Alert.alert('Invalid Allocation', 'Percentages must total 100%');
+  return;
+}
+
+// Display total
+const total = getTotalAllocated(beneficiaryAssignments);
+const isValid = type === 'percentage' ? Math.abs(total - 100) < 0.01 : true;
+```
+
+**Query Patterns Using Helper Functions:**
+
+```typescript
+import { 
+  getAssetsForBeneficiary, 
+  calculateBeneficiaryInheritance,
+  getBeneficiaryDisplayName 
+} from '../utils/beneficiaryHelpers';
+
+// Find all assets for a person (simple)
+const johnsAssets = getAssetsForBeneficiary('person-123', allAssets);
+
+// Calculate John's total inheritance (handles %, £, and simple allocations)
+const johnsTotal = calculateBeneficiaryInheritance('person-123', allAssets);
+
+// Display beneficiary name with relationship (always current)
+const displayName = getBeneficiaryDisplayName(
+  beneficiary, 
+  personActions, 
+  beneficiaryGroupActions
+);
+// Returns: "John Smith (Spouse)" - looked up from Person record
+
+// Visualization: Group assets by beneficiary
+const beneficiaryMap = new Map<string, { total: number, assets: Asset[] }>();
+allAssets.forEach(asset => {
+  asset.beneficiaryAssignments?.beneficiaries.forEach(b => {
+    if (!beneficiaryMap.has(b.id)) {
+      beneficiaryMap.set(b.id, { total: 0, assets: [] });
+    }
+    beneficiaryMap.get(b.id)!.assets.push(asset);
+  });
+});
+
+// Calculate totals for each beneficiary
+beneficiaryMap.forEach((data, beneficiaryId) => {
+  data.total = calculateBeneficiaryInheritance(beneficiaryId, allAssets);
+});
+```
+
+**Data Integrity & Performance:**
+
+**No Caching = No Stale Data:**
+- Person changes name → Immediately reflects in all asset displays
+- Group renamed → Immediately updates everywhere
+- No sync issues, no cache invalidation logic
+
+**Lookup Performance (AsyncStorage):**
+- `personActions.getPersonById()` reads from in-memory state (instant)
+- State loaded from AsyncStorage on app start
+- All lookups are synchronous, no await needed
+- **Displaying 100 beneficiaries = 100 instant lookups**
+
+**When to Compute:**
+- Names/relationships: On display (render time)
+- Allocation type: When validating or displaying type-specific UI
+- Total allocated: When validating or showing progress
+- **Never stored, always fresh**
+
+**Migration from Current Implementation:**
+- Current PropertyAsset has percentage field ✓ Compatible
+- Current ImportantItemAsset has no percentage field ✓ Compatible  
+- Current InvestmentAsset has no percentage field ✓ Compatible
+- **NO data migration needed** - existing data works with new types
+- Only update TypeScript interface definitions
+
+**Effort:** 
+- Define BeneficiaryAssignment + BeneficiaryAssignments types: 15 min
+- Define helper functions in beneficiaryHelpers.ts: 15 min
+- Update all asset type interfaces to use unified type: 10 min
+- Test helper functions: 10 min
+- **Total: 50 minutes**
+
+---
+
+### Component Specification
+
+**File:** `src/components/forms/BeneficiaryWithPercentages.tsx`
+
+**Uses:** Unified BeneficiaryAssignments type defined above
+
+**Additional Features:**
+1. **Percentage Input Per Beneficiary**
+   - Input field next to each selected beneficiary
+   - Auto-calculation to ensure 100% total
+   - Lock/unlock icon per beneficiary
+   - Locked beneficiaries don't auto-adjust
+
+2. **Allocation Mode**
+   - Percentage mode: Split by % (must total 100%)
+   - Amount mode: Split by £ (for life insurance)
+   - Toggle between modes
+
+3. **Auto-Normalization**
+   - When percentages don't total 100%, auto-adjust unlocked beneficiaries
+   - Locked beneficiaries keep their %
+   - Last unlocked beneficiary gets the difference
+
+4. **Validation**
+   - Percentages must total 100% (with tolerance for floating point)
+   - Amounts can total anything (for life insurance partial allocations)
+   - At least one beneficiary required
+
+**Component Props Interface:**
+```typescript
+interface BeneficiaryWithPercentagesProps {
+  // Allocation settings
+  allocationMode: 'percentage' | 'amount';
+  totalValue?: number;  // For amount mode: total policy value for context
+  
+  // Value management (uses unified BeneficiaryAssignment type)
+  value: BeneficiaryAssignment[];
+  onChange: (value: BeneficiaryAssignment[]) => void;
+  
+  // Person/Group lookups
+  personActions: PersonActions;
+  beneficiaryGroupActions: BeneficiaryGroupActions;
+  
+  // Optional callbacks
+  onAddNewPerson?: () => void;
+  onAddNewGroup?: () => void;
+  
+  // UI
+  label?: string;
+  excludePersonIds?: string[];
+}
+
+// Uses BeneficiaryAssignment from types (no component-specific type needed)
+// BeneficiaryAssignment already has percentage and amount fields
+```
+
+**UI Components (SIMPLIFIED):**
+
+**Beneficiary Chip with Manual Input:**
+```
+┌─────────────────────────────────────┐
+│ John Smith (Spouse)             [X] │
+│ Percentage: [50]%                   │
+│ ↳ Equally distribute the rest      │ ← Shows when focused
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│ Jane Doe (Daughter)             [X] │
+│ Percentage: [  ]%  ← Empty          │
+└─────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│ Bob Smith (Son)                 [X] │
+│ Percentage: [  ]%  ← Empty          │
+└─────────────────────────────────────┘
+```
+
+**Total Display:**
+```
+Total: 50% (50% remaining) ⚠️
+
+[Clear All Percentages]
+```
+
+**After "Equally Distribute":**
+```
+Total: 100% ✓
+```
+
+**Implementation Approach (SIMPLIFIED):**
+
+1. **Render MultiBeneficiarySelector at top** (person selection)
+2. **For each selected beneficiary**, show:
+   - Name and relationship chip
+   - Percentage or Amount input field
+   - "Equally distribute the rest" link (shows when input focused)
+   - Remove button (X)
+3. **Total indicator** at bottom:
+   - Current total with remaining: "Total: 75% (25% remaining)"
+   - Green checkmark when 100%
+   - Red warning when !== 100%
+4. **Clear All button** at bottom:
+   - Resets all percentages to empty
+   - Quick way to start over
+
+**Simplified Implementation Logic (NOT using web prototype complexity):****
+
+**1. Manual Percentage Entry:**
+```typescript
+<TextInput
+  value={beneficiary.percentage?.toString() || ''}
+  onChangeText={(text) => {
+    const num = parseFloat(text.replace(/[^\d.]/g, '')) || 0;
+    updateBeneficiaryPercentage(index, Math.min(100, num));
+  }}
+  onFocus={() => setFocusedIndex(index)}
+  keyboardType="decimal-pad"
+  placeholder="0"
+/>
+<Text>%</Text>
+```
+
+**2. "Equally Distribute the Rest" Helper (User-Triggered):**
+```typescript
+function handleEquallyDistributeRest(currentIndex) {
+  // Calculate remaining %
+  const filledTotal = beneficiaries
+    .reduce((sum, b) => sum + (b.percentage || 0), 0);
+  const remaining = 100 - filledTotal;
+  
+  // Find EMPTY beneficiaries only (excluding current)
+  const emptyBeneficiaries = beneficiaries
+    .filter((b, idx) => idx !== currentIndex && (!b.percentage || b.percentage === 0));
+  
+  if (emptyBeneficiaries.length === 0) return;
+  
+  // Distribute equally among empty ones
+  const equalShare = remaining / emptyBeneficiaries.length;
+  
+  const updated = [...beneficiaries];
+  emptyBeneficiaries.forEach((_, originalIdx) => {
+    const idx = beneficiaries.findIndex((b, i) => 
+      i !== currentIndex && (!beneficiaries[i].percentage || beneficiaries[i].percentage === 0)
+    );
+    updated[idx].percentage = parseFloat(equalShare.toFixed(1));
+  });
+  
+  onChange(updated);
+}
+```
+
+**3. Clear All Percentages:**
+```typescript
+function handleClearAll() {
+  const cleared = beneficiaries.map(b => ({ 
+    ...b, 
+    percentage: undefined,
+    amount: undefined 
+  }));
+  onChange(cleared);
+}
+```
+
+**4. Total Calculation & Validation:**
+```typescript
+const total = beneficiaries.reduce((sum, b) => sum + (b.percentage || 0), 0);
+const isValid = Math.abs(total - 100) < 0.01; // 0.01 tolerance for floating point
+const remaining = 100 - total;
+
+// Submit disabled if not 100%
+const canSubmit = isValid && beneficiaries.length > 0;
+```
+
+**Testing in Sandbox:**
+- Test manual entry: User enters 50%, 30%, 20% manually
+- Test equally distribute: User enters 50%, taps "equally distribute" → other 2 get 25% each
+- Test clear all: Reset all percentages to empty
+- Test validation: Total !== 100% shows error, disables submit
+- Test amount mode: Enter £ amounts instead of %
+- Test floating point: 33.3% × 3 (user must manually fix to 100%)
+
+**Components Needed:**
+- MultiBeneficiarySelector (existing - for person selection)
+- Input (existing - for percentage/amount entry)
+- IconButton (existing - for lock/unlock)
+- TouchableOpacity (primitive)
+
+**State Management:**
+- Local state for lock status (which beneficiaries are locked)
+- Parent handles overall beneficiary list with allocations
+- Component handles percentage calculations and normalization
+
+**React Native Implementation - Simplified Approach:**
+
+**What We're Building:**
+- Manual percentage input per beneficiary
+- "Equally distribute the rest" helper button (user-triggered)
+- "Clear All" reset button
+- Total validation (must equal 100%)
+- NO auto-lock, NO auto-redistribution, NO complex normalization
+
+**Differences from Web Prototype:**
+- ❌ **No auto-lock on edit** - removed complexity
+- ❌ **No lock/unlock icons** - removed state management
+- ❌ **No proportional redistribution** - removed algorithm
+- ❌ **No automatic normalization** - user enters values manually
+- ❌ **No useEffect auto-redistribution** - removed side effects
+- ❌ **No interest types** - trust-specific, defer to Phase 14
+- ❌ **No cessation criteria** - trust-specific, defer to Phase 14
+- ✅ **"Equally distribute" helper** - simple, user-triggered assistance
+- ✅ **Total validation** - clear feedback, disable submit if !== 100%
+- ✅ **Amount mode** - for life insurance £ allocations
+
+**Effort Breakdown:**
+
+**Task 9.5.1 - Unified Data Model (50 minutes):**
+- Define BeneficiaryAssignment interface: 15 min
+- Define BeneficiaryAssignments interface: 5 min  
+- Create beneficiaryHelpers.ts with 5 helper functions: 20 min
+- Update all asset type interfaces: 10 min
+
+**Task 9.5.2 - BeneficiaryWithPercentages Component (2 hours):**
+- Build beneficiary selection (reuse MultiBeneficiarySelector): 10 min
+- Build percentage input per beneficiary chip: 30 min
+- Implement "equally distribute the rest" button logic: 30 min
+- Implement "clear all" button: 10 min
+- Build total calculation display with validation: 20 min
+- Amount mode variant: 10 min
+- Testing in Component Sandbox with all scenarios: 30 min
+
+**Total: 2.8 hours (~3 hours)** (down from 5+ hours in original plan!)
+
+**Time Saved:**
+- No auto-lock logic: -1 hour
+- No proportional redistribution: -1 hour
+- No normalization algorithm: -30 min
+- Clean data model prevents future debugging: -∞ hours
+
+**Implementation Principles:**
+
+1. **No Caching** - Names/relationships looked up from Person/Group records
+   - `getBeneficiaryDisplayName()` called on render
+   - Always current, never stale
+   - Single source of truth
+
+2. **No Calculated Storage** - totals/types computed when needed
+   - `getTotalAllocated()` called for validation
+   - `getAllocationType()` called for conditional logic
+   - Never out of sync
+
+3. **Helper Functions Over Methods** - Pure functions in utils
+   - Testable in isolation
+   - Reusable across components
+   - No class inheritance complexity
+
+4. **Minimal Storage** - Only store IDs and allocations
+   - 2-4 fields per beneficiary (vs 6 with caching)
+   - Smaller AsyncStorage footprint
+   - Faster serialization/deserialization
+
+5. **Manual Control** - User triggers distributions, not automatic
+   - "Equally distribute" button, not auto-redistribution
+   - Predictable behavior
+   - No confusing side effects
+
+**NOTES:**
+- Build in Component Sandbox FIRST
+- Test unified BeneficiaryAssignment type with mock data
+- Helper functions in beneficiaryHelpers.ts before component
+- Manual control is BETTER than magic
+- ~150 lines component + ~100 lines helpers = 250 lines total
+- Vs web prototype: 765 lines (67% reduction!)
+
+---
+
+✅ **READY TO BUILD**
+
+**Phase 9.5 Plan:** Lines 1056-1528 in @native-app/planning/ASSET_MANAGEMENT_PLAN.md
+
+**Deliverables:**
+1. BeneficiaryAssignment + BeneficiaryAssignments interfaces
+2. beneficiaryHelpers.ts with 5 functions
+3. Updated asset type interfaces (remove duplicate definitions)
+4. BeneficiaryWithPercentages component  
+5. Component Sandbox tests
+
+**Estimated: 3 hours total**
+
+**Phase 9.5 Plan Location:** Lines 1052-1202 in @native-app/planning/ASSET_MANAGEMENT_PLAN.md
 
 ---
 
@@ -1332,13 +2084,14 @@ For each asset type:
 9. ✅ **multi-beneficiary-selector** - Create MultiBeneficiarySelector component for beneficiary selection
 10. ✅ **sequential-navigation** - Implement category navigation system
 11. ✅ **crypto-flow** - Implement crypto currency intro and entry screens  
-12. **investments-flow** - Implement investments intro and entry screens (MODERATE)
-13. **pensions-flow** - Implement pensions intro and entry screens
-14. **life-insurance-flow** - Implement life insurance intro and entry screens
-15. **company-shares-flow** - Implement private company shares intro and entry screens
-16. **business-assets-flow** - Implement assets-held-through-business screens (COMPLEX)
-17. **agricultural-flow** - Implement agricultural assets screens (VERY COMPLEX)
-18. **property-flow** - Implement property screens with multi-step wizard (VERY COMPLEX)
+12. ✅ **investments-flow** - Implement investments intro and entry screens (MODERATE)
+13. ✅ **pensions-flow** - Implement pensions intro and entry screens
+14. **beneficiary-with-percentages** - Build BeneficiaryWithPercentages component (percentage/amount allocations)
+15. **life-insurance-flow** - Implement life insurance intro and entry screens (requires Phase 9.5)
+16. **company-shares-flow** - Implement private company shares intro and entry screens
+17. **business-assets-flow** - Implement assets-held-through-business screens (COMPLEX)
+18. **agricultural-flow** - Implement agricultural assets screens (VERY COMPLEX)
+19. **property-flow** - Implement property screens with multi-step wizard (VERY COMPLEX)
 
 ---
 
@@ -1370,26 +2123,178 @@ For each asset type:
 
 **Used in:** Important Items, future simple asset beneficiary assignments (Phases 6-11)
 
-#### 2. BeneficiaryWithPercentages (Build Later - Phase 14)
-**Purpose:** Extends MultiBeneficiarySelector with percentage splits and trust metadata
+#### 2. BeneficiaryWithPercentages (Built in Phase 9.5 - SIMPLIFIED APPROACH)
+**Purpose:** Manual percentage/amount allocation for beneficiaries
 **File:** `src/components/forms/BeneficiaryWithPercentages.tsx`
-**Size:** ~300-400 lines
+**Size:** ~150 lines (down from 300-400 in original plan)
 **Features:**
-- Everything from MultiBeneficiarySelector
-- Percentage inputs with lock/unlock
-- Interest type selection (income, occupation, income-and-occupation)
-- Cessation criteria text fields
-- Automatic percentage normalization to 100%
-- Locked percentage management
+- Everything from MultiBeneficiarySelector (person selection)
+- Manual percentage inputs per beneficiary
+- "Equally distribute the rest" helper button (user-triggered)
+- "Clear All" reset button
+- Total validation (must equal 100% for percentage mode)
+- Amount mode (for life insurance £ allocations)
+- NO auto-lock, NO auto-redistribution, NO complex normalization
 
-**Used in:** Property trust configurations, complex estate splits
+**NOT Included (see Appendix for rationale):**
+- ❌ Auto-lock on edit
+- ❌ Automatic percentage redistribution
+- ❌ Lock/unlock toggle icons
+- ❌ Proportional vs equal redistribution algorithms
+- ❌ Normalization to last beneficiary
+- ❌ Trust metadata (deferred to Phase 14)
+
+**Used in:** Life Insurance (Phase 10), Pensions (optional), Property (Phase 14)
 
 **Benefits:**
-- Simpler, maintainable code following KISS principle
-- Faster implementation now (2-3 hours vs 8-10 hours)
-- Single responsibility per component
-- Can add advanced features when actually needed
-- Follows COMPONENT_GUIDELINES.md philosophy
+- Simple, predictable user experience
+- Manual control (no magic)
+- Fast to build (2-2.5 hours vs 5+ hours)
+- Easy to maintain (150 lines vs 300+)
+- Follows KISS principle
+- Can enhance later if needed
+
+---
+
+## APPENDIX: Unimplemented Features - BeneficiaryWithPercentages Component
+
+**For Notion / Product Backlog**
+
+### Features NOT Implemented (Simplified Approach vs Web Prototype)
+
+**Context:** The web prototype's `PersonSelectorField` component includes sophisticated percentage allocation features (765 lines total). For the native app MVP, we deliberately simplified to a manual, user-controlled approach.
+
+#### 1. Auto-Lock on Edit
+**Web Prototype Behavior:**
+- When user edits a beneficiary's percentage and blurs the input, that beneficiary automatically locks
+- Prevents future auto-adjustments from changing user's explicit allocation
+- Locked beneficiaries show a lock icon
+
+**Why Removed:**
+- Adds hidden complexity (users don't understand why some beneficiaries lock and others don't)
+- Requires lock state management across component
+- Users lose control (can't unlock easily)
+- **Simplified to:** Manual percentage entry only, no automatic locking
+
+#### 2. Automatic Percentage Redistribution
+**Web Prototype Behavior:**
+- When user changes one percentage, unlocked beneficiaries automatically adjust
+- Uses proportional redistribution if unlocked beneficiaries have existing percentages
+- Uses equal redistribution if unlocked beneficiaries are empty
+- Triggered on every percentage change (onBlur)
+
+**Example:** User changes John from 30% to 50%. System automatically reduces Jane and Bob from 35% each to 25% each (proportionally).
+
+**Why Removed:**
+- "Magic" behavior confuses users ("Why did Jane's % change when I edited John?")
+- Complex algorithm with proportional vs equal redistribution logic
+- Requires tracking locked vs unlocked state
+- **Simplified to:** "Equally distribute the rest" button (user-triggered, predictable)
+
+#### 3. Normalization to Last Beneficiary
+**Web Prototype Behavior:**
+- After redistribution, adds/subtracts rounding errors to last unlocked beneficiary
+- Ensures total is exactly 100% even with floating point math
+- Example: 33.3% × 3 = 99.9%, last beneficiary becomes 33.4%
+
+**Why Removed:**
+- Over-engineering for edge case (0.1% rounding errors)
+- Users can manually adjust if total shows 99.9%
+- Adds unexpected behavior (last person's % changes without user action)
+- **Simplified to:** Show validation error if !== 100%, user fixes manually
+
+#### 4. Lock/Unlock Toggle Icons
+**Web Prototype Behavior:**
+- Each beneficiary has lock icon (🔓/🔒)
+- Tap to manually lock/unlock
+- Locked beneficiaries excluded from auto-redistribution
+- Visual indicator of which allocations are "protected"
+
+**Why Removed:**
+- Adds UI complexity (extra icon, extra state)
+- Most users don't need fine-grained lock control
+- Confusing UX for non-technical users
+- **Simplified to:** All percentages are "manual" (user has full control, no locking needed)
+
+#### 5. Proportional vs Equal Redistribution Logic
+**Web Prototype Behavior:**
+- Smart detection: If unlocked beneficiaries have existing percentages, redistribute proportionally
+- If unlocked beneficiaries are empty/zero, redistribute equally
+- Preserves relative proportions when possible
+
+**Example:** 
+- Before: John 50% (locked), Jane 30% (unlocked), Bob 20% (unlocked)
+- User changes John to 60%
+- System: Jane becomes 24% (30 × 0.8 ratio), Bob becomes 16% (20 × 0.8 ratio)
+
+**Why Removed:**
+- Complex algorithm users don't understand
+- "Why did my percentages change to weird decimals?"
+- Requires tracking which beneficiaries had values vs were empty
+- **Simplified to:** "Equally distribute" button always uses equal split (predictable)
+
+#### 6. useEffect Auto-Redistribution on Add/Remove
+**Web Prototype Behavior:**
+- When beneficiary added: Automatically redistributes percentages among all unlocked
+- When beneficiary removed: Redistributes their % to remaining unlocked beneficiaries
+- Maintains 100% total automatically
+
+**Why Removed:**
+- User adds Jane, suddenly John and Bob's percentages change without warning
+- Confusing side effects
+- Requires complex useEffect dependency tracking
+- **Simplified to:** Manual percentage entry, no auto-redistribution
+
+### Rationale for Simplified Approach
+
+**Product Philosophy - Value First:**
+- Goal: Get beneficiary allocations for will visualization
+- NOT goal: Build a sophisticated financial planning calculator
+- Users can handle entering percentages manually
+- Complex auto-adjustment creates confusion, not value
+
+**Engineering Philosophy - KISS Principle:**
+- Simpler code = fewer bugs
+- Manual control = predictable behavior
+- User-triggered actions = clear cause and effect
+- 150 lines of code instead of 300+
+
+**User Experience:**
+- "Equally distribute" helper button provides assist without magic
+- Clear All button provides easy reset
+- Total display with validation provides clear feedback
+- User always knows why percentages changed (they changed them)
+
+**Time to Value:**
+- Simplified version: 2-2.5 hours to build
+- Complex version: 5+ hours to build
+- Difference: 2.5 hours saved per similar component
+- Faster iteration, faster MVP
+
+**Future Enhancement Path:**
+If user testing shows need for auto-redistribution:
+- Can add as Phase 2 enhancement
+- Keep it optional (toggle "Auto-adjust mode")
+- Learn from user behavior first before adding complexity
+
+### Implementation Status
+
+**Native App (Simplified):**
+- Manual percentage entry per beneficiary
+- "Equally distribute the rest" helper button
+- "Clear All" button
+- Total validation
+- **Build time: 2-2.5 hours**
+
+**Web Prototype (Complex):**
+- Auto-lock on edit
+- Automatic redistribution (proportional + equal modes)
+- Lock/unlock toggle icons
+- Normalization to last beneficiary
+- useEffect auto-redistribution
+- **Build time: 5+ hours (already built in web)**
+
+**Decision:** Ship simplified version in native app MVP. Add complexity later ONLY if user testing shows it's needed.
 
 ---
 

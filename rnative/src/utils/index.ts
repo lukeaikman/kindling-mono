@@ -40,3 +40,21 @@ export {
   getAssetDisplayTitle,
 } from './assetHelpers';
 
+// Beneficiary helpers
+export {
+  getAllocationType,
+  getTotalAllocated,
+  validatePercentageAllocation,
+  getBeneficiaryDisplayName,
+  getAssetsForBeneficiary,
+  calculateBeneficiaryInheritance,
+} from './beneficiaryHelpers';
+
+// Category navigation
+export {
+  getCategoryIntroRoute,
+  getCategoryEntryRoute,
+  getNextCategoryRoute,
+  getFirstCategoryRoute,
+} from './categoryNavigation';
+

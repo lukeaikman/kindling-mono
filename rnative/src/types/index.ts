@@ -375,6 +375,48 @@ export type AssetType =
 export type HeldInTrust = 'yes' | 'no' | 'not-sure';
 
 /**
+ * Beneficiary Assignment
+ * 
+ * Ultra-clean beneficiary allocation structure (4 fields max).
+ * Used by ALL asset types that support beneficiary designation.
+ * 
+ * Design Principles:
+ * - No caching: Names/relationships looked up from Person/Group records
+ * - No calculated fields: Totals/types computed via helper functions
+ * - Minimal storage: Only IDs and allocations
+ * - Single source of truth: Person/Group records are authoritative
+ * 
+ * @property id - Person ID, Group ID, or 'estate'
+ * @property type - Beneficiary type discriminator
+ * @property percentage - Percentage allocation 0-100 (optional, for percentage mode)
+ * @property amount - Amount allocation in £ (optional, for amount mode)
+ */
+export interface BeneficiaryAssignment {
+  id: string;
+  type: 'person' | 'group' | 'estate';
+  percentage?: number;
+  amount?: number;
+}
+
+/**
+ * Beneficiary Assignments Container
+ * 
+ * Simple array wrapper for beneficiary assignments.
+ * All metadata computed via helper functions in beneficiaryHelpers.ts:
+ * - getAllocationType() - infer 'none' | 'percentage' | 'amount'
+ * - getTotalAllocated() - calculate sum
+ * - validatePercentageAllocation() - check 100% total
+ * - getBeneficiaryDisplayName() - lookup names
+ * - getAssetsForBeneficiary() - find assets for person
+ * - calculateBeneficiaryInheritance() - total inheritance value
+ * 
+ * @property beneficiaries - Array of beneficiary assignments
+ */
+export interface BeneficiaryAssignments {
+  beneficiaries: BeneficiaryAssignment[];
+}
+
+/**
  * Base asset interface - extended by specific asset types
  */
 export interface BaseAsset {
@@ -407,14 +449,7 @@ export interface PropertyAsset extends BaseAsset {
     outstandingAmount: number;
     provider: string;
   };
-  beneficiaryAssignments?: {
-    beneficiaries: Array<{
-      id: string;
-      type: 'person' | 'group' | 'estate';
-      name?: string;
-      percentage?: number;
-    }>;
-  };
+  beneficiaryAssignments?: BeneficiaryAssignments;  // Unified type
 }
 
 /**
@@ -425,13 +460,7 @@ export interface ImportantItemAsset extends BaseAsset {
   type: 'important-items';
   specificDetails?: string;
   sentimentalValue?: boolean;
-  beneficiaryAssignments?: {
-    beneficiaries: Array<{
-      id: string;
-      type: 'person' | 'group' | 'estate';
-      name?: string;
-    }>;
-  };
+  beneficiaryAssignments?: BeneficiaryAssignments;  // Unified type
 }
 
 /**
@@ -442,13 +471,7 @@ export interface InvestmentAsset extends BaseAsset {
   investmentType: string;
   provider: string;
   accountNumber?: string;
-  beneficiaryAssignments?: {
-    beneficiaries: Array<{
-      id: string;
-      type: 'person' | 'group' | 'estate';
-      name?: string;
-    }>;
-  };
+  beneficiaryAssignments?: BeneficiaryAssignments;  // Unified type
 }
 
 /**

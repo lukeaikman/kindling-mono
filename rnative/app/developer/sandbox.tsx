@@ -14,8 +14,9 @@ import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Button, BackButton, Dialog, Select } from '../../src/components/ui';
 import { SearchableSelect } from '../../src/components/ui/SearchableSelect';
-import { GroupManagementDrawer } from '../../src/components/forms/GroupManagementDrawer';
+import { GroupManagementDrawer, BeneficiaryWithPercentages } from '../../src/components/forms';
 import { MultiBeneficiarySelector, BeneficiarySelection } from '../../src/components/forms/MultiBeneficiarySelector';
+import type { BeneficiaryAssignment } from '../../src/types';
 import { useAppState } from '../../src/hooks/useAppState';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
@@ -33,6 +34,8 @@ export default function SandboxScreen() {
   const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);
   const [shortSelect, setShortSelect] = useState('');
   const [longSelect, setLongSelect] = useState('');
+  const [percentageBeneficiaries, setPercentageBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
+  const [amountBeneficiaries, setAmountBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
 
   // UK Bank Providers - test data
   const bankProviders = [
@@ -294,6 +297,78 @@ export default function SandboxScreen() {
                 <Text style={styles.resultLabel}>Selected ({multiBeneficiaries.length}):</Text>
                 {multiBeneficiaries.map((b, idx) => (
                   <Text key={idx} style={styles.resultValue}>• {b.name}</Text>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Component Divider */}
+          <View style={styles.componentDivider}>
+            <View style={styles.componentDividerLine} />
+            <Text style={styles.componentDividerText}>•  •  •</Text>
+            <View style={styles.componentDividerLine} />
+          </View>
+
+          {/* Test 6: BeneficiaryWithPercentages - Percentage Mode */}
+          <View style={styles.testSection}>
+            <Text style={styles.testTitle}>BeneficiaryWithPercentages (Percentage Mode)</Text>
+            <Text style={styles.sectionDescription}>
+              Manual percentage allocation with "equally distribute" helper
+            </Text>
+
+            <BeneficiaryWithPercentages
+              allocationMode="percentage"
+              value={percentageBeneficiaries}
+              onChange={setPercentageBeneficiaries}
+              personActions={personActions}
+              beneficiaryGroupActions={beneficiaryGroupActions}
+              label="Beneficiaries with Percentages"
+              onAddNewPerson={() => setShowAddPersonDialog(true)}
+              onAddNewGroup={() => setShowGroupDrawer(true)}
+            />
+
+            {percentageBeneficiaries.length > 0 && (
+              <View style={styles.result}>
+                <Text style={styles.resultLabel}>Test Data (for debugging):</Text>
+                {percentageBeneficiaries.map((b, idx) => (
+                  <Text key={idx} style={styles.resultNote}>
+                    {idx + 1}. ID: {b.id} | Type: {b.type} | %: {b.percentage || 0}
+                  </Text>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Divider (within same component) */}
+          <View style={styles.divider} />
+
+          {/* Test 7: BeneficiaryWithPercentages - Amount Mode */}
+          <View style={styles.testSection}>
+            <Text style={styles.testTitle}>BeneficiaryWithPercentages (Amount Mode)</Text>
+            <Text style={styles.sectionDescription}>
+              Amount allocation in £ (for life insurance partial payouts)
+            </Text>
+
+            <BeneficiaryWithPercentages
+              allocationMode="amount"
+              totalValue={500000}
+              value={amountBeneficiaries}
+              onChange={setAmountBeneficiaries}
+              personActions={personActions}
+              beneficiaryGroupActions={beneficiaryGroupActions}
+              label="Beneficiaries with Amounts"
+              onAddNewPerson={() => setShowAddPersonDialog(true)}
+              onAddNewGroup={() => setShowGroupDrawer(true)}
+            />
+
+            {amountBeneficiaries.length > 0 && (
+              <View style={styles.result}>
+                <Text style={styles.resultLabel}>Test Data (for debugging):</Text>
+                <Text style={styles.resultNote}>Policy Value: £500,000</Text>
+                {amountBeneficiaries.map((b, idx) => (
+                  <Text key={idx} style={styles.resultNote}>
+                    {idx + 1}. ID: {b.id} | Type: {b.type} | Amount: £{b.amount || 0}
+                  </Text>
                 ))}
               </View>
             )}
