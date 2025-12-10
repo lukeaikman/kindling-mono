@@ -18,7 +18,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, TextInput, Modal, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { Button } from '../ui';
+import { Button, Select } from '../ui';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing, Typography } from '../../styles/constants';
 import { getBeneficiaryDisplayName, getTotalAllocated } from '../../utils/beneficiaryHelpers';
@@ -111,7 +111,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
   const [showSelectionDrawer, setShowSelectionDrawer] = useState(false);
   const [tempSelections, setTempSelections] = useState<{id: string, type: 'person' | 'group' | 'estate'}[]>([]);
 
-  // Get available people (excluding already selected and excluded IDs)
+  // Get available people/groups/estate (excluding already selected)
   const allPeople = personActions.getPeople();
   const selectedPersonIds = value.filter(b => b.type === 'person').map(b => b.id);
   const availablePeople = allPeople.filter(person => 
@@ -119,85 +119,42 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
     !selectedPersonIds.includes(person.id)
   );
 
-  // Get available groups
   const allGroups = beneficiaryGroupActions.getActiveGroups();
   const selectedGroupIds = value.filter(b => b.type === 'group').map(b => b.id);
   const availableGroups = allGroups.filter(group => !selectedGroupIds.includes(group.id));
 
-  // Check if estate already selected
   const estateSelected = value.some(b => b.type === 'estate');
 
-  // Build dropdown options
-  const options = [];
-  
-  // Estate option first
-  if (!estateSelected) {
-    options.push({ label: '🏛️ The Estate', value: 'estate:estate' });
-    if (availablePeople.length > 0 || availableGroups.length > 0) {
-      options.push({ label: '─────────────', value: '__separator__', disabled: true });
-    }
-  }
-  
-  // People
-  availablePeople.forEach(person => {
-    options.push({
-      label: `${getPersonFullName(person)} (${getPersonRelationshipDisplay(person)})`,
-      value: `person:${person.id}`,
-    });
-  });
-  
-  // Groups
-  availableGroups.forEach(group => {
-    options.push({
-      label: `👥 ${group.name}`,
-      value: `group:${group.id}`,
-    });
-  });
-  
-  // Add new options
-  if (onAddNewPerson) {
-    options.push({ label: '+ Add New Person', value: '__add_person__' });
-  }
-  if (onAddNewGroup) {
-    options.push({ label: '+ Create / Manage Groups', value: '__add_group__' });
-  }
+  // Open drawer for multi-select
+  const handleOpenDrawer = () => {
+    setTempSelections([]);
+    setShowSelectionDrawer(true);
+  };
 
-  const [dropdownValue, setDropdownValue] = useState('');
-
-  const handleSelect = (selectedValue: string) => {
-    if (!selectedValue || selectedValue === '__separator__') {
-      setDropdownValue('');
-      return;
-    }
-
-    if (selectedValue === '__add_person__') {
-      onAddNewPerson?.();
-      setDropdownValue('');
-      return;
-    }
-
-    if (selectedValue === '__add_group__') {
-      onAddNewGroup?.();
-      setDropdownValue('');
-      return;
-    }
-
-    const [type, id] = selectedValue.split(':');
-    
-    let newBeneficiary: BeneficiaryAssignment;
-    
-    if (type === 'estate') {
-      newBeneficiary = { id: 'estate', type: 'estate' };
-    } else if (type === 'person') {
-      newBeneficiary = { id, type: 'person' };
-    } else if (type === 'group') {
-      newBeneficiary = { id, type: 'group' };
+  // Toggle selection in drawer
+  const toggleSelection = (id: string, type: 'person' | 'group' | 'estate') => {
+    const exists = tempSelections.some(s => s.id === id && s.type === type);
+    if (exists) {
+      setTempSelections(tempSelections.filter(s => !(s.id === id && s.type === type)));
     } else {
-      return;
+      setTempSelections([...tempSelections, { id, type }]);
     }
+  };
 
-    onChange([...value, newBeneficiary]);
-    setDropdownValue('');
+  // Confirm selections from drawer
+  const handleConfirmSelections = () => {
+    const newBeneficiaries: BeneficiaryAssignment[] = tempSelections.map(s => ({
+      id: s.id,
+      type: s.type,
+    }));
+    
+    onChange([...value, ...newBeneficiaries]);
+    setShowSelectionDrawer(false);
+    setTempSelections([]);
+  };
+
+  const isSelected = (id: string, type: string) => {
+    return tempSelections.some(s => s.id === id && s.type === type);
   };
 
   const handleRemove = (index: number) => {
@@ -265,13 +222,117 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
       
-      {/* Add Beneficiary Dropdown */}
-      <Select
-        placeholder="Add beneficiary..."
-        value={dropdownValue}
-        options={options}
-        onChange={handleSelect}
-      />
+      {/* Add Beneficiaries Button */}
+      <TouchableOpacity
+        style={styles.addBeneficiariesButton}
+        onPress={handleOpenDrawer}
+        activeOpacity={0.7}
+      >
+        <IconButton icon="account-multiple-plus" size={20} iconColor={KindlingColors.navy} style={styles.addIcon} />
+        <Text style={styles.addBeneficiariesText}>Add Beneficiaries</Text>
+      </TouchableOpacity>
+
+      {/* Beneficiary Selection Drawer */}
+      <Modal
+        visible={showSelectionDrawer}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowSelectionDrawer(false)}
+      >
+        <SafeAreaView style={styles.drawerContainer} edges={['top', 'bottom']}>
+          {/* Drawer Header */}
+          <View style={styles.drawerHeader}>
+            <Text style={styles.drawerTitle}>Select Beneficiaries</Text>
+            <TouchableOpacity onPress={() => setShowSelectionDrawer(false)}>
+              <IconButton icon="close" size={24} iconColor={KindlingColors.navy} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Beneficiary List */}
+          <FlatList
+            data={[
+              ...(!estateSelected ? [{ id: 'estate', type: 'estate' as const, label: '🏛️ The Estate', isSpecial: true }] : []),
+              ...availablePeople.map(p => ({ 
+                id: p.id, 
+                type: 'person' as const, 
+                label: `${getPersonFullName(p)} (${getPersonRelationshipDisplay(p)})`,
+                isSpecial: false
+              })),
+              ...availableGroups.map(g => ({ 
+                id: g.id, 
+                type: 'group' as const, 
+                label: `👥 ${g.name}`,
+                isSpecial: false
+              })),
+            ]}
+            keyExtractor={(item) => `${item.type}-${item.id}`}
+            renderItem={({ item }) => {
+              const selected = isSelected(item.id, item.type);
+              
+              return (
+                <TouchableOpacity
+                  style={styles.drawerOption}
+                  onPress={() => toggleSelection(item.id, item.type)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.drawerOptionText}>{item.label}</Text>
+                  <View style={[styles.checkboxCircle, selected && styles.checkboxCircleSelected]}>
+                    {selected && (
+                      <IconButton
+                        icon="check"
+                        size={16}
+                        iconColor={KindlingColors.background}
+                        style={styles.checkIcon}
+                      />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+            ListFooterComponent={
+              <>
+                {/* Add New Options */}
+                {onAddNewPerson && (
+                  <TouchableOpacity
+                    style={styles.drawerOptionSpecial}
+                    onPress={() => {
+                      setShowSelectionDrawer(false);
+                      onAddNewPerson();
+                    }}
+                  >
+                    <Text style={styles.drawerOptionSpecialText}>+ Add New Person</Text>
+                  </TouchableOpacity>
+                )}
+                {onAddNewGroup && (
+                  <TouchableOpacity
+                    style={styles.drawerOptionSpecial}
+                    onPress={() => {
+                      setShowSelectionDrawer(false);
+                      onAddNewGroup();
+                    }}
+                  >
+                    <Text style={styles.drawerOptionSpecialText}>+ Create / Manage Groups</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            }
+          />
+
+          {/* Confirm Button */}
+          <View style={styles.drawerFooter}>
+            <Text style={styles.selectedCount}>
+              {tempSelections.length} beneficiar{tempSelections.length === 1 ? 'y' : 'ies'} selected
+            </Text>
+            <Button
+              onPress={handleConfirmSelections}
+              variant="primary"
+              disabled={tempSelections.length === 0}
+            >
+              Select
+            </Button>
+          </View>
+        </SafeAreaView>
+      </Modal>
 
       {/* Selected Beneficiaries with Allocations */}
       {value.length > 0 && (
@@ -537,6 +598,99 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.navy,
     textDecorationLine: 'underline',
+  },
+  addBeneficiariesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: KindlingColors.background,
+    borderWidth: 2,
+    borderColor: KindlingColors.beige,
+    borderRadius: 8,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  addIcon: {
+    margin: 0,
+    padding: 0,
+    marginRight: -4,
+  },
+  addBeneficiariesText: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+  },
+  drawerContainer: {
+    flex: 1,
+    backgroundColor: KindlingColors.background,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: KindlingColors.border,
+  },
+  drawerTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+  },
+  drawerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: `${KindlingColors.border}40`,
+  },
+  drawerOptionText: {
+    flex: 1,
+    fontSize: Typography.fontSize.md,
+    color: KindlingColors.navy,
+  },
+  drawerOptionSpecial: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: `${KindlingColors.border}40`,
+  },
+  drawerOptionSpecialText: {
+    fontSize: Typography.fontSize.md,
+    color: KindlingColors.navy,
+    fontWeight: Typography.fontWeight.medium,
+  },
+  checkboxCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: `${KindlingColors.beige}4D`,
+    backgroundColor: KindlingColors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxCircleSelected: {
+    backgroundColor: KindlingColors.green,
+    borderColor: KindlingColors.green,
+  },
+  checkIcon: {
+    margin: 0,
+    padding: 0,
+  },
+  drawerFooter: {
+    padding: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: KindlingColors.border,
+    gap: Spacing.sm,
+  },
+  selectedCount: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.brown,
+    textAlign: 'center',
   },
 });
 
