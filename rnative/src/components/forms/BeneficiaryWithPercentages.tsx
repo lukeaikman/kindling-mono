@@ -14,7 +14,7 @@
  * @module components/forms/BeneficiaryWithPercentages
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, TextInput, Modal, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
@@ -110,6 +110,54 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [showSelectionDrawer, setShowSelectionDrawer] = useState(false);
   const [tempSelections, setTempSelections] = useState<{id: string, type: 'person' | 'group' | 'estate'}[]>([]);
+  const [showBackgroundForFocused, setShowBackgroundForFocused] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Show background bar after 2 seconds of no typing (when focused)
+  useEffect(() => {
+    if (focusedIndex !== null) {
+      // Clear any existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // Hide background initially when focused
+      setShowBackgroundForFocused(false);
+      
+      // Set timeout to show background after 2 seconds
+      typingTimeoutRef.current = setTimeout(() => {
+        setShowBackgroundForFocused(true);
+      }, 2000);
+    } else {
+      // Clear timeout when unfocused
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      setShowBackgroundForFocused(false);
+    }
+
+    // Cleanup
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [focusedIndex]);
+
+  // Reset timeout when value changes (user is typing)
+  useEffect(() => {
+    if (focusedIndex !== null) {
+      setShowBackgroundForFocused(false);
+      
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      typingTimeoutRef.current = setTimeout(() => {
+        setShowBackgroundForFocused(true);
+      }, 2000);
+    }
+  }, [value]);
 
   // Get available people/groups/estate (excluding already selected)
   const allPeople = personActions.getPeople();
@@ -350,6 +398,16 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
 
             return (
               <View key={`${beneficiary.id}-${index}`} style={styles.beneficiaryCard}>
+                {/* Background fill bar (percentage visualization) */}
+                {allocationMode === 'percentage' && currentValue && (!isFocused || showBackgroundForFocused) && (
+                  <View 
+                    style={[
+                      styles.percentageBackground,
+                      { width: `${Math.min(100, currentValue)}%` }
+                    ]} 
+                  />
+                )}
+                
                 <View style={styles.beneficiaryHeader}>
                   <View style={styles.beneficiaryNameRow}>
                     {beneficiary.type === 'group' && (
@@ -471,17 +529,30 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   beneficiaryCard: {
+    position: 'relative',
     backgroundColor: KindlingColors.background,
     borderRadius: 8,
     padding: Spacing.md,
     borderWidth: 1,
     borderColor: KindlingColors.beige,
     gap: Spacing.sm,
+    overflow: 'hidden',
+  },
+  percentageBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    backgroundColor: `${KindlingColors.green}15`,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+    zIndex: 0,
   },
   beneficiaryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    zIndex: 1,
   },
   beneficiaryNameRow: {
     flex: 1,
@@ -506,6 +577,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    zIndex: 1,
   },
   allocationLabel: {
     fontSize: Typography.fontSize.sm,
