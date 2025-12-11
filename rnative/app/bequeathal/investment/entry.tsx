@@ -16,18 +16,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Button, BackButton, Select, Input, CurrencyInput, Dialog } from '../../../src/components/ui';
-import { MultiBeneficiarySelector, BeneficiarySelection, GroupManagementDrawer } from '../../../src/components/forms';
+import { BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
 import { getPersonFullName, getPersonRelationshipDisplay } from '../../../src/utils/helpers';
-import type { InvestmentAsset } from '../../../src/types';
+import { validatePercentageAllocation, getBeneficiaryDisplayName } from '../../../src/utils/beneficiaryHelpers';
+import type { InvestmentAsset, BeneficiaryAssignment } from '../../../src/types';
 
 interface InvestmentForm {
   provider: string;
   investmentType: string;
-  beneficiary: BeneficiarySelection;
+  beneficiaries: BeneficiaryAssignment[];
   estimatedValue: number;
 }
 
@@ -38,7 +39,7 @@ export default function InvestmentsEntryScreen() {
   const [formData, setFormData] = useState<InvestmentForm>({
     provider: '',
     investmentType: '',
-    beneficiary: { id: 'estate', type: 'estate', name: 'The Estate' },
+    beneficiaries: [],
     estimatedValue: 0,
   });
   const [balanceNotSure, setBalanceNotSure] = useState(false);
@@ -77,14 +78,18 @@ export default function InvestmentsEntryScreen() {
     }
   }, []);
 
-  const handleBeneficiaryChange = (newBeneficiary: BeneficiarySelection | BeneficiarySelection[]) => {
-    const beneficiary = Array.isArray(newBeneficiary) ? newBeneficiary[0] : newBeneficiary;
-    setFormData(prev => ({ ...prev, beneficiary }));
+  const handleBeneficiariesChange = (newBeneficiaries: BeneficiaryAssignment[]) => {
+    setFormData(prev => ({ ...prev, beneficiaries: newBeneficiaries }));
   };
 
   const handleAddInvestment = () => {
     // Validation
-    if (!formData.provider.trim() || !formData.beneficiary.id) return;
+    if (!formData.provider.trim() || formData.beneficiaries.length === 0) return;
+    
+    // Validate percentages total 100%
+    if (!validatePercentageAllocation({ beneficiaries: formData.beneficiaries })) {
+      return; // Component already shows error
+    }
 
     // Round value to nearest £1
     const estimatedValue = Math.round(balanceNotSure ? 0 : formData.estimatedValue);
@@ -99,11 +104,11 @@ export default function InvestmentsEntryScreen() {
       provider: formData.provider.trim(),
       investmentType,
       beneficiaryAssignments: {
-        beneficiaries: [{
-          id: formData.beneficiary.id,
-          type: formData.beneficiary.type,
-          name: formData.beneficiary.name,
-        }]
+        beneficiaries: formData.beneficiaries.map(b => ({
+          id: b.id,
+          type: b.type,
+          percentage: b.percentage,
+        }))
       },
       estimatedValue,
       netValue: estimatedValue,
@@ -120,7 +125,7 @@ export default function InvestmentsEntryScreen() {
     setFormData({
       provider: '',
       investmentType: '',
-      beneficiary: { id: 'estate', type: 'estate', name: 'The Estate' },
+      beneficiaries: [],
       estimatedValue: 0,
     });
     setBalanceNotSure(false);
@@ -131,30 +136,21 @@ export default function InvestmentsEntryScreen() {
     const investment = bequeathalActions.getAssetById(investmentId) as InvestmentAsset;
     if (!investment) return;
 
-    // Get first beneficiary (single mode)
-    let beneficiary: BeneficiarySelection = { id: 'estate', type: 'estate', name: 'The Estate' };
+    // Load beneficiaries array (handles both old single and new percentage formats)
+    let beneficiaries: BeneficiaryAssignment[] = [];
     
-    if (investment.beneficiaryAssignments?.beneficiaries && investment.beneficiaryAssignments.beneficiaries.length > 0) {
-      const b = investment.beneficiaryAssignments.beneficiaries[0];
-      if (b.type === 'estate') {
-        beneficiary = { id: 'estate', type: 'estate', name: 'The Estate' };
-      } else if (b.type === 'person') {
-        const person = personActions.getPersonById(b.id);
-        beneficiary = {
-          id: b.id,
-          type: 'person',
-          name: person ? getPersonFullName(person) : b.name || 'Unknown',
-          relationship: person ? getPersonRelationshipDisplay(person) : undefined,
-        };
-      } else {
-        beneficiary = { id: b.id, type: b.type, name: b.name || 'Unknown' };
-      }
+    if (investment.beneficiaryAssignments?.beneficiaries) {
+      beneficiaries = investment.beneficiaryAssignments.beneficiaries.map(b => ({
+        id: b.id,
+        type: b.type,
+        percentage: b.percentage || (investment.beneficiaryAssignments!.beneficiaries.length === 1 ? 100 : undefined),
+      }));
     }
 
     setFormData({
       provider: investment.provider,
       investmentType: investment.investmentType || '',
-      beneficiary,
+      beneficiaries,
       estimatedValue: investment.estimatedValue || 0,
     });
     setEditingInvestmentId(investmentId);
@@ -165,7 +161,7 @@ export default function InvestmentsEntryScreen() {
     setFormData({
       provider: '',
       investmentType: '',
-      beneficiary: { id: 'estate', type: 'estate', name: 'The Estate' },
+      beneficiaries: [],
       estimatedValue: 0,
     });
     setBalanceNotSure(false);
@@ -190,7 +186,9 @@ export default function InvestmentsEntryScreen() {
     router.push(nextRoute);
   };
 
-  const canSubmit = formData.provider.trim() && formData.beneficiary.id;
+  const canSubmit = formData.provider.trim() && 
+    formData.beneficiaries.length > 0 && 
+    validatePercentageAllocation({ beneficiaries: formData.beneficiaries });
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -239,18 +237,15 @@ export default function InvestmentsEntryScreen() {
                 onChange={(value) => setFormData(prev => ({ ...prev, investmentType: value }))}
               />
 
-              {/* Single Beneficiary Selector */}
-              <MultiBeneficiarySelector
-                mode="single"
-                value={formData.beneficiary}
-                onChange={handleBeneficiaryChange}
-                allowEstate={true}
-                allowGroups={true}
-                excludePersonIds={excludePersonIds}
-                label="Who will receive this? *"
-                placeholder="Select recipient"
+              {/* Beneficiaries with Percentage Allocations */}
+              <BeneficiaryWithPercentages
+                allocationMode="percentage"
+                value={formData.beneficiaries}
+                onChange={handleBeneficiariesChange}
                 personActions={personActions}
                 beneficiaryGroupActions={beneficiaryGroupActions}
+                excludePersonIds={excludePersonIds}
+                label="Who will receive this? *"
                 onAddNewPerson={() => setShowAddPersonDialog(true)}
                 onAddNewGroup={() => setShowGroupDrawer(true)}
               />
@@ -347,21 +342,30 @@ export default function InvestmentsEntryScreen() {
                           <Text style={styles.investmentProvider}>{investment.provider}</Text>
                           <Text style={styles.investmentType}>{investmentTypeLabel}</Text>
                           
-                          {/* Beneficiary (single) */}
+                          {/* Beneficiaries with Percentages */}
                           {beneficiaries.length > 0 && (
                             <View style={styles.beneficiariesRow}>
                               <Text style={styles.beneficiaryLabel}>For: </Text>
-                              <Text style={styles.beneficiaryText}>
-                                {(() => {
-                                  const b = beneficiaries[0];
-                                  if (b.type === 'estate') return 'The Estate';
-                                  if (b.type === 'person') {
-                                    const person = personActions.getPersonById(b.id);
-                                    return person ? `${getPersonFullName(person)} (${getPersonRelationshipDisplay(person)})` : b.name || 'Unknown';
-                                  }
-                                  return b.name || 'Unknown';
-                                })()}
-                              </Text>
+                              <View style={styles.beneficiariesList}>
+                                {beneficiaries.map((b, idx) => {
+                                  const displayName = getBeneficiaryDisplayName(
+                                    b,
+                                    personActions,
+                                    beneficiaryGroupActions
+                                  );
+                                  const percentage = b.percentage || 0;
+                                  const percentageValue = investment.estimatedValue 
+                                    ? `£${Math.round((investment.estimatedValue * percentage) / 100).toLocaleString()}`
+                                    : '';
+                                  
+                                  return (
+                                    <Text key={idx} style={styles.beneficiaryText}>
+                                      {displayName} {percentage}% {percentageValue && `(${percentageValue})`}
+                                      {idx < beneficiaries.length - 1 && ', '}
+                                    </Text>
+                                  );
+                                })}
+                              </View>
                             </View>
                           )}
                           
@@ -446,14 +450,13 @@ export default function InvestmentsEntryScreen() {
         onSelectGroup={(groupId) => {
           const group = beneficiaryGroupActions.getGroupById(groupId);
           if (group) {
-            const groupSelection: BeneficiarySelection = {
+            const groupSelection: BeneficiaryAssignment = {
               id: group.id,
               type: 'group',
-              name: group.name,
             };
             setFormData(prev => ({
               ...prev,
-              beneficiary: groupSelection
+              beneficiaries: [...prev.beneficiaries, groupSelection]
             }));
           }
           setShowGroupDrawer(false);

@@ -821,6 +821,230 @@ For: The Estate
 
 ---
 
+## Phase 8.5: Retrofit Investments with Percentage Allocations (1 hour)
+
+**Rationale:** Investment accounts often split among multiple beneficiaries with specific percentages. Current single-beneficiary approach is too limiting.
+
+**Example Use Cases:**
+- "60% to eldest child, 40% split between younger children"
+- "70% to spouse, 30% to children as a group"
+- Large ISA portfolios with complex distribution wishes
+
+### Task 8.5.1: Update Investments Entry Screen
+
+**File:** `native-app/app/bequeathal/investment/entry.tsx`
+
+**Changes:**
+
+**FROM (Current):**
+```typescript
+<MultiBeneficiarySelector
+  mode="single"
+  value={formData.beneficiary}
+  onChange={handleBeneficiaryChange}
+  ...
+/>
+```
+
+**TO:**
+```typescript
+<BeneficiaryWithPercentages
+  allocationMode="percentage"
+  value={formData.beneficiaries}  // Now array with percentages
+  onChange={handleBeneficiariesChange}
+  personActions={personActions}
+  beneficiaryGroupActions={beneficiaryGroupActions}
+  excludePersonIds={excludePersonIds}
+  label="Who will receive this?"
+  onAddNewPerson={() => setShowAddPersonDialog(true)}
+  onAddNewGroup={() => setShowGroupDrawer(true)}
+/>
+```
+
+**Form State Changes:**
+```typescript
+// FROM:
+beneficiary: BeneficiarySelection
+
+// TO:
+beneficiaries: BeneficiaryAssignment[]  // With percentage fields
+```
+
+**Validation:**
+- At least one beneficiary REQUIRED
+- Percentages must total 100%
+- Provider REQUIRED
+- Value optional
+
+**Display in List:**
+```
+AJ Bell - ISA (Stocks & Shares)
+For: Jane Doe 60% (£30k), Bob Smith 40% (£20k)
+£50,000
+```
+
+**Data Storage (updated):**
+```json
+{
+  "beneficiaryAssignments": {
+    "beneficiaries": [
+      { "id": "person-456", "type": "person", "percentage": 60 },
+      { "id": "person-789", "type": "person", "percentage": 40 }
+    ]
+  }
+}
+```
+
+**Effort:** 1 hour (component already built, just swap it in)
+
+### ⚠️ CRITICAL GOTCHAS - Phase 8.5
+
+**1. Form State Conversion (EASY TO MESS UP):**
+
+**OLD:**
+```typescript
+beneficiary: BeneficiarySelection  // Single object
+```
+
+**NEW:**
+```typescript
+beneficiaries: BeneficiaryAssignment[]  // Array with percentages
+```
+
+**MUST UPDATE:**
+- ✅ Initial state: `beneficiary: {...}` → `beneficiaries: []`
+- ✅ Reset form: `beneficiary: {...}` → `beneficiaries: []`
+- ✅ Edit mode: Load single beneficiary → Load array of beneficiaries
+- ✅ Save logic: Save single → Save array with percentage validation
+- ✅ Validation: `beneficiary.id` → `beneficiaries.length > 0 AND validatePercentageAllocation()`
+
+**SEARCH AND DESTROY:** Find ALL instances of `formData.beneficiary` and convert to `formData.beneficiaries`
+
+**2. Existing Data Migration (CRITICAL):**
+
+If users already created investments with OLD single beneficiary format:
+```typescript
+// On load, check for old format and migrate:
+const investment = bequeathalActions.getAssetById(id);
+if (investment.beneficiaryAssignments?.beneficiaries.length === 1 && 
+    !investment.beneficiaryAssignments.beneficiaries[0].percentage) {
+  // Old single beneficiary - auto-convert to 100%
+  const updated = {...investment};
+  updated.beneficiaryAssignments.beneficiaries[0].percentage = 100;
+  bequeathalActions.updateAsset(id, updated);
+}
+```
+
+**3. Display Logic Update:**
+
+**OLD:**
+```typescript
+For: {beneficiary.name}
+```
+
+**NEW:**
+```typescript
+For: {beneficiaries.map(b => `${getName(b)} ${b.percentage}%`).join(', ')}
+```
+
+**MUST UPDATE:** All display locations that show beneficiary
+
+**4. Edit Mode Conversion:**
+
+**OLD:** Single beneficiary object
+**NEW:** Array with one beneficiary at 100%
+
+**CODE:**
+```typescript
+// In handleEditInvestment:
+// OLD: setFormData({ beneficiary: firstBeneficiary })
+// NEW: setFormData({ beneficiaries: investment.beneficiaryAssignments?.beneficiaries || [] })
+```
+
+**5. Validation Before Save:**
+
+**MUST ADD:**
+```typescript
+const isValid = validatePercentageAllocation({ beneficiaries: formData.beneficiaries });
+if (!isValid) {
+  Alert.alert('Invalid', 'Percentages must total 100%');
+  return;
+}
+```
+
+### 📋 EXPLICIT INSTRUCTIONS - Phase 8.5
+
+**Step 1: SEARCH for old code**
+```bash
+# In investment/entry.tsx, search for:
+- "beneficiary:" (form state)
+- "formData.beneficiary" (all references)
+- "handleBeneficiaryChange" (handler name)
+- "setBeneficiary" (state setter)
+```
+
+**Step 2: DELETE old imports**
+```typescript
+// REMOVE if present:
+import { MultiBeneficiarySelector, BeneficiarySelection } from '...'
+
+// ADD:
+import { BeneficiaryWithPercentages } from '../../../src/components/forms';
+import type { BeneficiaryAssignment } from '../../../src/types';
+import { validatePercentageAllocation } from '../../../src/utils/beneficiaryHelpers';
+```
+
+**Step 3: UPDATE form state**
+```typescript
+// Find interface PensionForm or InvestmentForm
+// Change beneficiary field to beneficiaries array
+// Add percentage to initial state
+```
+
+**Step 4: REPLACE component JSX**
+```typescript
+// Find <MultiBeneficiarySelector mode="single" ...>
+// Replace entire component with <BeneficiaryWithPercentages allocationMode="percentage" ...>
+// Update all prop names
+```
+
+**Step 5: UPDATE validation**
+```typescript
+// Find canSubmit or validation logic
+// ADD percentage validation
+// REMOVE old single beneficiary validation
+```
+
+**Step 6: UPDATE save logic**
+```typescript
+// Find handleAddInvestment or similar
+// CHANGE from single beneficiary to array
+// ADD percentage validation before save
+```
+
+**Step 7: UPDATE edit logic**
+```typescript
+// Find handleEditInvestment
+// CHANGE: Convert single beneficiary to array for backward compatibility
+// Handle both old (no %) and new (with %) data formats
+```
+
+**Step 8: UPDATE display logic**
+```typescript
+// Find all places that display beneficiary
+// CHANGE from single to list with percentages
+// Use getBeneficiaryDisplayName() helper
+// Show percentage next to each name
+```
+
+**Step 9: TEST thoroughly**
+- Create new investment with percentages
+- Edit existing investment
+- Load investment created before retrofit
+- Verify percentages total 100%
+
+---
+
 ## Phase 9: Pensions Implementation (MODERATE - 3-4 hours)
 
 **Reference:** Web prototype `PensionsIntroScreen.tsx` and `PensionsEntryScreen.tsx`
@@ -1050,6 +1274,271 @@ Beneficiary: Yes (bypasses estate)
 ---
 
 ✅ **PHASE 9 COMPLETE**
+
+---
+
+## Phase 9.6: Add Conditional Beneficiary Percentages to Pensions (1 hour)
+
+**Rationale:** When user selects "Has Beneficiary Been Nominated? YES", we need to track WHO those beneficiaries are and their % splits for visualization.
+
+**Example:**
+```
+Scottish Widows SIPP (£200,000)
+Beneficiary Nominated: Yes
+Split: Spouse 60% (£120k), Children 40% (£80k)
+```
+
+**Visualization Impact:** Shows exactly where pension money goes, not just "bypasses estate"
+
+### Task 9.6.1: Update PensionAsset Type
+
+**File:** `native-app/src/types/index.ts`
+
+**Add beneficiaryAssignments field:**
+```typescript
+export interface PensionAsset extends BaseAsset {
+  type: 'pensions';
+  provider: string;
+  pensionType: PensionType;
+  beneficiaryNominated?: 'yes' | 'no' | 'not-sure';
+  beneficiaryAssignments?: BeneficiaryAssignments;  // ← ADD THIS (conditional)
+}
+```
+
+**Used when:** `beneficiaryNominated === 'yes'`
+
+### Task 9.6.2: Update Pensions Entry Screen
+
+**File:** `native-app/app/bequeathal/pensions/entry.tsx`
+
+**Add conditional field after "Has Beneficiary Been Nominated?":**
+
+```typescript
+{/* Beneficiary Nominated Question */}
+<RadioGroup
+  label="Has Beneficiary Been Nominated? *"
+  value={formData.beneficiaryNominated}
+  onChange={(value) => {
+    setFormData(prev => ({ ...prev, beneficiaryNominated: value }));
+    // Clear beneficiaries if changing from Yes to No/Not Sure
+    if (value !== 'yes' && formData.beneficiaries.length > 0) {
+      setFormData(prev => ({ ...prev, beneficiaries: [] }));
+    }
+  }}
+  options={beneficiaryNominatedOptions}
+/>
+
+{/* Conditional: Show beneficiary percentages if "Yes" selected */}
+{formData.beneficiaryNominated === 'yes' && (
+  <BeneficiaryWithPercentages
+    allocationMode="percentage"
+    value={formData.beneficiaries}
+    onChange={(beneficiaries) => setFormData(prev => ({ ...prev, beneficiaries }))}
+    personActions={personActions}
+    beneficiaryGroupActions={beneficiaryGroupActions}
+    label="Who are the beneficiaries?"
+    onAddNewPerson={() => setShowAddPersonDialog(true)}
+    onAddNewGroup={() => setShowGroupDrawer(true)}
+  />
+)}
+```
+
+**Form State Update:**
+```typescript
+interface PensionForm {
+  provider: string;
+  pensionType: PensionType | '';
+  estimatedValue: number;
+  beneficiaryNominated: 'yes' | 'no' | 'not-sure' | '';
+  beneficiaries: BeneficiaryAssignment[];  // ← ADD THIS
+}
+```
+
+**Validation:**
+- If beneficiaryNominated === 'yes': beneficiaries.length > 0 AND percentages total 100%
+- If beneficiaryNominated !== 'yes': beneficiaries not required
+
+**Display in List:**
+
+With Beneficiaries:
+```
+Scottish Widows - SIPP
+£200,000
+Beneficiary: Yes
+For: Spouse 60% (£120k), Children 40% (£80k)
+```
+
+Without Beneficiaries:
+```
+Aviva - Workplace Pension  
+£150,000
+Beneficiary: No (goes to estate)
+```
+
+**Storage (when Yes):**
+```json
+{
+  "beneficiaryNominated": "yes",
+  "beneficiaryAssignments": {
+    "beneficiaries": [
+      { "id": "person-123", "type": "person", "percentage": 60 },
+      { "id": "group-456", "type": "group", "percentage": 40 }
+    ]
+  }
+}
+```
+
+**Effort:** 1 hour (component already built, conditional logic straightforward)
+
+**Benefit:** Complete visualization - know exactly where pension proceeds go, not just that they bypass estate
+
+### ⚠️ CRITICAL GOTCHAS - Phase 9.6
+
+**1. Conditional Field Visibility (MUST HANDLE CAREFULLY):**
+
+**Scenario:** User selects "Yes", adds beneficiaries, then changes to "No"
+
+**MUST:**
+- Clear beneficiaries array when changing from Yes to No/Not Sure
+- Don't leave orphaned beneficiary data
+- Show warning if they already entered percentages?
+
+**CODE:**
+```typescript
+onChange={(value) => {
+  setFormData(prev => ({ ...prev, beneficiaryNominated: value }));
+  // Clear beneficiaries if changing from Yes to No/Not Sure
+  if (value !== 'yes' && prev.beneficiaries.length > 0) {
+    // Optional: Show confirmation dialog
+    setFormData(prev => ({ ...prev, beneficiaries: [] }));
+  }
+}}
+```
+
+**2. Validation Complexity:**
+
+**OLD:** Just check `beneficiaryNominated` is selected
+**NEW:** 
+- If Yes: MUST have beneficiaries AND percentages must total 100%
+- If No/Not Sure: beneficiaries optional (should be empty)
+
+**CODE:**
+```typescript
+const canSubmit = formData.provider.trim() && 
+  formData.pensionType && 
+  formData.beneficiaryNominated &&
+  (formData.beneficiaryNominated !== 'yes' || 
+   (formData.beneficiaries.length > 0 && validatePercentageAllocation({ beneficiaries: formData.beneficiaries })));
+```
+
+**3. Display Logic Branching:**
+
+**MUST show different displays:**
+- Yes + has beneficiaries: Show percentage breakdown
+- Yes + no beneficiaries: Show "Beneficiary: Yes (not specified)"
+- No: Show "Goes to estate"
+- Not Sure: Show "Check with provider"
+
+**4. Edit Mode Backward Compatibility:**
+
+**OLD pensions don't have beneficiaryAssignments field**
+
+**CODE:**
+```typescript
+setFormData({
+  ...
+  beneficiaryNominated: pension.beneficiaryNominated || '',
+  beneficiaries: pension.beneficiaryAssignments?.beneficiaries || []  // ← Handles old data
+});
+```
+
+### 📋 EXPLICIT INSTRUCTIONS - Phase 9.6
+
+**Step 1: UPDATE PensionAsset type**
+```typescript
+// In src/types/index.ts
+// Find: export interface PensionAsset
+// ADD: beneficiaryAssignments?: BeneficiaryAssignments;
+```
+
+**Step 2: ADD to form state**
+```typescript
+// Find: interface PensionForm
+// ADD: beneficiaries: BeneficiaryAssignment[];
+// Initialize: beneficiaries: []
+```
+
+**Step 3: ADD imports**
+```typescript
+import { BeneficiaryWithPercentages } from '../../../src/components/forms';
+import { validatePercentageAllocation } from '../../../src/utils/beneficiaryHelpers';
+import type { BeneficiaryAssignment } from '../../../src/types';
+```
+
+**Step 4: ADD conditional field in JSX**
+```typescript
+// AFTER RadioGroup for "Has Beneficiary Been Nominated?"
+// ADD: {formData.beneficiaryNominated === 'yes' && (
+//   <BeneficiaryWithPercentages ... />
+// )}
+```
+
+**Step 5: UPDATE RadioGroup onChange**
+```typescript
+// Add logic to clear beneficiaries when changing from Yes to No
+```
+
+**Step 6: UPDATE validation (canSubmit)**
+```typescript
+// OLD: formData.beneficiaryNominated
+// NEW: formData.beneficiaryNominated AND (if yes, validate beneficiaries)
+```
+
+**Step 7: UPDATE save logic**
+```typescript
+// In handleAddPension:
+// ADD: beneficiaryAssignments when beneficiaryNominated === 'yes'
+// OMIT: beneficiaryAssignments when 'no' or 'not-sure'
+```
+
+**Step 8: UPDATE display in list**
+```typescript
+// Find pension card display
+// ADD: Show beneficiary breakdown if beneficiaryAssignments exists
+// Show percentage allocations inline
+```
+
+**Step 9: UPDATE edit mode**
+```typescript
+// In handleEditPension:
+// LOAD: beneficiaryAssignments?.beneficiaries || []
+// Handle old pensions without this field
+```
+
+**Step 10: NO DUPLICATION**
+```bash
+# Search for duplicate beneficiary display logic
+# Use getBeneficiaryDisplayName() helper (already exists)
+# Don't rewrite display logic - reuse helpers
+```
+
+### 🚨 OVER-COMPLICATION CHECK
+
+**Question:** Are we over-engineering this?
+
+**Analysis:**
+- Pensions with nominated beneficiaries: Common ✓
+- Knowing WHO gets it: Essential for visualization ✓
+- Percentage splits: Common (spouse 50%, kids 50%) ✓
+- Conditional field: Appropriate (only ask if relevant) ✓
+
+**Verdict:** NOT over-complicated. This is necessary for complete visualization.
+
+**Alternative (simpler but worse):**
+- Just have "Beneficiary Nominated? Yes/No/Not Sure" with no details
+- Pro: Simpler code
+- Con: Can't visualize WHERE pension money goes
+- **Decision:** Current approach is right. Complexity justified by value.
 
 ---
 
@@ -2085,13 +2574,16 @@ For each asset type:
 10. ✅ **sequential-navigation** - Implement category navigation system
 11. ✅ **crypto-flow** - Implement crypto currency intro and entry screens  
 12. ✅ **investments-flow** - Implement investments intro and entry screens (MODERATE)
-13. ✅ **pensions-flow** - Implement pensions intro and entry screens
-14. **beneficiary-with-percentages** - Build BeneficiaryWithPercentages component (percentage/amount allocations)
-15. **life-insurance-flow** - Implement life insurance intro and entry screens (requires Phase 9.5)
-16. **company-shares-flow** - Implement private company shares intro and entry screens
-17. **business-assets-flow** - Implement assets-held-through-business screens (COMPLEX)
-18. **agricultural-flow** - Implement agricultural assets screens (VERY COMPLEX)
-19. **property-flow** - Implement property screens with multi-step wizard (VERY COMPLEX)
+13. **investments-percentages-retrofit** - Retrofit investments with BeneficiaryWithPercentages (Phase 8.5)
+14. ✅ **pensions-flow** - Implement pensions intro and entry screens
+15. ✅ **beneficiary-model-unified** - Create unified beneficiary data model and helpers (Phase 9.5)
+16. ✅ **beneficiary-with-percentages** - Build BeneficiaryWithPercentages component (Phase 9.5)
+17. **pensions-beneficiaries-retrofit** - Add conditional beneficiary percentages to pensions (Phase 9.6)
+18. **life-insurance-flow** - Implement life insurance intro and entry screens (uses Phase 9.5 component)
+19. **company-shares-flow** - Implement private company shares intro and entry screens
+20. **business-assets-flow** - Implement assets-held-through-business screens (COMPLEX)
+21. **agricultural-flow** - Implement agricultural assets screens (VERY COMPLEX)
+22. **property-flow** - Implement property screens with multi-step wizard (VERY COMPLEX)
 
 ---
 

@@ -493,6 +493,7 @@ export interface PensionAsset extends BaseAsset {
   provider: string;
   pensionType: PensionType;
   beneficiaryNominated?: 'yes' | 'no' | 'not-sure';
+  beneficiaryAssignments?: BeneficiaryAssignments;  // Conditional: only when beneficiaryNominated === 'yes'
   // Fields deferred to Executor Facilitation phase:
   // - policyNumber, linkedEmployer (for executor access, not will creation)
 }

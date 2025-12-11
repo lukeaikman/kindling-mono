@@ -15,22 +15,25 @@ import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Button, BackButton, Select, Input, CurrencyInput, RadioGroup } from '../../../src/components/ui';
+import { Button, BackButton, Select, Input, CurrencyInput, RadioGroup, Dialog } from '../../../src/components/ui';
+import { BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
-import type { PensionAsset, PensionType } from '../../../src/types';
+import { validatePercentageAllocation, getBeneficiaryDisplayName } from '../../../src/utils/beneficiaryHelpers';
+import type { PensionAsset, PensionType, BeneficiaryAssignment } from '../../../src/types';
 
 interface PensionForm {
   provider: string;
   pensionType: PensionType | '';
   estimatedValue: number;
   beneficiaryNominated: 'yes' | 'no' | 'not-sure' | '';
+  beneficiaries: BeneficiaryAssignment[];
 }
 
 export default function PensionsEntryScreen() {
-  const { bequeathalActions } = useAppState();
+  const { bequeathalActions, personActions, beneficiaryGroupActions, willActions } = useAppState();
   const [showForm, setShowForm] = useState(true);
   const [showPensionsList, setShowPensionsList] = useState(true);
   const [formData, setFormData] = useState<PensionForm>({
@@ -38,9 +41,16 @@ export default function PensionsEntryScreen() {
     pensionType: '',
     estimatedValue: 0,
     beneficiaryNominated: '',
+    beneficiaries: [],
   });
   const [balanceNotSure, setBalanceNotSure] = useState(false);
   const [editingPensionId, setEditingPensionId] = useState<string | null>(null);
+  const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
+  const [showGroupDrawer, setShowGroupDrawer] = useState(false);
+
+  // Get will-maker ID to exclude from beneficiary selection
+  const willMaker = willActions.getUser();
+  const excludePersonIds = willMaker?.id ? [willMaker.id] : [];
 
   // Pension type options
   const pensionTypeOptions = [
@@ -83,6 +93,12 @@ export default function PensionsEntryScreen() {
   const handleAddPension = () => {
     // Validation
     if (!formData.provider.trim() || !formData.pensionType || !formData.beneficiaryNominated) return;
+    
+    // If beneficiary nominated = yes, must have beneficiaries with valid percentages
+    if (formData.beneficiaryNominated === 'yes') {
+      if (formData.beneficiaries.length === 0) return;
+      if (!validatePercentageAllocation({ beneficiaries: formData.beneficiaries })) return;
+    }
 
     // Round value to nearest £1
     const estimatedValue = Math.round(balanceNotSure ? 0 : formData.estimatedValue);
@@ -94,6 +110,15 @@ export default function PensionsEntryScreen() {
       provider: formData.provider.trim(),
       pensionType: formData.pensionType,
       beneficiaryNominated: formData.beneficiaryNominated as 'yes' | 'no' | 'not-sure',
+      beneficiaryAssignments: formData.beneficiaryNominated === 'yes' && formData.beneficiaries.length > 0
+        ? {
+            beneficiaries: formData.beneficiaries.map(b => ({
+              id: b.id,
+              type: b.type,
+              percentage: b.percentage,
+            }))
+          }
+        : undefined,
       estimatedValue,
       netValue: estimatedValue,
     };
@@ -111,6 +136,7 @@ export default function PensionsEntryScreen() {
       pensionType: '',
       estimatedValue: 0,
       beneficiaryNominated: '',
+      beneficiaries: [],
     });
     setBalanceNotSure(false);
     setShowForm(false);
@@ -125,6 +151,7 @@ export default function PensionsEntryScreen() {
       pensionType: pension.pensionType,
       estimatedValue: pension.estimatedValue || 0,
       beneficiaryNominated: pension.beneficiaryNominated || 'not-sure',
+      beneficiaries: pension.beneficiaryAssignments?.beneficiaries || [],
     });
     setEditingPensionId(pensionId);
     setShowForm(true);
@@ -136,6 +163,7 @@ export default function PensionsEntryScreen() {
       pensionType: '',
       estimatedValue: 0,
       beneficiaryNominated: '',
+      beneficiaries: [],
     });
     setBalanceNotSure(false);
     setEditingPensionId(null);
@@ -159,7 +187,11 @@ export default function PensionsEntryScreen() {
     router.push(nextRoute);
   };
 
-  const canSubmit = formData.provider.trim() && formData.pensionType && formData.beneficiaryNominated;
+  const canSubmit = formData.provider.trim() && 
+    formData.pensionType && 
+    formData.beneficiaryNominated &&
+    (formData.beneficiaryNominated !== 'yes' || 
+     (formData.beneficiaries.length > 0 && validatePercentageAllocation({ beneficiaries: formData.beneficiaries })));
 
   // Get display label for pension type
   const getPensionTypeLabel = (type: string): string => {
@@ -265,9 +297,32 @@ export default function PensionsEntryScreen() {
               <RadioGroup
                 label="Has Beneficiary Been Nominated? *"
                 value={formData.beneficiaryNominated}
-                onChange={(value) => setFormData(prev => ({ ...prev, beneficiaryNominated: value as typeof formData.beneficiaryNominated }))}
+                onChange={(value) => {
+                  const newValue = value as typeof formData.beneficiaryNominated;
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    beneficiaryNominated: newValue,
+                    // Clear beneficiaries if changing from Yes to No/Not Sure
+                    beneficiaries: newValue === 'yes' ? prev.beneficiaries : []
+                  }));
+                }}
                 options={beneficiaryNominatedOptions}
               />
+
+              {/* Conditional: Show beneficiary percentages if "Yes" selected */}
+              {formData.beneficiaryNominated === 'yes' && (
+                <BeneficiaryWithPercentages
+                  allocationMode="percentage"
+                  value={formData.beneficiaries}
+                  onChange={(beneficiaries) => setFormData(prev => ({ ...prev, beneficiaries }))}
+                  personActions={personActions}
+                  beneficiaryGroupActions={beneficiaryGroupActions}
+                  excludePersonIds={excludePersonIds}
+                  label="Who are the beneficiaries?"
+                  onAddNewPerson={() => setShowAddPersonDialog(true)}
+                  onAddNewGroup={() => setShowGroupDrawer(true)}
+                />
+              )}
 
               <View style={styles.formActions}>
                 <Button
@@ -324,6 +379,34 @@ export default function PensionsEntryScreen() {
                           <Text style={styles.beneficiaryStatus}>
                             Beneficiary: {getBeneficiaryNominatedText(pension.beneficiaryNominated)}
                           </Text>
+                          
+                          {/* Show beneficiary breakdown if nominated = yes AND has beneficiaries */}
+                          {pension.beneficiaryNominated === 'yes' && pension.beneficiaryAssignments?.beneficiaries && pension.beneficiaryAssignments.beneficiaries.length > 0 && (
+                            <View style={styles.beneficiariesRow}>
+                              <Text style={styles.beneficiaryLabel}>For: </Text>
+                              <View style={styles.beneficiariesList}>
+                                {pension.beneficiaryAssignments.beneficiaries.map((b, idx) => {
+                                  const displayName = getBeneficiaryDisplayName(
+                                    b,
+                                    personActions,
+                                    beneficiaryGroupActions
+                                  );
+                                  const percentage = b.percentage || 0;
+                                  const percentageValue = pension.estimatedValue 
+                                    ? `£${Math.round((pension.estimatedValue * percentage) / 100).toLocaleString()}`
+                                    : '';
+                                  
+                                  return (
+                                    <Text key={idx} style={styles.beneficiaryText}>
+                                      {displayName} {percentage}% {percentageValue && `(${percentageValue})`}
+                                      {idx < pension.beneficiaryAssignments!.beneficiaries.length - 1 && ', '}
+                                    </Text>
+                                  );
+                                })}
+                              </View>
+                            </View>
+                          )}
+                          
                           <Text style={styles.pensionValue}>
                             {(pension.estimatedValue || 0) === 0 ? 'Value not known' : valueDisplay}
                           </Text>
@@ -384,6 +467,42 @@ export default function PensionsEntryScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Add Person Dialog Placeholder */}
+      <Dialog
+        visible={showAddPersonDialog}
+        onDismiss={() => setShowAddPersonDialog(false)}
+        title="Add New Person"
+      >
+        <Text style={styles.dialogText}>
+          Person creation to be implemented. For now, add people from Onboarding screens.
+        </Text>
+        <Button onPress={() => setShowAddPersonDialog(false)} variant="primary">
+          OK
+        </Button>
+      </Dialog>
+
+      {/* Group Management Drawer */}
+      <GroupManagementDrawer
+        visible={showGroupDrawer}
+        onClose={() => setShowGroupDrawer(false)}
+        onSelectGroup={(groupId) => {
+          const group = beneficiaryGroupActions.getGroupById(groupId);
+          if (group) {
+            const groupSelection: BeneficiaryAssignment = {
+              id: group.id,
+              type: 'group',
+            };
+            setFormData(prev => ({
+              ...prev,
+              beneficiaries: [...prev.beneficiaries, groupSelection]
+            }));
+          }
+          setShowGroupDrawer(false);
+        }}
+        beneficiaryGroupActions={beneficiaryGroupActions}
+        willId={willActions.getUser()?.id || 'default-user'}
+      />
     </SafeAreaView>
   );
 }
@@ -637,5 +756,31 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     marginTop: Spacing.sm,
+  },
+  beneficiariesRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    marginTop: 2,
+  },
+  beneficiaryLabel: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.brown,
+  },
+  beneficiariesList: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  beneficiaryText: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
+    color: KindlingColors.navy,
+  },
+  dialogText: {
+    fontSize: Typography.fontSize.md,
+    color: KindlingColors.brown,
+    marginBottom: Spacing.md,
+    lineHeight: 22,
   },
 });
