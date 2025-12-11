@@ -6,7 +6,7 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Button, BackButton } from '../../../src/components/ui';
+import { Button, BackButton, useAppState, getNextCategoryRoute } from '../../../src/components/ui';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 
@@ -30,7 +30,7 @@ export default function AgriculturalAssetsEntryScreen() {
         </View>
       </ScrollView>
       <View style={styles.footer}>
-        <Button onPress={() => router.push('/order-of-things')} variant="primary">Continue</Button>
+        <Button onPress={() => handleContinue()} variant="primary">Continue</Button>
       </View>
     </SafeAreaView>
   );
