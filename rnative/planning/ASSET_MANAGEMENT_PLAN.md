@@ -821,7 +821,7 @@ For: The Estate
 
 ---
 
-## Phase 8.5: Retrofit Investments with Percentage Allocations (1 hour)
+## Phase 8.5: Retrofit Investments with Percentage Allocations ✅ COMPLETE
 
 **Rationale:** Investment accounts often split among multiple beneficiaries with specific percentages. Current single-beneficiary approach is too limiting.
 
@@ -1277,7 +1277,7 @@ Beneficiary: Yes (bypasses estate)
 
 ---
 
-## Phase 9.6: Add Conditional Beneficiary Percentages to Pensions (1 hour)
+## Phase 9.6: Add Conditional Beneficiary Percentages to Pensions ✅ COMPLETE
 
 **Rationale:** When user selects "Has Beneficiary Been Nominated? YES", we need to track WHO those beneficiaries are and their % splits for visualization.
 
@@ -2574,16 +2574,17 @@ For each asset type:
 10. ✅ **sequential-navigation** - Implement category navigation system
 11. ✅ **crypto-flow** - Implement crypto currency intro and entry screens  
 12. ✅ **investments-flow** - Implement investments intro and entry screens (MODERATE)
-13. **investments-percentages-retrofit** - Retrofit investments with BeneficiaryWithPercentages (Phase 8.5)
+13. ✅ **investments-percentages-retrofit** - Retrofit investments with BeneficiaryWithPercentages (Phase 8.5)
 14. ✅ **pensions-flow** - Implement pensions intro and entry screens
 15. ✅ **beneficiary-model-unified** - Create unified beneficiary data model and helpers (Phase 9.5)
 16. ✅ **beneficiary-with-percentages** - Build BeneficiaryWithPercentages component (Phase 9.5)
-17. **pensions-beneficiaries-retrofit** - Add conditional beneficiary percentages to pensions (Phase 9.6)
-18. **life-insurance-flow** - Implement life insurance intro and entry screens (uses Phase 9.5 component)
-19. **company-shares-flow** - Implement private company shares intro and entry screens
-20. **business-assets-flow** - Implement assets-held-through-business screens (COMPLEX)
-21. **agricultural-flow** - Implement agricultural assets screens (VERY COMPLEX)
-22. **property-flow** - Implement property screens with multi-step wizard (VERY COMPLEX)
+17. ✅ **pensions-beneficiaries-retrofit** - Add conditional beneficiary percentages to pensions (Phase 9.6)
+18. ✅ **navigation-bug-fix** - Fix sequential navigation through selected categories
+19. **life-insurance-flow** - Implement life insurance intro and entry screens (uses Phase 9.5 component)
+20. **company-shares-flow** - Implement private company shares intro and entry screens
+21. **business-assets-flow** - Implement assets-held-through-business screens (COMPLEX)
+22. **agricultural-flow** - Implement agricultural assets screens (VERY COMPLEX)
+23. **property-flow** - Implement property screens with multi-step wizard (VERY COMPLEX)
 
 ---
 
