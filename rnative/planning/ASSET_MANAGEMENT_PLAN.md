@@ -2644,14 +2644,82 @@ When selected, store as:
 Display as: "Unknown Person 50%"
 
 **Premium Status Impact:**
-- Lapsed policies: Show warning badge in list
-- Affects total value calculation (lapsed may not pay)
-- Visualization should flag lapsed policies
+
+**Visual Badges (Steve Jobs Enhancement):**
+- Active: 🟢 Green badge "Active"
+- Paid Up: ⚪ Grey badge "Paid Up"
+- Lapsed: 🔴 Red badge "⚠️ Lapsed"
+- Suspended: 🟡 Yellow badge "Suspended"
+
+**Code:**
+```typescript
+const getPremiumStatusBadge = (status: string) => {
+  switch (status) {
+    case 'active':
+      return { color: KindlingColors.green, text: 'Active', icon: null };
+    case 'paid-up':
+      return { color: KindlingColors.brown, text: 'Paid Up', icon: null };
+    case 'lapsed':
+      return { color: KindlingColors.destructive, text: '⚠️ Lapsed', icon: 'alert-circle' };
+    case 'suspended':
+      return { color: '#FFA500', text: 'Suspended', icon: 'pause-circle' };
+  }
+};
+```
+
+**Lapsed Policies Warning (Bill Gates Enhancement):**
+
+Total calculation should flag lapsed policies:
+```typescript
+const totalActivePolicies = policies
+  .filter(p => p.premiumStatus !== 'lapsed')
+  .reduce((sum, p) => sum + p.sumInsured, 0);
+
+const totalLapsedPolicies = policies
+  .filter(p => p.premiumStatus === 'lapsed')
+  .reduce((sum, p) => sum + p.sumInsured, 0);
+
+// Display:
+// Policies Total: £750,000
+// ⚠️ £100,000 in lapsed policies (may not pay out)
+```
+
+**In list display:**
+```
+Legal & General - John Smith
+£500,000 | In Trust | 🟢 Active
+For: Spouse 60%, Children 40%
+
+Scottish Widows - Jane Doe  
+£100,000 | Part of Estate | 🔴 ⚠️ Lapsed
+⚠️ This policy may not pay out (premiums stopped)
+```
 
 **Held in Trust Impact:**
-- Yes: Outside estate, no IHT
-- No: Part of estate, subject to IHT
-- Not Sure: User needs to check policy docs
+
+**Visual Indicators (Steve Jobs Enhancement):**
+- Yes: 🟢 Green text "In Trust" (positive - outside estate)
+- No: ⚪ Grey text "Part of Estate" (neutral)
+- Not Sure: 🟡 Orange text "⚠️ Check Policy" (needs action)
+
+**Estate Calculation:**
+- Yes: NOT included in estate value (bypasses IHT)
+- No: Included in estate value (subject to IHT)
+- Not Sure: Flag for user to check with provider
+
+**Display styling:**
+```typescript
+const getTrustStatus = (heldInTrust: string) => {
+  switch (heldInTrust) {
+    case 'yes':
+      return { color: KindlingColors.green, text: 'In Trust', bg: `${KindlingColors.green}15` };
+    case 'no':
+      return { color: KindlingColors.brown, text: 'Part of Estate', bg: `${KindlingColors.beige}40` };
+    case 'not-sure':
+      return { color: '#FFA500', text: '⚠️ Check Policy', bg: '#FFA50015' };
+  }
+};
+```
 
 **Navigation:**
 - Back → `/bequeathal/life-insurance/intro`
@@ -2712,12 +2780,32 @@ interface PersonSelectorProps {
 
 **Effort:** 1 hour
 
+**Visual Enhancements (Jobs + Gates Insights):**
+
+**Premium Status Badges:**
+- Visual color coding (green/grey/red/yellow)
+- Icon for lapsed (alert-circle)
+- Clear at-a-glance status
+
+**Held in Trust Indicators:**
+- Color-coded text and backgrounds
+- Green for In Trust (positive - saves IHT)
+- Grey for Part of Estate (neutral)
+- Orange for Check Policy (action needed)
+
+**Lapsed Policies Warning:**
+- Separate subtotal for lapsed policies
+- Warning text: "May not pay out"
+- Flags in visualization screens
+- Helps user identify problem policies
+
 **Total Phase 10 Effort:**
 - Task 10.1: Update LifeInsuranceAsset type: 15 min
 - Task 10.2: Life Insurance Intro screen: 1-2 hours
 - Task 10.3: Build PersonSelector component: 1 hour
 - Task 10.4: Life Insurance Entry screen: 2-3 hours
-- **Total: 4-6 hours**
+- Task 10.5: Visual badges and warnings: 30 min
+- **Total: 5-7 hours**
 
 ### ⚠️ CRITICAL GOTCHAS - Phase 10
 
