@@ -556,14 +556,17 @@ export interface BankAccountAsset extends BaseAsset {
 export interface PrivateCompanySharesAsset extends BaseAsset {
   type: 'private-company-shares';
   companyName: string;
-  numberOfShares: number;
-  shareClass?: string;
-  totalValue: number;
-  costBasis?: number;
-  // IHT Planning fields
+  
+  // User enters ONE of these (inline toggle in UI):
+  numberOfShares?: number;       // Integer, > 0
+  percentageOwnership?: number;  // 0-100, up to 2 decimals
+  
+  notes?: string;                // Transfer restrictions, special terms
+  excludeFromNetWorth?: boolean; // For illiquid/speculative shares
+  
+  // IHT Planning fields (Business Property Relief eligibility)
   isActivelyTrading?: boolean;
   heldForTwoPlusYears?: boolean;
-  doesNotDealInRestrictedAssets?: boolean;
   isNotHoldingCompany?: boolean;
 }
 

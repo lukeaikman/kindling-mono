@@ -2943,20 +2943,997 @@ if (b.id === 'unknown') {
 
 ✅ **READY TO BUILD - Phase 10 Detailed Plan Complete**
 
-### Phase 11: Private Company Shares (MODERATE)
-**Screens:**
-- `app/bequeathal/private-company-shares/intro.tsx`
-- `app/bequeathal/private-company-shares/entry.tsx`
+## Phase 11: Private Company Shares Implementation (MODERATE - 4-6 hours)
 
-**Form fields:**
-- Company name (text)
-- Number of shares (number)
-- Share class (text, optional)
-- Total value (currency)
-- Cost basis (currency, optional)
-- IHT planning questions (4 yes/no/not sure)
+**Reference:** Web prototype `PrivateCompanySharesIntroScreen.tsx` and `PrivateCompanySharesEntryScreen.tsx`
 
-**Estimated effort:** 2 days
+**CRITICAL:** Private company shares are often illiquid and complex to value. Simplified approach captures essential info for estate planning without overwhelming user with details that can be collected later in Executor Facilitation phase.
+
+### DESIGN PHILOSOPHY: Value First, Details Later
+
+**For Will Creation + Visualization, we need:**
+- What companies user has shares in
+- Rough ownership (% or number of shares)
+- Rough value (for estate total)
+- IHT planning eligibility (Business Property Relief)
+- Whether to include in net worth (illiquid startups)
+
+**For Executor Facilitation (LATER phase):**
+- Share type (ordinary, preference, etc.)
+- Share class (Class A, Series B, etc.)
+- Cost basis (for capital gains)
+- Shareholder agreements
+- Transfer restrictions
+
+**User Experience Innovation:**
+Inline toggle for ownership input (% vs number of shares) provides slick, compact UI without separate mode selection.
+
+---
+
+### Task 11.1: Update PrivateCompanySharesAsset Type
+
+**File:** `native-app/src/types/index.ts`
+
+**CURRENT (Lines 556-568):**
+```typescript
+export interface PrivateCompanySharesAsset extends BaseAsset {
+  type: 'private-company-shares';
+  companyName: string;
+  numberOfShares: number;        // Required in current types
+  shareClass?: string;
+  totalValue: number;            // Wrong field name (should use estimatedValue)
+  costBasis?: number;
+  // IHT Planning fields
+  isActivelyTrading?: boolean;
+  heldForTwoPlusYears?: boolean;
+  doesNotDealInRestrictedAssets?: boolean;
+  isNotHoldingCompany?: boolean;
+}
+```
+
+**UPDATED (Simplified - 8 fields):**
+```typescript
+export interface PrivateCompanySharesAsset extends BaseAsset {
+  // BaseAsset includes: id, type, title, description, estimatedValue, netValue, createdAt, updatedAt
+  
+  type: 'private-company-shares';
+  companyName: string;
+  
+  // User enters ONE of these (inline toggle in UI):
+  numberOfShares?: number;       // Integer, > 0
+  percentageOwnership?: number;  // 0-100, up to 2 decimals
+  
+  notes?: string;                // Transfer restrictions, special terms
+  excludeFromNetWorth?: boolean; // For illiquid/speculative shares
+  
+  // IHT Planning fields (Business Property Relief eligibility)
+  isActivelyTrading?: boolean;
+  heldForTwoPlusYears?: boolean;
+  isNotHoldingCompany?: boolean;
+  
+  // Fields deferred to Executor Facilitation:
+  // - shareType ('ordinary' | 'preference' | 'other')
+  // - shareClass (string)
+  // - costBasis (number)
+}
+```
+
+**Key Changes:**
+- ✅ `numberOfShares` changed from required to optional
+- ✅ `percentageOwnership` added (alternative to numberOfShares)
+- ✅ `notes` added for restrictions/special terms
+- ✅ `excludeFromNetWorth` added for illiquid shares
+- ❌ `totalValue` removed (use `BaseAsset.estimatedValue` instead)
+- ❌ `costBasis` removed (defer to Executor Facilitation)
+- ❌ `shareClass` removed (defer to Executor Facilitation)
+- ❌ `shareType` NOT added (defer to Executor Facilitation)
+
+**Result:** 7 fields (down from 9), cleaner, focused on estate planning needs
+
+---
+
+### Task 11.2: Private Company Shares Intro Screen
+
+**File:** `native-app/app/bequeathal/private-company-shares/intro.tsx`
+
+**Content (from web prototype):**
+
+**Header:**
+- Icon: Building2 (briefcase/building icon)
+- Title: "Private Company Shares"
+
+**Video:**
+- Title: "Private Company Shares in Your Will"
+- Dismissible inline player (16:9 aspect ratio)
+
+**InformationCard: "Shares in Private Companies"**
+
+Content:
+```
+This section is for shares you own in private companies - businesses that 
+aren't publicly traded on stock exchanges.
+
+This could include:
+• Companies you founded or co-founded
+• Startup investments you've made
+• Private equity investments
+• Employee share schemes from private companies
+• Family business shareholdings
+
+Unlike public shares, private company shares can be more complex to value 
+and transfer, so getting the basics down now helps your executors enormously.
+```
+
+**External Link:**
+- Text: "Learn more about private company shares in wills"
+- Icon: ExternalLink (opens browser)
+
+**Buttons:**
+- Primary: "Let's Go" → `/bequeathal/private-company-shares/entry`
+- Skip: "Skip for now" → next category via sequential navigation
+
+**Morphic Background:**
+- 3 blobs (same pattern as bank accounts, crypto, pensions)
+
+**Effort:** 1-2 hours
+
+---
+
+### Task 11.3: Private Company Shares Entry Screen
+
+**File:** `native-app/app/bequeathal/private-company-shares/entry.tsx`
+
+**Data Structure (from Task 11.1):**
+```typescript
+interface PrivateCompanySharesAsset extends BaseAsset {
+  type: 'private-company-shares';
+  companyName: string;
+  numberOfShares?: number;
+  percentageOwnership?: number;
+  notes?: string;
+  excludeFromNetWorth?: boolean;
+  isActivelyTrading?: boolean;
+  heldForTwoPlusYears?: boolean;
+  isNotHoldingCompany?: boolean;
+}
+```
+
+**Form Fields (5 TOTAL - SIMPLIFIED):**
+
+#### 1. Company Name (Input)
+- Placeholder: "e.g., Acme Ltd, Smith & Co"
+- REQUIRED
+- Text input, single line
+- Trim whitespace on save
+
+#### 2. Shares (Input + Inline Toggle) - INNOVATIVE UI
+
+**Layout:**
+```
+Label: "Shares"
+
+[__________________] [%][123]
+   80% width          20% width
+   Input              Segmented Toggle
+```
+
+**Segmented Toggle (Side-by-side buttons):**
+- Left button: `%` (percentage mode)
+- Right button: `123` (number mode)
+- Active button: Navy background, white text
+- Inactive button: Transparent background, navy outline, navy text
+- NO gap between buttons (seamless segmented control)
+- Default: `%` mode selected
+
+**Input Behavior:**
+
+**Percentage Mode (% selected):**
+- Placeholder: "e.g., 25.5"
+- Keyboard: `decimal-pad`
+- Validation: 0-100, up to 2 decimals
+- Stores in: `percentageOwnership`
+- Auto-clears `numberOfShares`
+
+**Number Mode (123 selected):**
+- Placeholder: "e.g., 1000"
+- Keyboard: `number-pad`
+- Validation: integer, > 0
+- Stores in: `numberOfShares`
+- Auto-clears `percentageOwnership`
+
+**Toggle Behavior:**
+```typescript
+const handleToggleMode = (newMode: 'percentage' | 'shares') => {
+  setOwnershipMode(newMode);
+  setOwnershipValue(''); // Clear input when switching modes
+};
+```
+
+**Optional field** - User might not know ownership details
+
+#### 3. Estimated Holding Value (CurrencyInput)
+- Label: "Estimated Holding Value"
+- Currency input with £ symbol
+- "Not sure" checkbox (sets to £0)
+- Optional
+- Round to nearest £1 on save
+- Helper text: "Total value of your shareholding"
+
+#### 4. Notes (Textarea)
+- Label: "Notes"
+- Placeholder: "If there are any known restrictions or ownership structures that may be useful to note"
+- Optional
+- Multiline input
+- Min height: 80px
+
+#### 5. Exclude from Net Worth (Checkbox)
+- Label: "Don't include in net worth (illiquid or speculative)"
+- Unchecked by default
+- Useful for startup investments with uncertain liquidity
+
+#### 6. Relevant to Inheritance Tax Section (3 Checkboxes)
+
+**Section Heading:** "Relevant to Inheritance Tax"
+- Border-top separator
+- Margin-top: 16px
+
+**Checkboxes (Custom circle style, matching other screens):**
+
+1. **The business is actively trading**
+   - Field: `isActivelyTrading`
+   - Default: unchecked
+
+2. **You've owned the shares 2+ years**
+   - Field: `heldForTwoPlusYears`
+   - Default: unchecked
+
+3. **It is NOT a holding company for cash, property or assets**
+   - Field: `isNotHoldingCompany`
+   - Default: unchecked
+   - Always shown (company type is independent of ownership %)
+
+**IHT Context (for documentation):**
+These questions determine Business Property Relief (BPR) eligibility:
+- BPR = 50% or 100% reduction in IHT for qualifying business assets
+- Actively trading for 2+ years = likely qualifies
+- Holding companies for cash/property/assets = may NOT qualify for relief
+- Company type (holding vs trading) is independent of shareholder ownership %
+
+**All IHT fields optional** - User can skip if unsure
+
+**Note on Validation:**
+- Percentage ownership: Round to 2 decimal places on save (e.g., 33.333 → 33.33)
+- This is explicit, not floating-point precision concern
+
+---
+
+### UI Behavior
+
+**Form Visibility:**
+- Form starts VISIBLE if no shares exist
+- Form HIDDEN after first shareholding added
+- Shows "Add Another Shareholding" green button when hidden
+
+**List Display (Simple - NO collapsible eye icon):**
+
+**Share Card Layout:**
+```
+┌─────────────────────────────────────────────┐
+│ Acme Ltd                              [🗑️]  │
+│ 25% ownership                               │
+│ £50,000                                     │
+└─────────────────────────────────────────────┘
+```
+
+Or with number of shares:
+```
+┌─────────────────────────────────────────────┐
+│ Smith & Co                            [🗑️]  │
+│ 1,000 shares                                │
+│ £25,000                                     │
+│ 🔸 Excluded from net worth                  │
+└─────────────────────────────────────────────┘
+```
+
+Or minimal (no ownership info):
+```
+┌─────────────────────────────────────────────┐
+│ TechStartup Inc                       [🗑️]  │
+│ £10,000                                     │
+│ 🔸 Excluded from net worth                  │
+└─────────────────────────────────────────────┘
+```
+
+**Display Fields:**
+- Company name (large, bold)
+- Ownership line (if entered):
+  - Percentage: "25% ownership"
+  - Number: "1,000 shares" (with comma formatting)
+- Value (if known, else hide)
+- "Excluded from net worth" badge (if flagged)
+- Delete button (trash icon, red on hover)
+
+**Footer Total:**
+```
+Total Private Company Shares: £75,000
+Excludes 1 illiquid/speculative holding
+```
+
+**Buttons in ScrollView Content:**
+- "Add Another Shareholding" (green, only when form hidden)
+- "Continue" (navy, always visible)
+
+---
+
+### Validation
+
+**Required Fields:**
+- Company name (non-empty after trim)
+
+**Optional but validated if entered:**
+- Percentage ownership: 0-100, up to 2 decimals
+- Number of shares: integer, > 0
+- Estimated value: numeric, ≥ 0
+
+**Can submit with:**
+- Minimal: Just company name (valid for user who knows they have shares but not details)
+- Complete: Company name + ownership + value + notes + IHT flags
+
+**Validation Logic:**
+```typescript
+const canSubmit = formData.companyName.trim().length > 0;
+
+const isOwnershipValid = () => {
+  if (ownershipMode === 'percentage' && ownershipValue) {
+    const val = parseFloat(ownershipValue);
+    return val >= 0 && val <= 100;
+  }
+  if (ownershipMode === 'shares' && ownershipValue) {
+    const val = parseInt(ownershipValue);
+    return val > 0 && Number.isInteger(val);
+  }
+  return true; // Valid if empty (optional)
+};
+```
+
+---
+
+### State Management
+
+**Loading:**
+```typescript
+const existingShares = bequeathalActions.getAssetsByType('private-company-shares');
+```
+
+**Adding:**
+```typescript
+const handleAddShare = () => {
+  if (!formData.companyName.trim()) return;
+  
+  const estimatedValue = formData.unsureOfValue || !formData.estimatedValue
+    ? 0
+    : parseFloat(formData.estimatedValue.replace(/[^\d.]/g, '')) || 0;
+  
+  const shareData: Partial<PrivateCompanySharesAsset> = {
+    title: formData.companyName,
+    companyName: formData.companyName,
+    estimatedValue: Math.round(estimatedValue), // Round to £1
+    netValue: Math.round(estimatedValue),
+    notes: formData.notes || undefined,
+    excludeFromNetWorth: formData.excludeFromNetWorth,
+    isActivelyTrading: formData.isActivelyTrading,
+    heldForTwoPlusYears: formData.heldForTwoPlusYears,
+    isNotHoldingCompany: formData.isNotHoldingCompany,
+    status: 'complete'
+  };
+  
+  // Add ownership field (only ONE will be set)
+  if (ownershipMode === 'percentage' && ownershipValue) {
+    shareData.percentageOwnership = parseFloat(ownershipValue);
+  } else if (ownershipMode === 'shares' && ownershipValue) {
+    shareData.numberOfShares = parseInt(ownershipValue);
+  }
+  
+  bequeathalActions.addAsset('private-company-shares', shareData);
+  
+  // Reset and hide form
+  resetForm();
+  setShowAddForm(false);
+};
+```
+
+**Deleting:**
+```typescript
+const handleRemoveShare = (id: string) => {
+  bequeathalActions.removeAsset(id);
+};
+```
+
+**Total Calculation:**
+```typescript
+const totalSharesValue = existingShares.reduce((sum, share) => {
+  // Exclude shares marked as illiquid/speculative
+  return sum + (share.excludeFromNetWorth ? 0 : share.estimatedValue);
+}, 0);
+
+const excludedCount = existingShares.filter(s => s.excludeFromNetWorth).length;
+```
+
+---
+
+### Title Generation
+
+**Simple approach:**
+```typescript
+title: formData.companyName
+```
+
+Display name is just the company name. Ownership details shown below in list card.
+
+---
+
+### Navigation
+
+**Back Button:**
+- Navigate to: `/bequeathal/private-company-shares/intro`
+
+**Continue Button:**
+- Navigate to: Next selected category's intro OR `/order-of-things`
+- Uses sequential navigation utility
+
+**Skip Button (intro screen):**
+- Navigate to: Next selected category or order-of-things
+
+---
+
+### Components Needed
+
+**All components already exist:**
+- ✅ Input (text, number)
+- ✅ CurrencyInput (with "Not sure" checkbox pattern)
+- ✅ Textarea (multiline)
+- ✅ Button (primary, secondary green)
+- ✅ Custom checkbox circles (IHT questions)
+- ✅ InformationCard
+- ✅ VideoPlayer
+
+**NEW UI Pattern (not component):**
+- Segmented Toggle (% / 123) - inline implementation in form
+  - Two TouchableOpacity buttons side-by-side
+  - Shared border, different backgrounds based on active state
+  - ~20 lines of inline JSX
+
+---
+
+### Display Examples
+
+**List Item - Full details:**
+```
+┌─────────────────────────────────────────────┐
+│ Acme Technology Ltd                   [🗑️]  │
+│ 33.3% ownership                             │
+│ £150,000                                    │
+└─────────────────────────────────────────────┘
+```
+
+**List Item - Number of shares:**
+```
+┌─────────────────────────────────────────────┐
+│ Smith Family Business Ltd             [🗑️]  │
+│ 500 shares                                  │
+│ £75,000                                     │
+└─────────────────────────────────────────────┘
+```
+
+**List Item - Excluded from net worth:**
+```
+┌─────────────────────────────────────────────┐
+│ SpeculativeStartup Inc                [🗑️]  │
+│ 10% ownership                               │
+│ £5,000                                      │
+│ 🔸 Excluded from net worth                  │
+└─────────────────────────────────────────────┘
+```
+
+**List Item - Minimal (no ownership or value):**
+```
+┌─────────────────────────────────────────────┐
+│ Private Equity Fund Co                [🗑️]  │
+└─────────────────────────────────────────────┘
+```
+
+**Footer Display:**
+```
+Total Private Company Shares: £225,000
+Excludes 1 illiquid/speculative holding
+```
+
+Or if all excluded:
+```
+Total Private Company Shares: £0
+All 3 holdings excluded (illiquid/speculative)
+```
+
+---
+
+### Conditional Logic Implementation
+
+**Toggle Mode Switch:**
+```typescript
+const handleToggleMode = (newMode: 'percentage' | 'shares') => {
+  if (newMode === ownershipMode) return; // No change
+  
+  setOwnershipMode(newMode);
+  setOwnershipValue(''); // Clear input when switching
+};
+```
+
+**Note:** All 3 IHT questions always visible - no conditional logic needed.
+
+---
+
+### Segmented Toggle Component (Inline Implementation)
+
+**Visual Design:**
+```typescript
+<View style={styles.ownershipRow}>
+  {/* Input (80% width) */}
+  <TextInput
+    style={[styles.ownershipInput, { width: '78%' }]}
+    placeholder={ownershipMode === 'percentage' ? 'e.g., 25.5' : 'e.g., 1000'}
+    value={ownershipValue}
+    onChangeText={setOwnershipValue}
+    keyboardType={ownershipMode === 'percentage' ? 'decimal-pad' : 'number-pad'}
+  />
+  
+  {/* Toggle (20% width) */}
+  <View style={styles.segmentedToggle}>
+    <TouchableOpacity
+      style={[
+        styles.toggleButton,
+        styles.toggleButtonLeft,
+        ownershipMode === 'percentage' && styles.toggleButtonActive
+      ]}
+      onPress={() => handleToggleMode('percentage')}
+    >
+      <Text style={[
+        styles.toggleButtonText,
+        ownershipMode === 'percentage' && styles.toggleButtonTextActive
+      ]}>
+        %
+      </Text>
+    </TouchableOpacity>
+    
+    <TouchableOpacity
+      style={[
+        styles.toggleButton,
+        styles.toggleButtonRight,
+        ownershipMode === 'shares' && styles.toggleButtonActive
+      ]}
+      onPress={() => handleToggleMode('shares')}
+    >
+      <Text style={[
+        styles.toggleButtonText,
+        ownershipMode === 'shares' && styles.toggleButtonTextActive
+      ]}>
+        123
+      </Text>
+    </TouchableOpacity>
+  </View>
+</View>
+```
+
+**Styles:**
+```typescript
+const styles = StyleSheet.create({
+  ownershipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-start',
+  },
+  ownershipInput: {
+    borderWidth: 1,
+    borderColor: KindlingColors.beige,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: KindlingColors.navy,
+  },
+  segmentedToggle: {
+    width: '20%',
+    flexDirection: 'row',
+    borderRadius: 6,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: KindlingColors.navy,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  toggleButtonLeft: {
+    borderRightWidth: 1,
+    borderRightColor: KindlingColors.navy,
+  },
+  toggleButtonRight: {
+    // No border
+  },
+  toggleButtonActive: {
+    backgroundColor: KindlingColors.navy,
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: KindlingColors.navy,
+  },
+  toggleButtonTextActive: {
+    color: 'white',
+  },
+});
+```
+
+---
+
+### Summary of Changes from Web Prototype
+
+**Simplified:**
+- ❌ Removed share type field (ordinary/preference/other) - defer to Executor Facilitation
+- ❌ Removed share class field - defer to Executor Facilitation
+- ❌ Removed cost basis field - defer to Executor Facilitation
+- ❌ Removed collapsible list toggle (eye icon) - simple list only
+- ✅ Inline ownership toggle (% vs 123) - slicker UI than separate fields
+
+**Added:**
+- ✅ Exclude from net worth checkbox (for illiquid shares)
+- ✅ Notes field (for restrictions/special terms)
+- ✅ Simple IHT questions (always visible)
+
+**Kept:**
+- ✅ All 3 IHT planning questions (BPR eligibility)
+- ✅ Form show/hide pattern (matching other asset types)
+- ✅ "Not sure" value checkbox (matching other asset types)
+
+**Result:**
+- 5 form fields (down from 7 in original plan)
+- Faster user flow
+- Cleaner data model
+- Slicker inline toggle UI
+
+---
+
+### Effort Breakdown
+
+**Task 11.1 - Update Types:** 15 minutes
+- Modify PrivateCompanySharesAsset interface
+- Add percentageOwnership field
+- Make numberOfShares optional
+- Add notes and excludeFromNetWorth fields
+- Remove totalValue, costBasis, shareClass
+
+**Task 11.2 - Intro Screen:** 1-2 hours
+- Header with Building2 icon
+- Video player (reuse existing)
+- InformationCard with content
+- External link
+- Let's Go and Skip buttons
+- Morphic background
+- Sequential navigation
+
+**Task 11.3 - Entry Screen:** 2-3 hours
+- Form with 5 fields
+- Inline segmented toggle (% vs 123) implementation
+- IHT section with 3 checkboxes (all always visible)
+- Form show/hide pattern
+- Simple list display (no collapsible)
+- Total calculation with exclusions
+- Delete functionality
+- Sequential navigation
+
+**Task 11.4 - Testing:** 30 minutes
+- Test ownership toggle switching
+- Test all 3 IHT questions display correctly
+- Test exclude from net worth
+- Test total calculation
+- Test sequential navigation
+
+**Total: 4-6 hours**
+
+---
+
+### ⚠️ CRITICAL GOTCHAS - Phase 11
+
+**1. Ownership Toggle State Management (CRITICAL)**
+
+**Problem:** User switches from % to 123 with value entered
+
+**MUST:**
+- Clear the input value when toggling modes
+- Don't try to convert between % and number (impossible without total shares)
+- Only save ONE field (numberOfShares OR percentageOwnership, never both)
+
+**CODE:**
+```typescript
+const handleToggleMode = (newMode: 'percentage' | 'shares') => {
+  if (newMode === ownershipMode) return;
+  
+  setOwnershipMode(newMode);
+  setOwnershipValue(''); // CRITICAL: Clear value
+  
+  // IHT question 4 may hide if switching away from percentage
+};
+```
+
+**2. [REMOVED - No longer applicable]**
+
+**Previous logic removed:** Holding company question no longer conditional on ownership %.
+- Company type (holding vs trading) is independent of shareholder's ownership percentage
+- Question now always visible for all ownership levels
+
+**3. Total Calculation with Exclusions** [Now #2 after removing conditional logic]
+
+**Problem:** Shares marked "exclude from net worth" shouldn't count in total
+
+**MUST:**
+- Filter out excluded shares from total
+- Show count of excluded shares in footer
+- Don't confuse user with "Total: £0" if all excluded
+
+**CODE:**
+```typescript
+const totalSharesValue = existingShares.reduce((sum, share) => {
+  return sum + (share.excludeFromNetWorth ? 0 : share.estimatedValue);
+}, 0);
+
+const excludedCount = existingShares.filter(s => s.excludeFromNetWorth).length;
+
+// Display:
+// "Total: £75,000"
+// "Excludes 2 illiquid/speculative holdings"
+```
+
+**4. Segmented Toggle Styling** [Now #3 after removing conditional logic]
+
+**Problem:** Toggle buttons must look seamless (no gap)
+
+**MUST:**
+- Use shared border on container
+- Left button has right border (divider)
+- Right button has no extra border
+- Active button has navy background + white text
+- Inactive button has transparent background + navy text
+- Border radius on container only (not individual buttons)
+- Use `overflow: 'hidden'` on container to clip button corners
+- Right button shows `123` (not "No." abbreviation) for clarity
+
+**5. Input Validation Per Mode** [Now #4 after removing conditional logic]
+
+**Problem:** Different validation rules for % vs 123
+
+**MUST:**
+- Percentage mode: 0-100, up to 2 decimals, `decimal-pad` keyboard
+- Number mode: integer > 0, `number-pad` keyboard
+- Change placeholder when mode switches
+- Validate on submit, not on every keystroke (UX)
+
+**6. Only Save ONE Ownership Field** [Now #5 after removing conditional logic]
+
+**Problem:** Database has both numberOfShares and percentageOwnership
+
+**MUST:**
+- Save percentageOwnership when in % mode (set numberOfShares to undefined)
+- Save numberOfShares when in 123 mode (set percentageOwnership to undefined)
+- Round percentage to 2 decimal places: `Math.round(value * 100) / 100`
+- NEVER save both fields with values
+- Check which field exists when displaying
+
+**7. [REMOVED - No longer applicable]**
+
+**Previous logic removed:** No need to clear holding company field based on ownership %.
+- Field is always available regardless of ownership percentage
+- No conditional state cleanup needed
+
+// Display logic
+const getOwnershipDisplay = (share: PrivateCompanySharesAsset) => {
+  if (share.percentageOwnership) {
+    return `${share.percentageOwnership}% ownership`;
+  }
+  if (share.numberOfShares) {
+    return `${share.numberOfShares.toLocaleString()} shares`;
+  }
+  return null; // No ownership info
+};
+```
+
+---
+
+### 📋 EXPLICIT INSTRUCTIONS - Phase 11
+
+**Step 1: UPDATE PrivateCompanySharesAsset type**
+```typescript
+// File: native-app/src/types/index.ts
+// Find: export interface PrivateCompanySharesAsset (line ~556)
+// CHANGE: numberOfShares from required to optional
+// ADD: percentageOwnership?: number
+// ADD: notes?: string
+// ADD: excludeFromNetWorth?: boolean
+// REMOVE: totalValue field
+// REMOVE: costBasis field
+// REMOVE: shareClass field
+// KEEP: All 4 IHT fields
+```
+
+**Step 2: BUILD Intro Screen**
+```typescript
+// File: native-app/app/bequeathal/private-company-shares/intro.tsx
+// Follow pattern from pensions/intro.tsx or crypto/intro.tsx
+// Header: Building2 icon + "Private Company Shares"
+// Video: "Private Company Shares in Your Will"
+// InformationCard: Content from web prototype (lines 100-121)
+// External link: "Learn more about private company shares in wills"
+// Buttons: "Let's Go" + "Skip for now"
+// Morphic background: 3 blobs
+```
+
+**Step 3: BUILD Entry Screen - Form Section**
+```typescript
+// File: native-app/app/bequeathal/private-company-shares/entry.tsx
+// Follow pattern from crypto/entry.tsx (simpler than pensions)
+
+// Form fields:
+// 1. Company Name - Input (REQUIRED)
+// 2. Shares - Input (80%) + Segmented Toggle (20%) - inline implementation
+//    - Default: percentage mode
+//    - Clear value when switching modes
+// 3. Estimated Holding Value - CurrencyInput with "Not sure"
+// 4. Notes - Textarea (multiline)
+// 5. Exclude from net worth - Custom checkbox circle
+// 6. IHT Planning section - 3 custom checkbox circles (all always visible)
+```
+
+**Step 4: BUILD Entry Screen - List Section**
+```typescript
+// Simple list (NO collapsible eye icon)
+// Card per share:
+//   - Company name (large, bold)
+//   - Ownership line (if entered): "25% ownership" or "1,000 shares"
+//   - Value (if known)
+//   - "Excluded from net worth" badge (if flagged)
+//   - Delete button (trash icon)
+```
+
+**Step 5: BUILD Entry Screen - Footer Section**
+```typescript
+// "Add Another Shareholding" green button (when form hidden)
+// "Continue" navy button (always visible)
+// Total display:
+//   - Calculate total excluding shares marked excludeFromNetWorth
+//   - Show excluded count if any
+//   - Format: "Total: £75,000\nExcludes 1 illiquid/speculative holding"
+```
+
+**Step 6: IMPLEMENT Segmented Toggle**
+```typescript
+// Inline implementation (not separate component)
+// Two TouchableOpacity buttons in row
+// Shared border, seamless appearance
+// Active: navy bg + white text
+// Inactive: transparent bg + navy text
+// Left button: right border (divider)
+// Right button: no extra border
+// ~30 lines of JSX + styles
+```
+
+**Step 7: [REMOVED - No conditional logic needed]**
+```typescript
+// All 3 IHT questions always visible
+// No conditional rendering based on ownership %
+```
+
+**Step 8: IMPLEMENT Save Logic**
+```typescript
+// CRITICAL: Save only ONE ownership field
+if (ownershipMode === 'percentage' && ownershipValue) {
+  const rawPercentage = parseFloat(ownershipValue);
+  shareData.percentageOwnership = Math.round(rawPercentage * 100) / 100; // Round to 2dp
+  shareData.numberOfShares = undefined;
+} else if (ownershipMode === 'shares' && ownershipValue) {
+  shareData.numberOfShares = parseInt(ownershipValue);
+  shareData.percentageOwnership = undefined;
+}
+
+// isNotHoldingCompany saved as-is (no conditional logic)
+// Round estimatedValue to nearest £1
+// Set title to company name
+// Save via bequeathalActions.addAsset('private-company-shares', shareData)
+```
+
+**Step 9: IMPLEMENT Total Calculation**
+```typescript
+// Exclude shares marked excludeFromNetWorth
+const totalSharesValue = existingShares.reduce((sum, share) => {
+  return sum + (share.excludeFromNetWorth ? 0 : share.estimatedValue);
+}, 0);
+
+const excludedCount = existingShares.filter(s => s.excludeFromNetWorth).length;
+```
+
+**Step 10: TEST Thoroughly**
+- Add share with percentage ownership (test 2dp rounding: 33.333 → 33.33)
+- Add share with number of shares
+- Toggle between modes (value clears)
+- Test all 3 IHT questions display correctly for all ownership levels
+- Test exclude from net worth (doesn't count in total)
+- Test total calculation
+- Test delete
+- Test sequential navigation
+
+**Step 11: NO DUPLICATION**
+```bash
+# Reuse existing components:
+# - Input, CurrencyInput, Textarea, Button
+# - Custom checkbox circles (IHT questions)
+# - InformationCard, VideoPlayer
+# - Form show/hide pattern
+# - Sequential navigation utility
+# Don't rebuild anything that exists
+```
+
+---
+
+### 🚨 OVER-COMPLICATION CHECK
+
+**Question:** Are we over-engineering this?
+
+**Analysis:**
+- Private company shares are complex (valuations, transfer restrictions)
+- Users often don't know exact details (% vs number of shares)
+- Illiquid shares shouldn't skew net worth calculations
+- IHT planning (BPR) is critical for estate planning
+
+**Verdict:** NOT over-complicated. Each field serves a purpose:
+
+1. **Company name** - Essential
+2. **Ownership toggle** - Flexible, user-friendly (enter what you know)
+3. **Value** - Needed for estate total
+4. **Notes** - Critical for restrictions/special terms executors must know
+5. **Exclude from net worth** - Prevents illiquid startups from skewing total
+6. **IHT questions** - Determines BPR eligibility (can save 40% IHT on shares)
+
+**What we deferred (correctly):**
+- Share type (ordinary vs preference) - Executor Facilitation
+- Share class (Class A, Series B) - Executor Facilitation
+- Cost basis - Tax planning, not will creation
+
+**Time saved by simplification:**
+- No share type field: -30 min
+- No share class field: -15 min
+- No cost basis field: -15 min
+- Inline toggle vs separate mode selector: -30 min
+- **Total saved: 1.5 hours**
+
+---
+
+✅ **PHASE 11 DETAILED PLAN COMPLETE**
+
+**Ready for approval and implementation.**
+
+**Deliverables:**
+1. Updated PrivateCompanySharesAsset type
+2. Intro screen with content from web prototype
+3. Entry screen with 5 fields + IHT section
+4. Inline segmented toggle for ownership input
+5. 3 IHT questions (always visible)
+6. Exclude from net worth feature
+7. Simple list display
+8. Total calculation with exclusions
+
+**Estimated Time: 4-6 hours**
+
+**Next Phase:** Phase 12: Assets Held Through Business (COMPLEX - requires Business data structure)
 
 ### Phase 12: Assets Held Through Business (COMPLEX)
 **Screens:**
@@ -3320,6 +4297,49 @@ If user testing shows need for auto-redistribution:
 - **Build time: 5+ hours (already built in web)**
 
 **Decision:** Ship simplified version in native app MVP. Add complexity later ONLY if user testing shows it's needed.
+
+---
+
+
+## Future TODOs & Enhancements
+
+### Phase 11: Private Company Shares - Future Enhancements
+
+#### Companies House API Integration (Elon's Suggestion)
+
+**Concept:** Auto-detect Business Property Relief (BPR) eligibility using UK Companies House API
+
+**Current Approach:**
+- User manually checks 3 IHT questions:
+  1. The business is actively trading
+  2. You've owned the shares 2+ years  
+  3. It is NOT a holding company for cash, property or assets
+
+**Proposed Enhancement:**
+- User enters company name → API lookup → Auto-populate BPR eligibility
+- UK Companies House API provides:
+  - Company status (active/dissolved/liquidation)
+  - SIC codes (Standard Industrial Classification) - determines if trading company
+  - Filing history - can infer if holding company based on accounts structure
+  - Date incorporated - helps with ownership duration
+- Benefits:
+  - Reduces user cognitive load (3 questions → 0 questions)
+  - More accurate data (API is authoritative source)
+  - Faster user flow (no manual research needed)
+- Challenges:
+  - API rate limits (500 requests per 5 minutes for basic key)
+  - User might not know official company name/number
+  - SIC codes don't perfectly map to BPR eligibility (still needs logic layer)
+  - Overseas companies not in UK Companies House
+- Implementation Estimate: 1-2 days
+  - API integration: 4 hours
+  - BPR logic mapping: 4 hours
+  - Error handling & fallback: 2 hours
+  - Testing: 2 hours
+
+**Decision:** Defer to post-MVP. Collect manual data first, validate user needs, then automate.
+
+**Note to Elon:** AI (Claude) is building this, not humans. Documentation:code ratio reflects the competence of the builder. If you want less documentation, perhaps improve Grok! 😉
 
 ---
 
