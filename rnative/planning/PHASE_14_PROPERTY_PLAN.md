@@ -760,8 +760,770 @@ Each fieldset: 8-14 fields
 
 ---
 
-## Next: Read Trust Fieldsets in Detail
+## Step 3: Trust Fieldsets Analysis (9 Variants)
 
-[To be continued with detailed trust fieldset analysis]
+### Trust Fieldset Line Counts (Actual)
+
+From `web-prototype/src/components/property-trust-fieldsets/`:
+
+1. LifeTrustBeneficiaryFieldset.tsx: **556 lines** (most complex)
+2. LifeTrustSettlorFieldset.tsx: **528 lines**
+3. BareTrustSettlorAndBeneficiaryFieldset.tsx: 165 lines
+4. BareTrustSettlorFieldset.tsx: **138 lines** (simplest settlor)
+5. DiscretionaryTrustSettlorFieldset.tsx: **115 lines**
+6. BareTrustBeneficiaryFieldset.tsx: 58 lines
+7. DiscretionaryTrustBeneficiaryFieldset.tsx: 49 lines
+8. DiscretionaryTrustSettlorAndBeneficiaryFieldset.tsx: 30 lines
+9. LifeTrustSettlorAndBeneficiaryFieldset.tsx: 28 lines
+
+**Total:** 2,167 lines across 9 fieldsets
+
+### Fieldset Complexity Analysis
+
+#### Simple Fieldsets (3-4 fields)
+
+**Bare Trust Beneficiary (58 lines, 2 fields):**
+- Co-beneficiaries (PersonSelector)
+- Trustees (TrusteeMultiSelectField)
+
+**Discretionary Trust Beneficiary (49 lines, 1 field):**
+- Complicated checkbox (for complex trust structures)
+
+**Discretionary Trust Settlor (115 lines, 3 fields):**
+- Transfer date (month/year)
+- Property value when transferred
+
+#### Medium Fieldsets (4-6 fields)
+
+**Bare Trust Settlor (138 lines, 4 fields):**
+- Creation date (month/year)
+- Property value when transferred
+- Beneficiaries (PersonSelector)
+
+#### Complex Fieldsets (10-14 fields)
+
+**Life Trust Settlor (528 lines, 10 fields):**
+1. Creation date (month/year)
+2. Property value when transferred
+3. Chained trust structure? (checkbox)
+4. Reserved benefit? (select: none/income/occupy/both)
+5. Paying market rent? (radio, conditional)
+6. Monthly market rent (currency, conditional)
+7. Trustees (multi-select)
+8. Life Interest Beneficiaries (PersonSelector with interest type + cessation)
+9. Remaindermen (PersonSelector with percentages)
+10. Events ending life interest (textarea)
+
+**Life Trust Beneficiary (556 lines, 14 fields):**
+1. Creation date (month/year)
+2. Benefit type (income/capital/both/discretionary)
+3. Settlor (PersonSelector)
+4. Is settlor living? (radio)
+5. Life interest began on passing? (radio)
+6. When began (conditional text)
+7. Interest type (income/occupation/both)
+8. Share life interest? (radio)
+9. Life interest percentage (conditional)
+10. Remaindermen (PersonSelector)
+11. Complex circumstances? (checkbox)
+12. Capital interest percentage (conditional)
+13. Life tenant details (conditional)
+14. Trustees (multi-select)
+
+---
+
+## Step 4: Native Implementation Architecture
+
+### Design Decision: Accordion Pattern (Match Web)
+
+**Why Accordions Work Better Than Wizard:**
+- User can see all sections at once
+- Can jump back to any section easily
+- Doesn't feel like "20 steps to go"
+- Mobile-friendly (scroll vs paginate)
+- Partial completion visible
+
+**Structure:**
+- Single PropertyEntryScreen with expandable accordions
+- Only ONE accordion open at a time (controlled)
+- Next buttons within accordions advance to next section
+- Conditional accordions only rendered if needed
+
+### Screen 1: PropertyIntroScreen
+
+**File:** `app/bequeathal/property/intro.tsx`
+
+**Content (from web prototype):**
+- Header: "Property" with Home icon
+- Video: dismissible
+- Content: "Your Property Portfolio"
+  - "We'll gather basic details on each property enabling net position and estate value calculations."
+  - "Tax Reliefs May Be Available"
+  - "There may be up to £175,000 available (and £350,000 if owned with a partner) if your property passes wholly or in part to one or more direct descendants..."
+  - "Learn more about property in wills" link
+- "Start Adding Property" button
+- "Skip for now" button
+- Morphic background
+
+**Effort:** 1-2 hours
+
+### Screen 2: PropertyEntryScreen (Main Implementation)
+
+**File:** `app/bequeathal/property/entry.tsx`
+
+**Implementation:** ScrollView with Accordion sections
+
+#### Accordion 1: Address (Always Shown)
+
+**Fields (5 manual OR 1 search):**
+
+**Option A: Address Search** (if we build AddressSearchField)
+- Google Places API autocomplete
+- Auto-fills address fields
+
+**Option B: Manual Entry (MVP):**
+1. Address Line 1 * (Input)
+2. Address Line 2 (Input, optional)
+3. Town/City * (Input)
+4. County/State (Input, optional)
+5. Country * (Select: UK, US, Canada, Australia, Ireland, France, Germany, Spain, Italy, Netherlands)
+
+**Validation:** address1, townCity, country REQUIRED
+
+**Next Button:** Opens Usage & Type accordion
+
+#### Accordion 2: Usage & Type (Always Shown)
+
+**Fields (2):**
+
+1. **Usage** * (Select - 3 options)
+   - Residential
+   - Let Residential
+   - Commercial
+
+2. **Property Type** * (Select, conditional options)
+   - **If Residential:**
+     - Primary Residence
+     - Second Home
+     - Holiday Home
+   
+   - **If Let Residential:**
+     - Buy To Let
+     - Furnished Holiday Let
+     - Short-term Let/Airbnb
+   
+   - **If Commercial:**
+     - Mixed-Use Property
+     - Agricultural Property
+     - Furnished Holiday Let (Commercial)
+
+**Validation:** Both REQUIRED
+
+**Next Button Logic:**
+```typescript
+if (propertyType === 'furnished_holiday_let') → Open FHL accordion
+else if (propertyType === 'agricultural_property') → Open Agricultural accordion
+else if (propertyType === 'mixed_use_property') → Open Mixed-Use accordion
+else if (propertyType === 'buy_to_let') → Open Buy-to-Let accordion
+else if (propertyType === 'second_home' || 'holiday_home') → Open Residential/Holiday accordion
+else → Open Property Details accordion
+```
+
+#### Accordion 3a: FHL Details (Conditional)
+
+**Shown if:** `propertyType.includes('furnished_holiday_let')`
+
+**Fields (4):**
+
+1. **Available 210+ days/year?** * (Checkbox, default: checked)
+2. **Actually let 105+ days/year?** * (Checkbox, default: checked)
+3. **Long lets under 155 days/year?** * (Checkbox, default: checked)
+4. **Estimated Annual Income** * (CurrencyInput)
+
+**Visual Indicator:**
+- All checked: Info box (green/neutral)
+- Any unchecked: Warning box (amber) "Property does not qualify as FHL. Will be treated as standard let property."
+
+**Validation:** All 4 REQUIRED
+
+**Next Button:** Opens Property Details accordion
+
+#### Accordion 3b: Agricultural Details (Conditional)
+
+**Shown if:** `propertyType === 'agricultural_property'`
+
+**Fields (7):**
+
+1. **Actively farmed?** (Switch, default: checked)
+   - If unchecked: Warning "Does not qualify for APR"
+
+2. **Who farms it?** * (Select, conditional)
+   - Shown if actively farmed
+   - Options: Owner, Tenant, Contract Farmer
+   - Helper: "Owner-occupied = 100% APR, tenanted = 50% APR"
+
+3. **Pre-1995 tenancy?** (Checkbox, conditional)
+   - Shown if whoFarms === 'tenant'
+   - Warning if checked: "Typically 50% relief not 100%"
+
+4. **Includes buildings?** (Switch)
+   - Helper: "APR covers farmhouses, barns if in agricultural use"
+
+5. **Total acreage** * (Input decimal)
+   - Suffix: "acres"
+   - REQUIRED
+
+6. **Farming type?** * (Select)
+   - Options: Arable, Livestock, Mixed, Horticulture, Forestry, Other
+   - REQUIRED
+
+7. **Specify type** * (Input, conditional)
+   - Shown if farming type === 'other'
+
+**Validation:**
+- Acreage and farming type always REQUIRED
+- Who farms REQUIRED if actively farmed
+- Other specification REQUIRED if selected
+
+**Next Button:** Opens Property Details accordion
+
+#### Accordion 3c: Mixed-Use Details (Conditional)
+
+**Shown if:** `propertyType === 'mixed_use_property'`
+
+**Fields (3):**
+
+1. **Commercial percentage?** * (PercentageInput, 0-100)
+   - Auto-shows residential %: "Residential portion: X%"
+   - Helper: "Split determines tax treatment - partial RNRB possible on residential portion"
+
+2. **Separate entrances?** (Checkbox)
+   - Helper: "Properties with separate access can be valued separately for tax"
+
+3. **Residential ever your main home?** (Checkbox)
+   - Helper: "Important for PPR relief and CGT"
+
+**Validation:** Commercial % REQUIRED
+
+**Next Button:** Opens Property Details accordion
+
+#### Accordion 3d: Buy-to-Let Details (Conditional)
+
+**Shown if:** `propertyType === 'buy_to_let'`
+
+**Fields (4):**
+
+1. **Annual rental income?** * (CurrencyInput)
+   - Helper: "Total rental income per year - needed for estate valuation"
+
+2. **Tenancy type?** * (Select)
+   - Options: AST, Company Let, Unknown, Other
+   - Helper: "Affects vacant possession value calculations"
+
+3. **Specify tenancy** * (Input, conditional on "Other")
+
+4. **Expected tenanted at death** (Checkbox)
+   - Helper: "Tenanted properties get 10-20% valuation discount for probate"
+
+**Info:** "Tenanted properties worth less than vacant possession for probate/IHT"
+
+**Validation:** Income and tenancy type REQUIRED
+
+**Next Button:** Opens Property Details accordion
+
+#### Accordion 3e: Residential/Holiday Details (Conditional)
+
+**Shown if:** `propertyType === 'second_home' || 'holiday_home'`
+
+**Fields (2):**
+
+1. **Sometimes rented out?** (Checkbox)
+
+2. **Weeks per year?** * (Input 0-52, conditional on sometimes rented)
+   - Helper: "Determines if potentially qualifies as FHL (tax advantages)"
+
+**Validation:** If sometimes rented: weeks REQUIRED
+
+**Next Button:** Opens Property Details accordion
+
+#### Accordion 4: Property Details (Always Shown)
+
+**Fields (7):**
+
+1. **Ownership** * (SelectField)
+   - Options: Personally owned, Jointly owned, Owned Through Company, Owned through Trust
+   - Sets jointlyOwned, companyOwned, trustOwned flags
+
+2. **Estimated Value** * (CurrencyInput)
+
+3. **Acquisition Date** * (2 Selects: Month + Year)
+   - Last 100 years
+
+4. **Mortgage Provider** * (SelectField)
+   - 27 UK mortgage providers
+   - Default: "No mortgage"
+
+5. **Mortgage Amount** (CurrencyInput, conditional)
+   - Shown if provider !== 'no_mortgage'
+   - Sets hasMortgage flag
+
+6. **Mortgage Responsibility** (SelectField, conditional)
+   - **If jointly owned:** "Solely responsible" / "Jointly responsible"
+   - **If company owned:** "Myself" / "The company" / "Company with guarantee" / "Other"
+   - Shown if hasMortgage && (jointlyOwned OR companyOwned)
+
+**Validation:** Ownership, value, acquisition, mortgage provider REQUIRED
+
+**Next Button Logic:**
+- If trustOwned: Completes → Goes to PropertyTrustDetailsScreen
+- If companyOwned: Opens Company Ownership accordion
+- Otherwise: Closes accordions → Shows "Leaving To" section
+
+#### Accordion 5: Company Ownership (Conditional)
+
+**Shown if:** `companyOwned === true`
+
+**Fields (6 via CompanySelector + CompanyShareDetailsFields):**
+
+1. **Company Name** * (CompanySelector)
+   - Links to Private Company Shares
+   - Can select existing or create new
+
+2. **Country of Registration** * (Select)
+   - Default: "UK"
+
+3. **% Share Holding** * (PercentageInput)
+   - Default: 100%
+
+4. **Share Class** (Input)
+   - Optional
+
+5. **Notes** (Textarea)
+   - Optional
+
+6. **Articles allow transfer?** (Checkbox)
+
+**Info:** "Your shares in the company—not the property itself—form part of your estate"
+
+**Validation:** Company name, country, % REQUIRED
+
+**Next Button:** Closes accordion → Shows "Leaving To" section
+
+### Joint Ownership Section (Outside Accordions)
+
+**Shown if:** `jointlyOwned === true`
+
+**Fields (varies by type):**
+
+**Joint Ownership Type:**
+- Owned as Joint Tenants
+- Owned as Tenants in Common
+- Not sure
+
+**If Joint Tenants:**
+- Joint Tenant Selector (from family or add new)
+- List of tenants with edit/remove
+- Warning: "Automatically goes to surviving owners. Only if you're last survivor can you leave in will."
+
+**If Tenants in Common:**
+- "Jointly owned with how many?" (NumericStepper 2-10)
+- "Percentage ownership" (PercentageInput)
+- Complicated mode toggle for complex scenarios
+
+**If Not Sure:**
+- Help video placeholder
+- "Please help me find out" checkbox
+
+### "Leaving To" Section (Outside Accordions)
+
+**Shown if:** NOT trustOwned
+
+**Component:** PropertyBeneficiaryForm
+
+**Heading:**
+- Joint Tenants: "As last survivor:"
+- Tenants in Common: "Who will receive your X%?"
+- Other: "Leaving To:"
+
+**Uses:** BeneficiaryWithPercentages pattern (with percentages)
+
+---
+
+## Step 4: PropertyTrustDetailsScreen (Separate Screen)
+
+### Screen Flow
+
+**Triggered:** When ownershipType === 'trust' in PropertyEntryScreen
+
+**Navigation:** PropertyEntryScreen → PropertyTrustDetailsScreen → PropertySummaryScreen
+
+### Base Fields (3)
+
+1. **Trust Name** * (Input)
+2. **Trust Type** * (Select)
+   - Life Trust
+   - Bare Trust
+   - Discretionary Trust
+3. **Your Role** * (Select, conditional on type)
+   - Life Trust: Beneficiary OR Settlor (not both)
+   - Bare/Discretionary: Beneficiary OR Settlor OR Settlor & Beneficiary
+
+### Trust Fieldsets (Conditional on Type + Role)
+
+**Matrix: 3 types × 3 roles = 9 combinations**
+
+#### Life Trust × Settlor (10 fields)
+1-2. Creation date
+3. Property value transferred
+4. Chained trust structure?
+5. Reserved benefit? (none/income/occupy/both)
+6-7. Paying rent? Amount? (conditional on reserved benefit)
+8. Trustees
+9. Life Interest Beneficiaries (with interest type)
+10. Remaindermen (with %)
+11. Events ending life interest
+
+#### Life Trust × Beneficiary (14 fields)
+1-2. Creation date
+3. Benefit type
+4. Settlor (who created)
+5. Settlor living?
+6-7. When interest began (conditional)
+8. Interest type
+9-10. Share interest? Percentage? (conditional)
+11. Remaindermen
+12. Complex circumstances?
+13-14. Capital interest details (conditional)
+Plus trustees
+
+#### Bare Trust × Settlor (4 fields)
+1-2. Creation date
+3. Property value transferred
+4. Beneficiaries
+
+#### Bare Trust × Beneficiary (2 fields)
+1. Co-beneficiaries
+2. Trustees
+
+#### Discretionary Trust × Settlor (3 fields)
+1-2. Transfer date
+3. Property value transferred
+
+#### Discretionary Trust × Beneficiary (1 field)
+1. Complicated? (checkbox for complex structures)
+
+#### Combined Roles (3 fieldsets - simpler)
+- Life Trust Settlor+Beneficiary: 28 lines
+- Bare Trust Settlor+Beneficiary: 165 lines
+- Discretionary Settlor+Beneficiary: 30 lines
+
+---
+
+## Step 5: Proposed Native Implementation
+
+### MVP Approach (Phase 14a)
+
+**Build CORE property without trust details:**
+
+**Included:**
+- ✅ PropertyIntroScreen
+- ✅ PropertyEntryScreen with 8 accordions:
+  1. Address (manual entry)
+  2. Usage & Type
+  3-7. Conditional usage (FHL, Agricultural, Mixed-Use, Buy-to-Let, skip Residential/Holiday)
+  8. Property Details (ownership, value, mortgage)
+  9. Company Ownership (if company)
+- ✅ Joint Ownership section (outside accordions)
+- ✅ Beneficiaries section (reuse BeneficiaryWithPercentages)
+- ✅ PropertySummaryScreen (list view)
+
+**Deferred:**
+- ⏸️ Residential/Holiday "sometimes rented" (2 fields) - not critical
+- ⏸️ Acquisition date (2 fields) - can add later
+- ⏸️ PropertyTrustDetailsScreen - complex, defer to Phase 14b
+
+**Trust Ownership Handling (MVP):**
+- Allow selecting "Owned through Trust" 
+- Collect: Trust name (input)
+- Show: "Trust details will be collected in Trust Management section"
+- Don't block property entry on trust complexity
+
+**Estimated:** 22 hours (3 days)
+
+### Full Implementation (Phase 14b)
+
+**Add Trust Details:**
+- ✅ PropertyTrustDetailsScreen
+- ✅ 3 most common fieldsets:
+  - Life Trust Settlor (10 fields) - most common
+  - Life Trust Beneficiary (14 fields) - second most common
+  - Bare Trust Settlor (4 fields) - simple, quick to build
+- ⏸️ Defer 6 other fieldsets to later
+
+**Estimated:** +8 hours (1 day)
+
+**Total Complete:** 30 hours (4 days)
+
+---
+
+## Step 6: Critical Gotchas & Differences
+
+### Gotcha 1: Accordion State Management
+
+**Challenge:** React Native doesn't have Accordion component like web
+
+**Solution:** Build custom Accordion with react-native-paper
+```typescript
+<Accordion
+  expanded={expandedSection === 'address'}
+  onToggle={() => setExpandedSection('address')}
+>
+  {/* Content */}
+</Accordion>
+```
+
+**Or:** Use react-native-collapsible library
+
+**Or:** Manual implementation with Animated API
+
+### Gotcha 2: Address Search API
+
+**Web uses:** Google Places API (requires API key + network)
+
+**Native MVP:** Manual entry (no API dependency)
+
+**Future:** Can add address search as enhancement
+
+### Gotcha 3: Joint Tenants Can't Bequeath
+
+**MUST implement warning clearly:**
+- Big orange card
+- Clear language
+- Disable percentage input for joint tenants
+
+### Gotcha 4: FHL Real-Time Qualification Status
+
+**Web has:** Color-changing warning box
+
+**Native:** Same pattern with View backgroundColor conditional on checkboxes
+
+### Gotcha 5: Company Ownership Links to Private Shares
+
+**Challenge:** CompanySelector pulls from Private Company Shares
+
+**Dependency:** Phase 11 must be complete
+
+**If Phase 11 not done:** Allow manual company name entry only
+
+### Gotcha 6: Trust Screen Complexity
+
+**528-556 lines per complex fieldset**
+
+**Options:**
+1. Build all 9 fieldsets (12+ hours)
+2. Build top 3 (Life Settlor, Life Beneficiary, Bare Settlor) = 6 hours
+3. Defer ALL trust details, just collect trust name = 0 hours
+
+**Recommendation:** Option 2 or 3 for MVP
+
+### Gotcha 7: Mortgage Provider Default
+
+**Web has:** "No mortgage" as default option in provider dropdown
+
+**Native:** Use hasMortgage toggle (yes/no), then show provider if yes
+
+**Cleaner UX** than having "No mortgage" in provider list
+
+---
+
+## Step 7: Success Criteria & Testing
+
+### Required Tests
+
+**Test 1: FHL Qualification**
+- Create FHL property
+- All 3 criteria checked → See positive indicator
+- Uncheck one → See warning
+- Verify annual income required
+
+**Test 2: Agricultural APR**
+- Create agricultural property
+- Actively farmed by owner → Note 100% APR potential
+- Farmed by tenant (pre-1995) → Note 50% APR
+
+**Test 3: Joint Tenants Warning**
+- Select joint tenants ownership
+- See warning about automatic survivorship
+- Verify can't bequeath via will
+
+**Test 4: Tenants in Common**
+- Select tenants in common
+- Enter ownership %
+- Add beneficiaries for your share
+- Verify % allocation works
+
+**Test 5: Company Ownership**
+- Select company owned
+- Link to Private Company Share
+- Verify auto-population of %
+- Info about shares vs property
+
+**Test 6: Buy-to-Let**
+- Create buy-to-let
+- Enter rental income
+- Check tenanted at death
+- Verify 10-20% discount noted
+
+**Test 7: Mixed-Use**
+- Create mixed-use
+- Enter commercial %
+- See residential % auto-calculate
+- Verify RNRB split noted
+
+**Test 8: Trust Ownership (MVP)**
+- Select owned through trust
+- Enter trust name
+- See message about trust details
+- Verify saves without blocking
+
+**Test 9: Multiple Properties**
+- Add 3 properties (different types)
+- Verify all save
+- Verify summary list shows all
+- Verify totals correct
+
+**Test 10: Edit Property**
+- Edit existing property
+- Change usage type
+- Verify conditional accordions update
+- Changes save correctly
+
+---
+
+## Step 8: Implementation Plan
+
+### Phase 14a: Core Property (MVP - 22 hours)
+
+**Task 14a.1:** PropertyIntroScreen (1 hour)
+- Content from web prototype
+- Video (dismissible)
+- Morphic background
+- Buttons
+
+**Task 14a.2:** Update PropertyAsset Type (1 hour)
+- Add fields from web prototype (keep only used fields)
+- Remove funding/GROB fields (legacy)
+- Add usage-specific fields
+- Add company/trust basic fields
+
+**Task 14a.3:** PropertyEntryScreen Shell (2 hours)
+- Screen structure
+- Accordion component (custom or library)
+- State management
+- Navigation between accordions
+
+**Task 14a.4:** Address Accordion (2 hours)
+- Manual address entry (5 fields)
+- Validation
+- Next button
+
+**Task 14a.5:** Usage & Type Accordion (2 hours)
+- Usage select
+- Conditional property type options
+- Next button with conditional logic
+
+**Task 14a.6:** FHL Accordion (2 hours)
+- 4 fields
+- Real-time qualification warning
+- Visual indicators
+
+**Task 14a.7:** Agricultural Accordion (3 hours)
+- 7 fields with conditionals
+- APR qualification logic
+- Warning indicators
+
+**Task 14a.8:** Buy-to-Let Accordion (2 hours)
+- 4 fields
+- Tenancy type conditional
+
+**Task 14a.9:** Mixed-Use Accordion (1 hour)
+- 3 fields
+- Auto-calculate residential %
+
+**Task 14a.10:** Property Details Accordion (3 hours)
+- 7 fields
+- Mortgage conditionals
+- Ownership type selection
+
+**Task 14a.11:** Company Ownership Accordion (2 hours)
+- 6 fields
+- Link to Private Company Shares (if available)
+- Articles checkbox
+
+**Task 14a.12:** Joint Ownership Section (2 hours)
+- Joint tenant selector
+- Tenants in common logic
+- NumericStepper, PercentageInput
+
+**Task 14a.13:** Beneficiaries Section (1 hour)
+- Reuse BeneficiaryWithPercentages
+- Conditional heading based on ownership
+
+**Task 14a.14:** Trust Name Input (MVP) (30 min)
+- If trustOwned: Just collect trust name
+- Show message about Trust Management
+
+**Task 14a.15:** PropertySummaryScreen (2 hours)
+- List of properties
+- Edit/Delete
+- Total calculations
+- Net value display
+
+**Task 14a.16:** Testing & Polish (4 hours)
+- Run all 10 test scenarios
+- Fix bugs
+- Visual polish
+
+**Total Phase 14a:** 31 hours (~4 days)
+
+### Phase 14b: Trust Details (Optional - 8 hours)
+
+**Task 14b.1:** PropertyTrustDetailsScreen Shell (1 hour)
+**Task 14b.2:** Life Trust Settlor Fieldset (2.5 hours)
+**Task 14b.3:** Life Trust Beneficiary Fieldset (3 hours)
+**Task 14b.4:** Bare Trust Settlor Fieldset (1.5 hours)
+
+**Total Phase 14b:** 8 hours (1 day)
+
+**Complete Property:** 39 hours (5 days)
+
+---
+
+## Recommended Approach
+
+**Ship Phase 14a first (MVP):**
+- All usage types covered (FHL, Agricultural, Buy-to-Let, Mixed-Use)
+- Company ownership supported
+- Joint ownership supported
+- Trust ownership: Name collected, full details deferred
+
+**Benefits:**
+- 4 days vs 5 days
+- 80% of users don't have trust-owned property
+- Trust details can be separate "Trust Management" feature
+- MVP ships faster
+
+**Then Phase 14b:**
+- Build when user testing shows trust details needed in property flow
+- Or build as part of "Trust Management" module
+
+---
+
+**Status:** READY FOR APPROVAL
+
+**Next Steps:**
+1. Review this plan
+2. Approve MVP approach (14a) or full approach (14a+14b)
+3. Begin implementation
 
 
