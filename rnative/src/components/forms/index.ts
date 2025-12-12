@@ -22,3 +22,6 @@ export type { GroupManagementDrawerProps } from './GroupManagementDrawer';
 
 export { BeneficiaryWithPercentages } from './BeneficiaryWithPercentages';
 export type { BeneficiaryWithPercentagesProps } from './BeneficiaryWithPercentages';
+
+export { PersonSelector } from './PersonSelector';
+export type { PersonSelectorProps } from './PersonSelector';

@@ -501,22 +501,37 @@ export interface PensionAsset extends BaseAsset {
 /**
  * Life insurance asset - life insurance policies
  */
+/**
+ * Life Insurance Premium Status
+ * Indicates whether policy is actively paying out if life assured dies
+ */
+export type PremiumStatus = 'active' | 'paid-up' | 'lapsed' | 'suspended';
+
+/**
+ * Life Insurance Policy Type
+ */
+export type PolicyType = 'term' | 'whole-life';
+
+/**
+ * Life Insurance Asset
+ * Simplified from web prototype - focuses on value and distribution
+ * 
+ * Design: Person IDs (not text names) for proper inheritance visualization
+ * Allocation mode at policy level (not per beneficiary) for simpler UX
+ */
 export interface LifeInsuranceAsset extends BaseAsset {
   type: 'life-insurance';
-  policyType: string;
-  provider: string;
-  policyNumber: string;
-  lifeAssured: string;
-  sumInsured: number;
-  monthlyPremium?: number;
-  beneficiaryKnown?: 'yes' | 'no' | 'partial';
-  premiumStatus?: 'active' | 'paid-up' | 'lapsed' | 'suspended';
-  beneficiaries?: Array<{
-    name: string;
-    allocationMode: 'percentage' | 'currency';
-    percentage?: number;
-    currencyAmount?: number;
-  }>;
+  provider: string;                     // Provider name
+  lifeAssured: string;                  // Person ID whose life is insured (or 'unknown')
+  sumInsured: number;                   // Payout amount
+  policyType: PolicyType;               // Term or Whole Life
+  heldInTrust: HeldInTrust;             // Affects estate calculation and IHT
+  premiumStatus: PremiumStatus;         // Active, Paid Up, Lapsed, Suspended
+  allocationMode: 'percentage' | 'amount';  // How beneficiaries split payout
+  beneficiaryAssignments?: BeneficiaryAssignments;  // Unified type (conditional on heldInTrust)
+  // Fields deferred to Executor Facilitation phase:
+  // - policyNumber: string (for executor access)
+  // - monthlyPremium: number (not needed for value visualization)
 }
 
 /**
