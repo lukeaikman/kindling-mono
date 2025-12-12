@@ -596,31 +596,60 @@ export interface AssetsHeldThroughBusinessAsset extends BaseAsset {
 }
 
 /**
- * Agricultural asset - farms, land, agricultural equipment
+ * Agricultural asset - personally-owned farms, land, agricultural equipment
+ * 
+ * ROUTING: Company-owned agricultural property is routed to AssetsHeldThroughBusinessAsset.
+ * This interface is ONLY for personal/partnership/trust ownership.
+ * 
+ * APR/BPR Qualification:
+ * - Agricultural Property Relief (APR): Land, buildings, farmhouse (if personally owned)
+ * - Business Property Relief (BPR): Equipment, livery stud farms
+ * - Conditional fields determine relief eligibility (100% IHT relief potential)
+ * 
+ * @property aprOwnershipStructure - How property is owned (personal/partnership/trust only - company routes away)
+ * @property aprOwnershipDuration - How long owned (APR requires 2+ years)
+ * @property aprTrustType - Trust type if held in trust
+ * @property farmWorkerOccupied - Farm worker cottage occupancy (determines APR eligibility)
+ * @property woodlandPurpose - Agricultural shelter vs commercial (determines APR vs no relief)
+ * @property studFarmActivity - Breeding vs livery (determines APR vs BPR)
  */
 export interface AgriculturalAsset extends BaseAsset {
   type: 'agricultural-assets';
-  assetType: 'agricultural-land' | 'farm-buildings' | 'farmhouse' | 'farm-worker-cottage' | 'woodland' | 'stud-farm' | 'standing-crops' | 'fish-farming' | 'agricultural-equipment' | 'other';
+  assetType: 'agricultural-land' | 'farm-buildings' | 'farmhouse' | 'farm-worker-cottage' | 
+             'woodland' | 'stud-farm' | 'standing-crops' | 'fish-farming' | 'agricultural-equipment' | 'other';
   assetDescription?: string;
-  location?: string;
-  ownershipStructure?: 'individual' | 'partnership' | 'limited-company' | 'trust' | 'other';
-  customOwnershipStructure?: string;
-  sizeQuantity?: string;
-  yearsOwned?: number;
-  activeAgriculturalUse?: 'yes' | 'no' | 'partial';
-  hasDebtsEncumbrances?: 'yes' | 'no';
-  debtAmount?: number;
-  debtDescription?: string;
+  
+  // Ownership (routing decision - company option routes to Phase 12)
+  aprOwnershipStructure?: 'personal' | 'partnership' | 'trust' | 'not-sure';
+  
+  // Asset-type conditional fields
   farmWorkerOccupied?: 'yes' | 'no' | 'not-sure';
   woodlandPurpose?: 'shelter' | 'commercial' | 'not-sure';
   studFarmActivity?: 'breeding' | 'livery' | 'not-sure';
   otherAssetTypeDetail?: string;
+  
+  // Debts
+  hasDebtsEncumbrances?: 'yes' | 'no';
+  debtAmount?: number;
+  debtDescription?: string;
+  
+  // APR qualification (Agricultural Property Relief)
   aprOwnershipDuration?: 'year-1' | 'year-2' | 'year-3' | 'year-4' | 'year-5' | 'year-6' | 'gt-7' | 'not-sure';
-  aprOwnershipStructure?: 'personal' | 'partnership' | 'company' | 'trust' | 'not-sure';
   aprTrustType?: string;
+  
+  // BPR qualification (Business Property Relief)
   bprActiveTrading?: 'yes' | 'no' | 'not-sure';
   bprOwnershipDuration?: 'lt-2' | 'gte-2' | 'not-sure';
+  
+  // Additional context
   notes?: string;
+  
+  // REMOVED: location (dead code, never used)
+  // REMOVED: sizeQuantity (dead code, never used)
+  // REMOVED: yearsOwned (superseded by aprOwnershipDuration)
+  // REMOVED: activeAgriculturalUse (dead code, never used)
+  // REMOVED: ownershipStructure (redundant with aprOwnershipStructure)
+  // REMOVED: customOwnershipStructure (removed 'other' option)
 }
 
 /**
