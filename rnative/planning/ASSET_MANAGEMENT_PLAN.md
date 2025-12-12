@@ -3935,23 +3935,120 @@ const excludedCount = existingShares.filter(s => s.excludeFromNetWorth).length;
 
 **Next Phase:** Phase 12: Assets Held Through Business (COMPLEX - requires Business data structure)
 
-### Phase 12: Assets Held Through Business (COMPLEX)
-**Screens:**
-- `app/bequeathal/assets-held-through-business/intro.tsx`
-- `app/bequeathal/assets-held-through-business/entry.tsx`
+## Phase 12: Assets Held Through Business Implementation (MODERATE - 3-4 hours)
 
-**Form fields:**
-- Business selector (from Business[])
-- Asset type (dropdown)
-- Asset description (text)
-- Business ownership % (percentage)
-- Number of units (optional)
-- Estimated value (currency)
-- Exclude from valuation (checkbox)
+**Reference:** Web prototype `AssetsHeldThroughBusinessIntroScreen.tsx` and `AssetsHeldThroughBusinessEntryScreen.tsx`
 
-**Dependencies:** Requires Business data structure and management
+**CRITICAL:** This phase links business-owned assets to your companies. Since you can't directly bequeath business assets in a personal will (they belong to the business entity), this is informational for executors only.
 
-**Estimated effort:** 3-4 days
+### DESIGN PHILOSOPHY: Ultra-Clean Relational Model
+
+**Data Normalization Principle:**
+- Store ONLY what's unique to the asset
+- Lookup business details from Business record (single source of truth)
+- No duplication of business name, type, or ownership %
+- Proper foreign key relationship (businessId)
+
+**User Experience:**
+- Reuse Private Company Shares (Phase 11) as business source
+- Don't ask for business details twice
+- Multi-business support (add assets to different businesses)
+
+**Removed Complexity from Web Prototype:**
+- ❌ No `businessType` field (removed from all interfaces - will add later if needed)
+- ❌ No `numberOfUnits` field (dead code, never used)
+- ❌ No `excludeFromBusinessValuation` field (unrealistic - no one lists goodwill in a will app)
+- ❌ No duplicate business name/ownership storage
+
+**Result:** 3-field asset model (down from 8!) - **62% reduction**
+
+---
+
+### Task 12.1: Clean Up Business Interface
+
+**File:** `native-app/src/types/index.ts`
+
+**CURRENT (Lines ~666-677):**
+```typescript
+export interface Business {
+  id: string;
+  name: string;
+  businessType: string;           // ← REMOVE
+  registrationNumber?: string;    // ← REMOVE (defer)
+  ownershipPercentage: number;
+  estimatedValue: number;
+  description?: string;
+  address?: AddressData;          // ← REMOVE (defer)
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+**UPDATED (Simplified - 7 fields):**
+```typescript
+export interface Business {
+  id: string;
+  name: string;
+  ownershipPercentage: number;    // From Private Company Shares
+  estimatedValue: number;          // Calculated from assets
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  
+  // REMOVED: businessType (not needed - ownership via shares/GIAs)
+  // REMOVED: registrationNumber (defer to Executor Facilitation)
+  // REMOVED: address (defer to Executor Facilitation)
+}
+```
+
+**Note:** Business records are auto-created from Private Company Shares, so most users won't manually create businesses.
+
+---
+
+### Task 12.2: Clean Up AssetsHeldThroughBusinessAsset Interface
+
+**File:** `native-app/src/types/index.ts`
+
+**CURRENT (Lines ~573-583):**
+```typescript
+export interface AssetsHeldThroughBusinessAsset extends BaseAsset {
+  type: 'assets-held-through-business';
+  businessId: string;
+  businessName: string;              // ← DUPLICATION (lookup from Business)
+  businessType?: string;             // ← DUPLICATION (lookup from Business)
+  assetType: string;
+  assetDescription?: string;
+  businessOwnershipPercentage?: number;  // ← DUPLICATION (lookup from Business)
+  numberOfUnits?: number;            // ← DEAD CODE (never used)
+  excludeFromBusinessValuation?: boolean;  // ← UNREALISTIC (goodwill example)
+}
+```
+
+**UPDATED (Ultra-Clean - 3 fields):**
+```typescript
+export interface AssetsHeldThroughBusinessAsset extends BaseAsset {
+  // BaseAsset includes: id, type, title, description, estimatedValue, netValue, createdAt, updatedAt
+  
+  type: 'assets-held-through-business';
+  businessId: string;  // Foreign key to Business record
+  assetType: 'property' | 'equipment' | 'vehicles' | 'bank-accounts' | 
+             'investments' | 'inventory' | 'intellectual-property' | 'other';
+  assetDescription?: string;  // Brief description
+  
+  // All business details (name, ownership %) looked up via:
+  // const business = businessActions.getBusinessById(asset.businessId);
+  
+  // REMOVED: businessName (lookup via businessId)
+  // REMOVED: businessType (removed from Business interface too)
+  // REMOVED: businessOwnershipPercentage (lookup via businessId)
+  // REMOVED: numberOfUnits (dead code, never used anywhere)
+  // REMOVED: excludeFromBusinessValuation (unrealistic use case)
+}
+```
+
+**Result:** 3 fields (down from 8) - **62% reduction**
+
+See detailed plan: `native-app/planning/PHASE_12_DETAILED_PLAN.md`
 
 ### Phase 13: Agricultural Assets (VERY COMPLEX)
 **Screens:**

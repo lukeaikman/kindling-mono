@@ -572,17 +572,27 @@ export interface PrivateCompanySharesAsset extends BaseAsset {
 
 /**
  * Assets held through business - assets owned by businesses
+ * 
+ * Ultra-clean relational model: stores only asset-specific data.
+ * Business details (name, ownership %) looked up via businessId foreign key.
+ * 
+ * @property businessId - Foreign key to Business record (single source of truth)
+ * @property assetType - Type of asset (property, equipment, vehicles, etc.)
+ * @property assetDescription - Brief description of the asset
  */
 export interface AssetsHeldThroughBusinessAsset extends BaseAsset {
   type: 'assets-held-through-business';
-  businessId: string;
-  businessName: string;
-  businessType?: string;
-  assetType: string;
+  businessId: string;  // Foreign key to Business record
+  assetType: 'property' | 'equipment' | 'vehicles' | 'bank-accounts' | 
+             'investments' | 'inventory' | 'intellectual-property' | 'other';
   assetDescription?: string;
-  businessOwnershipPercentage?: number;
-  numberOfUnits?: number;
-  excludeFromBusinessValuation?: boolean;
+  
+  // All business details looked up via: businessActions.getBusinessById(businessId)
+  // REMOVED: businessName (duplication - lookup via businessId)
+  // REMOVED: businessType (removed from Business interface)
+  // REMOVED: businessOwnershipPercentage (duplication - lookup via businessId)
+  // REMOVED: numberOfUnits (dead code, never used)
+  // REMOVED: excludeFromBusinessValuation (unrealistic use case)
 }
 
 /**
@@ -666,14 +676,15 @@ export interface AssetSummary {
 export interface Business {
   id: string;
   name: string;
-  businessType: string;
-  registrationNumber?: string;
-  ownershipPercentage: number;
-  estimatedValue: number;
+  ownershipPercentage: number;    // From Private Company Shares
+  estimatedValue: number;          // Calculated from assets
   description?: string;
-  address?: AddressData;
   createdAt: Date;
   updatedAt: Date;
+  
+  // REMOVED: businessType (not needed - ownership via shares/GIAs)
+  // REMOVED: registrationNumber (defer to Executor Facilitation)
+  // REMOVED: address (defer to Executor Facilitation)
 }
 
 /**
