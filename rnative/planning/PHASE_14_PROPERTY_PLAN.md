@@ -18,7 +18,7 @@
 
 **Native Implementation:** Same 4 screens, accordion pattern on mobile
 
-**Fields:** 85 actually used (7 legacy funding fields excluded)
+**Fields:** 83 actually used (9 legacy fields excluded: 7 funding/GROB + primaryResidence + hasLivedThere)
 
 ---
 
@@ -80,6 +80,14 @@
 ---
 
 ## Accordion-by-Accordion Field Analysis
+
+**Accordion Numbering:**
+- Accordions 1-2: Always shown
+- Accordions 3-7: Conditionally shown (based on propertyType/usage)
+- Accordion 8: Always shown
+- Accordion 9: Conditionally shown (if company owned)
+
+**User sees 3-9 accordions** depending on their property type.
 
 ### Accordion 1: Address (Always Shown)
 
@@ -492,12 +500,8 @@ export interface PropertyAsset extends BaseAsset {
   ownershipType: 'personally_owned' | 'jointly_owned' | 'company_owned' | 'trust_owned';
   ownershipPercentage?: number;
   
-  // Residential
-  primaryResidence?: boolean;
-  hasLivedThere?: boolean;
-  
   // Mortgage
-  hasMortgage?: boolean;
+  hasMortgage?: boolean;  // DERIVED from mortgage amount, not input field
   mortgage?: {
     outstandingAmount: number;
     provider: string;
@@ -609,13 +613,20 @@ List view with edit/delete
 
 ## What We're NOT Building (And Why)
 
-### ❌ Funding/GROB Fields (7 fields)
+### ❌ Legacy Fields (9 total)
 
-**Why:** Legacy code - in state but NEVER RENDERED in UI
+**Funding/GROB Fields (7):**
 - fundingType, giftSize, giftMonth, giftYear
 - benefitReservedByDonor, payingMarketRent, monthlyRentPaid
+- **Confirmed:** In state (lines 59-65, 242-248, 356-362) but ZERO UI rendering
 
-**Confirmed:** Lines 59-65, 242-248, 356-362 initialize these fields, but ZERO rendering code exists
+**Residential Flags (2):**
+- primaryResidence (boolean)
+- hasLivedThere (boolean)
+- **Confirmed:** In state (lines 52-53, 235-236) but ZERO UI rendering
+- **Note:** propertyType CAN BE "primary_residence" (an option), but no separate boolean field
+
+**All 9 fields:** In PropertyData state, NEVER rendered in UI
 
 ### ❌ Residential "Sometimes Rented" (2 fields)
 
@@ -674,21 +685,116 @@ List view with edit/delete
 - 100% vs 50% APR = tax law
 - Get language right, cite sources
 
+### Gotcha 6: State Management When User Changes Selections
+
+**Problem:** User selects Residential → enters data → changes to Commercial
+- Do we clear residential data?
+- Do we preserve it?
+
+**Web prototype behavior (from code analysis):**
+
+**Usage change (line 706-710):**
+```typescript
+const handleUsageChange = (value: string) => {
+  setPropertyData(prev => ({ 
+    ...prev, 
+    usage: value,
+    propertyType: "" // ← Clears property type
+  }));
+};
+```
+**Clears:** propertyType only  
+**Preserves:** Everything else (FHL fields, Agricultural fields persist even if not shown)
+
+**Property Type change (line 713-715):**
+```typescript
+const handlePropertyTypeChange = (value: string) => {
+  setPropertyData(prev => ({ ...prev, propertyType: value }));
+};
+```
+**No clearing** - Conditional fields persist in state
+
+**Ownership change (line 717-725):**
+```typescript
+const handleOwnershipChange = (value: string) => {
+  setPropertyData(prev => ({
+    ...prev,
+    ownershipType: value,
+    jointlyOwned: value === "jointly_owned",
+    companyOwned: value === "company_owned",
+    trustOwned: value === "trust_owned"
+  }));
+};
+```
+**No clearing** - Company/trust fields persist even when switching away
+
+**RULE:** Web prototype NEVER clears conditional field data, just hides accordions
+
+**Native should:**
+- Match this behavior (don't clear data when hiding sections)
+- OR: Improve UX with confirmation dialog "Changing usage will clear FHL data. Continue?"
+
 ---
 
-## Recommendations
+## Titan Review & Recommendations
 
-**MVP (Phase 14a):**
+### 🚀 Elon's Take:
+
+**Cuts to recommend:**
+- ❌ Mixed-Use accordion (0.01% of users) - **But:** RNRB calculation needs this
+- ❌ Acquisition date (not needed for bequeathal) - **But:** 7-year rule for IHT needs this
+- ❌ Residential/Holiday accordion (already said skip) - **Agree:** Can skip
+
+**Accepts IHT fields:**
+- ✅ FHL 210/105/155 criteria - **"Tax law is tax law"**
+- ✅ Agricultural APR - **"Saves users £200k+"**
+
+**Rating:** 6/10 - "Necessary for IHT optimization but still feels heavy"
+
+### 💼 Gates's Concerns:
+
+**State management edge cases:**
+- What if user changes usage mid-entry?
+- Web preserves all fields (doesn't clear)
+- **Added:** Gotcha 6 documents this behavior
+
+**Suggests:**
+- Add confirmation dialogs when switching loses data
+- Document all state transitions
+- Test back navigation thoroughly
+
+**Rating:** 8.5/10 - "Good analysis. Edge cases now documented."
+
+### 🍎 Jobs's UX Notes:
+
+**Must haves:**
+- Real-time FHL qualification status
+- Joint tenants prominent warning
+- Accordion completion indicators
+
+**Cuts:**
+- Acquisition date → Optional not required
+- Mixed-Use → 99% of users won't use it
+
+**Rating:** 7/10 - "Focus on common cases. Polish what 95% use."
+
+---
+
+## Final Recommendations
+
+**MVP (Phase 14a) with Titan Adjustments:**
 - 4 days work
-- Covers 95% of properties
+- **INCLUDE:** FHL, Agricultural, Buy-to-Let (IHT-critical)
+- **SKIP:** Residential/Holiday accordion (2 fields)
+- **SKIP:** Mixed-Use accordion (3 fields) - **OR:** Mark as "Advanced" and hide by default
+- **MAKE OPTIONAL:** Acquisition date (web requires it, we can make optional)
 - Trust name collected (details deferred)
-- All IHT-critical fields included
+
+**Simplified:** 26 hours (3 days) instead of 31 hours
 
 **Then decide:**
-- Ship MVP, add trust details later if users need it
-- Or build Phase 14b (+ 1 day) before shipping
-
-**Personally recommend:** Ship MVP, see if users actually have complex trust-owned properties before building 2,167 lines of trust fieldsets
+- Ship MVP, add trust details + edge case accordions later if users need them
+- Focus on 95% use case first (residential properties, standard ownership)
 
 ---
 
