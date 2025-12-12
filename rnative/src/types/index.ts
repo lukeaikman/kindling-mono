@@ -433,23 +433,97 @@ export interface BaseAsset {
 }
 
 /**
+ * Property Usage Type
+ */
+export type PropertyUsage = 'residential' | 'let_residential' | 'commercial';
+
+/**
  * Property asset - real estate holdings
- * Simplified flat structure (no basicDetails duplication)
+ * 
+ * Complex asset type with conditional fields based on usage and ownership.
+ * Supports IHT calculations: RNRB, BPR (FHL), APR (Agricultural), GROB (Trusts).
+ * 
+ * Conditional fields only populated when relevant:
+ * - FHL fields: Only if propertyType includes 'furnished_holiday_let'
+ * - Agricultural fields: Only if propertyType = 'agricultural_property'
+ * - Mixed-use fields: Only if propertyType = 'mixed_use_property'
+ * - Buy-to-let fields: Only if propertyType = 'buy_to_let'
+ * - Company fields: Only if ownershipType = 'company_owned'
+ * - Trust fields: Only if ownershipType = 'trust_owned'
  */
 export interface PropertyAsset extends BaseAsset {
   type: 'property';
   address: AddressData;
-  propertyType: 'residential' | 'commercial' | 'land' | 'other';
-  ownershipType: 'sole' | 'joint-tenants' | 'tenants-in-common';
+  
+  // Usage & Type (REQUIRED)
+  usage: PropertyUsage;
+  propertyType: string; // Conditional options based on usage
+  
+  // Ownership (REQUIRED)
+  ownershipType: 'personally_owned' | 'jointly_owned' | 'company_owned' | 'trust_owned';
   ownershipPercentage?: number;
-  primaryResidence?: boolean;
-  hasLivedThere?: boolean;
+  
+  // Mortgage (derived from amount, not input)
   hasMortgage?: boolean;
   mortgage?: {
     outstandingAmount: number;
     provider: string;
+    jointlyHeldWith?: string;
   };
-  beneficiaryAssignments?: BeneficiaryAssignments;  // Unified type
+  
+  // Acquisition (OPTIONAL - executor context, not IHT-critical)
+  acquisitionMonth?: string;
+  acquisitionYear?: string;
+  
+  // FHL specific (conditional on propertyType)
+  fhlAvailableOver210Days?: boolean;
+  fhlActuallyLet105Days?: boolean;
+  fhlLongLetsUnder155Days?: boolean;
+  fhlEstimatedAnnualIncome?: number;
+  
+  // Agricultural specific (conditional on propertyType)
+  agriculturalActivelyFarmed?: boolean;
+  agriculturalWhoFarms?: 'owner' | 'tenant' | 'contract_farmer';
+  agriculturalPre1995Tenancy?: boolean;
+  agriculturalBuildingsIncluded?: boolean;
+  agriculturalTotalAcreage?: number;
+  agriculturalFarmingType?: 'arable' | 'livestock' | 'mixed' | 'horticulture' | 'forestry' | 'other';
+  agriculturalFarmingTypeOther?: string;
+  
+  // Mixed-Use specific (conditional on propertyType)
+  mixedUseCommercialPercentage?: number;
+  mixedUseSeparateEntrances?: boolean;
+  mixedUseResidentialWasMainHome?: boolean;
+  
+  // Buy-to-Let specific (conditional on propertyType)
+  buyToLetAnnualRentalIncome?: number;
+  buyToLetTenancyType?: 'ast' | 'company_let' | 'unknown' | 'other';
+  buyToLetTenancyTypeOther?: string;
+  buyToLetTenantedAtDeath?: boolean;
+  
+  // Company ownership (conditional on ownershipType)
+  companyName?: string;
+  companyOwnershipPercentage?: number;
+  companyCountryOfRegistration?: string;
+  companyShareClass?: string;
+  companyNotes?: string;
+  companyArticlesConfident?: boolean;
+  isCompanyDirector?: boolean;
+  
+  // Trust basic (conditional on ownershipType - MVP collects name only)
+  trustName?: string;
+  trustType?: 'life_trust' | 'bare_trust' | 'discretionary_trust';
+  trustRole?: 'beneficiary' | 'settlor' | 'settlor_and_beneficiary';
+  
+  // Trust detailed fields (Phase 14b) - will be added when trust screen built
+  // trustCreationMonth, trustCreationYear, trustPropertyValue, etc.
+  
+  // Joint ownership (conditional on ownershipType)
+  jointOwnershipType?: 'joint_tenants' | 'tenants_in_common' | 'not_sure';
+  jointTenants?: Array<{id: string, name: string, relationship?: string}>;
+  
+  // Beneficiaries (uses unified type)
+  beneficiaryAssignments?: BeneficiaryAssignments;
 }
 
 /**
