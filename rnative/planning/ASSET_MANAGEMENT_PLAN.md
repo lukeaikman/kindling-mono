@@ -2394,22 +2394,466 @@ Each asset type requires:
 
 **Estimated effort:** 2 days
 
-### Phase 10: Life Insurance (MODERATE)
-**Screens:**
-- `app/bequeathal/life-insurance/intro.tsx`
-- `app/bequeathal/life-insurance/entry.tsx`
+## Phase 10: Life Insurance (MODERATE - 3-4 hours)
 
-**Form fields:**
-- Provider (text)
-- Policy number (text)
-- Policy type (dropdown)
-- Life assured (person selector)
-- Sum insured (currency)
-- Monthly premium (currency, optional)
-- Premium status (active, paid-up, lapsed, suspended)
-- Beneficiaries (array with % or £ allocation)
+**Reference:** Web prototype `LifePoliciesIntroScreen.tsx` and `LifePoliciesEntryScreen.tsx`
 
-**Estimated effort:** 2-3 days
+**CRITICAL:** Life insurance policies can have complex beneficiary allocations (percentage OR amount splits). Uses BeneficiaryWithPercentages component built in Phase 9.5.
+
+### DESIGN PHILOSOPHY: Smart Simplification
+
+**Web Prototype Issues:**
+- Uses text-based beneficiary names (not Person IDs) → Can't track inheritance per person
+- Complex conditional logic (beneficiaryKnown field) → Redundant
+- Mixes percentage and amount modes per beneficiary → Confusing
+
+**Our Approach:**
+- ✅ Use Person IDs (links to Person records for visualization)
+- ✅ Support percentage mode (split by %) and amount mode (split by £)
+- ✅ One allocation mode per policy (simpler, clearer)
+- ✅ Add "Unknown" option to beneficiary selector (for unnamed beneficiaries)
+- ✅ Include Premium Status (affects payout validity)
+- ❌ Remove beneficiaryKnown field (redundant - if beneficiaries entered, they're known)
+- ❌ Defer Policy Number (Executor Facilitation phase)
+- ❌ Remove Monthly Premium (not needed for visualization)
+
+### Task 10.1: Update LifeInsuranceAsset Type
+
+**File:** `native-app/src/types/index.ts`
+
+**CURRENT (Web Prototype - 11 fields):**
+```typescript
+interface LifeInsuranceAsset extends BaseAsset {
+  type: 'life-insurance';
+  policyType: string;
+  provider: string;
+  policyNumber: string;           // ❌ Defer to Executor Facilitation
+  lifeAssured: string;
+  sumInsured: number;
+  monthlyPremium?: number;        // ❌ Not needed for visualization
+  beneficiaryKnown: 'yes' | 'no' | 'partial';  // ❌ Redundant
+  premiumStatus: 'active' | 'paid-up' | 'lapsed' | 'suspended';
+  beneficiaries: Array<{         // ❌ Text names, not Person IDs
+    name: string;
+    allocationMode: 'percentage' | 'currency';
+    percentage?: number;
+    currencyAmount?: number;
+  }>;
+}
+```
+
+**UPDATED (Native - 6 fields + unified beneficiaries):**
+```typescript
+interface LifeInsuranceAsset extends BaseAsset {
+  type: 'life-insurance';
+  provider: string;
+  lifeAssured: string;              // Person ID (whose life is insured)
+  sumInsured: number;               // Payout amount
+  policyType: 'term' | 'whole-life';
+  heldInTrust: 'yes' | 'no' | 'not-sure';
+  premiumStatus: 'active' | 'paid-up' | 'lapsed' | 'suspended';
+  allocationMode: 'percentage' | 'amount';  // Policy-level setting
+  beneficiaryAssignments?: BeneficiaryAssignments;  // Unified type with % or £
+  // Deferred to Executor Facilitation:
+  // - policyNumber, monthlyPremium
+}
+```
+
+**Key Changes:**
+- ✅ `lifeAssured` is Person ID (not text) → Can link to Person record
+- ✅ `allocationMode` at policy level (not per beneficiary) → Simpler UX
+- ✅ Uses unified `BeneficiaryAssignments` type → Consistent with other assets
+- ✅ Added `heldInTrust` field → Critical for estate calculation
+- ❌ Removed `beneficiaryKnown` → Redundant
+- ❌ Removed `policyNumber` → Deferred
+- ❌ Removed `monthlyPremium` → Not needed
+
+### Task 10.2: Life Insurance Intro Screen
+
+**File:** `native-app/app/bequeathal/life-insurance/intro.tsx`
+
+**Content (from web prototype):**
+- Header: "Life Insurance Policies 🛡️" with shield icon
+- Inline video player (16:9 aspect ratio)
+- InformationCard content:
+  - "Life insurance policies can be complex when it comes to your estate. The key factor is whether your policy is **held in trust** or not."
+  - "**Policies held in trust** typically sit outside your estate, meaning they won't be subject to inheritance tax and can be paid out more quickly to your chosen beneficiaries. **Policies not in trust** form part of your estate and may be subject to inheritance tax."
+  - "Our goal here is to capture the basics of your life insurance arrangements. This helps your executors understand what policies exist and provides a starting point for beneficiaries to claim payouts when needed."
+  - "We'll gather key details like policy providers, coverage amounts, and beneficiary information to create a comprehensive overview for your estate planning."
+- Primary button: "Let's Go" → `/bequeathal/life-insurance/entry`
+- Skip button: "Skip This Section" → next category
+
+**Effort:** 1-2 hours
+
+### Task 10.3: Life Insurance Entry Screen
+
+**File:** `native-app/app/bequeathal/life-insurance/entry.tsx`
+
+**Form Fields (7 TOTAL - SIMPLIFIED):**
+
+**1. Provider** (SearchableSelect)
+   - UK Life Insurance Providers (19 options):
+     - Legal & General, Aviva, AXA, Prudential, Scottish Widows, Zurich
+     - Royal London, Canada Life, Vitality, Liverpool Victoria (LV=)
+     - Phoenix Life, Guardian Financial Services, Aegon, MetLife
+     - Sun Life, Reliance Mutual, Shepherds Friendly, OneFamily, Other
+   - REQUIRED
+   - Searchable dropdown (19 items)
+
+**2. Life Assured** (PersonSelector - single mode)
+   - Whose life is insured?
+   - Person selector (yourself, spouse, children, etc.)
+   - Stores Person ID (not text name)
+   - REQUIRED
+   - Uses existing person management
+   - Add "Unknown Person" option (for policies on someone not in contacts)
+
+**3. Sum Insured** (CurrencyInput)
+   - Payout amount
+   - REQUIRED
+   - Currency input with £ symbol
+   - Round to £1 on save
+
+**4. Policy Type** (Select - 2 options)
+   - Options: Term Life Insurance / Whole Life Insurance
+   - REQUIRED
+   - Menu mode (only 2 options)
+
+**5. Held in Trust?** (RadioGroup - 3 options)
+   - Options: Yes - Held in Trust / No - Part of Estate / Not Sure
+   - REQUIRED
+   - Affects estate calculation and IHT
+   - Conditional trigger for beneficiaries
+
+**6. Premium Status** (Select - 4 options)
+   - Options: 
+     - Active - Paying Premiums
+     - Paid Up - No More Premiums
+     - Lapsed - Payments Stopped (may not pay out)
+     - Suspended - Temporarily Paused
+   - REQUIRED
+   - Affects whether policy actually pays out
+
+**7. Allocation Mode Toggle** (RadioGroup - 2 options)
+   - Options: Split by Percentage (%) / Split by Amount (£)
+   - Default: Percentage
+   - Policy-level setting (all beneficiaries use same mode)
+   - Shows when heldInTrust = Yes/Not Sure
+
+**8. Beneficiaries** (BeneficiaryWithPercentages - conditional)
+   - CONDITIONAL: Only show if heldInTrust = Yes/Not Sure
+   - If heldInTrust = No → Goes to estate (no beneficiary field)
+   - Uses allocationMode from field 7
+   - Percentage mode: Must total 100%
+   - Amount mode: Can be partial (e.g., £200k to spouse, rest to estate)
+   - Add "🔍 Unknown Person" option in drawer (for unnamed beneficiaries)
+   - REQUIRED if shown
+
+**Conditional Logic:**
+
+```typescript
+// Show allocation mode and beneficiaries ONLY if held in trust
+const showBeneficiaries = formData.heldInTrust === 'yes' || formData.heldInTrust === 'not-sure';
+
+{showBeneficiaries && (
+  <>
+    <RadioGroup
+      label="How to split the payout?"
+      value={formData.allocationMode}
+      onChange={...}
+      options={[
+        { label: 'Split by Percentage (%)', value: 'percentage' },
+        { label: 'Split by Amount (£)', value: 'amount' }
+      ]}
+    />
+    
+    <BeneficiaryWithPercentages
+      allocationMode={formData.allocationMode}
+      totalValue={formData.sumInsured}  // For amount mode context
+      value={formData.beneficiaries}
+      onChange={...}
+    />
+  </>
+)}
+```
+
+**UI Behavior:**
+- Form starts VISIBLE if no policies exist
+- Form HIDDEN after first add (shows "Add Another Policy" button)
+- Policies list shows: provider, life assured name, sum insured, held in trust status, premium status, beneficiaries
+- Collapsible list with eye icon
+- Policies Total under last card
+- Edit/Delete buttons
+- Continue button in ScrollView content
+
+**Display in List:**
+
+Held in Trust with Beneficiaries:
+```
+Legal & General - John Smith
+£500,000 | In Trust | Active
+For: Spouse 60% (£300k), Children 40% (£200k)
+```
+
+Not in Trust:
+```
+Aviva - Jane Doe
+£250,000 | Part of Estate | Paid Up
+```
+
+Lapsed (Warning):
+```
+Scottish Widows - Bob Smith
+£100,000 | Not Sure | ⚠️ Lapsed
+```
+
+**Validation:**
+- Provider REQUIRED
+- Life Assured REQUIRED
+- Sum Insured REQUIRED
+- Policy Type REQUIRED
+- Held in Trust REQUIRED
+- Premium Status REQUIRED
+- If held in trust = Yes/Not Sure: Allocation mode REQUIRED, Beneficiaries REQUIRED, allocation must be valid (100% or any £ amount)
+
+**State Management:**
+- Load policies via `bequeathalActions.getAssetsByType('life-insurance')`
+- Add policy via `bequeathalActions.addAsset('life-insurance', policyData)`
+- Life Assured stored as Person ID
+- Lookup name on display: `personActions.getPersonById(policy.lifeAssured)`
+- BeneficiaryAssignments use unified type with percentage OR amount fields
+
+**Title Generation:**
+- Format: `[Provider] - [Life Assured Name]`
+- Lookup life assured name from Person record
+
+**Special Considerations:**
+
+**Unknown Person Support:**
+In BeneficiaryWithPercentages drawer, add special option:
+```typescript
+// In drawer options list, after Estate and before people:
+{ id: 'unknown', type: 'person', label: '🔍 Unknown Person' }
+```
+
+When selected, store as:
+```typescript
+{ id: 'unknown', type: 'person', percentage: 50 }
+```
+
+Display as: "Unknown Person 50%"
+
+**Premium Status Impact:**
+- Lapsed policies: Show warning badge in list
+- Affects total value calculation (lapsed may not pay)
+- Visualization should flag lapsed policies
+
+**Held in Trust Impact:**
+- Yes: Outside estate, no IHT
+- No: Part of estate, subject to IHT
+- Not Sure: User needs to check policy docs
+
+**Navigation:**
+- Back → `/bequeathal/life-insurance/intro`
+- Continue → Next selected category or `/order-of-things`
+
+**Components Needed:**
+- SearchableSelect (existing - 19 providers)
+- PersonSelector (NEED TO BUILD - single mode, select person from list)
+- Select (existing - policy type 2 options, premium status 4 options)
+- RadioGroup (existing - held in trust 3 options, allocation mode 2 options)
+- CurrencyInput (existing)
+- BeneficiaryWithPercentages (existing ✅)
+- Button (existing)
+
+### NEW COMPONENT NEEDED: PersonSelector
+
+**File:** `src/components/forms/PersonSelector.tsx`
+
+**Purpose:** Select a single person from family members
+
+**Props:**
+```typescript
+interface PersonSelectorProps {
+  value: string;  // Person ID
+  onChange: (personId: string) => void;
+  personActions: PersonActions;
+  label?: string;
+  placeholder?: string;
+  allowUnknown?: boolean;  // Show "Unknown Person" option
+  excludePersonIds?: string[];
+}
+```
+
+**Implementation:**
+- Opens drawer (like BeneficiaryWithPercentages)
+- Lists all people with custom checkbox circles (radio behavior)
+- If allowUnknown: Add "🔍 Unknown Person" at top
+- Single select (tapping another person deselects previous)
+- "Select" button at bottom
+- Display selected person name in button/card
+
+**Effort:** 1 hour (reuse drawer pattern from BeneficiaryWithPercentages)
+
+### Task 10.4: Build PersonSelector Component
+
+**Before building Life Insurance screens**, we need this component.
+
+**Pattern:** Similar to BeneficiaryWithPercentages drawer, but:
+- Single select instead of multi
+- No percentage/amount inputs
+- Simpler validation
+
+**Reuse from BeneficiaryWithPercentages:**
+- Drawer structure
+- Custom checkbox circles
+- FlatList rendering
+- SafeAreaView/Modal setup
+
+**Effort:** 1 hour
+
+**Total Phase 10 Effort:**
+- Task 10.1: Update LifeInsuranceAsset type: 15 min
+- Task 10.2: Life Insurance Intro screen: 1-2 hours
+- Task 10.3: Build PersonSelector component: 1 hour
+- Task 10.4: Life Insurance Entry screen: 2-3 hours
+- **Total: 4-6 hours**
+
+### ⚠️ CRITICAL GOTCHAS - Phase 10
+
+**1. Conditional Beneficiary Logic (Complex):**
+
+**Held in Trust = No:**
+- DON'T show allocation mode
+- DON'T show beneficiaries
+- Policy goes to estate
+
+**Held in Trust = Yes/Not Sure:**
+- SHOW allocation mode
+- SHOW beneficiaries
+- REQUIRE both fields
+
+**CODE:**
+```typescript
+const showBeneficiaries = formData.heldInTrust === 'yes' || formData.heldInTrust === 'not-sure';
+
+// Clear beneficiaries when changing to 'no'
+onChange={(value) => {
+  setFormData(prev => ({
+    ...prev,
+    heldInTrust: value,
+    beneficiaries: value === 'no' ? [] : prev.beneficiaries,
+    allocationMode: value === 'no' ? 'percentage' : prev.allocationMode
+  }));
+}}
+```
+
+**2. Unknown Person Handling:**
+
+Must support policies on unnamed people:
+```typescript
+// When lifeAssured = 'unknown':
+const lifeAssuredDisplay = policy.lifeAssured === 'unknown' 
+  ? 'Unknown Person'
+  : personActions.getPersonById(policy.lifeAssured)?.name || 'Unknown';
+```
+
+**3. Validation Complexity:**
+
+```typescript
+const canSubmit = 
+  formData.provider.trim() &&
+  formData.lifeAssured &&
+  formData.sumInsured > 0 &&
+  formData.policyType &&
+  formData.heldInTrust &&
+  formData.premiumStatus &&
+  (formData.heldInTrust === 'no' || 
+   (formData.beneficiaries.length > 0 && 
+    (formData.allocationMode === 'percentage' 
+      ? validatePercentageAllocation({ beneficiaries: formData.beneficiaries })
+      : true)  // Amount mode can be partial
+   )
+  );
+```
+
+**4. Mixed Mode per Policy (NOT per Beneficiary):**
+
+**User can create multiple policies for complex splits:**
+- Policy 1: Percentage mode (Spouse 50%, Kids 50%)
+- Policy 2: Amount mode (Charity £50k, Estate gets rest)
+
+**Don't try to support mixed modes in same policy - too complex**
+
+**5. Unknown Beneficiaries:**
+
+Allow adding unnamed beneficiaries:
+```typescript
+// In beneficiary display:
+if (b.id === 'unknown') {
+  displayName = '🔍 Unknown Person';
+}
+```
+
+### 📋 EXPLICIT INSTRUCTIONS - Phase 10
+
+**Step 1: UPDATE LifeInsuranceAsset type**
+```typescript
+// In src/types/index.ts
+// Find: export interface LifeInsuranceAsset
+// REPLACE with simplified 7-field version
+// ADD: allocationMode, heldInTrust fields
+// CHANGE: beneficiaries to beneficiaryAssignments
+// REMOVE: policyNumber, monthlyPremium, beneficiaryKnown
+```
+
+**Step 2: BUILD PersonSelector component**
+```typescript
+// Create: src/components/forms/PersonSelector.tsx
+// Single-person selector with drawer
+// Support "Unknown Person" option
+// Reuse drawer pattern from BeneficiaryWithPercentages
+// Export from forms/index.ts
+```
+
+**Step 3: BUILD Life Insurance Intro screen**
+```typescript
+// app/bequeathal/life-insurance/intro.tsx
+// Video player + InformationCard
+// Content about held in trust vs part of estate
+// Let's Go and Skip buttons
+```
+
+**Step 4: BUILD Life Insurance Entry screen**
+```typescript
+// app/bequeathal/life-insurance/entry.tsx
+// 7 form fields as specified
+// Conditional beneficiaries (only if held in trust)
+// Form show/hide pattern
+// Edit/Delete functionality
+```
+
+**Step 5: ADD to sandbox for testing**
+```typescript
+// app/developer/sandbox.tsx
+// Test PersonSelector component
+// Test with Unknown Person option
+```
+
+**Step 6: NO DUPLICATION**
+```bash
+# Use existing components:
+# - SearchableSelect (provider)
+# - Select (policy type, premium status)
+# - RadioGroup (held in trust, allocation mode)
+# - CurrencyInput (sum insured)
+# - BeneficiaryWithPercentages (beneficiaries)
+# Don't rebuild anything that exists
+```
+
+---
+
+✅ **READY TO BUILD - Phase 10 Detailed Plan Complete**
 
 ### Phase 11: Private Company Shares (MODERATE)
 **Screens:**
