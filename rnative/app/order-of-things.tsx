@@ -96,7 +96,7 @@ const SectionOption: React.FC<SectionOptionProps> = ({
  * OrderOfThingsScreen component
  */
 export default function OrderOfThingsScreen() {
-  const { willActions, personActions } = useAppState();
+  const { willActions, personActions, estateRemainderActions } = useAppState();
   
   // Double tap functionality for dev dashboard (on header)
   const lastTapRef = useRef<number>(0);
@@ -119,7 +119,15 @@ export default function OrderOfThingsScreen() {
       const guardians = personActions.getPeopleByRole('guardian') || [];
       const hasGuardians = guardians.length > 0;
       
-      const hasEstateDivision = false; // Not implemented yet
+      // Check if estate remainder is complete (splits total 100%)
+      const estateState = estateRemainderActions.getEstateRemainderState();
+      const totalPercentage = Object.values(estateState.splits).reduce(
+        (sum, percentage) => sum + (Number.isFinite(percentage) ? percentage : 0),
+        0
+      );
+      const hasEstateDivision = Math.abs(totalPercentage - 100) <= 0.1 && 
+                                (estateState.selectedPeopleIds.length > 0 || 
+                                 estateState.selectedGroupIds.length > 0);
       
       return {
         executorsComplete: hasExecutorsComplete,
@@ -165,8 +173,7 @@ export default function OrderOfThingsScreen() {
   };
   
   const handleNavigateToEstateDivision = () => {
-    console.log('Navigate to Estate Division');
-    // router.push('/estate-division');
+    router.push('/bequeathal/estate-remainder-who');
   };
   
   const handleNavigateToWarningFlags = () => {

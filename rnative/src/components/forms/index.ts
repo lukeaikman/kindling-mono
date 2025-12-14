@@ -23,5 +23,8 @@ export type { GroupManagementDrawerProps } from './GroupManagementDrawer';
 export { BeneficiaryWithPercentages } from './BeneficiaryWithPercentages';
 export type { BeneficiaryWithPercentagesProps } from './BeneficiaryWithPercentages';
 
+export { BeneficiarySplitCard } from './BeneficiarySplitCard';
+export type { BeneficiarySplitCardProps } from './BeneficiarySplitCard';
+
 export { PersonSelector } from './PersonSelector';
 export type { PersonSelectorProps } from './PersonSelector';

@@ -2,12 +2,14 @@
  * BeneficiaryWithPercentages Component
  * 
  * Beneficiary selection with manual percentage or amount allocations.
- * Simplified approach: Manual entry + helper buttons (no auto-lock/redistribution).
+ * Supports two modes: manual input or slider-based (with magic wand).
  * 
  * Features:
  * - Person/group/estate selection (reuses logic)
  * - Manual percentage or amount input per beneficiary
- * - "Equally distribute the rest" helper (user-triggered)
+ * - Optional slider mode with magic wand (useSliders prop)
+ * - "Equally distribute the rest" helper (manual mode)
+ * - "Make Equal to 100%" button (slider mode)
  * - "Clear All" reset button
  * - Total validation (must equal 100% for percentage mode)
  * 
@@ -15,10 +17,12 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput, Modal, FlatList } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, Modal, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
+import * as Haptics from 'expo-haptics';
 import { Button, Select } from '../ui';
+import { BeneficiarySplitCard } from './BeneficiarySplitCard';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing, Typography } from '../../styles/constants';
 import { getBeneficiaryDisplayName, getTotalAllocated } from '../../utils/beneficiaryHelpers';
@@ -78,6 +82,24 @@ export interface BeneficiaryWithPercentagesProps {
    * Callback for adding new group
    */
   onAddNewGroup?: () => void;
+  
+  /**
+   * Use sliders for allocation (shows slider + magic wand instead of manual input only)
+   * Recommended when: 3+ beneficiaries, percentage mode, visual feedback desired
+   */
+  useSliders?: boolean;
+  
+  /**
+   * Show "Make Equal to 100%" button (slider mode only)
+   * Default: true for percentage mode with sliders
+   */
+  showNormalizeButton?: boolean;
+  
+  /**
+   * Require complete allocation (100% for percentage, totalValue for amount)
+   * Default: true for percentage mode, false for amount mode
+   */
+  requireComplete?: boolean;
 }
 
 /**
@@ -106,8 +128,19 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
   label = 'Beneficiaries',
   onAddNewPerson,
   onAddNewGroup,
+  useSliders = false,
+  showNormalizeButton = true,
+  requireComplete,
 }) => {
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  
+  // Determine if we should use slider mode
+  const showSliderMode = useSliders && allocationMode === 'percentage';
+  
+  // Default requireComplete based on mode
+  const shouldRequireComplete = requireComplete !== undefined 
+    ? requireComplete 
+    : (allocationMode === 'percentage');
   const [showSelectionDrawer, setShowSelectionDrawer] = useState(false);
   const [tempSelections, setTempSelections] = useState<{id: string, type: 'person' | 'group' | 'estate'}[]>([]);
   const [showBackgroundForFocused, setShowBackgroundForFocused] = useState(false);
@@ -196,7 +229,14 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
       type: s.type,
     }));
     
-    onChange([...value, ...newBeneficiaries]);
+    const updatedList = [...value, ...newBeneficiaries];
+    
+    // Smart default: If only 1 beneficiary total in percentage mode, auto-set to 100%
+    if (allocationMode === 'percentage' && updatedList.length === 1) {
+      updatedList[0] = { ...updatedList[0], percentage: 100 };
+    }
+    
+    onChange(updatedList);
     setShowSelectionDrawer(false);
     setTempSelections([]);
   };
@@ -206,7 +246,14 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
   };
 
   const handleRemove = (index: number) => {
-    onChange(value.filter((_, i) => i !== index));
+    const updated = value.filter((_, i) => i !== index);
+    
+    // Smart default: If only 1 beneficiary remains in percentage mode, auto-set to 100%
+    if (allocationMode === 'percentage' && updated.length === 1) {
+      updated[0] = { ...updated[0], percentage: 100 };
+    }
+    
+    onChange(updated);
   };
 
   const handleUpdateAllocation = (index: number, allocationValue: number) => {
@@ -300,12 +347,16 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
           <FlatList
             data={[
               ...(!estateSelected ? [{ id: 'estate', type: 'estate' as const, label: '🏛️ The Estate', isSpecial: true }] : []),
-              ...availablePeople.map(p => ({ 
-                id: p.id, 
-                type: 'person' as const, 
-                label: `${getPersonFullName(p)} (${getPersonRelationshipDisplay(p)})`,
-                isSpecial: false
-              })),
+              ...availablePeople.map(p => { 
+                const fullName = getPersonFullName(p);
+                const relationship = getPersonRelationshipDisplay(p);
+                return {
+                  id: p.id, 
+                  type: 'person' as const, 
+                  label: relationship ? `${fullName} (${relationship})` : fullName,
+                  isSpecial: false
+                };
+              }),
               ...availableGroups.map(g => ({ 
                 id: g.id, 
                 type: 'group' as const, 
@@ -369,7 +420,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
           {/* Confirm Button */}
           <View style={styles.drawerFooter}>
             <Text style={styles.selectedCount}>
-              {tempSelections.length} beneficiar{tempSelections.length === 1 ? 'y' : 'ies'} selected
+              {`${tempSelections.length} beneficiar${tempSelections.length === 1 ? 'y' : 'ies'} selected`}
             </Text>
             <Button
               onPress={handleConfirmSelections}
@@ -385,7 +436,36 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
       {/* Selected Beneficiaries with Allocations */}
       {value.length > 0 && (
         <View style={styles.beneficiariesList}>
-          {value.map((beneficiary, index) => {
+          {showSliderMode ? (
+            // SLIDER MODE: Use BeneficiarySplitCard
+            value.map((beneficiary, index) => {
+              const currentValue = beneficiary.percentage || 0;
+              const otherTotal = value.reduce((sum, b, idx) => {
+                return idx !== index ? sum + (b.percentage || 0) : sum;
+              }, 0);
+
+              return (
+                <BeneficiarySplitCard
+                  key={`${beneficiary.id}-${index}`}
+                  beneficiary={beneficiary}
+                  value={currentValue}
+                  onChange={(newValue) => {
+                    const updated = [...value];
+                    updated[index] = { ...updated[index], percentage: newValue };
+                    onChange(updated);
+                  }}
+                  allocationMode="percentage"
+                  otherTotal={otherTotal}
+                  onRemove={() => handleRemove(index)}
+                  personActions={personActions}
+                  beneficiaryGroupActions={beneficiaryGroupActions}
+                  showMagicWand={true}
+                />
+              );
+            })
+          ) : (
+            // MANUAL MODE: Current implementation
+            value.map((beneficiary, index) => {
             const displayName = getBeneficiaryDisplayName(
               beneficiary, 
               personActions, 
@@ -403,7 +483,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
                   <View 
                     style={[
                       styles.percentageBackground,
-                      { width: `${Math.min(100, currentValue)}%` }
+                      { width: `${Math.min(100, Number(currentValue) || 0)}%` }
                     ]} 
                   />
                 )}
@@ -416,7 +496,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
                     {beneficiary.type === 'estate' && (
                       <IconButton icon="bank" size={16} iconColor={KindlingColors.navy} style={styles.beneficiaryIcon} />
                     )}
-                    <Text style={styles.beneficiaryName}>{displayName}</Text>
+                    <Text style={styles.beneficiaryName}>{displayName || 'Unknown'}</Text>
                   </View>
                   <TouchableOpacity onPress={() => handleRemove(index)}>
                     <IconButton icon="close" size={18} iconColor={KindlingColors.brown} style={styles.removeIcon} />
@@ -466,9 +546,52 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
                 )}
               </View>
             );
-          })}
+          })
+          )}
         </View>
       )}
+      
+      {/* Make Equal to 100% Button (Slider Mode Only) */}
+      {showSliderMode && showNormalizeButton && value.length > 0 && (() => {
+        const currentTotal = getTotalAllocated({ beneficiaries: value });
+        const isOff = Math.abs(currentTotal - 100) > 0.1;
+        
+        if (!isOff) return null;
+        
+        return (
+          <View style={styles.normalizeCard}>
+            <Text style={styles.normalizeTitle}>
+              {currentTotal > 100 
+                ? `Over allocated by ${(currentTotal - 100).toFixed(1)}%`
+                : `Under allocated by ${(100 - currentTotal).toFixed(1)}%`}
+            </Text>
+            
+            <Pressable
+              onPress={() => {
+                if (currentTotal === 0) return;
+                
+                const scaleFactor = 100 / currentTotal;
+                const updated = value.map(b => ({
+                  ...b,
+                  percentage: (b.percentage || 0) * scaleFactor,
+                }));
+                
+                onChange(updated);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }}
+              style={styles.normalizeButton}
+            >
+              <Text style={styles.normalizeButtonText}>
+                Adjust to 100%
+              </Text>
+            </Pressable>
+            
+            <Text style={styles.normalizeSubtext}>
+              Alter all proportionately to total 100%
+            </Text>
+          </View>
+        );
+      })()}
 
       {/* Total Display */}
       {value.length > 0 && (
@@ -670,6 +793,42 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.navy,
     textDecorationLine: 'underline',
+  },
+  // Normalize button styles (slider mode)
+  normalizeCard: {
+    padding: 16,
+    marginBottom: 16,
+    backgroundColor: 'rgba(76, 175, 80, 0.05)',
+    borderColor: 'rgba(76, 175, 80, 0.2)',
+    borderWidth: 1,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  normalizeTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: KindlingColors.navy,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  normalizeButton: {
+    backgroundColor: KindlingColors.green,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  normalizeButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  normalizeSubtext: {
+    fontSize: 13,
+    color: KindlingColors.brown,
+    textAlign: 'center',
   },
   addBeneficiariesButton: {
     flexDirection: 'row',

@@ -468,7 +468,6 @@ export interface PropertyAsset extends BaseAsset {
   mortgage?: {
     outstandingAmount: number;
     provider: string;
-    jointlyHeldWith?: string;
   };
   
   // Acquisition (OPTIONAL - executor context, not IHT-critical)

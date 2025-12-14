@@ -1,7 +1,7 @@
 /**
  * Slider Component
  * 
- * A slider component using React Native's built-in Slider
+ * A slider component using @react-native-community/slider
  * Used for percentage inputs and range selections
  * 
  * @module components/ui/Slider
@@ -10,6 +10,7 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { Text } from 'react-native-paper';
+import SliderComponent from '@react-native-community/slider';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing } from '../../styles/constants';
 
@@ -97,9 +98,6 @@ export const Slider: React.FC<SliderProps> = ({
   formatValue = (val) => val.toString(),
   style,
 }) => {
-  // Note: We need to install @react-native-community/slider
-  // For now, this is a placeholder that will work once installed
-  
   return (
     <View style={[styles.container, style]}>
       <View style={styles.header}>
@@ -109,12 +107,18 @@ export const Slider: React.FC<SliderProps> = ({
         )}
       </View>
       
-      {/* Placeholder for slider - will use @react-native-community/slider */}
-      <View style={styles.sliderPlaceholder}>
-        <Text style={styles.placeholderText}>
-          Slider: {formatValue(value)} (requires @react-native-community/slider)
-        </Text>
-      </View>
+      <SliderComponent
+        value={value}
+        onValueChange={onValueChange}
+        minimumValue={minimumValue}
+        maximumValue={maximumValue}
+        step={step}
+        disabled={disabled}
+        minimumTrackTintColor={KindlingColors.green}
+        maximumTrackTintColor={KindlingColors.muted}
+        thumbTintColor={KindlingColors.green}
+        style={styles.slider}
+      />
     </View>
   );
 };
@@ -139,16 +143,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: KindlingColors.green,
   },
-  sliderPlaceholder: {
+  slider: {
+    width: '100%',
     height: 40,
-    backgroundColor: KindlingColors.muted,
-    borderRadius: 8,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.md,
-  },
-  placeholderText: {
-    color: KindlingColors.mutedForeground,
-    fontSize: 14,
   },
 });
 

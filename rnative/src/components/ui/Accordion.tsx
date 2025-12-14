@@ -27,7 +27,17 @@ export interface AccordionProps {
   children: React.ReactNode;
   
   /**
-   * Whether accordion is expanded by default
+   * Whether accordion is expanded (controlled mode)
+   */
+  expanded?: boolean;
+  
+  /**
+   * Expansion change handler (controlled mode)
+   */
+  onExpandedChange?: (expanded: boolean) => void;
+  
+  /**
+   * Whether accordion is expanded by default (uncontrolled mode)
    */
   defaultExpanded?: boolean;
   
@@ -40,9 +50,22 @@ export interface AccordionProps {
 /**
  * Accordion expandable section component
  * 
+ * Supports both controlled and uncontrolled modes.
+ * 
  * @example
  * ```tsx
- * <Accordion title="Property Details" icon="home">
+ * // Uncontrolled mode
+ * <Accordion title="Property Details" icon="home" defaultExpanded={false}>
+ *   <Text>Property information goes here</Text>
+ * </Accordion>
+ * 
+ * // Controlled mode
+ * <Accordion 
+ *   title="Property Details" 
+ *   icon="home" 
+ *   expanded={isExpanded}
+ *   onExpandedChange={setIsExpanded}
+ * >
  *   <Text>Property information goes here</Text>
  * </Accordion>
  * ```
@@ -50,19 +73,37 @@ export interface AccordionProps {
 export const Accordion: React.FC<AccordionProps> = ({
   title,
   children,
+  expanded: controlledExpanded,
+  onExpandedChange,
   defaultExpanded = false,
   icon,
 }) => {
-  const [expanded, setExpanded] = React.useState(defaultExpanded);
+  const [internalExpanded, setInternalExpanded] = React.useState(defaultExpanded);
+
+  // Use controlled state if provided, otherwise use internal state
+  const isControlled = controlledExpanded !== undefined;
+  const isExpanded = isControlled ? controlledExpanded : internalExpanded;
+
+  const handlePress = () => {
+    const newExpanded = !isExpanded;
+    
+    if (isControlled) {
+      // Controlled mode - notify parent
+      onExpandedChange?.(newExpanded);
+    } else {
+      // Uncontrolled mode - update internal state
+      setInternalExpanded(newExpanded);
+    }
+  };
 
   return (
     <List.Accordion
       title={title}
-      expanded={expanded}
-      onPress={() => setExpanded(!expanded)}
+      expanded={isExpanded}
+      onPress={handlePress}
       left={icon ? (props) => <List.Icon {...props} icon={icon} /> : undefined}
       titleStyle={styles.title}
-      style={styles.accordion}
+      style={[styles.accordion, isExpanded && styles.accordionExpanded]}
     >
       {children}
     </List.Accordion>
@@ -74,6 +115,10 @@ const styles = StyleSheet.create({
     backgroundColor: KindlingColors.background,
     borderBottomWidth: 1,
     borderBottomColor: KindlingColors.border,
+  },
+  accordionExpanded: {
+    backgroundColor: `${KindlingColors.cream}66`, // Light cream background when expanded
+    borderBottomColor: KindlingColors.navy,
   },
   title: {
     fontSize: 16,

@@ -92,6 +92,10 @@ export function getBeneficiaryDisplayName(
   personActions: PersonActions,
   beneficiaryGroupActions: BeneficiaryGroupActions
 ): string {
+  if (!beneficiary || !beneficiary.type) {
+    return 'Unknown Beneficiary';
+  }
+
   if (beneficiary.type === 'estate') {
     return 'The Estate';
   }

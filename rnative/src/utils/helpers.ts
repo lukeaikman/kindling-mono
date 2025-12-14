@@ -13,7 +13,8 @@ import { Person, PersonRelationshipType, RelationshipType } from '../types';
  * @returns {string} The full name as a string
  */
 export const getPersonFullName = (person: Person): string => {
-  return `${person.firstName} ${person.lastName}`.trim();
+  if (!person) return 'Unknown';
+  return `${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Unknown';
 };
 
 /**
@@ -22,6 +23,10 @@ export const getPersonFullName = (person: Person): string => {
  * @returns {string} The display label for the relationship (e.g., "Spouse", "Biological child")
  */
 export const getPersonRelationshipDisplay = (person: Person): string => {
+  if (!person || !person.relationship) {
+    return '';
+  }
+
   if (person.relationship === 'other' && person.customRelationship) {
     return person.customRelationship;
   }
@@ -49,7 +54,7 @@ export const getPersonRelationshipDisplay = (person: Person): string => {
     'other': 'Other'
   };
   
-  return relationshipMap[person.relationship] || person.relationship;
+  return relationshipMap[person.relationship] || person.relationship || '';
 };
 
 // =============================================================================

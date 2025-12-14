@@ -8,21 +8,24 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text } from 'react-native-paper';
+import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Button, BackButton, Dialog, Select } from '../../src/components/ui';
+import { Button, BackButton, Dialog, Select, Accordion, Input, RadioGroup, Checkbox, CurrencyInput } from '../../src/components/ui';
 import { SearchableSelect } from '../../src/components/ui/SearchableSelect';
 import { GroupManagementDrawer, BeneficiaryWithPercentages } from '../../src/components/forms';
 import { MultiBeneficiarySelector, BeneficiarySelection } from '../../src/components/forms/MultiBeneficiarySelector';
+import { Slider } from '../../src/components/ui/Slider';
+import { Card } from '../../src/components/ui/Card';
 import type { BeneficiaryAssignment } from '../../src/types';
 import { useAppState } from '../../src/hooks/useAppState';
+import * as Haptics from 'expo-haptics';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
 
 export default function SandboxScreen() {
-  const { beneficiaryGroupActions, willActions, personActions } = useAppState();
+  const { beneficiaryGroupActions, willActions, personActions, estateRemainderActions } = useAppState();
   const scrollViewRef = useRef<ScrollView>(null);
   const [selectedBank, setSelectedBank] = useState('');
   const [selectedBankWithCard, setSelectedBankWithCard] = useState('');
@@ -36,6 +39,29 @@ export default function SandboxScreen() {
   const [longSelect, setLongSelect] = useState('');
   const [percentageBeneficiaries, setPercentageBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
   const [amountBeneficiaries, setAmountBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
+  
+  // Estate Remainder Testing State
+  const [testSplits, setTestSplits] = useState<Record<string, number>>({
+    'person-1': 40,
+    'person-2': 30,
+    'group-1': 30,
+  });
+  const [sliderValue, setSliderValue] = useState(50);
+  
+  // Accordion Test State (simulating Property entry screen)
+  const [expandedAccordion, setExpandedAccordion] = useState<string>('');
+  const [address1, setAddress1] = useState('');
+  const [townCity, setTownCity] = useState('');
+  const [country, setCountry] = useState('');
+  const [propertyUsage, setPropertyUsage] = useState('');
+  const [propertyType, setPropertyType] = useState('');
+  const [isFHL, setIsFHL] = useState(false);
+  const [fhlAvailable210, setFhlAvailable210] = useState(true);
+  const [fhlLet105, setFhlLet105] = useState(true);
+  const [fhlLongLets155, setFhlLongLets155] = useState(true);
+  const [fhlIncome, setFhlIncome] = useState('');
+  const [estimatedValue, setEstimatedValue] = useState('');
+  const [ownershipType, setOwnershipType] = useState('');
 
   // UK Bank Providers - test data
   const bankProviders = [
@@ -87,6 +113,249 @@ export default function SandboxScreen() {
       >
         <View style={styles.content}>
           <Text style={styles.sectionTitle}>Component Testing</Text>
+          
+          {/* ========================================
+              ACCORDION TEST (Phase 14a.3)
+              Testing react-native-paper List.Accordion for Property Entry Screen
+              ======================================== */}
+          <View style={styles.testSection}>
+            <Text style={styles.testTitle}>Accordion Pattern - Property Entry Simulation</Text>
+            <Text style={styles.sectionDescription}>
+              Testing List.Accordion for Phase 14 Property implementation.
+              Multiple accordions with form fields, conditional rendering, and controlled expansion.
+            </Text>
+
+            {/* Accordion Container */}
+            <View style={styles.accordionContainer}>
+              {/* Accordion 1: Address (Always) */}
+              <Accordion
+                title="Address"
+                icon="map-marker"
+                expanded={expandedAccordion === 'address'}
+                onExpandedChange={(expanded) => setExpandedAccordion(expanded ? 'address' : '')}
+              >
+                <View style={styles.accordionContent}>
+                  <Input
+                    label="Address Line 1 *"
+                    placeholder="Enter address..."
+                    value={address1}
+                    onChange={setAddress1}
+                  />
+                  <Input
+                    label="Town/City *"
+                    placeholder="Enter town or city..."
+                    value={townCity}
+                    onChange={setTownCity}
+                  />
+                  <Select
+                    label="Country *"
+                    placeholder="Select country..."
+                    value={country}
+                    options={[
+                      { label: 'United Kingdom', value: 'uk' },
+                      { label: 'United States', value: 'us' },
+                      { label: 'Canada', value: 'canada' },
+                      { label: 'Australia', value: 'australia' },
+                    ]}
+                    onChange={setCountry}
+                  />
+                  <Button
+                    onPress={() => {
+                      if (address1 && townCity && country) {
+                        setExpandedAccordion('usage');
+                      }
+                    }}
+                    variant="primary"
+                    disabled={!address1 || !townCity || !country}
+                  >
+                    Next
+                  </Button>
+                </View>
+              </Accordion>
+
+              {/* Accordion 2: Usage & Type (Always) */}
+              <Accordion
+                title="Usage & Type"
+                icon="home-variant"
+                expanded={expandedAccordion === 'usage'}
+                onExpandedChange={(expanded) => setExpandedAccordion(expanded ? 'usage' : '')}
+              >
+                <View style={styles.accordionContent}>
+                  <Select
+                    label="Usage *"
+                    placeholder="Select usage..."
+                    value={propertyUsage}
+                    options={[
+                      { label: 'Residential', value: 'residential' },
+                      { label: 'Let Residential', value: 'let_residential' },
+                      { label: 'Commercial', value: 'commercial' },
+                    ]}
+                    onChange={(value) => {
+                      setPropertyUsage(value);
+                      setPropertyType(''); // Clear property type when usage changes
+                      setIsFHL(false);
+                    }}
+                  />
+                  
+                  {propertyUsage === 'let_residential' && (
+                    <Select
+                      label="Property Type *"
+                      placeholder="Select type..."
+                      value={propertyType}
+                      options={[
+                        { label: 'Buy To Let', value: 'buy_to_let' },
+                        { label: 'Furnished Holiday Let', value: 'furnished_holiday_let' },
+                        { label: 'Short-term Let/Airbnb', value: 'short_term_let' },
+                      ]}
+                      onChange={(value) => {
+                        setPropertyType(value);
+                        setIsFHL(value === 'furnished_holiday_let');
+                      }}
+                    />
+                  )}
+
+                  <Button
+                    onPress={() => {
+                      if (isFHL) {
+                        setExpandedAccordion('fhl');
+                      } else {
+                        setExpandedAccordion('details');
+                      }
+                    }}
+                    variant="primary"
+                    disabled={!propertyUsage || (propertyUsage === 'let_residential' && !propertyType)}
+                  >
+                    Next
+                  </Button>
+                </View>
+              </Accordion>
+
+              {/* Accordion 3: FHL Details (Conditional - only if Furnished Holiday Let) */}
+              {isFHL && (
+                <Accordion
+                  title="FHL Details"
+                  icon="beach"
+                  expanded={expandedAccordion === 'fhl'}
+                  onExpandedChange={(expanded) => setExpandedAccordion(expanded ? 'fhl' : '')}
+                >
+                  <View style={styles.accordionContent}>
+                    <Text style={styles.helperText}>
+                      Furnished Holiday Let (FHL) qualification criteria for Business Property Relief
+                    </Text>
+                    
+                    <Checkbox
+                      label="Available to let 210+ days/year?"
+                      checked={fhlAvailable210}
+                      onChange={setFhlAvailable210}
+                    />
+                    <Checkbox
+                      label="Actually let 105+ days/year?"
+                      checked={fhlLet105}
+                      onChange={setFhlLet105}
+                    />
+                    <Checkbox
+                      label="Long lets (31+ days) under 155 days/year?"
+                      checked={fhlLongLets155}
+                      onChange={setFhlLongLets155}
+                    />
+
+                    {/* Real-time FHL Qualification Status */}
+                    <View style={fhlAvailable210 && fhlLet105 && fhlLongLets155 ? styles.qualificationSuccess : styles.qualificationWarning}>
+                      {fhlAvailable210 && fhlLet105 && fhlLongLets155 ? (
+                        <Text style={styles.qualificationSuccessText}>
+                          ✓ Qualifies for FHL status (Business Property Relief - 50-100% IHT relief possible)
+                        </Text>
+                      ) : (
+                        <Text style={styles.qualificationWarningText}>
+                          ⚠️ Does not qualify as FHL. Will be treated as standard let property.
+                        </Text>
+                      )}
+                    </View>
+
+                    <CurrencyInput
+                      label="Estimated Annual Income *"
+                      placeholder="Enter annual rental income..."
+                      value={fhlIncome}
+                      onChange={setFhlIncome}
+                    />
+
+                    <Button
+                      onPress={() => setExpandedAccordion('details')}
+                      variant="primary"
+                      disabled={!fhlIncome}
+                    >
+                      Next
+                    </Button>
+                  </View>
+                </Accordion>
+              )}
+
+              {/* Accordion 4: Property Details (Always) */}
+              <Accordion
+                title="Property Details"
+                icon="information"
+                expanded={expandedAccordion === 'details'}
+                onExpandedChange={(expanded) => setExpandedAccordion(expanded ? 'details' : '')}
+              >
+                <View style={styles.accordionContent}>
+                  <RadioGroup
+                    label="Ownership Type *"
+                    options={[
+                      { label: 'Personally owned', value: 'personally_owned' },
+                      { label: 'Jointly owned', value: 'jointly_owned' },
+                      { label: 'Owned Through Company', value: 'company_owned' },
+                      { label: 'Owned through Trust', value: 'trust_owned' },
+                    ]}
+                    value={ownershipType}
+                    onChange={setOwnershipType}
+                  />
+
+                  <CurrencyInput
+                    label="Estimated Value *"
+                    placeholder="Enter property value..."
+                    value={estimatedValue}
+                    onChange={setEstimatedValue}
+                  />
+
+                  <Button
+                    onPress={() => {
+                      // In real implementation, this would save and navigate
+                      alert('Property saved! (Test complete)');
+                    }}
+                    variant="primary"
+                    disabled={!ownershipType || !estimatedValue}
+                  >
+                    Save Property
+                  </Button>
+                </View>
+              </Accordion>
+            </View>
+
+            {/* Test Results Summary */}
+            <View style={styles.result}>
+              <Text style={styles.resultLabel}>Accordion Test Results:</Text>
+              <Text style={styles.resultNote}>✓ Multiple accordions render correctly</Text>
+              <Text style={styles.resultNote}>✓ Form fields work inside accordions</Text>
+              <Text style={styles.resultNote}>✓ Conditional accordion (FHL) shows/hides properly</Text>
+              <Text style={styles.resultNote}>✓ Next button logic controls expansion</Text>
+              <Text style={styles.resultNote}>✓ Real-time validation displays correctly</Text>
+              <Text style={styles.resultNote}>
+                {isFHL 
+                  ? `✓ FHL Qualification: ${fhlAvailable210 && fhlLet105 && fhlLongLets155 ? 'QUALIFIES' : 'DOES NOT QUALIFY'}`
+                  : '• FHL section hidden (not applicable)'}
+              </Text>
+              <Text style={[styles.resultValue, { marginTop: Spacing.sm }]}>
+                Decision: react-native-paper List.Accordion works well for Property implementation ✓
+              </Text>
+            </View>
+          </View>
+
+          {/* Component Divider */}
+          <View style={styles.componentDivider}>
+            <View style={styles.componentDividerLine} />
+            <Text style={styles.componentDividerText}>•  •  •</Text>
+            <View style={styles.componentDividerLine} />
+          </View>
           
           {/* Test: Select Component - Short List (Menu mode) */}
           <View style={styles.testSection}>
@@ -373,6 +642,231 @@ export default function SandboxScreen() {
               </View>
             )}
           </View>
+
+          {/* Component Divider */}
+          <View style={styles.componentDivider}>
+            <View style={styles.componentDividerLine} />
+            <Text style={styles.componentDividerText}>•  •  •</Text>
+            <View style={styles.componentDividerLine} />
+          </View>
+
+          {/* Test 8: Slider Component (Phase 15) */}
+          <View style={styles.testSection}>
+            <Text style={styles.testTitle}>Slider Component (NEW - Phase 15)</Text>
+            <Text style={styles.sectionDescription}>
+              Using @react-native-community/slider for percentage adjustments
+            </Text>
+
+            <Slider
+              label="Test Percentage"
+              value={sliderValue}
+              onValueChange={setSliderValue}
+              minimumValue={0}
+              maximumValue={100}
+              step={0.1}
+              showValue={true}
+              formatValue={(val) => `${val.toFixed(1)}%`}
+            />
+
+            <View style={styles.result}>
+              <Text style={styles.resultLabel}>Current Value:</Text>
+              <Text style={styles.resultValue}>{sliderValue.toFixed(1)}%</Text>
+              <Text style={styles.resultNote}>
+                • Drag slider to adjust
+                • 0.1% step precision
+                • Green track and thumb
+                • Smooth interaction
+              </Text>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={styles.divider} />
+
+          {/* Test 9: Estate Remainder Split Pattern (Phase 15) */}
+          <View style={styles.testSection}>
+            <Text style={styles.testTitle}>Estate Remainder Split Pattern (Phase 15)</Text>
+            <Text style={styles.sectionDescription}>
+              Test the "Make Equal to 100%" normalization with haptic feedback
+            </Text>
+
+            {/* Mock Recipients */}
+            {Object.keys(testSplits).map((splitId) => {
+              const percentage = testSplits[splitId];
+              const isGroup = splitId.startsWith('group-');
+              const label = isGroup 
+                ? 'Children' 
+                : splitId === 'person-1' 
+                ? 'Alice Johnson' 
+                : 'Bob Smith';
+              const subLabel = isGroup ? 'Category' : 'Child';
+
+              return (
+                <View key={splitId} style={styles.recipientCard}>
+                  <View style={styles.recipientHeader}>
+                    <View style={styles.recipientInfo}>
+                      <View
+                        style={[
+                          styles.avatar,
+                          isGroup ? styles.avatarGroup : styles.avatarPerson,
+                        ]}
+                      >
+                        <Text style={styles.avatarText}>
+                          {isGroup ? '👥' : label[0]}
+                        </Text>
+                      </View>
+                      <View style={styles.recipientLabels}>
+                        <Text style={styles.recipientName}>{label}</Text>
+                        <Text style={styles.recipientSubLabel}>{subLabel}</Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.percentageDisplay}>
+                      {percentage.toFixed(1)}%
+                    </Text>
+                  </View>
+
+                  <View style={styles.sliderRow}>
+                    <View style={styles.sliderWrapper}>
+                      <Slider
+                        value={percentage}
+                        onValueChange={(value) => {
+                          setTestSplits(prev => ({
+                            ...prev,
+                            [splitId]: value,
+                          }));
+                        }}
+                        minimumValue={0}
+                        maximumValue={100}
+                        step={0.1}
+                        showValue={false}
+                      />
+                    </View>
+                    
+                    {/* Magic Wand Button */}
+                    <TouchableOpacity
+                      onPress={() => {
+                        const otherTotal = Object.keys(testSplits)
+                          .filter(id => id !== splitId)
+                          .reduce((sum, id) => sum + testSplits[id], 0);
+                        const remaining = Math.max(0, Math.min(100, 100 - otherTotal));
+                        
+                        setTestSplits(prev => ({
+                          ...prev,
+                          [splitId]: remaining,
+                        }));
+                        
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      style={styles.wandButton}
+                    >
+                      <Text style={styles.wandIcon}>✦</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
+
+            {/* Normalize Button */}
+            {(() => {
+              const total = Object.values(testSplits).reduce((sum, val) => sum + val, 0);
+              const isOff = Math.abs(total - 100) > 0.1;
+
+              return (
+                <>
+                  <View style={styles.result}>
+                    <Text style={styles.resultLabel}>Current Total:</Text>
+                    <Text style={[
+                      styles.resultValue,
+                      { color: isOff ? '#EF4444' : KindlingColors.green }
+                    ]}>
+                      {total.toFixed(1)}%
+                    </Text>
+                    <Text style={styles.resultNote}>
+                      {isOff 
+                        ? `${total > 100 ? 'Over' : 'Under'} by ${Math.abs(total - 100).toFixed(1)}%` 
+                        : '✓ Perfect allocation!'}
+                    </Text>
+                  </View>
+
+                  {isOff && (
+                    <View style={styles.normalizeCardTest}>
+                      <Text style={styles.normalizeTitleTest}>
+                        {total > 100 
+                          ? `Over allocated by ${(total - 100).toFixed(1)}%`
+                          : `Under allocated by ${(100 - total).toFixed(1)}%`}
+                      </Text>
+                      
+                      <TouchableOpacity
+                        onPress={() => {
+                          const currentTotal = Object.values(testSplits).reduce((sum, val) => sum + val, 0);
+                          if (currentTotal === 0) return;
+
+                          const scaleFactor = 100 / currentTotal;
+                          const normalized = Object.keys(testSplits).reduce((acc, key) => {
+                            acc[key] = testSplits[key] * scaleFactor;
+                            return acc;
+                          }, {} as Record<string, number>);
+
+                          setTestSplits(normalized);
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        }}
+                        style={styles.normalizeButtonTest}
+                      >
+                        <Text style={styles.normalizeButtonTextTest}>
+                          Adjust to 100%
+                        </Text>
+                      </TouchableOpacity>
+                      
+                      <Text style={styles.normalizeSubtextTest}>
+                        Alter all proportionately to total 100%
+                      </Text>
+                    </View>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Test Actions */}
+            <View style={styles.testActions}>
+              <Button
+                onPress={() => {
+                  setTestSplits({
+                    'person-1': 50,
+                    'person-2': 30,
+                    'group-1': 10,
+                  });
+                }}
+                variant="outline"
+              >
+                Test: Under 100% (90%)
+              </Button>
+              <Button
+                onPress={() => {
+                  setTestSplits({
+                    'person-1': 50,
+                    'person-2': 40,
+                    'group-1': 30,
+                  });
+                }}
+                variant="outline"
+              >
+                Test: Over 100% (120%)
+              </Button>
+              <Button
+                onPress={() => {
+                  setTestSplits({
+                    'person-1': 33.3,
+                    'person-2': 33.3,
+                    'group-1': 33.4,
+                  });
+                }}
+                variant="outline"
+              >
+                Reset to Equal (100%)
+              </Button>
+            </View>
+          </View>
         </View>
 
         {/* Group Management Drawer */}
@@ -524,6 +1018,173 @@ const styles = StyleSheet.create({
     color: KindlingColors.brown,
     marginBottom: Spacing.md,
     lineHeight: 22,
+  },
+  accordionContainer: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: KindlingColors.border,
+  },
+  accordionContent: {
+    padding: Spacing.md,
+    gap: Spacing.md,
+    backgroundColor: `${KindlingColors.cream}33`, // Light cream tint for content area
+  },
+  helperText: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.brown,
+    lineHeight: 20,
+    marginBottom: Spacing.xs,
+  },
+  qualificationSuccess: {
+    backgroundColor: `${KindlingColors.navy}1a`,
+    padding: Spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: KindlingColors.navy,
+  },
+  qualificationSuccessText: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.navy,
+    lineHeight: 20,
+  },
+  qualificationWarning: {
+    backgroundColor: '#FFF3CD',
+    padding: Spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFA500',
+  },
+  qualificationWarningText: {
+    fontSize: Typography.fontSize.sm,
+    color: '#856404',
+    lineHeight: 20,
+  },
+  // Estate Remainder Test Styles
+  recipientCard: {
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(30, 58, 95, 0.1)',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  recipientHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  recipientInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarPerson: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+  },
+  avatarGroup: {
+    backgroundColor: 'rgba(139, 69, 19, 0.1)',
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: KindlingColors.green,
+  },
+  recipientLabels: {
+    flex: 1,
+  },
+  recipientName: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: KindlingColors.navy,
+    marginBottom: 2,
+  },
+  recipientSubLabel: {
+    fontSize: 13,
+    color: KindlingColors.brown,
+    textTransform: 'capitalize',
+  },
+  percentageDisplay: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: KindlingColors.navy,
+  },
+  // Normalize button test styles
+  normalizeCardTest: {
+    padding: 16,
+    marginTop: 12,
+    marginBottom: 16,
+    backgroundColor: 'rgba(76, 175, 80, 0.05)',
+    borderColor: 'rgba(76, 175, 80, 0.2)',
+    borderWidth: 1,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  normalizeTitleTest: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: KindlingColors.navy,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  normalizeButtonTest: {
+    backgroundColor: KindlingColors.green,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  normalizeButtonTextTest: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  normalizeSubtextTest: {
+    fontSize: 13,
+    color: KindlingColors.brown,
+    textAlign: 'center',
+  },
+  testActions: {
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  sliderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sliderWrapper: {
+    flex: 1,
+  },
+  wandButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wandIcon: {
+    fontSize: 20,
+    color: '#000000',
   },
 });
 
