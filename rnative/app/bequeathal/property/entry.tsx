@@ -206,9 +206,13 @@ export default function PropertyEntryScreen() {
   // Load existing property data when editing
   useEffect(() => {
     if (editingPropertyId) {
+      console.log('🔍 Loading property for edit, ID:', editingPropertyId);
       const existingProperty = bequeathalActions.getAssetById(editingPropertyId) as PropertyAsset | undefined;
       
+      console.log('📦 Found property:', existingProperty ? 'YES' : 'NO');
       if (existingProperty) {
+        console.log('✅ Loading property data:', existingProperty.address?.address1);
+        
         // Map PropertyAsset to PropertyData form structure
         setPropertyData({
           address1: existingProperty.address?.address1 || '',
@@ -268,11 +272,16 @@ export default function PropertyEntryScreen() {
         
         // Load beneficiaries if they exist
         if (existingProperty.beneficiaryAssignments?.beneficiaries) {
+          console.log('👥 Loading beneficiaries:', existingProperty.beneficiaryAssignments.beneficiaries.length);
           setBeneficiaries(existingProperty.beneficiaryAssignments.beneficiaries);
         }
+        
+        console.log('✅ Property data loaded successfully');
+      } else {
+        console.error('❌ Property not found for ID:', editingPropertyId);
       }
     }
-  }, [editingPropertyId]);
+  }, [editingPropertyId, bequeathalActions]);
 
   // Helper: Update property data
   const updatePropertyData = (field: keyof PropertyData, value: any) => {
