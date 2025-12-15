@@ -534,9 +534,6 @@ export default function PropertyTrustDetailsScreen() {
 
       {/* Trust Creation Date */}
       <Text style={styles.fieldLabel}>Trust Creation Date *</Text>
-      <Text style={styles.helperText}>
-        Subject to 7-year rule for IHT
-      </Text>
       <View style={styles.dateRow}>
         <View style={styles.dateField}>
           <Select
