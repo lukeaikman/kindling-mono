@@ -229,83 +229,80 @@ export default function PropertyEntryScreen() {
     
     const property = asset as PropertyAsset;
     console.log('✅ Property found:', property.address?.address1);
-      
-      // Populate form with existing property data
-      setPropertyData({
-        // Address
-        address1: property.address?.address1 || '',
-        address2: property.address?.address2 || '',
-        townCity: property.address?.city || '',
-        countyState: property.address?.county || '',
-        country: property.address?.country || '',
-        
-        // Usage & Type
-        usage: property.usage || '',
-        propertyType: property.propertyType || '',
-        
-        // FHL
-        fhlAvailableOver210Days: property.fhlAvailableOver210Days ?? true,
-        fhlActuallyLet105Days: property.fhlActuallyLet105Days ?? true,
-        fhlLongLetsUnder155Days: property.fhlLongLetsUnder155Days ?? true,
-        fhlEstimatedAnnualIncome: property.fhlEstimatedAnnualIncome || 0,
-        
-        // Agricultural
-        agriculturalActivelyFarmed: property.agriculturalActivelyFarmed ?? true,
-        agriculturalWhoFarms: '',
-        agriculturalPre1995Tenancy: false,
-        agriculturalBuildingsIncluded: property.agriculturalBuildingsIncluded ?? false,
-        agriculturalTotalAcreage: '',
-        agriculturalFarmingType: '',
-        agriculturalFarmingTypeOther: '',
-        
-        // Mixed-Use
-        mixedUseCommercialPercentage: property.mixedUseCommercialPercentage || 0,
-        mixedUseSeparateEntrances: property.mixedUseSeparateEntrances ?? false,
-        mixedUseResidentialWasMainHome: property.mixedUseResidentialWasMainHome ?? false,
-        
-        // Buy-to-Let
-        buyToLetAnnualRentalIncome: property.buyToLetAnnualRentalIncome || 0,
-        buyToLetTenancyType: property.buyToLetTenancyType || '',
-        buyToLetTenancyTypeOther: property.buyToLetTenancyTypeOther || '',
-        buyToLetTenantedAtDeath: property.buyToLetTenantedAtDeath ?? false,
-        
-        // Property Details
-        ownershipType: property.ownershipType || '',
-        estimatedValue: property.estimatedValue || 0,
-        acquisitionMonth: property.acquisitionMonth || '',
-        acquisitionYear: property.acquisitionYear || '',
-        mortgageProvider: property.mortgage?.provider || 'no_mortgage',
-        mortgageAmount: property.mortgage?.outstandingAmount || 0,
-        
-        // Company Ownership
-        companyName: property.companyName || '',
-        companyCountryOfRegistration: property.companyCountryOfRegistration || 'uk',
-        companyOwnershipPercentage: property.companyOwnershipPercentage || 100,
-        companyShareClass: property.companyShareClass || '',
-        companyNotes: property.companyNotes || '',
-        companyArticlesConfident: property.companyArticlesConfident ?? false,
-        
-        // Joint Ownership
-        jointOwnershipType: property.jointOwnershipType || '',
-        jointTenantCount: property.jointTenants?.length || 2,
-        tenantsInCommonCount: 1, // Default, not stored in PropertyAsset
-        tenantsInCommonPercentage: property.ownershipPercentage || 50,
-        
-        // Trust
-        trustName: property.trustName || '',
-        trustType: property.trustType || '',
-        trustRole: property.trustRole || '',
-      });
-      
-      // Load beneficiaries
-      if (property.beneficiaryAssignments?.beneficiaries) {
-        setBeneficiaries(property.beneficiaryAssignments.beneficiaries);
-      }
-      
-      console.log('✅ Form populated successfully');
-    };
     
-    loadPropertyData();
+    // Populate form with existing property data
+    setPropertyData({
+      // Address
+      address1: property.address?.address1 || '',
+      address2: property.address?.address2 || '',
+      townCity: property.address?.city || '',
+      countyState: property.address?.county || '',
+      country: property.address?.country || '',
+      
+      // Usage & Type
+      usage: property.usage || '',
+      propertyType: property.propertyType || '',
+      
+      // FHL
+      fhlAvailableOver210Days: property.fhlAvailableOver210Days ?? true,
+      fhlActuallyLet105Days: property.fhlActuallyLet105Days ?? true,
+      fhlLongLetsUnder155Days: property.fhlLongLetsUnder155Days ?? true,
+      fhlEstimatedAnnualIncome: property.fhlEstimatedAnnualIncome || 0,
+      
+      // Agricultural
+      agriculturalActivelyFarmed: property.agriculturalActivelyFarmed ?? true,
+      agriculturalWhoFarms: '',
+      agriculturalPre1995Tenancy: false,
+      agriculturalBuildingsIncluded: property.agriculturalBuildingsIncluded ?? false,
+      agriculturalTotalAcreage: '',
+      agriculturalFarmingType: '',
+      agriculturalFarmingTypeOther: '',
+      
+      // Mixed-Use
+      mixedUseCommercialPercentage: property.mixedUseCommercialPercentage || 0,
+      mixedUseSeparateEntrances: property.mixedUseSeparateEntrances ?? false,
+      mixedUseResidentialWasMainHome: property.mixedUseResidentialWasMainHome ?? false,
+      
+      // Buy-to-Let
+      buyToLetAnnualRentalIncome: property.buyToLetAnnualRentalIncome || 0,
+      buyToLetTenancyType: property.buyToLetTenancyType || '',
+      buyToLetTenancyTypeOther: property.buyToLetTenancyTypeOther || '',
+      buyToLetTenantedAtDeath: property.buyToLetTenantedAtDeath ?? false,
+      
+      // Property Details
+      ownershipType: property.ownershipType || '',
+      estimatedValue: property.estimatedValue || 0,
+      acquisitionMonth: property.acquisitionMonth || '',
+      acquisitionYear: property.acquisitionYear || '',
+      mortgageProvider: property.mortgage?.provider || 'no_mortgage',
+      mortgageAmount: property.mortgage?.outstandingAmount || 0,
+      
+      // Company Ownership
+      companyName: property.companyName || '',
+      companyCountryOfRegistration: property.companyCountryOfRegistration || 'uk',
+      companyOwnershipPercentage: property.companyOwnershipPercentage || 100,
+      companyShareClass: property.companyShareClass || '',
+      companyNotes: property.companyNotes || '',
+      companyArticlesConfident: property.companyArticlesConfident ?? false,
+      
+      // Joint Ownership
+      jointOwnershipType: property.jointOwnershipType || '',
+      jointTenantCount: property.jointTenants?.length || 2,
+      tenantsInCommonCount: 1, // Default, not stored in PropertyAsset
+      tenantsInCommonPercentage: property.ownershipPercentage || 50,
+      
+      // Trust
+      trustName: property.trustName || '',
+      trustType: property.trustType || '',
+      trustRole: property.trustRole || '',
+    });
+    
+    // Load beneficiaries
+    if (property.beneficiaryAssignments?.beneficiaries) {
+      setBeneficiaries(property.beneficiaryAssignments.beneficiaries);
+    }
+    
+    console.log('✅ Form populated successfully');
   }, [editingPropertyId, bequeathalActions]);
 
   // Helper: Update property data
