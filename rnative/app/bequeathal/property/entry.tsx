@@ -214,6 +214,9 @@ export default function PropertyEntryScreen() {
         return;
       }
       
+      // Wait a tick for AsyncStorage to load
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // DEBUG: Check what's in the database
       const allAssets = bequeathalActions.getAllAssets();
       console.log('📚 Total assets in database:', allAssets.length);
@@ -221,7 +224,7 @@ export default function PropertyEntryScreen() {
       console.log('🏠 Total properties:', allProperties.length);
       console.log('🏠 Property IDs:', allProperties.map(p => p.id));
       
-      const asset = await bequeathalActions.getAssetById(editingPropertyId);
+      const asset = bequeathalActions.getAssetById(editingPropertyId);
       console.log('📦 Asset returned from getAssetById:', asset);
       console.log('📦 Asset type:', asset?.type);
       
