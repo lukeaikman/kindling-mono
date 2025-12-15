@@ -205,12 +205,22 @@ export default function PropertyEntryScreen() {
 
   // Load existing property data when editing
   useEffect(() => {
-    if (editingPropertyId) {
+    if (!editingPropertyId) return;
+    
+    // Wait for AsyncStorage to load - retry until we have data
+    const loadPropertyData = () => {
       console.log('🔍 Loading property for edit, ID:', editingPropertyId);
       
-      // Debug: Check all properties
       const allProperties = bequeathalActions.getAssetsByType('property');
       console.log('🏘️ Total properties in storage:', allProperties.length);
+      
+      // If no properties yet, data hasn't loaded from AsyncStorage - wait and retry
+      if (allProperties.length === 0) {
+        console.log('⏳ Waiting for AsyncStorage to load...');
+        setTimeout(loadPropertyData, 100);
+        return;
+      }
+      
       console.log('🏠 Property IDs:', allProperties.map(p => p.id));
       
       const existingProperty = bequeathalActions.getAssetById(editingPropertyId) as PropertyAsset | undefined;
@@ -286,7 +296,9 @@ export default function PropertyEntryScreen() {
       } else {
         console.error('❌ Property not found for ID:', editingPropertyId);
       }
-    }
+    };
+    
+    loadPropertyData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingPropertyId]); // Only run when ID changes, not when bequeathalActions reference changes
 
