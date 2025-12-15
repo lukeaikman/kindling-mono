@@ -207,6 +207,12 @@ export default function PropertyEntryScreen() {
   useEffect(() => {
     if (editingPropertyId) {
       console.log('🔍 Loading property for edit, ID:', editingPropertyId);
+      
+      // Debug: Check all properties
+      const allProperties = bequeathalActions.getAssetsByType('property');
+      console.log('🏘️ Total properties in storage:', allProperties.length);
+      console.log('🏠 Property IDs:', allProperties.map(p => p.id));
+      
       const existingProperty = bequeathalActions.getAssetById(editingPropertyId) as PropertyAsset | undefined;
       
       console.log('📦 Found property:', existingProperty ? 'YES' : 'NO');
