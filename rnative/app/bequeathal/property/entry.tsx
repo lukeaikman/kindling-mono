@@ -281,7 +281,8 @@ export default function PropertyEntryScreen() {
         console.error('❌ Property not found for ID:', editingPropertyId);
       }
     }
-  }, [editingPropertyId, bequeathalActions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingPropertyId]); // Only run when ID changes, not when bequeathalActions reference changes
 
   // Helper: Update property data
   const updatePropertyData = (field: keyof PropertyData, value: any) => {
