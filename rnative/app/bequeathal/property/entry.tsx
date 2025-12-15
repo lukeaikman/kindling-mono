@@ -10,11 +10,11 @@
  * @module screens/bequeathal/property/entry
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Accordion, Input, Select, Checkbox, CurrencyInput, Switch, PercentageInput, RadioGroup } from '../../../src/components/ui';
 import { SearchableSelect } from '../../../src/components/ui/SearchableSelect';
 import { BeneficiaryWithPercentages } from '../../../src/components/forms';
@@ -127,6 +127,8 @@ interface PropertyData {
 
 export default function PropertyEntryScreen() {
   const { bequeathalActions, personActions, beneficiaryGroupActions } = useAppState();
+  const params = useLocalSearchParams<{ id?: string }>();
+  const editingPropertyId = params.id;
 
   // Accordion expansion state (only one open at a time)
   const [expandedAccordion, setExpandedAccordion] = useState<string>('address');
@@ -200,6 +202,77 @@ export default function PropertyEntryScreen() {
     trustType: '',
     trustRole: '',
   });
+
+  // Load existing property data when editing
+  useEffect(() => {
+    if (editingPropertyId) {
+      const existingProperty = bequeathalActions.getAssetById(editingPropertyId) as PropertyAsset | undefined;
+      
+      if (existingProperty) {
+        // Map PropertyAsset to PropertyData form structure
+        setPropertyData({
+          address1: existingProperty.address?.address1 || '',
+          address2: existingProperty.address?.address2 || '',
+          townCity: existingProperty.address?.city || '',
+          countyState: existingProperty.address?.county || '',
+          country: existingProperty.address?.country || '',
+          
+          usage: existingProperty.usage || '',
+          propertyType: existingProperty.propertyType || '',
+          
+          fhlAvailableOver210Days: existingProperty.fhlAvailableOver210Days ?? true,
+          fhlActuallyLet105Days: existingProperty.fhlActuallyLet105Days ?? true,
+          fhlLongLetsUnder155Days: existingProperty.fhlLongLetsUnder155Days ?? true,
+          fhlEstimatedAnnualIncome: existingProperty.fhlEstimatedAnnualIncome || 0,
+          
+          agriculturalActivelyFarmed: existingProperty.agriculturalActivelyFarmed ?? true,
+          agriculturalWhoFarms: existingProperty.agriculturalWhoFarms || '',
+          agriculturalPre1995Tenancy: existingProperty.agriculturalPre1995Tenancy ?? false,
+          agriculturalBuildingsIncluded: existingProperty.agriculturalBuildingsIncluded ?? false,
+          agriculturalTotalAcreage: existingProperty.agriculturalTotalAcreage?.toString() || '',
+          agriculturalFarmingType: existingProperty.agriculturalFarmingType || '',
+          agriculturalFarmingTypeOther: existingProperty.agriculturalFarmingTypeOther || '',
+          
+          mixedUseCommercialPercentage: existingProperty.mixedUseCommercialPercentage || 0,
+          mixedUseSeparateEntrances: existingProperty.mixedUseSeparateEntrances ?? false,
+          mixedUseResidentialWasMainHome: existingProperty.mixedUseResidentialWasMainHome ?? false,
+          
+          buyToLetAnnualRentalIncome: existingProperty.buyToLetAnnualRentalIncome || 0,
+          buyToLetTenancyType: existingProperty.buyToLetTenancyType || '',
+          buyToLetTenancyTypeOther: existingProperty.buyToLetTenancyTypeOther || '',
+          buyToLetTenantedAtDeath: existingProperty.buyToLetTenantedAtDeath ?? false,
+          
+          ownershipType: existingProperty.ownershipType || '',
+          estimatedValue: existingProperty.estimatedValue || 0,
+          acquisitionMonth: existingProperty.acquisitionMonth || '',
+          acquisitionYear: existingProperty.acquisitionYear || '',
+          mortgageProvider: existingProperty.mortgage?.provider || 'no_mortgage',
+          mortgageAmount: existingProperty.mortgage?.outstandingAmount || 0,
+          
+          companyName: existingProperty.companyName || '',
+          companyCountryOfRegistration: existingProperty.companyCountryOfRegistration || 'uk',
+          companyOwnershipPercentage: existingProperty.companyOwnershipPercentage || 100,
+          companyShareClass: existingProperty.companyShareClass || '',
+          companyNotes: existingProperty.companyNotes || '',
+          companyArticlesConfident: existingProperty.companyArticlesConfident ?? false,
+          
+          jointOwnershipType: existingProperty.jointOwnershipType || '',
+          jointTenantCount: existingProperty.jointTenants?.length || 2,
+          tenantsInCommonCount: 1, // Not stored, keep default
+          tenantsInCommonPercentage: existingProperty.ownershipPercentage || 50,
+          
+          trustName: existingProperty.trustName || '',
+          trustType: existingProperty.trustType || '',
+          trustRole: existingProperty.trustRole || '',
+        });
+        
+        // Load beneficiaries if they exist
+        if (existingProperty.beneficiaryAssignments?.beneficiaries) {
+          setBeneficiaries(existingProperty.beneficiaryAssignments.beneficiaries);
+        }
+      }
+    }
+  }, [editingPropertyId]);
 
   // Helper: Update property data
   const updatePropertyData = (field: keyof PropertyData, value: any) => {
@@ -339,7 +412,13 @@ export default function PropertyEntryScreen() {
     };
 
     // Save to state
-    bequeathalActions.addAsset('property', propertyAsset as any);
+    if (editingPropertyId) {
+      // Update existing property
+      bequeathalActions.updateAsset(editingPropertyId, propertyAsset as any);
+    } else {
+      // Add new property
+      bequeathalActions.addAsset('property', propertyAsset as any);
+    }
     
     // Navigate to summary
     router.push('/bequeathal/property/summary');
@@ -354,7 +433,9 @@ export default function PropertyEntryScreen() {
           <View style={styles.iconCircle}>
             <IconButton icon="home" size={20} iconColor={KindlingColors.navy} />
           </View>
-          <Text style={styles.headerTitle}>Property Details</Text>
+          <Text style={styles.headerTitle}>
+            {editingPropertyId ? 'Edit Property' : 'Property Details'}
+          </Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -752,7 +833,7 @@ export default function PropertyEntryScreen() {
 
                   <View style={styles.infoBox}>
                     <Text style={styles.infoText}>
-                      ℹ️ Buy-to-let properties that are tenanted at death are typically valued less for IHT purposes (a saving).
+ℹ️ Buy-to-let properties that are tenanted at death are typically valued less for IHT purposes (a saving).
                     </Text>
                   </View>
 
@@ -1118,7 +1199,11 @@ export default function PropertyEntryScreen() {
             (isTrustOwned() ? false : beneficiaries.length === 0)
           }
         >
-          {isTrustOwned() ? 'Continue to Trust Details' : 'Save Property'}
+          {isTrustOwned() 
+            ? 'Continue to Trust Details' 
+            : editingPropertyId 
+            ? 'Update Property' 
+            : 'Save Property'}
         </Button>
       </View>
     </SafeAreaView>
