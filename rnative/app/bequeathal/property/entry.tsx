@@ -205,43 +205,30 @@ export default function PropertyEntryScreen() {
 
   // Load existing property data if editing
   useEffect(() => {
-    const loadPropertyData = async () => {
-      console.log('🔍 PROPERTY EDIT - Loading data...');
-      console.log('📝 Editing Property ID:', editingPropertyId);
-      
-      if (!editingPropertyId) {
-        console.log('⚠️ No editing ID - creating new property');
-        return;
-      }
-      
-      // IMMEDIATE CHECK (likely empty)
-      let allProperties = bequeathalActions.getAssetsByType('property');
-      console.log('⏱️ IMMEDIATE: Total properties:', allProperties.length);
-      
-      // Wait for AsyncStorage to hydrate
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // AFTER DELAY CHECK
-      allProperties = bequeathalActions.getAssetsByType('property');
-      console.log('⏱️ AFTER 500ms: Total properties:', allProperties.length);
-      console.log('🏠 Property IDs:', allProperties.map(p => p.id));
-      
-      const asset = bequeathalActions.getAssetById(editingPropertyId);
-      console.log('📦 Asset returned from getAssetById:', asset);
-      console.log('📦 Asset type:', asset?.type);
-      
-      if (!asset || asset.type !== 'property') {
-        console.log('❌ Asset not found or wrong type');
-        console.log('❌ Searched for ID:', editingPropertyId);
-        console.log('❌ Available property IDs:', allProperties.map(p => p.id));
-        return;
-      }
-      
-      const property = asset as PropertyAsset;
-      console.log('✅ Property asset loaded:', property);
-      console.log('🏠 Address:', property.address);
-      console.log('💰 Value:', property.estimatedValue);
-      console.log('👥 Beneficiaries:', property.beneficiaryAssignments);
+    if (!editingPropertyId) return; // Not editing
+    
+    // Check if data is loaded - if empty, wait for next render when data arrives
+    const allAssets = bequeathalActions.getAllAssets();
+    if (allAssets.length === 0) {
+      console.log('⏳ Waiting for AsyncStorage to load...');
+      return; // Will re-run when bequeathalActions updates with data
+    }
+    
+    console.log('✅ Data loaded, finding property...');
+    console.log('📝 Looking for ID:', editingPropertyId);
+    
+    const asset = bequeathalActions.getAssetById(editingPropertyId);
+    
+    if (!asset || asset.type !== 'property') {
+      console.log('❌ Property not found');
+      const allProperties = bequeathalActions.getAssetsByType('property');
+      console.log('Available properties:', allProperties.length);
+      console.log('Available IDs:', allProperties.map(p => p.id));
+      return;
+    }
+    
+    const property = asset as PropertyAsset;
+    console.log('✅ Property found:', property.address?.address1);
       
       // Populate form with existing property data
       setPropertyData({
@@ -314,10 +301,12 @@ export default function PropertyEntryScreen() {
       if (property.beneficiaryAssignments?.beneficiaries) {
         setBeneficiaries(property.beneficiaryAssignments.beneficiaries);
       }
+      
+      console.log('✅ Form populated successfully');
     };
     
     loadPropertyData();
-  }, [editingPropertyId]);
+  }, [editingPropertyId, bequeathalActions]);
 
   // Helper: Update property data
   const updatePropertyData = (field: keyof PropertyData, value: any) => {
