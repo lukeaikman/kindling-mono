@@ -280,11 +280,6 @@ export default function PropertyTrustDetailsScreen() {
           value={trustData.propertyValueAtTransfer}
           onValueChange={(value) => updateTrustData('propertyValueAtTransfer', value)}
         />
-        {trustData.propertyValueAtTransfer > 0 && (
-          <Text style={styles.helperText}>
-            Value at time of transfer. Used for 7-year taper calculations.
-          </Text>
-        )}
 
         <Checkbox
           label="Chained trust structure?"
@@ -534,7 +529,7 @@ export default function PropertyTrustDetailsScreen() {
   const renderBareSettlorFieldset = () => (
     <View style={styles.fieldsetContent}>
       <Text style={styles.helperText}>
-        Bare trust beneficiaries own the property absolutely. These details help with 7-year rule calculations and executor information.
+        The bare trust beneficiaries own the property absolutely. This property will not be a part of your estate for inheritance tax purposes, unless you die within 7 years of creating the trust. These details help with "7-year rule" calculations.
       </Text>
 
       {/* Trust Creation Date */}
@@ -583,9 +578,6 @@ export default function PropertyTrustDetailsScreen() {
         value={trustData.bareValueAtTransfer}
         onValueChange={(value) => updateTrustData('bareValueAtTransfer', value)}
       />
-      <Text style={styles.helperText}>
-        Value at transfer. Used for 7-year taper calculations.
-      </Text>
 
       {/* Beneficiaries */}
       <Text style={styles.fieldLabel}>Beneficiaries *</Text>
