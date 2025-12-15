@@ -747,15 +747,8 @@ export default function PropertyEntryScreen() {
                     label="Expected to be tenanted at death"
                     checked={propertyData.buyToLetTenantedAtDeath}
                     onCheckedChange={(value) => updatePropertyData('buyToLetTenantedAtDeath', value)}
+                    borderColor={KindlingColors.beige}
                   />
-
-                  {propertyData.buyToLetTenantedAtDeath && (
-                    <View style={styles.infoBox}>
-                      <Text style={styles.infoText}>
-                        Tenanted properties typically receive 10-20% valuation discount for probate/IHT purposes
-                      </Text>
-                    </View>
-                  )}
 
                   <View style={styles.infoBox}>
                     <Text style={styles.infoText}>

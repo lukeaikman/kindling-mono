@@ -35,6 +35,11 @@ export interface CheckboxProps {
    * Whether checkbox is disabled
    */
   disabled?: boolean;
+  
+  /**
+   * Custom border color for unchecked state (matches adjacent info boxes)
+   */
+  borderColor?: string;
 }
 
 /**
@@ -54,6 +59,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
   checked,
   onCheckedChange,
   disabled = false,
+  borderColor,
 }) => {
   return (
     <TouchableOpacity
@@ -62,7 +68,11 @@ export const Checkbox: React.FC<CheckboxProps> = ({
       style={styles.container}
       activeOpacity={0.7}
     >
-      <View style={[styles.checkboxCircle, checked && styles.checkboxCircleSelected]}>
+      <View style={[
+        styles.checkboxCircle, 
+        checked && styles.checkboxCircleSelected,
+        borderColor && !checked && { borderColor }
+      ]}>
         {checked && (
           <IconButton
             icon="check"
