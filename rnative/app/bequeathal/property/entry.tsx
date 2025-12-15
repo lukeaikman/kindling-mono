@@ -752,7 +752,7 @@ export default function PropertyEntryScreen() {
 
                   <View style={styles.infoBox}>
                     <Text style={styles.infoText}>
-                      ℹ️ Buy-to-let properties worth less when tenanted than with vacant possession for probate/IHT purposes
+                      ℹ️ Buy-to-let properties that are tenanted at death are typically valued less for IHT purposes (a saving).
                     </Text>
                   </View>
 
