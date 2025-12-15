@@ -87,6 +87,86 @@ native-app/
 
 ---
 
+## Rule 4a — Loading Data for Edit Screens (CRITICAL PATTERN)
+**Triggers:** Implementing edit functionality that loads existing data by ID
+
+**The Problem:**
+`useAppState` loads data from AsyncStorage asynchronously on mount, but returns initial (empty) state immediately. If your useEffect queries data before AsyncStorage finishes loading, you'll get `undefined` even though the data exists.
+
+**DO NOT:**
+- ❌ Add arbitrary delays (`setTimeout(500)`) - race conditions
+- ❌ Add `bequeathalActions` to deps - infinite loop (new object every render)
+- ❌ Use boolean `hasLoaded` flag - blocks second run when data arrives
+- ❌ Assume data is available immediately
+
+**DO THIS (Standard Pattern):**
+
+```typescript
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+
+export default function EditScreen() {
+  const { myActions } = useAppState();
+  const params = useLocalSearchParams();
+  const editingId = params.id as string | undefined;
+  
+  // Track which specific ID we've loaded (prevents duplicate loads)
+  const loadedIdRef = useRef<string | null>(null);
+  
+  const [formData, setFormData] = useState(/* initial state */);
+  
+  // Load existing data if editing
+  useEffect(() => {
+    if (!editingId) {
+      loadedIdRef.current = null; // Reset when creating new
+      return;
+    }
+    
+    // Already loaded THIS specific ID? Skip
+    if (loadedIdRef.current === editingId) return;
+    
+    // Data not loaded yet from AsyncStorage? Skip and wait
+    const allItems = myActions.getAllItems();
+    if (allItems.length === 0) {
+      console.log('⏳ Waiting for AsyncStorage...');
+      return; // Will re-run on next render when data arrives
+    }
+    
+    // NOW it's safe to load
+    const item = myActions.getItemById(editingId);
+    if (!item) {
+      loadedIdRef.current = editingId; // Mark as attempted
+      return;
+    }
+    
+    // Populate form
+    setFormData({
+      field1: item.field1,
+      field2: item.field2,
+      // ...
+    });
+    
+    loadedIdRef.current = editingId; // Mark as loaded
+  }); // NO dependency array - runs every render, but ref prevents duplicate work
+  
+  // ... rest of component
+}
+```
+
+**Why This Works:**
+1. **Render 1-N (empty state):** Returns early, ref stays null
+2. **Render N+1 (data loaded):** Sees data, loads item, sets ref = ID
+3. **Render N+2-∞:** Ref === ID, returns immediately, no duplicate loads
+4. **No infinite loop:** Ref is stable, prevents re-running after successful load
+5. **No race conditions:** Works regardless of AsyncStorage timing
+
+**Critical:** Use a **ref with the specific ID**, not a boolean flag. This allows:
+- Loading different IDs (switching between edits)
+- Preventing duplicate loads of same ID
+- No dependency array issues
+
+---
+
 ## Rule 5 — Navigation System (Expo Router)
 **Triggers:** Adding new screens or modifying navigation flow
 
