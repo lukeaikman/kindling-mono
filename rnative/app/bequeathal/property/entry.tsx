@@ -214,12 +214,21 @@ export default function PropertyEntryScreen() {
         return;
       }
       
+      // DEBUG: Check what's in the database
+      const allAssets = bequeathalActions.getAllAssets();
+      console.log('📚 Total assets in database:', allAssets.length);
+      const allProperties = bequeathalActions.getAssetsByType('property');
+      console.log('🏠 Total properties:', allProperties.length);
+      console.log('🏠 Property IDs:', allProperties.map(p => p.id));
+      
       const asset = await bequeathalActions.getAssetById(editingPropertyId);
       console.log('📦 Asset returned from getAssetById:', asset);
       console.log('📦 Asset type:', asset?.type);
       
       if (!asset || asset.type !== 'property') {
         console.log('❌ Asset not found or wrong type');
+        console.log('❌ Searched for ID:', editingPropertyId);
+        console.log('❌ Available property IDs:', allProperties.map(p => p.id));
         return;
       }
       
