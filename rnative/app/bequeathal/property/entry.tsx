@@ -10,7 +10,7 @@
  * @module screens/bequeathal/property/entry
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
@@ -136,8 +136,8 @@ export default function PropertyEntryScreen() {
   // Beneficiaries state
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
   
-  // Track if we've already loaded edit data (prevent infinite loop)
-  const [hasLoadedEditData, setHasLoadedEditData] = useState(false);
+  // Track which property ID we've loaded (prevent infinite loop)
+  const loadedPropertyIdRef = useRef<string | null>(null);
 
   // Property data (single object with all 83 fields)
   const [propertyData, setPropertyData] = useState<PropertyData>({
@@ -208,8 +208,13 @@ export default function PropertyEntryScreen() {
 
   // Load existing property data if editing
   useEffect(() => {
-    if (!editingPropertyId) return; // Not editing
-    if (hasLoadedEditData) return; // Already loaded, don't re-run
+    if (!editingPropertyId) {
+      loadedPropertyIdRef.current = null; // Reset when not editing
+      return;
+    }
+    
+    // Already loaded THIS specific property? Don't reload
+    if (loadedPropertyIdRef.current === editingPropertyId) return;
     
     // Check if data is loaded - if empty, wait for next render when data arrives
     const allAssets = bequeathalActions.getAllAssets();
@@ -218,17 +223,13 @@ export default function PropertyEntryScreen() {
       return; // Will re-run on next render
     }
     
-    console.log('✅ Data loaded, finding property...');
-    console.log('📝 Looking for ID:', editingPropertyId);
+    console.log('✅ Data loaded, finding property for ID:', editingPropertyId);
     
     const asset = bequeathalActions.getAssetById(editingPropertyId);
     
     if (!asset || asset.type !== 'property') {
       console.log('❌ Property not found');
-      const allProperties = bequeathalActions.getAssetsByType('property');
-      console.log('Available properties:', allProperties.length);
-      console.log('Available IDs:', allProperties.map(p => p.id));
-      setHasLoadedEditData(true); // Mark as attempted even if failed
+      loadedPropertyIdRef.current = editingPropertyId; // Mark as attempted
       return;
     }
     
@@ -307,9 +308,9 @@ export default function PropertyEntryScreen() {
       setBeneficiaries(property.beneficiaryAssignments.beneficiaries);
     }
     
-    setHasLoadedEditData(true); // Mark as loaded
+    loadedPropertyIdRef.current = editingPropertyId; // Mark THIS property as loaded
     console.log('✅ Form populated successfully');
-  }, [editingPropertyId]); // Only depend on editingPropertyId, NOT bequeathalActions
+  }); // NO dependency array - runs every render, but ref prevents duplicate work
 
   // Helper: Update property data
   const updatePropertyData = (field: keyof PropertyData, value: any) => {
