@@ -135,6 +135,9 @@ export default function PropertyEntryScreen() {
 
   // Beneficiaries state
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
+  
+  // Track if we've already loaded edit data (prevent infinite loop)
+  const [hasLoadedEditData, setHasLoadedEditData] = useState(false);
 
   // Property data (single object with all 83 fields)
   const [propertyData, setPropertyData] = useState<PropertyData>({
@@ -206,12 +209,13 @@ export default function PropertyEntryScreen() {
   // Load existing property data if editing
   useEffect(() => {
     if (!editingPropertyId) return; // Not editing
+    if (hasLoadedEditData) return; // Already loaded, don't re-run
     
     // Check if data is loaded - if empty, wait for next render when data arrives
     const allAssets = bequeathalActions.getAllAssets();
     if (allAssets.length === 0) {
       console.log('⏳ Waiting for AsyncStorage to load...');
-      return; // Will re-run when bequeathalActions updates with data
+      return; // Will re-run on next render
     }
     
     console.log('✅ Data loaded, finding property...');
@@ -224,6 +228,7 @@ export default function PropertyEntryScreen() {
       const allProperties = bequeathalActions.getAssetsByType('property');
       console.log('Available properties:', allProperties.length);
       console.log('Available IDs:', allProperties.map(p => p.id));
+      setHasLoadedEditData(true); // Mark as attempted even if failed
       return;
     }
     
@@ -302,8 +307,9 @@ export default function PropertyEntryScreen() {
       setBeneficiaries(property.beneficiaryAssignments.beneficiaries);
     }
     
+    setHasLoadedEditData(true); // Mark as loaded
     console.log('✅ Form populated successfully');
-  }, [editingPropertyId, bequeathalActions]);
+  }, [editingPropertyId]); // Only depend on editingPropertyId, NOT bequeathalActions
 
   // Helper: Update property data
   const updatePropertyData = (field: keyof PropertyData, value: any) => {
