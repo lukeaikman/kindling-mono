@@ -206,12 +206,28 @@ export default function PropertyEntryScreen() {
   // Load existing property data if editing
   useEffect(() => {
     const loadPropertyData = async () => {
-      if (!editingPropertyId) return; // Not editing, skip
+      console.log('🔍 PROPERTY EDIT - Loading data...');
+      console.log('📝 Editing Property ID:', editingPropertyId);
+      
+      if (!editingPropertyId) {
+        console.log('⚠️ No editing ID - creating new property');
+        return;
+      }
       
       const asset = await bequeathalActions.getAssetById(editingPropertyId);
-      if (!asset || asset.type !== 'property') return;
+      console.log('📦 Asset returned from getAssetById:', asset);
+      console.log('📦 Asset type:', asset?.type);
+      
+      if (!asset || asset.type !== 'property') {
+        console.log('❌ Asset not found or wrong type');
+        return;
+      }
       
       const property = asset as PropertyAsset;
+      console.log('✅ Property asset loaded:', property);
+      console.log('🏠 Address:', property.address);
+      console.log('💰 Value:', property.estimatedValue);
+      console.log('👥 Beneficiaries:', property.beneficiaryAssignments);
       
       // Populate form with existing property data
       setPropertyData({
