@@ -127,8 +127,8 @@ interface PropertyData {
 
 export default function PropertyEntryScreen() {
   const { bequeathalActions, personActions, beneficiaryGroupActions } = useAppState();
-  const params = useLocalSearchParams<{ id?: string }>();
-  const editingPropertyId = params.id;
+  const params = useLocalSearchParams();
+  const editingPropertyId = params.id as string | undefined;
 
   // Accordion expansion state (only one open at a time)
   const [expandedAccordion, setExpandedAccordion] = useState<string>('address');
@@ -203,104 +203,91 @@ export default function PropertyEntryScreen() {
     trustRole: '',
   });
 
-  // Load existing property data when editing
+  // Load existing property data if editing
   useEffect(() => {
-    if (!editingPropertyId) return;
-    
-    // Wait for AsyncStorage to load - retry until we have data
-    const loadPropertyData = () => {
-      console.log('🔍 Loading property for edit, ID:', editingPropertyId);
+    const loadPropertyData = async () => {
+      if (!editingPropertyId) return; // Not editing, skip
       
-      const allProperties = bequeathalActions.getAssetsByType('property');
-      console.log('🏘️ Total properties in storage:', allProperties.length);
+      const asset = await bequeathalActions.getAssetById(editingPropertyId);
+      if (!asset || asset.type !== 'property') return;
       
-      // If no properties yet, data hasn't loaded from AsyncStorage - wait and retry
-      if (allProperties.length === 0) {
-        console.log('⏳ Waiting for AsyncStorage to load...');
-        setTimeout(loadPropertyData, 100);
-        return;
-      }
+      const property = asset as PropertyAsset;
       
-      console.log('🏠 Property IDs:', allProperties.map(p => p.id));
-      
-      const existingProperty = bequeathalActions.getAssetById(editingPropertyId) as PropertyAsset | undefined;
-      
-      console.log('📦 Found property:', existingProperty ? 'YES' : 'NO');
-      if (existingProperty) {
-        console.log('✅ Loading property data:', existingProperty.address?.address1);
+      // Populate form with existing property data
+      setPropertyData({
+        // Address
+        address1: property.address?.address1 || '',
+        address2: property.address?.address2 || '',
+        townCity: property.address?.city || '',
+        countyState: property.address?.county || '',
+        country: property.address?.country || '',
         
-        // Map PropertyAsset to PropertyData form structure
-        setPropertyData({
-          address1: existingProperty.address?.address1 || '',
-          address2: existingProperty.address?.address2 || '',
-          townCity: existingProperty.address?.city || '',
-          countyState: existingProperty.address?.county || '',
-          country: existingProperty.address?.country || '',
-          
-          usage: existingProperty.usage || '',
-          propertyType: existingProperty.propertyType || '',
-          
-          fhlAvailableOver210Days: existingProperty.fhlAvailableOver210Days ?? true,
-          fhlActuallyLet105Days: existingProperty.fhlActuallyLet105Days ?? true,
-          fhlLongLetsUnder155Days: existingProperty.fhlLongLetsUnder155Days ?? true,
-          fhlEstimatedAnnualIncome: existingProperty.fhlEstimatedAnnualIncome || 0,
-          
-          agriculturalActivelyFarmed: existingProperty.agriculturalActivelyFarmed ?? true,
-          agriculturalWhoFarms: existingProperty.agriculturalWhoFarms || '',
-          agriculturalPre1995Tenancy: existingProperty.agriculturalPre1995Tenancy ?? false,
-          agriculturalBuildingsIncluded: existingProperty.agriculturalBuildingsIncluded ?? false,
-          agriculturalTotalAcreage: existingProperty.agriculturalTotalAcreage?.toString() || '',
-          agriculturalFarmingType: existingProperty.agriculturalFarmingType || '',
-          agriculturalFarmingTypeOther: existingProperty.agriculturalFarmingTypeOther || '',
-          
-          mixedUseCommercialPercentage: existingProperty.mixedUseCommercialPercentage || 0,
-          mixedUseSeparateEntrances: existingProperty.mixedUseSeparateEntrances ?? false,
-          mixedUseResidentialWasMainHome: existingProperty.mixedUseResidentialWasMainHome ?? false,
-          
-          buyToLetAnnualRentalIncome: existingProperty.buyToLetAnnualRentalIncome || 0,
-          buyToLetTenancyType: existingProperty.buyToLetTenancyType || '',
-          buyToLetTenancyTypeOther: existingProperty.buyToLetTenancyTypeOther || '',
-          buyToLetTenantedAtDeath: existingProperty.buyToLetTenantedAtDeath ?? false,
-          
-          ownershipType: existingProperty.ownershipType || '',
-          estimatedValue: existingProperty.estimatedValue || 0,
-          acquisitionMonth: existingProperty.acquisitionMonth || '',
-          acquisitionYear: existingProperty.acquisitionYear || '',
-          mortgageProvider: existingProperty.mortgage?.provider || 'no_mortgage',
-          mortgageAmount: existingProperty.mortgage?.outstandingAmount || 0,
-          
-          companyName: existingProperty.companyName || '',
-          companyCountryOfRegistration: existingProperty.companyCountryOfRegistration || 'uk',
-          companyOwnershipPercentage: existingProperty.companyOwnershipPercentage || 100,
-          companyShareClass: existingProperty.companyShareClass || '',
-          companyNotes: existingProperty.companyNotes || '',
-          companyArticlesConfident: existingProperty.companyArticlesConfident ?? false,
-          
-          jointOwnershipType: existingProperty.jointOwnershipType || '',
-          jointTenantCount: existingProperty.jointTenants?.length || 2,
-          tenantsInCommonCount: 1, // Not stored, keep default
-          tenantsInCommonPercentage: existingProperty.ownershipPercentage || 50,
-          
-          trustName: existingProperty.trustName || '',
-          trustType: existingProperty.trustType || '',
-          trustRole: existingProperty.trustRole || '',
-        });
+        // Usage & Type
+        usage: property.usage || '',
+        propertyType: property.propertyType || '',
         
-        // Load beneficiaries if they exist
-        if (existingProperty.beneficiaryAssignments?.beneficiaries) {
-          console.log('👥 Loading beneficiaries:', existingProperty.beneficiaryAssignments.beneficiaries.length);
-          setBeneficiaries(existingProperty.beneficiaryAssignments.beneficiaries);
-        }
+        // FHL
+        fhlAvailableOver210Days: property.fhlAvailableOver210Days ?? true,
+        fhlActuallyLet105Days: property.fhlActuallyLet105Days ?? true,
+        fhlLongLetsUnder155Days: property.fhlLongLetsUnder155Days ?? true,
+        fhlEstimatedAnnualIncome: property.fhlEstimatedAnnualIncome || 0,
         
-        console.log('✅ Property data loaded successfully');
-      } else {
-        console.error('❌ Property not found for ID:', editingPropertyId);
+        // Agricultural
+        agriculturalActivelyFarmed: property.agriculturalActivelyFarmed ?? true,
+        agriculturalWhoFarms: '',
+        agriculturalPre1995Tenancy: false,
+        agriculturalBuildingsIncluded: property.agriculturalBuildingsIncluded ?? false,
+        agriculturalTotalAcreage: '',
+        agriculturalFarmingType: '',
+        agriculturalFarmingTypeOther: '',
+        
+        // Mixed-Use
+        mixedUseCommercialPercentage: property.mixedUseCommercialPercentage || 0,
+        mixedUseSeparateEntrances: property.mixedUseSeparateEntrances ?? false,
+        mixedUseResidentialWasMainHome: property.mixedUseResidentialWasMainHome ?? false,
+        
+        // Buy-to-Let
+        buyToLetAnnualRentalIncome: property.buyToLetAnnualRentalIncome || 0,
+        buyToLetTenancyType: property.buyToLetTenancyType || '',
+        buyToLetTenancyTypeOther: property.buyToLetTenancyTypeOther || '',
+        buyToLetTenantedAtDeath: property.buyToLetTenantedAtDeath ?? false,
+        
+        // Property Details
+        ownershipType: property.ownershipType || '',
+        estimatedValue: property.estimatedValue || 0,
+        acquisitionMonth: property.acquisitionMonth || '',
+        acquisitionYear: property.acquisitionYear || '',
+        mortgageProvider: property.mortgage?.provider || 'no_mortgage',
+        mortgageAmount: property.mortgage?.outstandingAmount || 0,
+        
+        // Company Ownership
+        companyName: property.companyName || '',
+        companyCountryOfRegistration: property.companyCountryOfRegistration || 'uk',
+        companyOwnershipPercentage: property.companyOwnershipPercentage || 100,
+        companyShareClass: property.companyShareClass || '',
+        companyNotes: property.companyNotes || '',
+        companyArticlesConfident: property.companyArticlesConfident ?? false,
+        
+        // Joint Ownership
+        jointOwnershipType: property.jointOwnershipType || '',
+        jointTenantCount: property.jointTenants?.length || 2,
+        tenantsInCommonCount: 1, // Default, not stored in PropertyAsset
+        tenantsInCommonPercentage: property.ownershipPercentage || 50,
+        
+        // Trust
+        trustName: property.trustName || '',
+        trustType: property.trustType || '',
+        trustRole: property.trustRole || '',
+      });
+      
+      // Load beneficiaries
+      if (property.beneficiaryAssignments?.beneficiaries) {
+        setBeneficiaries(property.beneficiaryAssignments.beneficiaries);
       }
     };
     
     loadPropertyData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingPropertyId]); // Only run when ID changes, not when bequeathalActions reference changes
+  }, [editingPropertyId]);
 
   // Helper: Update property data
   const updatePropertyData = (field: keyof PropertyData, value: any) => {
@@ -439,12 +426,10 @@ export default function PropertyEntryScreen() {
       } : undefined,
     };
 
-    // Save to state
+    // Save to state - update if editing, add if new
     if (editingPropertyId) {
-      // Update existing property
       bequeathalActions.updateAsset(editingPropertyId, propertyAsset as any);
     } else {
-      // Add new property
       bequeathalActions.addAsset('property', propertyAsset as any);
     }
     
@@ -461,9 +446,7 @@ export default function PropertyEntryScreen() {
           <View style={styles.iconCircle}>
             <IconButton icon="home" size={20} iconColor={KindlingColors.navy} />
           </View>
-          <Text style={styles.headerTitle}>
-            {editingPropertyId ? 'Edit Property' : 'Property Details'}
-          </Text>
+          <Text style={styles.headerTitle}>Property Details</Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -861,7 +844,7 @@ export default function PropertyEntryScreen() {
 
                   <View style={styles.infoBox}>
                     <Text style={styles.infoText}>
-ℹ️ Buy-to-let properties that are tenanted at death are typically valued less for IHT purposes (a saving).
+                      ℹ️ Buy-to-let properties that are tenanted at death are typically valued less for IHT purposes (a saving).
                     </Text>
                   </View>
 
@@ -1227,11 +1210,7 @@ export default function PropertyEntryScreen() {
             (isTrustOwned() ? false : beneficiaries.length === 0)
           }
         >
-          {isTrustOwned() 
-            ? 'Continue to Trust Details' 
-            : editingPropertyId 
-            ? 'Update Property' 
-            : 'Save Property'}
+          {isTrustOwned() ? 'Continue to Trust Details' : 'Save Property'}
         </Button>
       </View>
     </SafeAreaView>
