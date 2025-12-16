@@ -538,7 +538,7 @@ export default function PropertyEntryScreen() {
                 />
 
                 <Button
-                  onPress={() => setExpandedAccordion('usage')}
+                  onPress={() => setExpandedAccordion('details')}
                   variant="primary"
                   disabled={!propertyData.address1 || !propertyData.townCity || !propertyData.country}
                 >
@@ -547,7 +547,116 @@ export default function PropertyEntryScreen() {
               </View>
             </Accordion>
 
-            {/* Accordion 2: Usage & Type (Always) */}
+            {/* Accordion 2: Ownership Details (Always) */}
+            <Accordion
+              title="Ownership Details"
+              icon="information"
+              expanded={expandedAccordion === 'details'}
+              onExpandedChange={(expanded) => setExpandedAccordion(expanded ? 'details' : '')}
+            >
+              <View style={styles.accordionContent}>
+                <Select
+                  label="Ownership Type *"
+                  placeholder="Select ownership type..."
+                  value={propertyData.ownershipType}
+                  options={[
+                    { label: 'Personally owned', value: 'personally_owned' },
+                    { label: 'Jointly owned', value: 'jointly_owned' },
+                    { label: 'Owned Through Company', value: 'company_owned' },
+                    { label: 'Owned through Trust', value: 'trust_owned' },
+                  ]}
+                  onChange={(value) => updatePropertyData('ownershipType', value)}
+                />
+
+                <CurrencyInput
+                  label="Estimated Value *"
+                  placeholder="Enter property value..."
+                  value={propertyData.estimatedValue}
+                  onValueChange={(value) => updatePropertyData('estimatedValue', value)}
+                />
+
+                {/* Acquisition Date (Optional) */}
+                <Text style={styles.fieldLabel}>Acquisition Date (Optional)</Text>
+                <Text style={styles.helperText}>
+                  Month and year when property was acquired. Leave blank if unsure. 
+                  Helpful for executor reference and possible CGT cost basis.
+                </Text>
+                <View style={styles.dateRow}>
+                  <View style={styles.dateField}>
+                    <Select
+                      placeholder="Month..."
+                      value={propertyData.acquisitionMonth}
+                      options={[
+                        { label: 'January', value: '01' },
+                        { label: 'February', value: '02' },
+                        { label: 'March', value: '03' },
+                        { label: 'April', value: '04' },
+                        { label: 'May', value: '05' },
+                        { label: 'June', value: '06' },
+                        { label: 'July', value: '07' },
+                        { label: 'August', value: '08' },
+                        { label: 'September', value: '09' },
+                        { label: 'October', value: '10' },
+                        { label: 'November', value: '11' },
+                        { label: 'December', value: '12' },
+                      ]}
+                      onChange={(value) => updatePropertyData('acquisitionMonth', value)}
+                    />
+                  </View>
+                  <View style={styles.dateField}>
+                    <Select
+                      placeholder="Year..."
+                      value={propertyData.acquisitionYear}
+                      options={Array.from({ length: 100 }, (_, i) => {
+                        const year = new Date().getFullYear() - i;
+                        return { label: year.toString(), value: year.toString() };
+                      })}
+                      onChange={(value) => updatePropertyData('acquisitionYear', value)}
+                    />
+                  </View>
+                </View>
+
+                {/* Mortgage Provider */}
+                <SearchableSelect
+                  label="Mortgage Provider *"
+                  placeholder="Search mortgage providers..."
+                  value={propertyData.mortgageProvider}
+                  options={MORTGAGE_PROVIDERS}
+                  onChange={(value) => updatePropertyData('mortgageProvider', value)}
+                  showSelectedCards={false}
+                />
+
+                {/* Mortgage Amount (conditional) */}
+                {hasMortgage() && (
+                  <>
+                    <CurrencyInput
+                      label="Mortgage Amount"
+                      placeholder="Enter outstanding mortgage..."
+                      value={propertyData.mortgageAmount}
+                      onValueChange={(value) => updatePropertyData('mortgageAmount', value)}
+                    />
+
+                    {propertyData.estimatedValue > 0 && propertyData.mortgageAmount > 0 && (
+                      <View style={styles.infoBox}>
+                        <Text style={styles.infoText}>
+                          Net Value: £{(propertyData.estimatedValue - propertyData.mortgageAmount).toLocaleString()}
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                )}
+
+                <Button
+                  onPress={() => setExpandedAccordion('usage')}
+                  variant="primary"
+                  disabled={propertyData.estimatedValue === 0 || !propertyData.ownershipType || !propertyData.mortgageProvider}
+                >
+                  Next
+                </Button>
+              </View>
+            </Accordion>
+
+            {/* Accordion 3: Usage & Type (Always) */}
             <Accordion
               title="Usage & Type"
               icon="home-variant"
@@ -613,7 +722,8 @@ export default function PropertyEntryScreen() {
                     } else if (isBuyToLet()) {
                       setExpandedAccordion('buytolet');
                     } else {
-                      setExpandedAccordion('details');
+                      // If no conditional accordion needed, close all
+                      setExpandedAccordion('');
                     }
                   }}
                   variant="primary"
@@ -886,124 +996,6 @@ export default function PropertyEntryScreen() {
               </Accordion>
             )}
 
-            {/* Accordion 7: Property Details (Always) */}
-            <Accordion
-              title="Property Details"
-              icon="information"
-              expanded={expandedAccordion === 'details'}
-              onExpandedChange={(expanded) => setExpandedAccordion(expanded ? 'details' : '')}
-            >
-              <View style={styles.accordionContent}>
-                <Select
-                  label="Ownership Type *"
-                  placeholder="Select ownership type..."
-                  value={propertyData.ownershipType}
-                  options={[
-                    { label: 'Personally owned', value: 'personally_owned' },
-                    { label: 'Jointly owned', value: 'jointly_owned' },
-                    { label: 'Owned Through Company', value: 'company_owned' },
-                    { label: 'Owned through Trust', value: 'trust_owned' },
-                  ]}
-                  onChange={(value) => updatePropertyData('ownershipType', value)}
-                />
-
-                <CurrencyInput
-                  label="Estimated Value *"
-                  placeholder="Enter property value..."
-                  value={propertyData.estimatedValue}
-                  onValueChange={(value) => updatePropertyData('estimatedValue', value)}
-                />
-
-                {/* Acquisition Date (Optional) */}
-                <Text style={styles.fieldLabel}>Acquisition Date (Optional)</Text>
-                <Text style={styles.helperText}>
-                  Month and year when property was acquired. Leave blank if unsure. 
-                  Helpful for executor reference and possible CGT cost basis.
-                </Text>
-                <View style={styles.dateRow}>
-                  <View style={styles.dateField}>
-                    <Select
-                      placeholder="Month..."
-                      value={propertyData.acquisitionMonth}
-                      options={[
-                        { label: 'January', value: '01' },
-                        { label: 'February', value: '02' },
-                        { label: 'March', value: '03' },
-                        { label: 'April', value: '04' },
-                        { label: 'May', value: '05' },
-                        { label: 'June', value: '06' },
-                        { label: 'July', value: '07' },
-                        { label: 'August', value: '08' },
-                        { label: 'September', value: '09' },
-                        { label: 'October', value: '10' },
-                        { label: 'November', value: '11' },
-                        { label: 'December', value: '12' },
-                      ]}
-                      onChange={(value) => updatePropertyData('acquisitionMonth', value)}
-                    />
-                  </View>
-                  <View style={styles.dateField}>
-                    <Select
-                      placeholder="Year..."
-                      value={propertyData.acquisitionYear}
-                      options={Array.from({ length: 100 }, (_, i) => {
-                        const year = new Date().getFullYear() - i;
-                        return { label: year.toString(), value: year.toString() };
-                      })}
-                      onChange={(value) => updatePropertyData('acquisitionYear', value)}
-                    />
-                  </View>
-                </View>
-
-                {/* Mortgage Provider */}
-                <SearchableSelect
-                  label="Mortgage Provider *"
-                  placeholder="Search mortgage providers..."
-                  value={propertyData.mortgageProvider}
-                  options={MORTGAGE_PROVIDERS}
-                  onChange={(value) => updatePropertyData('mortgageProvider', value)}
-                  showSelectedCards={false}
-                />
-
-                {/* Mortgage Amount (conditional) */}
-                {hasMortgage() && (
-                  <>
-                    <CurrencyInput
-                      label="Mortgage Amount"
-                      placeholder="Enter outstanding mortgage..."
-                      value={propertyData.mortgageAmount}
-                      onValueChange={(value) => updatePropertyData('mortgageAmount', value)}
-                    />
-
-                    {propertyData.estimatedValue > 0 && propertyData.mortgageAmount > 0 && (
-                      <View style={styles.infoBox}>
-                        <Text style={styles.infoText}>
-                          Net Value: £{(propertyData.estimatedValue - propertyData.mortgageAmount).toLocaleString()}
-                        </Text>
-                      </View>
-                    )}
-                  </>
-                )}
-
-                <Button
-                  onPress={() => {
-                    if (isTrustOwned()) {
-                      // Navigate to Trust Details screen (Phase 14b)
-                      router.push('/bequeathal/property/trust-details');
-                    } else if (isCompanyOwned()) {
-                      setExpandedAccordion('company');
-                    } else {
-                      // Show beneficiaries or joint ownership sections
-                      setExpandedAccordion('');
-                    }
-                  }}
-                  variant="primary"
-                  disabled={propertyData.estimatedValue === 0 || !propertyData.ownershipType || !propertyData.mortgageProvider}
-                >
-                  {isTrustOwned() ? 'Continue to Trust Details' : isCompanyOwned() ? 'Next' : 'Continue'}
-                </Button>
-              </View>
-            </Accordion>
 
             {/* Accordion 8: Company Ownership (Conditional) */}
             {isCompanyOwned() && (
