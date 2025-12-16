@@ -366,6 +366,12 @@ export default function PropertyEntryScreen() {
 
   // Save property and navigate
   const handleSave = () => {
+    // If trust-owned, navigate to trust details screen instead of saving
+    if (isTrustOwned()) {
+      router.push('/bequeathal/property/trust-details');
+      return;
+    }
+    
     // Convert propertyData to PropertyAsset format
     const propertyAsset = {
       type: 'property' as const,
@@ -647,15 +653,7 @@ export default function PropertyEntryScreen() {
                 )}
 
                 <Button
-                  onPress={() => {
-                    if (isTrustOwned()) {
-                      // Navigate to Trust Details screen
-                      router.push('/bequeathal/property/trust-details');
-                    } else {
-                      // Continue to Usage & Type accordion
-                      setExpandedAccordion('usage');
-                    }
-                  }}
+                  onPress={() => setExpandedAccordion('usage')}
                   variant="primary"
                   disabled={propertyData.estimatedValue === 0 || !propertyData.ownershipType || !propertyData.mortgageProvider}
                 >
@@ -1230,9 +1228,9 @@ export default function PropertyEntryScreen() {
                 !propertyData.mortgageProvider ||
                 (isTrustOwned() ? false : beneficiaries.length === 0)
               }
-            >
-              {isTrustOwned() ? 'Continue to Trust Details' : 'Save Property'}
-            </Button>
+          >
+            Save Property
+          </Button>
           </View>
         </View>
       </ScrollView>
