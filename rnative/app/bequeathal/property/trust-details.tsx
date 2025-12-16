@@ -753,57 +753,11 @@ export default function PropertyTrustDetailsScreen() {
     </View>
   );
 
-  const renderDiscretionaryBeneficiaryFieldset = () => {
-    const hasCollapse = trustData.discretionaryBeneficiaryRightToCollapse === 'yes';
-    const hasEntitlement = trustData.discretionaryBeneficiaryDefaultEntitlement === 'yes';
-    const needsReview = hasCollapse || hasEntitlement;
-    
-    return (
-      <View style={styles.fieldsetContent}>
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            While you're enjoying a benefit from this discretionary trust, the property is not part of your estate and therefore is not yours to give via your will.
-          </Text>
-        </View>
-
-        <RadioGroup
-          label="Do all beneficiaries have the right to collapse the trust? *"
-          value={trustData.discretionaryBeneficiaryRightToCollapse}
-          onChange={(value) => updateTrustData('discretionaryBeneficiaryRightToCollapse', value)}
-          options={[
-            { label: 'Yes', value: 'yes' },
-            { label: 'No', value: 'no' },
-            { label: 'Not sure', value: 'not_sure' },
-          ]}
-        />
-
-        <RadioGroup
-          label="Does the trust give you a default entitlement? *"
-          value={trustData.discretionaryBeneficiaryDefaultEntitlement}
-          onChange={(value) => updateTrustData('discretionaryBeneficiaryDefaultEntitlement', value)}
-          options={[
-            { label: 'Yes', value: 'yes' },
-            { label: 'No', value: 'no' },
-            { label: 'Not sure', value: 'not_sure' },
-          ]}
-        />
-
-        {needsReview ? (
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              ℹ️ Our team will reach out to you to clarify important details once the asset entry process is complete.
-            </Text>
-          </View>
-        ) : (
-          <Checkbox
-            label="If you think your situation may be more complicated than this, check this box and we'll reach out to you."
-            checked={trustData.discretionaryComplexSituation}
-            onCheckedChange={(value) => updateTrustData('discretionaryComplexSituation', value)}
-          />
-        )}
-      </View>
-    );
-  };
+  const renderDiscretionaryBeneficiaryFieldset = () => (
+    <View style={styles.fieldsetContent}>
+      {/* Empty - questions moved to base section */}
+    </View>
+  );
 
   const renderDiscretionarySettlorAndBeneficiaryFieldset = () => (
     <View style={styles.fieldsetContent}>
@@ -976,16 +930,58 @@ export default function PropertyTrustDetailsScreen() {
                 onChange={(value) => updateTrustData('trustRole', value)}
               />
             )}
+
+            {/* Discretionary Beneficiary Additional Questions */}
+            {trustData.trustType === 'discretionary' && trustData.trustRole === 'beneficiary' && (
+              <>
+                <RadioGroup
+                  label="Do all beneficiaries have the right to collapse the trust? *"
+                  value={trustData.discretionaryBeneficiaryRightToCollapse}
+                  onChange={(value) => updateTrustData('discretionaryBeneficiaryRightToCollapse', value)}
+                  options={[
+                    { label: 'Yes', value: 'yes' },
+                    { label: 'No', value: 'no' },
+                    { label: 'Not sure', value: 'not_sure' },
+                  ]}
+                />
+
+                <RadioGroup
+                  label="Does the trust give you a default entitlement? *"
+                  value={trustData.discretionaryBeneficiaryDefaultEntitlement}
+                  onChange={(value) => updateTrustData('discretionaryBeneficiaryDefaultEntitlement', value)}
+                  options={[
+                    { label: 'Yes', value: 'yes' },
+                    { label: 'No', value: 'no' },
+                    { label: 'Not sure', value: 'not_sure' },
+                  ]}
+                />
+
+                {(() => {
+                  const hasCollapse = trustData.discretionaryBeneficiaryRightToCollapse === 'yes';
+                  const hasEntitlement = trustData.discretionaryBeneficiaryDefaultEntitlement === 'yes';
+                  const needsReview = hasCollapse || hasEntitlement;
+                  
+                  return needsReview ? (
+                    <View style={styles.infoBox}>
+                      <Text style={styles.infoText}>
+                        ℹ️ Our team will reach out to you to clarify important details once the asset entry process is complete.
+                      </Text>
+                    </View>
+                  ) : (
+                    <Checkbox
+                      label="If you think your situation may be more complicated than this, check this box and we'll reach out to you."
+                      checked={trustData.discretionaryComplexSituation}
+                      onCheckedChange={(value) => updateTrustData('discretionaryComplexSituation', value)}
+                    />
+                  );
+                })()}
+              </>
+            )}
           </View>
 
           {/* Conditional Fieldset based on type + role */}
           {trustData.trustType && trustData.trustRole && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {trustData.trustType === 'life_interest' ? 'Life Interest Trust' : 
-                 trustData.trustType === 'bare' ? 'Bare Trust' : 
-                 'Discretionary Trust'} Details
-              </Text>
               {renderFieldset()}
             </View>
           )}
