@@ -659,7 +659,7 @@ export default function PropertyEntryScreen() {
                   variant="primary"
                   disabled={propertyData.estimatedValue === 0 || !propertyData.ownershipType || !propertyData.mortgageProvider}
                 >
-                  {isTrustOwned() ? 'Continue to Trust Details' : 'Next'}
+                  Next
                 </Button>
               </View>
             </Accordion>
@@ -1213,29 +1213,29 @@ export default function PropertyEntryScreen() {
               />
             </View>
           )}
+
+          {/* Save Button at bottom of scroll content */}
+          <View style={styles.saveButtonContainer}>
+            <Button 
+              onPress={handleSave}
+              variant="primary"
+              disabled={
+                !propertyData.address1 ||
+                !propertyData.townCity ||
+                !propertyData.country ||
+                !propertyData.usage ||
+                !propertyData.propertyType ||
+                propertyData.estimatedValue === 0 ||
+                !propertyData.ownershipType ||
+                !propertyData.mortgageProvider ||
+                (isTrustOwned() ? false : beneficiaries.length === 0)
+              }
+            >
+              {isTrustOwned() ? 'Continue to Trust Details' : 'Save Property'}
+            </Button>
+          </View>
         </View>
       </ScrollView>
-
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Button 
-          onPress={handleSave}
-          variant="primary"
-          disabled={
-            !propertyData.address1 ||
-            !propertyData.townCity ||
-            !propertyData.country ||
-            !propertyData.usage ||
-            !propertyData.propertyType ||
-            propertyData.estimatedValue === 0 ||
-            !propertyData.ownershipType ||
-            !propertyData.mortgageProvider ||
-            (isTrustOwned() ? false : beneficiaries.length === 0)
-          }
-        >
-          {isTrustOwned() ? 'Continue to Trust Details' : 'Save Property'}
-        </Button>
-      </View>
     </SafeAreaView>
   );
 }
@@ -1394,11 +1394,8 @@ const styles = StyleSheet.create({
     color: '#856404',
     lineHeight: 20,
   },
-  footer: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: KindlingColors.background,
-    borderTopWidth: 1,
-    borderTopColor: `${KindlingColors.border}1a`,
+  saveButtonContainer: {
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xl,
   },
 });
