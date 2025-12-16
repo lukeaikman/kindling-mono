@@ -122,6 +122,25 @@ export default function DeveloperDashboard() {
           </View>
         </Card>
         
+        {/* Testing Sandboxes */}
+        <Card title="Testing Sandboxes" style={styles.card}>
+          <View style={styles.buttonGroup}>
+            <Button
+              variant="secondary"
+              onPress={() => router.push('/developer/sandbox')}
+            >
+              Component Sandbox
+            </Button>
+            
+            <Button
+              variant="secondary"
+              onPress={() => router.push('/developer/trust-sandbox')}
+            >
+              Trust Details Sandbox
+            </Button>
+          </View>
+        </Card>
+        
         {/* Data Explorer Card */}
         <Card title="Data Explorer" style={styles.card}>
           <View style={styles.buttonGroup}>
