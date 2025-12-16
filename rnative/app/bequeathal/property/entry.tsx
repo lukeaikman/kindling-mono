@@ -647,11 +647,19 @@ export default function PropertyEntryScreen() {
                 )}
 
                 <Button
-                  onPress={() => setExpandedAccordion('usage')}
+                  onPress={() => {
+                    if (isTrustOwned()) {
+                      // Navigate to Trust Details screen
+                      router.push('/bequeathal/property/trust-details');
+                    } else {
+                      // Continue to Usage & Type accordion
+                      setExpandedAccordion('usage');
+                    }
+                  }}
                   variant="primary"
                   disabled={propertyData.estimatedValue === 0 || !propertyData.ownershipType || !propertyData.mortgageProvider}
                 >
-                  Next
+                  {isTrustOwned() ? 'Continue to Trust Details' : 'Next'}
                 </Button>
               </View>
             </Accordion>
