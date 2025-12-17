@@ -914,96 +914,101 @@ export default function PropertyTrustDetailsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Trust Information</Text>
 
-            <Text style={styles.fieldLabel}>Trust Name *</Text>
-            <Input
-              placeholder="Enter trust name..."
-              value={trustData.trustName}
-              onChangeText={(value) => updateTrustData('trustName', value)}
-            />
-
-            {/* Trust Creation Date */}
-            <Text style={styles.fieldLabel}>Trust Creation Date (estimate) *</Text>
-            
-            {!trustData.trustCreationDateUnknown && (
-              <>
-                <View style={styles.dateRow}>
-                  <View style={styles.dateField}>
-                    <Select
-                      placeholder="Month..."
-                      value={trustData.trustCreationMonth}
-                      options={[
-                        { label: 'January', value: '01' },
-                        { label: 'February', value: '02' },
-                        { label: 'March', value: '03' },
-                        { label: 'April', value: '04' },
-                        { label: 'May', value: '05' },
-                        { label: 'June', value: '06' },
-                        { label: 'July', value: '07' },
-                        { label: 'August', value: '08' },
-                        { label: 'September', value: '09' },
-                        { label: 'October', value: '10' },
-                        { label: 'November', value: '11' },
-                        { label: 'December', value: '12' },
-                      ]}
-                      onChange={(value) => updateTrustData('trustCreationMonth', value)}
-                    />
-                  </View>
-                  <View style={styles.dateField}>
-                    <Select
-                      placeholder="Year..."
-                      value={trustData.trustCreationYear}
-                      options={Array.from({ length: 100 }, (_, i) => {
-                        const year = new Date().getFullYear() - i;
-                        return { label: year.toString(), value: year.toString() };
-                      })}
-                      onChange={(value) => updateTrustData('trustCreationYear', value)}
-                    />
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  onPress={() => {
-                    updateTrustData('trustCreationDateUnknown', true);
-                    updateTrustData('trustCreationMonth', '');
-                    updateTrustData('trustCreationYear', '');
-                  }}
-                  style={styles.checkboxRowCentered}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.checkboxCircle}>
-                    {/* Empty - not checked */}
-                  </View>
-                  <Text style={styles.checkboxLabel}>Not sure</Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {/* Show 7-year question when unknown checked */}
-            {trustData.trustCreationDateUnknown && (
-              <RadioGroup
-                label="Was trust created 7+ years ago? *"
-                value={trustData.createdOver7YearsAgo}
-                onChange={(value) => updateTrustData('createdOver7YearsAgo', value)}
-                options={[
-                  { label: 'Yes', value: 'yes' },
-                  { label: 'No', value: 'no' },
-                  { label: 'Not sure', value: 'not_sure' },
-                ]}
-                style={styles.compactRadioGroup}
+            <View>
+              <Text style={styles.fieldLabel}>Trust Name *</Text>
+              <Input
+                placeholder="Enter trust name..."
+                value={trustData.trustName}
+                onChangeText={(value) => updateTrustData('trustName', value)}
               />
-            )}
+            </View>
 
-            <Text style={styles.fieldLabel}>Trust Type *</Text>
-            <Select
-              placeholder="Select trust type..."
-              value={trustData.trustType}
-              options={[
-                { label: 'Life Interest Trust', value: 'life_interest' },
-                { label: 'Bare Trust', value: 'bare' },
-                { label: 'Discretionary Trust', value: 'discretionary' },
-              ]}
-              onChange={(value) => updateTrustData('trustType', value as any)}
-            />
+            <View>
+              <Text style={styles.fieldLabel}>Trust Creation Date (estimate) *</Text>
+              
+              {!trustData.trustCreationDateUnknown && (
+                <>
+                  <View style={styles.dateRow}>
+                    <View style={styles.dateField}>
+                      <Select
+                        placeholder="Month..."
+                        value={trustData.trustCreationMonth}
+                        options={[
+                          { label: 'January', value: '01' },
+                          { label: 'February', value: '02' },
+                          { label: 'March', value: '03' },
+                          { label: 'April', value: '04' },
+                          { label: 'May', value: '05' },
+                          { label: 'June', value: '06' },
+                          { label: 'July', value: '07' },
+                          { label: 'August', value: '08' },
+                          { label: 'September', value: '09' },
+                          { label: 'October', value: '10' },
+                          { label: 'November', value: '11' },
+                          { label: 'December', value: '12' },
+                        ]}
+                        onChange={(value) => updateTrustData('trustCreationMonth', value)}
+                      />
+                    </View>
+                    <View style={styles.dateField}>
+                      <Select
+                        placeholder="Year..."
+                        value={trustData.trustCreationYear}
+                        options={Array.from({ length: 100 }, (_, i) => {
+                          const year = new Date().getFullYear() - i;
+                          return { label: year.toString(), value: year.toString() };
+                        })}
+                        onChange={(value) => updateTrustData('trustCreationYear', value)}
+                      />
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      updateTrustData('trustCreationDateUnknown', true);
+                      updateTrustData('trustCreationMonth', '');
+                      updateTrustData('trustCreationYear', '');
+                    }}
+                    style={styles.checkboxRowCentered}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.checkboxCircle}>
+                      {/* Empty - not checked */}
+                    </View>
+                    <Text style={styles.checkboxLabel}>Not sure</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {/* Show 7-year question when unknown checked */}
+              {trustData.trustCreationDateUnknown && (
+                <RadioGroup
+                  label="Was trust created 7+ years ago? *"
+                  value={trustData.createdOver7YearsAgo}
+                  onChange={(value) => updateTrustData('createdOver7YearsAgo', value)}
+                  options={[
+                    { label: 'Yes', value: 'yes' },
+                    { label: 'No', value: 'no' },
+                    { label: 'Not sure', value: 'not_sure' },
+                  ]}
+                  style={styles.compactRadioGroup}
+                />
+              )}
+            </View>
+
+            <View>
+              <Text style={styles.fieldLabel}>Trust Type *</Text>
+              <Select
+                placeholder="Select trust type..."
+                value={trustData.trustType}
+                options={[
+                  { label: 'Life Interest Trust', value: 'life_interest' },
+                  { label: 'Bare Trust', value: 'bare' },
+                  { label: 'Discretionary Trust', value: 'discretionary' },
+                ]}
+                onChange={(value) => updateTrustData('trustType', value as any)}
+              />
+            </View>
 
             {trustData.trustType && (
               <RadioGroup
