@@ -1204,8 +1204,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.xs,
-    marginTop: Spacing.xs,
+    paddingTop: Spacing.xs, // Small gap above checkbox
+    paddingBottom: 0,
   },
   checkboxCircle: {
     width: 24,
@@ -1230,8 +1230,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
-    marginBottom: Spacing.xs,
-    marginTop: -Spacing.xs, // Tighten spacing from previous field
+    marginBottom: Spacing.xs, // 4px - matches Select's label marginBottom
   },
   warningBox: {
     backgroundColor: '#FFF3CD',
