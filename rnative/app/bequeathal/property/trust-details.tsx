@@ -993,8 +993,8 @@ export default function PropertyTrustDetailsScreen() {
               />
             )}
 
-            <Text style={styles.fieldLabel}>Trust Type *</Text>
             <Select
+              label="Trust Type *"
               placeholder="Select trust type..."
               value={trustData.trustType}
               options={[
@@ -1204,8 +1204,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: Spacing.xs, // Small gap above checkbox
-    paddingBottom: 0,
+    paddingVertical: Spacing.xs,
+    marginTop: Spacing.xs,
   },
   checkboxCircle: {
     width: 24,
@@ -1227,10 +1227,10 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.sm,
   },
   fieldLabel: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
+    fontSize: 14, // Match Select label
+    fontWeight: '500', // Match Select label
     color: KindlingColors.navy,
-    marginBottom: Spacing.xs, // 4px - matches Select's label marginBottom
+    marginBottom: 4, // Match Select label (4px)
   },
   warningBox: {
     backgroundColor: '#FFF3CD',
