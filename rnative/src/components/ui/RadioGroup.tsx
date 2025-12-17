@@ -169,6 +169,7 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
   scrollOffset = 0,
   scrollDelay = 400,
   onAfterSelect,
+  style,
 }) => {
   // Track whether the group is expanded (showing all options)
   // Start expanded if no value is selected, or if collapseOnSelect is false
