@@ -33,7 +33,8 @@ interface TrustData {
   // Trust creation date (for ALL trust types)
   trustCreationMonth: string; // '01' to '12' or '' if unknown
   trustCreationYear: string;  // Year as string or '' if unknown
-  createdOver7YearsAgo: 'yes' | 'no' | 'not_sure' | ''; // Only if month/year unknown
+  trustCreationDateUnknown: boolean; // Checkbox state
+  createdOver7YearsAgo: 'yes' | 'no' | 'not_sure' | ''; // Only if unknown checked
   
   // Life Interest Settlor fields (11)
   reservedBenefit: string;
@@ -85,6 +86,7 @@ export default function PropertyTrustDetailsScreen() {
     // Trust creation date
     trustCreationMonth: '',
     trustCreationYear: '',
+    trustCreationDateUnknown: false,
     createdOver7YearsAgo: '',
     // Life Interest Settlor
     reservedBenefit: '',
@@ -922,76 +924,62 @@ export default function PropertyTrustDetailsScreen() {
             {/* Trust Creation Date */}
             <Text style={styles.fieldLabel}>Trust Creation Date (estimate) *</Text>
             
-            <View style={(!trustData.trustCreationMonth && !trustData.trustCreationYear) && styles.disabledInputContainer}>
-              <View style={styles.dateRow}>
-                <View style={styles.dateField}>
-                  <Select
-                    placeholder="Month..."
-                    value={trustData.trustCreationMonth}
-                    options={[
-                      { label: 'January', value: '01' },
-                      { label: 'February', value: '02' },
-                      { label: 'March', value: '03' },
-                      { label: 'April', value: '04' },
-                      { label: 'May', value: '05' },
-                      { label: 'June', value: '06' },
-                      { label: 'July', value: '07' },
-                      { label: 'August', value: '08' },
-                      { label: 'September', value: '09' },
-                      { label: 'October', value: '10' },
-                      { label: 'November', value: '11' },
-                      { label: 'December', value: '12' },
-                    ]}
-                    onChange={(value) => updateTrustData('trustCreationMonth', value)}
-                  />
+            {!trustData.trustCreationDateUnknown && (
+              <>
+                <View style={styles.dateRow}>
+                  <View style={styles.dateField}>
+                    <Select
+                      placeholder="Month..."
+                      value={trustData.trustCreationMonth}
+                      options={[
+                        { label: 'January', value: '01' },
+                        { label: 'February', value: '02' },
+                        { label: 'March', value: '03' },
+                        { label: 'April', value: '04' },
+                        { label: 'May', value: '05' },
+                        { label: 'June', value: '06' },
+                        { label: 'July', value: '07' },
+                        { label: 'August', value: '08' },
+                        { label: 'September', value: '09' },
+                        { label: 'October', value: '10' },
+                        { label: 'November', value: '11' },
+                        { label: 'December', value: '12' },
+                      ]}
+                      onChange={(value) => updateTrustData('trustCreationMonth', value)}
+                    />
+                  </View>
+                  <View style={styles.dateField}>
+                    <Select
+                      placeholder="Year..."
+                      value={trustData.trustCreationYear}
+                      options={Array.from({ length: 100 }, (_, i) => {
+                        const year = new Date().getFullYear() - i;
+                        return { label: year.toString(), value: year.toString() };
+                      })}
+                      onChange={(value) => updateTrustData('trustCreationYear', value)}
+                    />
+                  </View>
                 </View>
-                <View style={styles.dateField}>
-                  <Select
-                    placeholder="Year..."
-                    value={trustData.trustCreationYear}
-                    options={Array.from({ length: 100 }, (_, i) => {
-                      const year = new Date().getFullYear() - i;
-                      return { label: year.toString(), value: year.toString() };
-                    })}
-                    onChange={(value) => updateTrustData('trustCreationYear', value)}
-                  />
-                </View>
-              </View>
-            </View>
 
-            <TouchableOpacity
-              onPress={() => {
-                const hasDate = trustData.trustCreationMonth || trustData.trustCreationYear;
-                if (hasDate) {
-                  // Clearing date, enable 7-year question
-                  updateTrustData('trustCreationMonth', '');
-                  updateTrustData('trustCreationYear', '');
-                } else {
-                  // Setting date, clear 7-year estimate
-                  updateTrustData('createdOver7YearsAgo', '');
-                }
-              }}
-              style={styles.checkboxRow}
-              activeOpacity={0.7}
-            >
-              <View style={[
-                styles.checkboxCircle, 
-                (!trustData.trustCreationMonth && !trustData.trustCreationYear) && styles.checkboxCircleSelected
-              ]}>
-                {(!trustData.trustCreationMonth && !trustData.trustCreationYear) && (
-                  <IconButton 
-                    icon="check" 
-                    size={16} 
-                    iconColor={KindlingColors.background}
-                    style={{margin: 0, padding: 0}}
-                  />
-                )}
-              </View>
-              <Text style={styles.checkboxLabel}>Not sure</Text>
-            </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    updateTrustData('trustCreationDateUnknown', true);
+                    updateTrustData('trustCreationMonth', '');
+                    updateTrustData('trustCreationYear', '');
+                  }}
+                  style={styles.checkboxRowCentered}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.checkboxCircle}>
+                    {/* Empty - not checked */}
+                  </View>
+                  <Text style={styles.checkboxLabel}>Not sure</Text>
+                </TouchableOpacity>
+              </>
+            )}
 
-            {/* Conditional 7-year question */}
-            {(!trustData.trustCreationMonth && !trustData.trustCreationYear) && (
+            {/* Show 7-year question when unknown checked */}
+            {trustData.trustCreationDateUnknown && (
               <RadioGroup
                 label="Was trust created 7+ years ago? *"
                 value={trustData.createdOver7YearsAgo}
@@ -1211,6 +1199,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.xs,
+  },
+  checkboxRowCentered: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xs,
+    marginTop: Spacing.xs,
   },
   checkboxCircle: {
     width: 24,
