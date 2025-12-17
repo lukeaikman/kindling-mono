@@ -914,8 +914,8 @@ export default function PropertyTrustDetailsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Trust Information</Text>
 
+            <Text style={styles.fieldLabel}>Trust Name *</Text>
             <Input
-              label="Trust Name *"
               placeholder="Enter trust name..."
               value={trustData.trustName}
               onChangeText={(value) => updateTrustData('trustName', value)}
@@ -993,8 +993,8 @@ export default function PropertyTrustDetailsScreen() {
               />
             )}
 
+            <Text style={styles.fieldLabel}>Trust Type *</Text>
             <Select
-              label="Trust Type *"
               placeholder="Select trust type..."
               value={trustData.trustType}
               options={[
@@ -1204,8 +1204,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.xs,
+    paddingVertical: 0,
     marginTop: Spacing.xs,
+    marginBottom: 0,
   },
   checkboxCircle: {
     width: 24,
@@ -1227,10 +1228,10 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.sm,
   },
   fieldLabel: {
-    fontSize: 14, // Match Select label
-    fontWeight: '500', // Match Select label
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
-    marginBottom: 4, // Match Select label (4px)
+    marginBottom: Spacing.xs,
   },
   warningBox: {
     backgroundColor: '#FFF3CD',

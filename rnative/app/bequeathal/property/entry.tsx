@@ -459,7 +459,7 @@ export default function PropertyEntryScreen() {
     if (editingPropertyId) {
       bequeathalActions.updateAsset(editingPropertyId, propertyAsset as any);
     } else {
-      bequeathalActions.addAsset('property', propertyAsset as any);
+    bequeathalActions.addAsset('property', propertyAsset as any);
     }
     
     // Navigate to summary
@@ -981,8 +981,8 @@ export default function PropertyEntryScreen() {
                     borderColor={KindlingColors.beige}
                   />
 
-                  <View style={styles.infoBox}>
-                    <Text style={styles.infoText}>
+                    <View style={styles.infoBox}>
+                      <Text style={styles.infoText}>
                       ℹ️ Buy-to-let properties that are tenanted at death are typically valued less for IHT purposes (a saving).
                     </Text>
                   </View>
@@ -1214,24 +1214,24 @@ export default function PropertyEntryScreen() {
 
           {/* Save Button at bottom of scroll content */}
           <View style={styles.saveButtonContainer}>
-            <Button 
-              onPress={handleSave}
-              variant="primary"
-              disabled={
-                !propertyData.address1 ||
-                !propertyData.townCity ||
-                !propertyData.country ||
-                !propertyData.usage ||
-                !propertyData.propertyType ||
-                propertyData.estimatedValue === 0 ||
-                !propertyData.ownershipType ||
-                !propertyData.mortgageProvider ||
-                (isTrustOwned() ? false : beneficiaries.length === 0)
-              }
-          >
+        <Button 
+          onPress={handleSave}
+          variant="primary"
+          disabled={
+            !propertyData.address1 ||
+            !propertyData.townCity ||
+            !propertyData.country ||
+            !propertyData.usage ||
+            !propertyData.propertyType ||
+            propertyData.estimatedValue === 0 ||
+            !propertyData.ownershipType ||
+            !propertyData.mortgageProvider ||
+            (isTrustOwned() ? false : beneficiaries.length === 0)
+          }
+        >
             Save Property
-          </Button>
-          </View>
+        </Button>
+      </View>
         </View>
       </ScrollView>
     </SafeAreaView>
