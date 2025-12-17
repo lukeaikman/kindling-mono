@@ -509,13 +509,8 @@ export interface PropertyAsset extends BaseAsset {
   companyArticlesConfident?: boolean;
   isCompanyDirector?: boolean;
   
-  // Trust basic (conditional on ownershipType - MVP collects name only)
-  trustName?: string;
-  trustType?: 'life_trust' | 'bare_trust' | 'discretionary_trust';
-  trustRole?: 'beneficiary' | 'settlor' | 'settlor_and_beneficiary';
-  
-  // Trust detailed fields (Phase 14b) - will be added when trust screen built
-  // trustCreationMonth, trustCreationYear, trustPropertyValue, etc.
+  // Trust reference (foreign key to Trust entity)
+  trustId?: string; // Links to Trust.id - trust details stored in separate Trust table
   
   // Joint ownership (conditional on ownershipType)
   jointOwnershipType?: 'joint_tenants' | 'tenants_in_common' | 'not_sure';
@@ -1004,9 +999,10 @@ export interface Trust {
   id: string;
   name: string; // User-provided trust name
   type: TrustType;
-  creationMonth: string;
-  creationYear: string;
+  creationMonth: string; // '01' to '12' or '' if unknown
+  creationYear: string;  // Year as string or '' if unknown
   creationDate?: Date; // Computed from month/year for easier filtering
+  createdOver7YearsAgo?: 'yes' | 'no' | 'not_sure'; // Only populated if month/year unknown
   
   // User's Relationship to Trust (boolean flags for multiple roles)
   isUserSettlor: boolean;

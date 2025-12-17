@@ -10,7 +10,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -25,10 +25,15 @@ import type { BeneficiaryAssignment } from '../../../src/types';
  * Trust data structure
  */
 interface TrustData {
-  // Base fields (3)
+  // Base fields
   trustName: string;
   trustType: 'life_interest' | 'bare' | 'discretionary' | '';
   trustRole: string; // Options depend on trust type
+  
+  // Trust creation date (for ALL trust types)
+  trustCreationMonth: string; // '01' to '12' or '' if unknown
+  trustCreationYear: string;  // Year as string or '' if unknown
+  createdOver7YearsAgo: 'yes' | 'no' | 'not_sure' | ''; // Only if month/year unknown
   
   // Life Interest Settlor fields (11)
   reservedBenefit: string;
@@ -77,6 +82,10 @@ export default function PropertyTrustDetailsScreen() {
     trustName: '',
     trustType: '',
     trustRole: '',
+    // Trust creation date
+    trustCreationMonth: '',
+    trustCreationYear: '',
+    createdOver7YearsAgo: '',
     // Life Interest Settlor
     reservedBenefit: '',
     payingMarketRent: '',
@@ -910,6 +919,92 @@ export default function PropertyTrustDetailsScreen() {
               onChangeText={(value) => updateTrustData('trustName', value)}
             />
 
+            {/* Trust Creation Date */}
+            <Text style={styles.fieldLabel}>Trust Creation Date (estimate) *</Text>
+            
+            <View style={(!trustData.trustCreationMonth && !trustData.trustCreationYear) && styles.disabledInputContainer}>
+              <View style={styles.dateRow}>
+                <View style={styles.dateField}>
+                  <Select
+                    placeholder="Month..."
+                    value={trustData.trustCreationMonth}
+                    options={[
+                      { label: 'January', value: '01' },
+                      { label: 'February', value: '02' },
+                      { label: 'March', value: '03' },
+                      { label: 'April', value: '04' },
+                      { label: 'May', value: '05' },
+                      { label: 'June', value: '06' },
+                      { label: 'July', value: '07' },
+                      { label: 'August', value: '08' },
+                      { label: 'September', value: '09' },
+                      { label: 'October', value: '10' },
+                      { label: 'November', value: '11' },
+                      { label: 'December', value: '12' },
+                    ]}
+                    onChange={(value) => updateTrustData('trustCreationMonth', value)}
+                  />
+                </View>
+                <View style={styles.dateField}>
+                  <Select
+                    placeholder="Year..."
+                    value={trustData.trustCreationYear}
+                    options={Array.from({ length: 100 }, (_, i) => {
+                      const year = new Date().getFullYear() - i;
+                      return { label: year.toString(), value: year.toString() };
+                    })}
+                    onChange={(value) => updateTrustData('trustCreationYear', value)}
+                  />
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                const hasDate = trustData.trustCreationMonth || trustData.trustCreationYear;
+                if (hasDate) {
+                  // Clearing date, enable 7-year question
+                  updateTrustData('trustCreationMonth', '');
+                  updateTrustData('trustCreationYear', '');
+                } else {
+                  // Setting date, clear 7-year estimate
+                  updateTrustData('createdOver7YearsAgo', '');
+                }
+              }}
+              style={styles.checkboxRow}
+              activeOpacity={0.7}
+            >
+              <View style={[
+                styles.checkboxCircle, 
+                (!trustData.trustCreationMonth && !trustData.trustCreationYear) && styles.checkboxCircleSelected
+              ]}>
+                {(!trustData.trustCreationMonth && !trustData.trustCreationYear) && (
+                  <IconButton 
+                    icon="check" 
+                    size={16} 
+                    iconColor={KindlingColors.background}
+                    style={{margin: 0, padding: 0}}
+                  />
+                )}
+              </View>
+              <Text style={styles.checkboxLabel}>Not sure</Text>
+            </TouchableOpacity>
+
+            {/* Conditional 7-year question */}
+            {(!trustData.trustCreationMonth && !trustData.trustCreationYear) && (
+              <RadioGroup
+                label="Was trust created 7+ years ago? *"
+                value={trustData.createdOver7YearsAgo}
+                onChange={(value) => updateTrustData('createdOver7YearsAgo', value)}
+                options={[
+                  { label: 'Yes', value: 'yes' },
+                  { label: 'No', value: 'no' },
+                  { label: 'Not sure', value: 'not_sure' },
+                ]}
+                style={styles.compactRadioGroup}
+              />
+            )}
+
             <Select
               label="Trust Type *"
               placeholder="Select trust type..."
@@ -1101,6 +1196,40 @@ const styles = StyleSheet.create({
     marginVertical: 0, // Remove RadioGroup's default 16px margin
     marginBottom: 0,
     marginTop: 0,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  dateField: {
+    flex: 1,
+  },
+  disabledInputContainer: {
+    opacity: 0.5,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+  },
+  checkboxCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: `${KindlingColors.beige}4D`,
+    backgroundColor: KindlingColors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxCircleSelected: {
+    backgroundColor: KindlingColors.green,
+    borderColor: KindlingColors.green,
+  },
+  checkboxLabel: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.navy,
+    marginLeft: Spacing.sm,
   },
   fieldLabel: {
     fontSize: Typography.fontSize.md,
