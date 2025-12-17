@@ -928,6 +928,7 @@ export default function PropertyTrustDetailsScreen() {
                 options={getRoleOptions()}
                 value={trustData.trustRole}
                 onChange={(value) => updateTrustData('trustRole', value)}
+                style={styles.compactRadioGroup}
               />
             )}
 
@@ -1067,7 +1068,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderWidth: 1,
     borderColor: KindlingColors.border,
-    gap: Spacing.md,
+    gap: Spacing.lg, // 24px for better breathing room
   },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
