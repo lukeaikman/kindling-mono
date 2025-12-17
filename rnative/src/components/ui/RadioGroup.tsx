@@ -101,6 +101,11 @@ export interface RadioGroupProps {
    * Useful for custom logic after selection
    */
   onAfterSelect?: (value: string) => void;
+  
+  /**
+   * Custom style override for container
+   */
+  style?: any;
 }
 
 /**
