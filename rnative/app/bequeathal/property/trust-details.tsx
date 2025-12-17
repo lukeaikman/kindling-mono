@@ -9,11 +9,11 @@
  * @module screens/bequeathal/property/trust-details
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Input, Select, RadioGroup, Checkbox, CurrencyInput, PercentageInput } from '../../../src/components/ui';
 import { BeneficiaryWithPercentages } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
@@ -76,7 +76,10 @@ interface TrustData {
 }
 
 export default function PropertyTrustDetailsScreen() {
-  const { personActions, beneficiaryGroupActions } = useAppState();
+  const { personActions, beneficiaryGroupActions, bequeathalActions, trustActions } = useAppState();
+  const params = useLocalSearchParams();
+  const propertyId = params.propertyId as string | undefined;
+  const loadedPropertyIdRef = useRef<string | null>(null);
 
   // Base trust data
   const [trustData, setTrustData] = useState<TrustData>({
@@ -130,6 +133,42 @@ export default function PropertyTrustDetailsScreen() {
   
   // Co-beneficiaries (for Bare Trust Beneficiary and Settlor & Beneficiary)
   const [bareCoBeneficiaries, setBareCoBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
+
+  // Load existing trust data (Rule 4a pattern)
+  useEffect(() => {
+    if (!propertyId) return;
+    if (loadedPropertyIdRef.current === propertyId) return;
+    
+    const allAssets = bequeathalActions.getAllAssets();
+    if (allAssets.length === 0) return;
+    
+    const property = bequeathalActions.getAssetById(propertyId) as any;
+    if (!property || property.type !== 'property') return;
+    
+    if (property.trustId) {
+      const trust = trustActions.getTrustById(property.trustId);
+      if (trust) {
+        const formType = trust.type === 'bare_trust' ? 'bare' :
+                        trust.type === 'life_interest_trust' ? 'life_interest' : 'discretionary';
+        const role = trust.isUserSettlor && trust.isUserBeneficiary ? 'settlor_and_beneficiary' :
+                    trust.isUserSettlor ? 'settlor' : 'beneficiary';
+        
+        setTrustData(prev => ({
+          ...prev,
+          trustName: trust.name,
+          trustType: formType,
+          trustRole: role,
+          trustCreationMonth: trust.creationMonth || '',
+          trustCreationYear: trust.creationYear || '',
+          trustCreationDateUnknown: !trust.creationMonth && !trust.creationYear,
+          createdOver7YearsAgo: trust.createdOver7YearsAgo || '',
+        }));
+      }
+    }
+    
+    loadedPropertyIdRef.current = propertyId;
+  });
+  
 
   // Helper to update trust data
   const updateTrustData = (field: keyof TrustData, value: any) => {
@@ -793,6 +832,13 @@ export default function PropertyTrustDetailsScreen() {
     if (!trustData.trustName || !trustData.trustType || !trustData.trustRole) {
       return false;
     }
+    
+    // Creation date validation - EITHER specific date OR 7-year estimate
+    const hasSpecificDate = trustData.trustCreationMonth && trustData.trustCreationYear;
+    const has7YearEstimate = trustData.trustCreationDateUnknown && trustData.createdOver7YearsAgo !== '';
+    if (!hasSpecificDate && !has7YearEstimate) {
+      return false;
+    }
 
     // Life Interest Settlor validation
     if (trustData.trustType === 'life_interest' && trustData.trustRole === 'settlor') {
@@ -879,9 +925,43 @@ export default function PropertyTrustDetailsScreen() {
     return true;
   };
 
+  // Map form trust type to Trust entity type
+  const mapToTrustType = (formType: string): 'bare_trust' | 'life_interest_trust' | 'discretionary_trust' => {
+    if (formType === 'bare') return 'bare_trust';
+    if (formType === 'life_interest') return 'life_interest_trust';
+    return 'discretionary_trust';
+  };
+
   const handleSave = () => {
-    // TODO: Save trust data to property
-    // TODO: Return to PropertySummaryScreen
+    if (!propertyId) return;
+    
+    const property = bequeathalActions.getAssetById(propertyId);
+    if (!property || property.type !== 'property') return;
+    
+    const propertyAsset = property as any;
+    let trustId = propertyAsset.trustId;
+    
+    const dateUnknown = !trustData.trustCreationMonth && !trustData.trustCreationYear;
+    
+    const trustPayload = {
+      name: trustData.trustName,
+      type: mapToTrustType(trustData.trustType),
+      creationMonth: trustData.trustCreationMonth,
+      creationYear: trustData.trustCreationYear,
+      createdOver7YearsAgo: dateUnknown ? trustData.createdOver7YearsAgo : undefined,
+      isUserSettlor: trustData.trustRole.includes('settlor'),
+      isUserBeneficiary: trustData.trustRole.includes('beneficiary'),
+      isUserTrustee: false,
+      assetIds: [propertyId],
+    };
+    
+    if (trustId) {
+      trustActions.updateTrust(trustId, trustPayload);
+    } else {
+      trustId = trustActions.addTrust(trustPayload as any);
+      bequeathalActions.updateAsset(propertyId, { trustId });
+    }
+    
     router.push('/bequeathal/property/summary');
   };
 
@@ -915,7 +995,6 @@ export default function PropertyTrustDetailsScreen() {
             <Text style={styles.sectionTitle}>Trust Information</Text>
 
             <View>
-              <Text style={styles.fieldLabel}>Trust Name *</Text>
               <Input
                 placeholder="Enter trust name..."
                 value={trustData.trustName}

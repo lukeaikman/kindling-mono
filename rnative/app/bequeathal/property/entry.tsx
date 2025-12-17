@@ -119,10 +119,8 @@ interface PropertyData {
   tenantsInCommonCount: number;
   tenantsInCommonPercentage: number;
 
-  // Trust (3 base fields - conditional, more in Phase 14b)
-  trustName: string;
-  trustType: string;
-  trustRole: string;
+  // Trust (foreign key only)
+  trustId: string;
 }
 
 export default function PropertyEntryScreen() {
@@ -201,9 +199,7 @@ export default function PropertyEntryScreen() {
     tenantsInCommonPercentage: 50,
     
     // Trust
-    trustName: '',
-    trustType: '',
-    trustRole: '',
+    trustId: '',
   });
 
   // Load existing property data if editing
@@ -297,10 +293,8 @@ export default function PropertyEntryScreen() {
       tenantsInCommonCount: 1, // Default, not stored in PropertyAsset
       tenantsInCommonPercentage: property.ownershipPercentage || 50,
       
-      // Trust
-      trustName: property.trustName || '',
-      trustType: property.trustType || '',
-      trustRole: property.trustRole || '',
+        // Trust
+        trustId: property.trustId || '',
     });
     
     // Load beneficiaries
@@ -366,9 +360,40 @@ export default function PropertyEntryScreen() {
 
   // Save property and navigate
   const handleSave = () => {
-    // If trust-owned, navigate to trust details screen instead of saving
+    // If trust-owned, save property first, then navigate to trust details
     if (isTrustOwned()) {
-      router.push('/bequeathal/property/trust-details');
+      // Save property with partial data
+      const partialPropertyAsset = {
+        type: 'property' as const,
+        title: propertyData.address1,
+        address: {
+          address1: propertyData.address1,
+          address2: propertyData.address2,
+          city: propertyData.townCity,
+          county: propertyData.countyState,
+          postcode: '',
+          country: propertyData.country,
+        },
+        usage: propertyData.usage as any,
+        propertyType: propertyData.propertyType,
+        ownershipType: propertyData.ownershipType as any,
+        estimatedValue: propertyData.estimatedValue,
+        hasMortgage: hasMortgage() || undefined,
+        mortgage: hasMortgage() ? {
+          outstandingAmount: propertyData.mortgageAmount,
+          provider: propertyData.mortgageProvider,
+        } : undefined,
+      };
+      
+      let savedPropertyId: string;
+      if (editingPropertyId) {
+        bequeathalActions.updateAsset(editingPropertyId, partialPropertyAsset as any);
+        savedPropertyId = editingPropertyId;
+      } else {
+        savedPropertyId = bequeathalActions.addAsset('property', partialPropertyAsset as any);
+      }
+      
+      router.push(`/bequeathal/property/trust-details?propertyId=${savedPropertyId}`);
       return;
     }
     
@@ -438,10 +463,8 @@ export default function PropertyEntryScreen() {
       companyNotes: isCompanyOwned() ? propertyData.companyNotes : undefined,
       companyArticlesConfident: isCompanyOwned() ? propertyData.companyArticlesConfident : undefined,
       
-      // Trust (conditional)
-      trustName: isTrustOwned() ? propertyData.trustName : undefined,
-      trustType: isTrustOwned() ? (propertyData.trustType as any) : undefined,
-      trustRole: isTrustOwned() ? (propertyData.trustRole as any) : undefined,
+      // Trust (foreign key only)
+      trustId: isTrustOwned() ? propertyData.trustId : undefined,
       
       // Joint ownership (conditional)
       jointOwnershipType: isJointlyOwned() ? (propertyData.jointOwnershipType as any) : undefined,
