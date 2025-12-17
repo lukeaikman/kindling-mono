@@ -228,7 +228,7 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
   const isCollapsed = collapseOnSelect && !isExpanded && value;
   
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       {label && <Text style={styles.label}>{label}</Text>}
       
       <RadioButton.Group onValueChange={handleSelect} value={value}>

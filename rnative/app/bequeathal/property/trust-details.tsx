@@ -934,31 +934,29 @@ export default function PropertyTrustDetailsScreen() {
             {/* Discretionary Beneficiary Additional Questions */}
             {trustData.trustType === 'discretionary' && trustData.trustRole === 'beneficiary' && (
               <>
-                <View style={styles.noMarginField}>
-                  <RadioGroup
-                    label="Do all beneficiaries have the right to collapse the trust? *"
-                    value={trustData.discretionaryBeneficiaryRightToCollapse}
-                    onChange={(value) => updateTrustData('discretionaryBeneficiaryRightToCollapse', value)}
-                    options={[
-                      { label: 'Yes', value: 'yes' },
-                      { label: 'No', value: 'no' },
-                      { label: 'Not sure', value: 'not_sure' },
-                    ]}
-                  />
-                </View>
+                <RadioGroup
+                  label="Do all beneficiaries have the right to collapse the trust? *"
+                  value={trustData.discretionaryBeneficiaryRightToCollapse}
+                  onChange={(value) => updateTrustData('discretionaryBeneficiaryRightToCollapse', value)}
+                  options={[
+                    { label: 'Yes', value: 'yes' },
+                    { label: 'No', value: 'no' },
+                    { label: 'Not sure', value: 'not_sure' },
+                  ]}
+                  style={styles.compactRadioGroup}
+                />
 
-                <View style={styles.noMarginField}>
-                  <RadioGroup
-                    label="Does the trust give you a default entitlement? *"
-                    value={trustData.discretionaryBeneficiaryDefaultEntitlement}
-                    onChange={(value) => updateTrustData('discretionaryBeneficiaryDefaultEntitlement', value)}
-                    options={[
-                      { label: 'Yes', value: 'yes' },
-                      { label: 'No', value: 'no' },
-                      { label: 'Not sure', value: 'not_sure' },
-                    ]}
-                  />
-                </View>
+                <RadioGroup
+                  label="Does the trust give you a default entitlement? *"
+                  value={trustData.discretionaryBeneficiaryDefaultEntitlement}
+                  onChange={(value) => updateTrustData('discretionaryBeneficiaryDefaultEntitlement', value)}
+                  options={[
+                    { label: 'Yes', value: 'yes' },
+                    { label: 'No', value: 'no' },
+                    { label: 'Not sure', value: 'not_sure' },
+                  ]}
+                  style={styles.compactRadioGroup}
+                />
 
                 {(() => {
                   const hasCollapse = trustData.discretionaryBeneficiaryRightToCollapse === 'yes';
@@ -1098,8 +1096,10 @@ const styles = StyleSheet.create({
     color: KindlingColors.brown,
     lineHeight: 20,
   },
-  noMarginField: {
-    marginVertical: 0, // Remove RadioGroup's default marginVertical when in section with gap
+  compactRadioGroup: {
+    marginVertical: 0, // Remove RadioGroup's default 16px margin
+    marginBottom: 0,
+    marginTop: 0,
   },
   fieldLabel: {
     fontSize: Typography.fontSize.md,
