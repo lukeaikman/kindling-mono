@@ -993,8 +993,8 @@ export default function PropertyTrustDetailsScreen() {
               />
             )}
 
+            <Text style={styles.fieldLabel}>Trust Type *</Text>
             <Select
-              label="Trust Type *"
               placeholder="Select trust type..."
               value={trustData.trustType}
               options={[
@@ -1231,6 +1231,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
     marginBottom: Spacing.xs,
+    marginTop: -Spacing.xs, // Tighten spacing from previous field
   },
   warningBox: {
     backgroundColor: '#FFF3CD',
