@@ -1235,7 +1235,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderWidth: 1,
     borderColor: KindlingColors.border,
-    gap: Spacing.lg, // 24px for better breathing room
+    gap: Spacing.md, // 16px between field groups
   },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
