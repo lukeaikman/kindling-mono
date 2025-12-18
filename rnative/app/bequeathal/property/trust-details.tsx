@@ -950,12 +950,14 @@ export default function PropertyTrustDetailsScreen() {
   const handleSave = () => {
     const dateUnknown = !trustData.trustCreationMonth && !trustData.trustCreationYear;
     
-    const trustPayload = {
+    const trustPayload: any = {
       name: trustData.trustName,
       type: mapToTrustType(trustData.trustType),
       creationMonth: trustData.trustCreationMonth,
       creationYear: trustData.trustCreationYear,
-      createdOver7YearsAgo: dateUnknown ? trustData.createdOver7YearsAgo : undefined,
+      createdOver7YearsAgo: dateUnknown && trustData.createdOver7YearsAgo !== '' 
+        ? trustData.createdOver7YearsAgo 
+        : undefined,
       isUserSettlor: trustData.trustRole.includes('settlor'),
       isUserBeneficiary: trustData.trustRole.includes('beneficiary'),
       isUserTrustee: false,
@@ -1368,13 +1370,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.brown,
     lineHeight: 20,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  dateField: {
-    flex: 1,
   },
   footer: {
     paddingHorizontal: Spacing.lg,
