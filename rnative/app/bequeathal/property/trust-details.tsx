@@ -1003,7 +1003,9 @@ export default function PropertyTrustDetailsScreen() {
             </View>
 
             <View>
-              <Text style={styles.fieldLabel}>Trust Creation Date (estimate) *</Text>
+              {!trustData.trustCreationDateUnknown && (
+                <Text style={styles.fieldLabel}>Trust Creation Date (estimate) *</Text>
+              )}
               
               {!trustData.trustCreationDateUnknown && (
                 <>
