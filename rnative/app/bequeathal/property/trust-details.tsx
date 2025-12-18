@@ -79,7 +79,9 @@ export default function PropertyTrustDetailsScreen() {
   const { personActions, beneficiaryGroupActions, bequeathalActions, trustActions } = useAppState();
   const params = useLocalSearchParams();
   const propertyId = params.propertyId as string | undefined;
+  const trustId = params.trustId as string | undefined;
   const loadedPropertyIdRef = useRef<string | null>(null);
+  const loadedTrustIdRef = useRef<string | null>(null);
 
   // Base trust data
   const [trustData, setTrustData] = useState<TrustData>({
@@ -136,38 +138,51 @@ export default function PropertyTrustDetailsScreen() {
 
   // Load existing trust data (Rule 4a pattern)
   useEffect(() => {
-    if (!propertyId) return;
-    if (loadedPropertyIdRef.current === propertyId) return;
-    
-    const allAssets = bequeathalActions.getAllAssets();
-    if (allAssets.length === 0) return;
-    
-    const property = bequeathalActions.getAssetById(propertyId) as any;
-    if (!property || property.type !== 'property') return;
-    
-    if (property.trustId) {
-      const trust = trustActions.getTrustById(property.trustId);
-      if (trust) {
-        const formType = trust.type === 'bare_trust' ? 'bare' :
-                        trust.type === 'life_interest_trust' ? 'life_interest' : 'discretionary';
-        const role = trust.isUserSettlor && trust.isUserBeneficiary ? 'settlor_and_beneficiary' :
-                    trust.isUserSettlor ? 'settlor' : 'beneficiary';
-        
-        setTrustData(prev => ({
-          ...prev,
-          trustName: trust.name,
-          trustType: formType,
-          trustRole: role,
-          trustCreationMonth: trust.creationMonth || '',
-          trustCreationYear: trust.creationYear || '',
-          trustCreationDateUnknown: !trust.creationMonth && !trust.creationYear,
-          createdOver7YearsAgo: trust.createdOver7YearsAgo || '',
-        }));
+    // Option 1: Load from property's trust
+    if (propertyId && loadedPropertyIdRef.current !== propertyId) {
+      const allAssets = bequeathalActions.getAllAssets();
+      if (allAssets.length === 0) return;
+      
+      const property = bequeathalActions.getAssetById(propertyId) as any;
+      if (property && property.type === 'property' && property.trustId) {
+        const trust = trustActions.getTrustById(property.trustId);
+        if (trust) {
+          loadTrustIntoForm(trust);
+        }
       }
+      loadedPropertyIdRef.current = propertyId;
     }
     
-    loadedPropertyIdRef.current = propertyId;
+    // Option 2: Load standalone trust directly
+    if (trustId && loadedTrustIdRef.current !== trustId) {
+      const allTrusts = trustActions.getTrusts();
+      if (allTrusts.length === 0) return;
+      
+      const trust = trustActions.getTrustById(trustId);
+      if (trust) {
+        loadTrustIntoForm(trust);
+      }
+      loadedTrustIdRef.current = trustId;
+    }
   });
+  
+  const loadTrustIntoForm = (trust: any) => {
+    const formType = trust.type === 'bare_trust' ? 'bare' :
+                    trust.type === 'life_interest_trust' ? 'life_interest' : 'discretionary';
+    const role = trust.isUserSettlor && trust.isUserBeneficiary ? 'settlor_and_beneficiary' :
+                trust.isUserSettlor ? 'settlor' : 'beneficiary';
+    
+    setTrustData(prev => ({
+      ...prev,
+      trustName: trust.name,
+      trustType: formType,
+      trustRole: role,
+      trustCreationMonth: trust.creationMonth || '',
+      trustCreationYear: trust.creationYear || '',
+      trustCreationDateUnknown: !trust.creationMonth && !trust.creationYear,
+      createdOver7YearsAgo: trust.createdOver7YearsAgo || '',
+    }));
+  };
   
 
   // Helper to update trust data
@@ -933,14 +948,6 @@ export default function PropertyTrustDetailsScreen() {
   };
 
   const handleSave = () => {
-    if (!propertyId) return;
-    
-    const property = bequeathalActions.getAssetById(propertyId);
-    if (!property || property.type !== 'property') return;
-    
-    const propertyAsset = property as any;
-    let trustId = propertyAsset.trustId;
-    
     const dateUnknown = !trustData.trustCreationMonth && !trustData.trustCreationYear;
     
     const trustPayload = {
@@ -952,17 +959,30 @@ export default function PropertyTrustDetailsScreen() {
       isUserSettlor: trustData.trustRole.includes('settlor'),
       isUserBeneficiary: trustData.trustRole.includes('beneficiary'),
       isUserTrustee: false,
-      assetIds: [propertyId],
+      assetIds: propertyId ? [propertyId] : [],
     };
     
+    // Editing existing trust
     if (trustId) {
       trustActions.updateTrust(trustId, trustPayload);
-    } else {
-      trustId = trustActions.addTrust(trustPayload as any);
-      bequeathalActions.updateAsset(propertyId, { trustId });
+      router.push(propertyId ? '/bequeathal/property/summary' : '/developer/trust-test-summary');
+      return;
     }
     
-    router.push('/bequeathal/property/summary');
+    // Creating new trust linked to property
+    if (propertyId) {
+      const property = bequeathalActions.getAssetById(propertyId);
+      if (property && property.type === 'property') {
+        const newTrustId = trustActions.addTrust(trustPayload as any);
+        bequeathalActions.updateAsset(propertyId, { trustId: newTrustId });
+        router.push('/bequeathal/property/summary');
+      }
+      return;
+    }
+    
+    // Creating standalone trust (sandbox mode)
+    trustActions.addTrust(trustPayload as any);
+    router.push('/developer/trust-test-summary');
   };
 
   return (
