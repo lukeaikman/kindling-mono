@@ -663,9 +663,9 @@ const styles = StyleSheet.create({
   },
   percentageBackground: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
+    top: -1,  // Account for border
+    left: -1,  // Start at actual card edge (before padding and border)
+    bottom: -1,  // Account for border
     backgroundColor: `${KindlingColors.green}15`,
     borderTopLeftRadius: 8,
     borderBottomLeftRadius: 8,

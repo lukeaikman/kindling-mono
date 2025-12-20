@@ -76,12 +76,16 @@ interface TrustData {
 }
 
 export default function PropertyTrustDetailsScreen() {
-  const { personActions, beneficiaryGroupActions, bequeathalActions, trustActions } = useAppState();
+  const { personActions, beneficiaryGroupActions, bequeathalActions, trustActions, willActions } = useAppState();
   const params = useLocalSearchParams();
   const propertyId = params.propertyId as string | undefined;
   const trustId = params.trustId as string | undefined;
   const loadedPropertyIdRef = useRef<string | null>(null);
   const loadedTrustIdRef = useRef<string | null>(null);
+  
+  // Get will-maker for exclusion (or use first person in sandbox)
+  const willMaker = willActions.getUser() || personActions.getPeople()[0];
+  const excludePersonIds = willMaker ? [willMaker.id] : [];
 
   // Base trust data
   const [trustData, setTrustData] = useState<TrustData>({
@@ -680,6 +684,7 @@ export default function PropertyTrustDetailsScreen() {
         onChange={setBareCoBeneficiaries}
         personActions={personActions}
         beneficiaryGroupActions={beneficiaryGroupActions}
+        excludePersonIds={excludePersonIds}
         label="Co-beneficiaries"
         onAddNewPerson={() => alert('Add person functionality to be implemented')}
         onAddNewGroup={() => alert('Add group functionality to be implemented')}
