@@ -76,7 +76,7 @@ interface TrustData {
 }
 
 export default function PropertyTrustDetailsScreen() {
-  const { personActions, beneficiaryGroupActions, bequeathalActions, trustActions } = useAppState();
+  const { personActions, beneficiaryGroupActions, bequeathalActions, trustActions, willActions } = useAppState();
   const params = useLocalSearchParams();
   const propertyId = params.propertyId as string | undefined;
   const trustId = params.trustId as string | undefined;
@@ -141,10 +141,19 @@ export default function PropertyTrustDetailsScreen() {
    * Returns the person id to use as the default bare trust beneficiary.
    */
   const ensureWillMakerPerson = (): string => {
+    // 1) Prefer real will-maker (live context)
+    const liveUser = willActions.getUser?.();
+    if (liveUser) return liveUser.id;
+
+    // 2) Any existing will-maker role
+    const roleUser = personActions.getPeopleByRole?.('will-maker')?.[0];
+    if (roleUser) return roleUser.id;
+
+    // 3) Existing test seed
     const existingByName = personActions.getPersonByName('Will Maker', '(Test User)');
     if (existingByName) return existingByName.id;
 
-    // Create a synthetic test user
+    // 4) Create synthetic test user (sandbox fallback)
     const newId = personActions.addPerson({
       firstName: 'Will Maker',
       lastName: '(Test User)',
