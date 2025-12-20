@@ -141,9 +141,6 @@ export default function PropertyTrustDetailsScreen() {
    * Returns the person id to use as the default bare trust beneficiary.
    */
   const ensureWillMakerPerson = (): string => {
-    const existingWillMaker = personActions.getPeopleByRole('will-maker')[0];
-    if (existingWillMaker) return existingWillMaker.id;
-
     const existingByName = personActions.getPersonByName('Will Maker', '(Test User)');
     if (existingByName) return existingByName.id;
 
