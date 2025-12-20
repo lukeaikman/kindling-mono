@@ -141,19 +141,19 @@ export default function PropertyTrustDetailsScreen() {
    * Returns the person id to use as the default bare trust beneficiary.
    */
   const ensureWillMakerPerson = (): string => {
-    // 1) Prefer real will-maker (live context)
+    // 1) Prefer the real will-maker (live context)
     const liveUser = willActions.getUser?.();
     if (liveUser) return liveUser.id;
 
-    // 2) Any existing will-maker role
+    // 2) Prefer an existing test seed by exact name (stable)
+    const existingTest = personActions.getPersonByName?.('Will Maker', '(Test User)');
+    if (existingTest) return existingTest.id;
+
+    // 3) Any other will-maker role (if present)
     const roleUser = personActions.getPeopleByRole?.('will-maker')?.[0];
     if (roleUser) return roleUser.id;
 
-    // 3) Existing test seed
-    const existingByName = personActions.getPersonByName('Will Maker', '(Test User)');
-    if (existingByName) return existingByName.id;
-
-    // 4) Create synthetic test user (sandbox fallback)
+    // 4) Create synthetic test user as last resort (sandbox/dev)
     const newId = personActions.addPerson({
       firstName: 'Will Maker',
       lastName: '(Test User)',
