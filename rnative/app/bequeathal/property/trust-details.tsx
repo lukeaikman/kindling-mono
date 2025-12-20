@@ -83,8 +83,11 @@ export default function PropertyTrustDetailsScreen() {
   const loadedPropertyIdRef = useRef<string | null>(null);
   const loadedTrustIdRef = useRef<string | null>(null);
   
-  // Get will-maker for exclusion (or use first person in sandbox)
-  const willMaker = willActions.getUser() || personActions.getPeople()[0];
+  // Get will-maker for exclusion
+  // In sandbox: use person with "Test" firstName to avoid random selection
+  const willMaker = willActions.getUser() || 
+                    personActions.getPeople().find(p => p.firstName === 'Test') ||
+                    personActions.getPeople().find(p => p.lastName === 'Will Maker');
   const excludePersonIds = willMaker ? [willMaker.id] : [];
 
   // Base trust data
