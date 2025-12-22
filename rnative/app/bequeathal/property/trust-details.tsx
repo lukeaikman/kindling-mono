@@ -136,24 +136,33 @@ export default function PropertyTrustDetailsScreen() {
   // Co-beneficiaries (for Bare Trust Beneficiary and Settlor & Beneficiary)
   const [bareCoBeneficiaries, setBareCoBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
 
+  // Will-maker error (if none found/created)
+  const [willMakerError, setWillMakerError] = useState<string | null>(null);
+
   /**
    * Ensure we have a will-maker person available for sandbox testing.
    * Returns the person id to use as the default bare trust beneficiary.
    */
-  const ensureWillMakerPerson = (): string => {
-    // 1) Prefer the real will-maker (live context)
+  const ensureWillMakerPerson = async (): Promise<string | null> => {
+    // 1) Live will-maker (if already set)
     const liveUser = willActions.getUser?.();
     if (liveUser) return liveUser.id;
 
-    // 2) Prefer an existing test seed by exact name (stable)
+    // 2) Existing test seed by exact name
     const existingTest = personActions.getPersonByName?.('Will Maker', '(Test User)');
-    if (existingTest) return existingTest.id;
+    if (existingTest) {
+      willActions.updateWillData?.({ userId: existingTest.id });
+      return existingTest.id;
+    }
 
-    // 3) Any other will-maker role (if present)
+    // 3) Any other will-maker role
     const roleUser = personActions.getPeopleByRole?.('will-maker')?.[0];
-    if (roleUser) return roleUser.id;
+    if (roleUser) {
+      willActions.updateWillData?.({ userId: roleUser.id });
+      return roleUser.id;
+    }
 
-    // 4) Create synthetic test user as last resort (sandbox/dev)
+    // 4) Create synthetic test user + attach to will (fallback)
     const newId = personActions.addPerson({
       firstName: 'Will Maker',
       lastName: '(Test User)',
@@ -162,6 +171,7 @@ export default function PropertyTrustDetailsScreen() {
       relationship: 'other',
       roles: ['will-maker', 'beneficiary'],
     });
+    willActions.updateWillData?.({ userId: newId, willType: 'simple', status: 'draft' });
     return newId;
   };
 
@@ -198,8 +208,15 @@ export default function PropertyTrustDetailsScreen() {
   // Default: if user is a bare trust beneficiary, pre-select will-maker at 100%
   useEffect(() => {
     if (trustData.trustType === 'bare' && trustData.trustRole === 'beneficiary' && bareCoBeneficiaries.length === 0) {
-      const willMakerId = ensureWillMakerPerson();
-      setBareCoBeneficiaries([{ id: willMakerId, type: 'person', percentage: 100 }]);
+      setWillMakerError(null);
+      (async () => {
+        const willMakerId = await ensureWillMakerPerson();
+        if (willMakerId) {
+          setBareCoBeneficiaries([{ id: willMakerId, type: 'person', percentage: 100 }]);
+        } else {
+          setWillMakerError('Please add a will-maker to continue.');
+        }
+      })();
     }
   }, [trustData.trustType, trustData.trustRole, bareCoBeneficiaries.length]);
 
@@ -721,6 +738,12 @@ export default function PropertyTrustDetailsScreen() {
         onAddNewPerson={() => alert('Add person functionality to be implemented')}
         onAddNewGroup={() => alert('Add group functionality to be implemented')}
       />
+
+      {willMakerError && (
+        <Text style={[styles.helperText, { color: KindlingColors.destructive, marginTop: Spacing.xs }]}>
+          {willMakerError}
+        </Text>
+      )}
 
       {/* TODO: Trustees PersonSelector - Phase 10 integration */}
       <View style={styles.infoBox}>
