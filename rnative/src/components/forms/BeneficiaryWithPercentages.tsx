@@ -488,8 +488,9 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
                         const isFull = fill >= 99.9;
                         if (isFull) {
                           return {
-                            width: '100%',
-                            right: 0,
+                            width: undefined,
+                            left: -Spacing.md,
+                            right: -Spacing.md,
                             borderTopRightRadius: 8,
                             borderBottomRightRadius: 8,
                           };
@@ -675,9 +676,9 @@ const styles = StyleSheet.create({
   },
   percentageBackground: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
+    top: -Spacing.md,
+    left: -Spacing.md,
+    bottom: -Spacing.md,
     backgroundColor: `${KindlingColors.green}15`,
     borderTopLeftRadius: 8,
     borderBottomLeftRadius: 8,
