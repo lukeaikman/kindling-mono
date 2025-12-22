@@ -136,6 +136,9 @@ export default function PropertyTrustDetailsScreen() {
   // Co-beneficiaries (for Bare Trust Beneficiary and Settlor & Beneficiary)
   const [bareCoBeneficiaries, setBareCoBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
 
+  // Co-beneficiaries (for Discretionary Beneficiary)
+  const [discretionaryCoBeneficiaries, setDiscretionaryCoBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
+
   // Will-maker error (if none found/created)
   const [willMakerError, setWillMakerError] = useState<string | null>(null);
 
@@ -880,7 +883,21 @@ export default function PropertyTrustDetailsScreen() {
 
   const renderDiscretionaryBeneficiaryFieldset = () => (
     <View style={styles.fieldsetContent}>
-      {/* Empty - questions moved to base section */}
+      <Text style={styles.helperText}>
+        Add other beneficiaries who have discretionary interests alongside you.
+      </Text>
+
+      <Text style={styles.fieldLabel}>Co-beneficiaries (Optional)</Text>
+      <BeneficiaryWithPercentages
+        allocationMode="percentage"
+        value={discretionaryCoBeneficiaries}
+        onChange={setDiscretionaryCoBeneficiaries}
+        personActions={personActions}
+        beneficiaryGroupActions={beneficiaryGroupActions}
+        label="Co-beneficiaries"
+        onAddNewPerson={() => alert('Add person functionality to be implemented')}
+        onAddNewGroup={() => alert('Add group functionality to be implemented')}
+      />
     </View>
   );
 
