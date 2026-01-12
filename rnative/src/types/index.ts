@@ -258,9 +258,11 @@ export interface AlignmentInfo {
  * Will data - main will document structure
  */
 export interface WillData {
+  id: string; // Unique will ID (supports versioning)
   userId: string; // Person ID of will-maker (Person with 'will-maker' role)
+  version: number; // Version number (1, 2, 3...) for tracking will updates
   willType: 'simple' | 'complex';
-  status: 'draft' | 'review' | 'final';
+  status: 'draft' | 'active' | 'superseded'; // 'superseded' replaces 'final' for versioning
   executors: Array<{
     executor: string; // Person ID
     level: number;    // 1, 2, 3, 4...
@@ -277,6 +279,14 @@ export interface WillData {
   alignment: {
     [childId: string]: AlignmentInfo;
   };
+  
+  // Link to bequests (disposition instructions)
+  bequestIds: string[]; // Array of Bequest IDs for this will version
+  
+  // Version metadata
+  supersededBy?: string; // ID of will version that replaced this one
+  supersedes?: string; // ID of will version this replaced
+  finalizedAt?: Date; // When this version was finalized/made active
   
   createdAt: Date;
   updatedAt: Date;
@@ -353,6 +363,48 @@ export interface Beneficiary {
 }
 
 /**
+ * Bequest - Disposition instructions for an asset in a will
+ * 
+ * Separates ownership facts (Asset) from will instructions (Bequest).
+ * Supports multiple will versions with different dispositions for same asset.
+ * 
+ * Key Principle: Assets describe what you own (stable facts).
+ *                Bequests describe who gets what (versioned instructions).
+ */
+export interface Bequest {
+  id: string;
+  willId: string; // FK to WillData (which will version)
+  assetId: string; // FK to Asset (any type)
+  assetType: AssetType; // Discriminator for polymorphic lookup
+  
+  // Disposition instructions
+  beneficiaries: Array<{
+    id: string; // Person ID, BeneficiaryGroup ID, or 'estate'
+    type: 'person' | 'group' | 'estate';
+    percentage?: number; // Percentage allocation (0-100)
+    amount?: number; // Amount allocation (£)
+  }>;
+  
+  specificInstructions?: string; // Special conditions, wishes
+  
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Actions for managing bequests
+ */
+export interface BequestActions {
+  addBequest: (bequestData: Omit<Bequest, 'id' | 'createdAt' | 'updatedAt'>) => string;
+  updateBequest: (id: string, updates: Partial<Bequest>) => void;
+  removeBequest: (id: string) => void;
+  getBequests: () => Bequest[];
+  getBequestById: (id: string) => Bequest | undefined;
+  getBequestsByWill: (willId: string) => Bequest[];
+  getBequestsByAsset: (assetId: string) => Bequest[];
+}
+
+/**
  * Asset type categories
  */
 export type AssetType = 
@@ -379,15 +431,26 @@ export type HeldInTrust = 'yes' | 'no' | 'not-sure';
  */
 export interface BaseAsset {
   id: string;
+  userId?: string; // FK to Person (will-maker who owns this asset) - auto-populated if not provided
   type: AssetType;
   title: string;
   description?: string;
   estimatedValue?: number;
   netValue?: number;
-  beneficiaryId?: string;
   heldInTrust?: HeldInTrust;
   createdAt: string;
   updatedAt: string;
+  
+  // @deprecated - Move to Bequest entity
+  beneficiaryId?: string;
+  beneficiaryAssignments?: {
+    beneficiaries: Array<{
+      id: string;
+      type: 'person' | 'group' | 'estate';
+      name?: string;
+      percentage?: number;
+    }>;
+  };
 }
 
 /**
@@ -407,14 +470,6 @@ export interface PropertyAsset extends BaseAsset {
     outstandingAmount: number;
     provider: string;
   };
-  beneficiaryAssignments?: {
-    beneficiaries: Array<{
-      id: string;
-      type: 'person' | 'group' | 'estate';
-      name?: string;
-      percentage?: number;
-    }>;
-  };
   
   // Trust reference (foreign key to Trust entity)
   trustId?: string;
@@ -422,20 +477,13 @@ export interface PropertyAsset extends BaseAsset {
 
 /**
  * Important items asset - jewelry, artwork, collectibles, etc.
- * Uses beneficiaryAssignments for multi-beneficiary support
+ * Inherits beneficiaryAssignments from BaseAsset (deprecated, move to Bequest)
  */
 export interface ImportantItemAsset extends BaseAsset {
   type: 'important-items';
   category?: string;
   specificDetails?: string;
   sentimentalValue?: boolean;
-  beneficiaryAssignments?: {
-    beneficiaries: Array<{
-      id: string;
-      type: 'person' | 'group' | 'estate';
-      name?: string;
-    }>;
-  };
 }
 
 /**
@@ -605,6 +653,7 @@ export interface AssetSummary {
  */
 export interface Business {
   id: string;
+  userId?: string; // FK to Person (will-maker who owns this business) - auto-populated if not provided
   name: string;
   businessType: string;
   registrationNumber?: string;
@@ -636,6 +685,10 @@ export interface WillActions {
   getGuardians: (childId: string) => Array<{guardian: string, level: number}>;
   setAlignment: (childId: string, alignedUser: string, status: AlignmentStatus) => void;
   getAlignment: (childId: string) => AlignmentInfo | undefined;
+  
+  // Will versioning methods
+  createNewVersion: (copyBequests?: boolean) => string; // Returns new will ID
+  getWillVersions: () => WillData[]; // Get all versions for user
 }
 
 /**
@@ -790,6 +843,7 @@ export interface BeneficiaryGroupActions {
  * @property {Date} lastUpdated - Timestamp of last update
  */
 export interface EstateRemainderState {
+  userId: string; // FK to Person (will-maker who owns this estate allocation)
   selectedPeopleIds: string[];
   selectedGroupIds: string[];
   splits: Record<string, number>;
@@ -826,6 +880,7 @@ export interface TrustBeneficiary {
 export interface Trust {
   // Core Identity
   id: string;
+  userId?: string; // FK to Person (will-maker who owns this trust record) - auto-populated if not provided
   name: string; // User-provided trust name
   type: TrustType;
   creationMonth: string;
@@ -833,9 +888,9 @@ export interface Trust {
   creationDate?: Date; // Computed from month/year for easier filtering
   
   // User's Relationship to Trust (boolean flags for multiple roles)
-  isUserSettlor: boolean;
-  isUserBeneficiary: boolean;
-  isUserTrustee: boolean;
+  isUserSettlor: boolean; // The user (userId) is settlor of this trust
+  isUserBeneficiary: boolean; // The user (userId) is beneficiary
+  isUserTrustee: boolean; // The user (userId) is trustee
   
   // Settlor-Specific Data (populated when isUserSettlor = true)
   settlor?: {

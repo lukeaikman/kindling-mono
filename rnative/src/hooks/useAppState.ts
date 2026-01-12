@@ -38,8 +38,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import {
-  WillData, BequeathalData,
-  WillActions, PersonActions, BeneficiaryActions, BusinessActions, BequeathalActions, TrustActions,
+  WillData, BequeathalData, Bequest,
+  WillActions, PersonActions, BeneficiaryActions, BusinessActions, BequeathalActions, TrustActions, BequestActions,
   Person, PersonRole, PersonRelationshipType, AssetType, Asset, AssetSummary, Trust, TrustType, Business,
   GuardianLevel, GuardianHierarchy, AlignmentStatus, AlignmentInfo,
   RelationshipEdge, RelationshipType, PartnershipPhase, RelationshipActions,
@@ -88,8 +88,9 @@ const useAsyncStorageState = <T>(
 /**
  * Get initial estate remainder state
  */
-const getInitialEstateRemainderState = (): EstateRemainderState => {
+const getInitialEstateRemainderState = (userId: string = ''): EstateRemainderState => {
   return {
+    userId,
     selectedPeopleIds: [],
     selectedGroupIds: [],
     splits: {},
@@ -141,7 +142,7 @@ export const useAppState = () => {
 
   const [estateRemainderState, setEstateRemainderState] = useAsyncStorageState<EstateRemainderState>(
     STORAGE_KEYS.ESTATE_REMAINDER_DATA,
-    getInitialEstateRemainderState(),
+    getInitialEstateRemainderState(''), // Empty userId at init, populated on first use
     ['lastUpdated']
   );
 
@@ -151,78 +152,177 @@ export const useAppState = () => {
     []
   );
 
+  const [bequestData, setBequestData] = useAsyncStorageState<Bequest[]>(
+    STORAGE_KEYS.BEQUEST_DATA,
+    [],
+    []
+  );
+
   // =============================================================================
-  // Migration: Inline Trust Fields → Trust Entity
+  // Migration: Multi-User + Bequest Separation
   // =============================================================================
   
   const migrationCompletedRef = useRef(false);
   
   useEffect(() => {
+    const currentUserId = willData.userId;
+    if (!currentUserId) return;
     if (migrationCompletedRef.current) return;
-    if (!bequeathalData || !bequeathalData.property) return;
     
-    // Find PropertyAssets with inline trust fields but no trustId
-    const needsMigration = bequeathalData.property.some((asset: any) => 
-      asset.trustName && 
-      asset.trustType && 
-      asset.trustRole && 
-      !asset.trustId
-    );
+    console.log('🔄 Migrating to multi-user + bequest architecture...');
     
-    if (!needsMigration) {
-      migrationCompletedRef.current = true;
-      return;
+    // 1. Add userId to Trusts
+    const trustsMigrated = trustData.every((t: any) => t.userId);
+    if (!trustsMigrated) {
+      const updatedTrusts = trustData.map((trust: any) => ({
+        ...trust,
+        userId: trust.userId || currentUserId,
+      }));
+      setTrustData(updatedTrusts);
     }
     
-    console.log('🔄 Migrating PropertyAssets with inline trust fields to Trust entities...');
-    
-    const updatedProperties = bequeathalData.property.map((asset: any) => {
-      if (!asset.trustName || asset.trustId) {
-        return asset;
+    // 2. Migrate PropertyAssets with inline trust fields
+    if (bequeathalData.property) {
+      const needsTrustMigration = bequeathalData.property.some((asset: any) => 
+        asset.trustName && asset.trustType && asset.trustRole && !asset.trustId
+      );
+      
+      if (needsTrustMigration) {
+        const updatedProperties = bequeathalData.property.map((asset: any) => {
+          if (!asset.trustName || asset.trustId) {
+            return asset;
+          }
+          
+          const trustTypeMap: Record<string, TrustType> = {
+            'life_interest': 'life_interest_trust',
+            'bare': 'bare_trust',
+            'discretionary': 'discretionary_trust',
+          };
+          
+          const newTrust: Trust = {
+            id: `trust-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            userId: currentUserId,
+            name: asset.trustName,
+            type: trustTypeMap[asset.trustType] || 'bare_trust',
+            creationMonth: '',
+            creationYear: '',
+            isUserSettlor: asset.trustRole.includes('settlor'),
+            isUserBeneficiary: asset.trustRole.includes('beneficiary'),
+            isUserTrustee: false,
+            assetIds: [asset.id],
+            createdInContext: 'property',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          
+          setTrustData(prev => [...prev, newTrust]);
+          
+          const { trustName, trustType, trustRole, ...cleanAsset } = asset;
+          return {
+            ...cleanAsset,
+            userId: asset.userId || currentUserId,
+            trustId: newTrust.id,
+          };
+        });
+        
+        setBequeathalData({
+          ...bequeathalData,
+          property: updatedProperties,
+        });
       }
+    }
+    
+    // 3. Add userId to Businesses
+    const businessesMigrated = businessData.every((b: any) => b.userId);
+    if (!businessesMigrated) {
+      const updatedBusinesses = businessData.map((business: any) => ({
+        ...business,
+        userId: business.userId || currentUserId,
+      }));
+      setBusinessData(updatedBusinesses);
+    }
+    
+    // 4. Extract beneficiaryAssignments from Assets to Bequests
+    const hasLegacyBeneficiaries = Object.values(bequeathalData).some(
+      (categoryAssets: any) => Array.isArray(categoryAssets) && categoryAssets.some(
+        (asset: any) => asset.beneficiaryAssignments || asset.beneficiaryId
+      )
+    );
+    
+    if (hasLegacyBeneficiaries && bequestData.length === 0) {
+      const newBequests: Bequest[] = [];
+      const currentWillId = willData.id || 'will-v1';
       
-      // Map trust type
-      const trustTypeMap: Record<string, TrustType> = {
-        'life_interest': 'life_interest_trust',
-        'bare': 'bare_trust',
-        'discretionary': 'discretionary_trust',
-      };
+      Object.entries(bequeathalData).forEach(([category, categoryAssets]) => {
+        if (!Array.isArray(categoryAssets)) return;
+        
+        (categoryAssets as any[]).forEach((asset: any) => {
+          if (asset.beneficiaryAssignments?.beneficiaries.length > 0) {
+            newBequests.push({
+              id: `bequest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              willId: currentWillId,
+              assetId: asset.id,
+              assetType: asset.type,
+              beneficiaries: asset.beneficiaryAssignments.beneficiaries,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          } else if (asset.beneficiaryId) {
+            newBequests.push({
+              id: `bequest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              willId: currentWillId,
+              assetId: asset.id,
+              assetType: asset.type,
+              beneficiaries: [{
+                id: asset.beneficiaryId,
+                type: 'person',
+                percentage: 100,
+              }],
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          }
+        });
+      });
       
-      // Create Trust entity
-      const newTrust: Trust = {
-        id: `trust-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: asset.trustName,
-        type: trustTypeMap[asset.trustType] || 'bare_trust',
-        creationMonth: '',
-        creationYear: '',
-        isUserSettlor: asset.trustRole.includes('settlor'),
-        isUserBeneficiary: asset.trustRole.includes('beneficiary'),
-        isUserTrustee: false,
-        assetIds: [asset.id],
-        createdInContext: 'property',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      if (newBequests.length > 0) {
+        setBequestData(newBequests);
+        console.log(`✅ Created ${newBequests.length} bequests from legacy beneficiary assignments`);
+      }
+    }
+    
+    // 5. Add userId to all assets
+    const updatedBequeathalData = { ...bequeathalData };
+    let assetsUpdated = false;
+    
+    Object.entries(bequeathalData).forEach(([category, categoryAssets]) => {
+      if (!Array.isArray(categoryAssets)) return;
       
-      setTrustData(prev => [...prev, newTrust]);
-      
-      // Remove inline fields, add trustId
-      const { trustName, trustType, trustRole, ...cleanAsset } = asset;
-      return {
-        ...cleanAsset,
-        trustId: newTrust.id,
-      };
+      const updated = (categoryAssets as any[]).map((asset: any) => {
+        if (!asset.userId) {
+          assetsUpdated = true;
+          return { ...asset, userId: currentUserId };
+        }
+        return asset;
+      });
+      updatedBequeathalData[category as keyof BequeathalData] = updated as any;
     });
     
-    // Update bequeathal data with migrated properties
-    setBequeathalData({
-      ...bequeathalData,
-      property: updatedProperties,
-    });
+    if (assetsUpdated) {
+      setBequeathalData(updatedBequeathalData);
+    }
+    
+    // 6. Add userId to EstateRemainderState
+    if (!(estateRemainderState as any).userId) {
+      setEstateRemainderState({
+        ...estateRemainderState,
+        userId: currentUserId,
+      } as any);
+    }
     
     migrationCompletedRef.current = true;
-    console.log('✅ Migration complete');
-  }, [bequeathalData, trustData]);
+    console.log('✅ Multi-user + bequest migration complete');
+  }, [willData, trustData, businessData, bequeathalData, bequestData, estateRemainderState]);
 
   // =============================================================================
   // Will Actions
@@ -406,7 +506,60 @@ export const useAppState = () => {
 
     getAlignment: (childId: string) => {
       return willData.alignment?.[childId];
-    }
+    },
+    
+    // Will versioning methods
+    createNewVersion: (copyBequests: boolean = true) => {
+      const currentWill = willData;
+      const newVersion = (currentWill.version || 1) + 1;
+      
+      const newWill: WillData = {
+        id: `will-v${newVersion}-${Date.now()}`,
+        userId: currentWill.userId,
+        version: newVersion,
+        willType: currentWill.willType,
+        status: 'draft',
+        executors: [...currentWill.executors],
+        guardianship: {...currentWill.guardianship},
+        alignment: {...currentWill.alignment},
+        bequestIds: [],
+        supersedes: currentWill.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      setWillData(newWill);
+      
+      // Optionally copy bequests from previous version
+      if (copyBequests) {
+        const oldBequests = bequestActions.getBequestsByWill(currentWill.id || 'will-v1');
+        const newBequestIds: string[] = [];
+        
+        oldBequests.forEach(oldBequest => {
+          const newBequestId = bequestActions.addBequest({
+            willId: newWill.id,
+            assetId: oldBequest.assetId,
+            assetType: oldBequest.assetType,
+            beneficiaries: [...oldBequest.beneficiaries],
+            specificInstructions: oldBequest.specificInstructions,
+          });
+          newBequestIds.push(newBequestId);
+        });
+        
+        // Update will with bequest IDs
+        setWillData(prev => ({
+          ...prev,
+          bequestIds: newBequestIds,
+        }));
+      }
+      
+      return newWill.id;
+    },
+    
+    getWillVersions: () => {
+      // For now, return current will (future: store array of versions)
+      return [willData];
+    },
   };
 
   // =============================================================================
@@ -740,6 +893,8 @@ export const useAppState = () => {
 
   const businessActions: BusinessActions = {
     addBusiness: (businessData) => {
+      const currentUserId = willData.userId || '';
+      
       const generateId = () => {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
           const r = Math.random() * 16 | 0;
@@ -750,6 +905,7 @@ export const useAppState = () => {
       
       const newBusiness: Business = {
         ...businessData,
+        userId: businessData.userId || currentUserId, // Auto-populate if not provided
         id: generateId(),
         createdAt: new Date(),
         updatedAt: new Date()
@@ -906,6 +1062,8 @@ export const useAppState = () => {
 
   const bequeathalActions: BequeathalActions = {
     addAsset: (assetType, assetData) => {
+      const currentUserId = willData.userId || '';
+      
       const generateId = () => {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
           const r = Math.random() * 16 | 0;
@@ -916,6 +1074,7 @@ export const useAppState = () => {
       
       const newAsset = {
         ...assetData,
+        userId: (assetData as any).userId || currentUserId, // Auto-populate if not provided
         id: generateId(),
         type: assetType,
         title: assetData.title || 'Untitled Asset',
@@ -1027,8 +1186,11 @@ export const useAppState = () => {
 
   const trustActions: TrustActions = {
     addTrust: (trustData) => {
+      const currentUserId = willData.userId || '';
+      
       const newTrust: Trust = {
         ...trustData,
+        userId: trustData.userId || currentUserId, // Auto-populate if not provided
         id: `trust-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -1060,6 +1222,49 @@ export const useAppState = () => {
     },
 
     getTrustData: () => trustData
+  };
+
+  // =============================================================================
+  // Bequest Actions
+  // =============================================================================
+
+  const bequestActions: BequestActions = {
+    addBequest: (bequestData) => {
+      const newBequest: Bequest = {
+        ...bequestData,
+        id: `bequest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      setBequestData(prev => [...prev, newBequest]);
+
+      return newBequest.id;
+    },
+
+    updateBequest: (id, updates) => {
+      setBequestData(prev => prev.map(bequest =>
+        bequest.id === id ? { ...bequest, ...updates, updatedAt: new Date() } : bequest
+      ));
+    },
+
+    removeBequest: (id) => {
+      setBequestData(prev => prev.filter(bequest => bequest.id !== id));
+    },
+
+    getBequests: () => bequestData,
+
+    getBequestById: (id) => {
+      return bequestData.find(bequest => bequest.id === id);
+    },
+
+    getBequestsByWill: (willId) => {
+      return bequestData.filter(bequest => bequest.willId === willId);
+    },
+
+    getBequestsByAsset: (assetId) => {
+      return bequestData.filter(bequest => bequest.assetId === assetId);
+    },
   };
 
   // =============================================================================
@@ -1498,6 +1703,7 @@ export const useAppState = () => {
     
     clearEstateRemainderState: async () => {
       const initialState: EstateRemainderState = {
+        userId: willData.userId || '',
         selectedPeopleIds: [],
         selectedGroupIds: [],
         splits: {},
@@ -1526,8 +1732,9 @@ export const useAppState = () => {
       setBusinessData(getInitialBusinessData());
       setBequeathalData(getInitialBequeathalData());
       setTrustData(getInitialTrustData());
+      setBequestData([]); // Clear bequests
       setBeneficiaryGroupData([]);
-      setEstateRemainderState(getInitialEstateRemainderState());
+      setEstateRemainderState(getInitialEstateRemainderState('')); // Empty userId for purge
       setRelationshipData([]);
       
       console.log('✅ All data purged successfully');
@@ -1548,6 +1755,7 @@ export const useAppState = () => {
     beneficiaryGroupActions,
     bequeathalActions,
     trustActions,
+    bequestActions,
     relationshipActions,
     estateRemainderActions,
     purgeAllData

@@ -1370,8 +1370,13 @@ export default function PropertyTrustDetailsScreen() {
         : undefined,
     } : undefined;
     
+    // Get current user ID
+    const property = bequeathalActions.getAssetById(propertyId) as PropertyAsset;
+    const currentUserId = property?.userId || '';
+    
     // Map form data to Trust entity structure
     const trustEntityData: Omit<Trust, 'id' | 'createdAt' | 'updatedAt'> = {
+      userId: currentUserId,
       name: trustData.trustName,
       type: trustTypeMap[trustData.trustType] || 'bare_trust',
       creationMonth: trustData.creationMonth || '',
@@ -1394,8 +1399,7 @@ export default function PropertyTrustDetailsScreen() {
       savedTrustId = trustActions.addTrust(trustEntityData);
     }
     
-    // Update PropertyAsset with trustId reference
-    const property = bequeathalActions.getAssetById(propertyId) as PropertyAsset;
+    // Update PropertyAsset with trustId reference (reuse property from above)
     if (property) {
       bequeathalActions.updateAsset(propertyId, {
         ...property,

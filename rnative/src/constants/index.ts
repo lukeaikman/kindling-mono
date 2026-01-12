@@ -16,6 +16,7 @@ export const STORAGE_KEYS = {
   PERSON_DATA: 'kindling-person-data',
   BUSINESS_DATA: 'kindling-business-data',
   BEQUEATHAL_DATA: 'kindling-bequeathal-data',
+  BEQUEST_DATA: 'kindling-bequests', // Disposition instructions (separate from assets)
   TRUST_DATA: 'kindling-trusts',
   RELATIONSHIP_DATA: 'kindling-relationships',
   BENEFICIARY_GROUP_DATA: 'kindling-beneficiary-groups',
@@ -30,12 +31,15 @@ export const STORAGE_KEYS = {
  * @returns {WillData} Initial will data object with empty arrays and default values
  */
 export const getInitialWillData = (): WillData => ({
+  id: 'will-v1', // Initial will ID
   userId: '', // Will be set when user Person is created during onboarding
+  version: 1, // First version
   willType: 'simple',
   status: 'draft',
   executors: [],
   guardianship: {},
   alignment: {},
+  bequestIds: [], // Array of Bequest IDs
   createdAt: new Date(),
   updatedAt: new Date()
 });
