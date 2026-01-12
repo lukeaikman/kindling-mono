@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -97,10 +97,11 @@ interface TrustData {
 }
 
 export default function PropertyTrustDetailsScreen() {
-  const { personActions, beneficiaryGroupActions, trustActions, bequeathalActions } = useAppState();
+  const { personActions, beneficiaryGroupActions, trustActions, bequeathalActions, willActions } = useAppState();
   const params = useLocalSearchParams();
   const propertyId = params.propertyId as string | undefined;
   const trustId = params.trustId as string | undefined;
+  const isSandbox = !propertyId || params.sandbox === 'true';
 
   // Base trust data
   const [trustData, setTrustData] = useState<TrustData>({
@@ -1332,11 +1333,6 @@ export default function PropertyTrustDetailsScreen() {
   };
 
   const handleSave = () => {
-    if (!propertyId) {
-      console.error('Property ID required');
-      return;
-    }
-    
     // Map form trustType to TrustType enum
     const trustTypeMap: Record<string, TrustType> = {
       'life_interest': 'life_interest_trust',
@@ -1370,13 +1366,57 @@ export default function PropertyTrustDetailsScreen() {
         : undefined,
     } : undefined;
     
-    // Get current user ID
+    // Get current user ID from willActions (consistent with other screens)
+    const willMaker = willActions.getUser();
+    const currentUserId = willMaker?.id || '';
+    
+    // Sandbox mode: save trust without property link
+    if (isSandbox) {
+      const trustEntityData: Omit<Trust, 'id' | 'createdAt' | 'updatedAt'> = {
+        userId: currentUserId,
+        name: trustData.trustName,
+        type: trustTypeMap[trustData.trustType] || 'bare_trust',
+        creationMonth: trustData.creationMonth || '',
+        creationYear: trustData.creationYear || '',
+        isUserSettlor: trustData.trustRole.includes('settlor'),
+        isUserBeneficiary: trustData.trustRole.includes('beneficiary'),
+        isUserTrustee: false,
+        assetIds: [], // Empty in sandbox - trust exists but not linked to property
+        createdInContext: 'other', // Mark as sandbox/test
+        settlor,
+        beneficiary,
+      };
+      
+      const savedTrustId = trustId 
+        ? (trustActions.updateTrust(trustId, trustEntityData), trustId)
+        : trustActions.addTrust(trustEntityData);
+      
+      Alert.alert(
+        '✅ Trust Saved',
+        `Trust ID: ${savedTrustId}\n\nCheck Data Explorer to verify the trust was saved correctly.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => router.push('/developer/trust-sandbox'),
+          },
+        ]
+      );
+      return;
+    }
+    
+    // Normal flow - require propertyId
+    if (!propertyId) {
+      console.error('Property ID required');
+      return;
+    }
+    
     const property = bequeathalActions.getAssetById(propertyId) as PropertyAsset;
-    const currentUserId = property?.userId || '';
+    // Use property.userId as fallback, but prefer willActions
+    const userId = currentUserId || property?.userId || '';
     
     // Map form data to Trust entity structure
     const trustEntityData: Omit<Trust, 'id' | 'createdAt' | 'updatedAt'> = {
-      userId: currentUserId,
+      userId: userId,
       name: trustData.trustName,
       type: trustTypeMap[trustData.trustType] || 'bare_trust',
       creationMonth: trustData.creationMonth || '',

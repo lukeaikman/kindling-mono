@@ -33,18 +33,18 @@ export default function TrustSandboxScreen() {
       >
         <View style={styles.content}>
           <Text style={styles.description}>
-            Test trust details form in isolation. Navigate to the actual trust details screen to test all trust types and roles.
+            Test trust details form in isolation. A test property is not required - trusts will be saved without property links for testing purposes.
           </Text>
           
           <View style={styles.linkCard}>
             <Text style={styles.linkTitle}>Trust Details Screen</Text>
             <Text style={styles.linkDescription}>
-              Full trust details form with all types (Bare, Life Interest, Discretionary) and roles (Settlor, Beneficiary, Both).
+              Full trust details form with all types (Bare, Life Interest, Discretionary) and roles (Settlor, Beneficiary, Both). Test mode: trusts will be saved without property links.
             </Text>
             <View style={styles.linkButton}>
               <Text
                 style={styles.linkButtonText}
-                onPress={() => router.push('/bequeathal/property/trust-details')}
+                onPress={() => router.push('/bequeathal/property/trust-details?sandbox=true')}
               >
                 Open Trust Details →
               </Text>
@@ -58,6 +58,7 @@ export default function TrustSandboxScreen() {
             <Text style={styles.infoText}>• Check BeneficiaryWithPercentages with sliders (3+ beneficiaries)</Text>
             <Text style={styles.infoText}>• Verify date pickers work correctly</Text>
             <Text style={styles.infoText}>• Test Save button validation</Text>
+            <Text style={styles.infoText}>• After saving, check Data Explorer to verify trust was saved</Text>
           </View>
         </View>
       </ScrollView>
