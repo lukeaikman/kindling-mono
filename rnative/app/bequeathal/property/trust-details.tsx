@@ -76,8 +76,9 @@ interface TrustData {
   // Discretionary Trust Beneficiary fields
   discretionaryBeneficiaryTransferMonth: string;
   discretionaryBeneficiaryTransferYear: string;
+  discretionaryBeneficiaryDateUnknown: boolean;
   discretionaryBeneficiaryValueAtTransfer: number;
-  discretionaryBeneficiaryDetailsUnknown: boolean;
+  discretionaryBeneficiaryValueUnknown: boolean;
   discretionaryBeneficiaryInsurancePolicy: 'yes' | 'no' | 'unsure' | '';
 }
 
@@ -121,8 +122,9 @@ export default function PropertyTrustDetailsScreen() {
     // Discretionary Trust Beneficiary
     discretionaryBeneficiaryTransferMonth: '',
     discretionaryBeneficiaryTransferYear: '',
+    discretionaryBeneficiaryDateUnknown: false,
     discretionaryBeneficiaryValueAtTransfer: 0,
-    discretionaryBeneficiaryDetailsUnknown: false,
+    discretionaryBeneficiaryValueUnknown: false,
     discretionaryBeneficiaryInsurancePolicy: '',
   });
 
@@ -770,12 +772,11 @@ export default function PropertyTrustDetailsScreen() {
 
   const renderDiscretionaryBeneficiaryFieldset = () => {
     // Calculate if transfer date is under 7 years or unknown
-    const isDateUnknown = trustData.discretionaryBeneficiaryDetailsUnknown || 
-      (!trustData.discretionaryBeneficiaryTransferMonth && !trustData.discretionaryBeneficiaryTransferYear);
+    const isDateUnknown = trustData.discretionaryBeneficiaryDateUnknown;
     
     const isUnder7Years = (() => {
       if (isDateUnknown) return true; // Unknown = show insurance field
-      if (!trustData.discretionaryBeneficiaryTransferMonth || !trustData.discretionaryBeneficiaryTransferYear) return true;
+      if (!trustData.discretionaryBeneficiaryTransferMonth || !trustData.discretionaryBeneficiaryTransferYear) return false;
       
       const transferDate = new Date(
         parseInt(trustData.discretionaryBeneficiaryTransferYear),
@@ -794,77 +795,94 @@ export default function PropertyTrustDetailsScreen() {
           As a beneficiary of this discretionary trust, we need to check if there's potential tax liability from the 7-year rule.
         </Text>
 
-        {/* Transfer Date */}
-        <Text style={styles.fieldLabel}>Month and year this property was transferred into trust *</Text>
-        <Text style={styles.helperText}>
-          For 7-year rule tracking
-        </Text>
-        <View style={[styles.dateRow, isDateUnknown && styles.disabledInputContainer]}>
-          <View style={styles.dateField}>
-            <Select
-              placeholder="Month..."
-              value={trustData.discretionaryBeneficiaryTransferMonth}
-              options={[
-                { label: 'January', value: '01' },
-                { label: 'February', value: '02' },
-                { label: 'March', value: '03' },
-                { label: 'April', value: '04' },
-                { label: 'May', value: '05' },
-                { label: 'June', value: '06' },
-                { label: 'July', value: '07' },
-                { label: 'August', value: '08' },
-                { label: 'September', value: '09' },
-                { label: 'October', value: '10' },
-                { label: 'November', value: '11' },
-                { label: 'December', value: '12' },
-              ]}
-              onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferMonth', value)}
-              disabled={isDateUnknown}
-            />
-          </View>
-          <View style={styles.dateField}>
-            <Select
-              placeholder="Year..."
-              value={trustData.discretionaryBeneficiaryTransferYear}
-              options={Array.from({ length: 100 }, (_, i) => {
-                const year = new Date().getFullYear() - i;
-                return { label: year.toString(), value: year.toString() };
-              })}
-              onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferYear', value)}
-              disabled={isDateUnknown}
-            />
-          </View>
-        </View>
+        {/* Transfer Date - hide if "I don't know" is checked */}
+        {!trustData.discretionaryBeneficiaryDateUnknown && (
+          <>
+            <Text style={styles.fieldLabel}>Month and year this property was transferred into trust *</Text>
+            <Text style={styles.helperText}>
+              For 7-year rule tracking
+            </Text>
+            <View style={styles.dateRow}>
+              <View style={styles.dateField}>
+                <Select
+                  placeholder="Month..."
+                  value={trustData.discretionaryBeneficiaryTransferMonth}
+                  options={[
+                    { label: 'January', value: '01' },
+                    { label: 'February', value: '02' },
+                    { label: 'March', value: '03' },
+                    { label: 'April', value: '04' },
+                    { label: 'May', value: '05' },
+                    { label: 'June', value: '06' },
+                    { label: 'July', value: '07' },
+                    { label: 'August', value: '08' },
+                    { label: 'September', value: '09' },
+                    { label: 'October', value: '10' },
+                    { label: 'November', value: '11' },
+                    { label: 'December', value: '12' },
+                  ]}
+                  onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferMonth', value)}
+                />
+              </View>
+              <View style={styles.dateField}>
+                <Select
+                  placeholder="Year..."
+                  value={trustData.discretionaryBeneficiaryTransferYear}
+                  options={Array.from({ length: 100 }, (_, i) => {
+                    const year = new Date().getFullYear() - i;
+                    return { label: year.toString(), value: year.toString() };
+                  })}
+                  onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferYear', value)}
+                />
+              </View>
+            </View>
+          </>
+        )}
 
-        {/* Value at Transfer */}
-        <CurrencyInput
-          label="£ Value when transferred (not current value) *"
-          placeholder="Enter value at transfer..."
-          value={trustData.discretionaryBeneficiaryValueAtTransfer}
-          onValueChange={(value) => updateTrustData('discretionaryBeneficiaryValueAtTransfer', value)}
-          disabled={isDateUnknown}
-        />
-        <Text style={styles.helperText}>
-          ℹ️ This determines potential tax if the settlor dies within 7 years
-        </Text>
-
-        {/* "I don't know" checkbox */}
+        {/* "I don't know" checkbox for date */}
         <Checkbox
           label="I don't know these details"
-          checked={trustData.discretionaryBeneficiaryDetailsUnknown}
+          checked={trustData.discretionaryBeneficiaryDateUnknown}
           onCheckedChange={(value) => {
-            updateTrustData('discretionaryBeneficiaryDetailsUnknown', value);
+            updateTrustData('discretionaryBeneficiaryDateUnknown', value);
             if (value) {
               // Clear fields when checked
               updateTrustData('discretionaryBeneficiaryTransferMonth', '');
               updateTrustData('discretionaryBeneficiaryTransferYear', '');
+            }
+          }}
+        />
+
+        {/* Value at Transfer - hide if "I don't know" is checked */}
+        {!trustData.discretionaryBeneficiaryValueUnknown && (
+          <>
+            <CurrencyInput
+              label="£ Value when transferred (not current value) *"
+              placeholder="Enter value at transfer..."
+              value={trustData.discretionaryBeneficiaryValueAtTransfer}
+              onValueChange={(value) => updateTrustData('discretionaryBeneficiaryValueAtTransfer', value)}
+            />
+            <Text style={styles.helperText}>
+              ℹ️ This determines potential tax if the settlor dies within 7 years
+            </Text>
+          </>
+        )}
+
+        {/* "I don't know" checkbox for value */}
+        <Checkbox
+          label="I don't know these details"
+          checked={trustData.discretionaryBeneficiaryValueUnknown}
+          onCheckedChange={(value) => {
+            updateTrustData('discretionaryBeneficiaryValueUnknown', value);
+            if (value) {
+              // Clear value when checked
               updateTrustData('discretionaryBeneficiaryValueAtTransfer', 0);
             }
           }}
         />
 
-        {/* Risk message when unknown */}
-        {trustData.discretionaryBeneficiaryDetailsUnknown && (
+        {/* Risk message when date is unknown */}
+        {trustData.discretionaryBeneficiaryDateUnknown && (
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
               Estimated current IHT risk: Unknown. The trust may face a tax bill if the settlor dies within 7 years of transfer.
@@ -984,24 +1002,27 @@ export default function PropertyTrustDetailsScreen() {
 
     // Discretionary Trust Beneficiary validation
     if (trustData.trustType === 'discretionary' && trustData.trustRole === 'beneficiary') {
-      // Either "I don't know" is checked OR date fields are filled
-      const hasDateUnknown = trustData.discretionaryBeneficiaryDetailsUnknown;
+      // Date: Either "I don't know" is checked OR date fields are filled
+      const hasDateUnknown = trustData.discretionaryBeneficiaryDateUnknown;
       const hasDate = trustData.discretionaryBeneficiaryTransferMonth && trustData.discretionaryBeneficiaryTransferYear;
       
       if (!hasDateUnknown && !hasDate) {
         return false; // Need either unknown checkbox OR date
       }
       
-      // If date is provided, value must be > 0
-      if (hasDate && trustData.discretionaryBeneficiaryValueAtTransfer <= 0) {
-        return false;
+      // Value: Either "I don't know" is checked OR value is > 0
+      const hasValueUnknown = trustData.discretionaryBeneficiaryValueUnknown;
+      const hasValue = trustData.discretionaryBeneficiaryValueAtTransfer > 0;
+      
+      if (!hasValueUnknown && !hasValue) {
+        return false; // Need either unknown checkbox OR value
       }
       
       // Calculate if under 7 years or unknown
-      const isDateUnknown = hasDateUnknown || (!trustData.discretionaryBeneficiaryTransferMonth && !trustData.discretionaryBeneficiaryTransferYear);
+      const isDateUnknown = trustData.discretionaryBeneficiaryDateUnknown;
       const isUnder7Years = (() => {
         if (isDateUnknown) return true;
-        if (!hasDate) return true;
+        if (!hasDate) return false; // Can't calculate if no date
         
         const transferDate = new Date(
           parseInt(trustData.discretionaryBeneficiaryTransferYear),
