@@ -36,11 +36,11 @@
  * ```
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   WillData, BequeathalData,
   WillActions, PersonActions, BeneficiaryActions, BusinessActions, BequeathalActions, TrustActions,
-  Person, PersonRole, PersonRelationshipType, AssetType, Asset, AssetSummary, Trust, Business,
+  Person, PersonRole, PersonRelationshipType, AssetType, Asset, AssetSummary, Trust, TrustType, Business,
   GuardianLevel, GuardianHierarchy, AlignmentStatus, AlignmentInfo,
   RelationshipEdge, RelationshipType, PartnershipPhase, RelationshipActions,
   BeneficiaryGroup, BeneficiaryGroupActions, EstateRemainderState
@@ -150,6 +150,79 @@ export const useAppState = () => {
     [],
     []
   );
+
+  // =============================================================================
+  // Migration: Inline Trust Fields → Trust Entity
+  // =============================================================================
+  
+  const migrationCompletedRef = useRef(false);
+  
+  useEffect(() => {
+    if (migrationCompletedRef.current) return;
+    if (!bequeathalData || !bequeathalData.property) return;
+    
+    // Find PropertyAssets with inline trust fields but no trustId
+    const needsMigration = bequeathalData.property.some((asset: any) => 
+      asset.trustName && 
+      asset.trustType && 
+      asset.trustRole && 
+      !asset.trustId
+    );
+    
+    if (!needsMigration) {
+      migrationCompletedRef.current = true;
+      return;
+    }
+    
+    console.log('🔄 Migrating PropertyAssets with inline trust fields to Trust entities...');
+    
+    const updatedProperties = bequeathalData.property.map((asset: any) => {
+      if (!asset.trustName || asset.trustId) {
+        return asset;
+      }
+      
+      // Map trust type
+      const trustTypeMap: Record<string, TrustType> = {
+        'life_interest': 'life_interest_trust',
+        'bare': 'bare_trust',
+        'discretionary': 'discretionary_trust',
+      };
+      
+      // Create Trust entity
+      const newTrust: Trust = {
+        id: `trust-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: asset.trustName,
+        type: trustTypeMap[asset.trustType] || 'bare_trust',
+        creationMonth: '',
+        creationYear: '',
+        isUserSettlor: asset.trustRole.includes('settlor'),
+        isUserBeneficiary: asset.trustRole.includes('beneficiary'),
+        isUserTrustee: false,
+        assetIds: [asset.id],
+        createdInContext: 'property',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      setTrustData(prev => [...prev, newTrust]);
+      
+      // Remove inline fields, add trustId
+      const { trustName, trustType, trustRole, ...cleanAsset } = asset;
+      return {
+        ...cleanAsset,
+        trustId: newTrust.id,
+      };
+    });
+    
+    // Update bequeathal data with migrated properties
+    setBequeathalData({
+      ...bequeathalData,
+      property: updatedProperties,
+    });
+    
+    migrationCompletedRef.current = true;
+    console.log('✅ Migration complete');
+  }, [bequeathalData, trustData]);
 
   // =============================================================================
   // Will Actions

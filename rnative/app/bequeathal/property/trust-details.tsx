@@ -9,14 +9,15 @@
  * @module screens/bequeathal/property/trust-details
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Input, Select, RadioGroup, Checkbox, CurrencyInput, PercentageInput } from '../../../src/components/ui';
 import { BeneficiaryWithPercentages } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { PropertyAsset, Trust, TrustType } from '../../../src/types';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 
@@ -73,6 +74,7 @@ interface TrustData {
   currentlyLiveInProperty: string;
   bareValueAtTransfer: number;
   bareSettlorAndBeneficiaryValueUnknown: boolean;
+  spouseExcludedFromBenefit: 'yes' | 'no' | 'not_sure' | '';
   
   // Discretionary Trust Settlor fields
   discretionaryTransferMonth: string;
@@ -89,10 +91,16 @@ interface TrustData {
   discretionaryBeneficiaryValueAtTransfer: number;
   discretionaryBeneficiaryValueUnknown: boolean;
   discretionaryBeneficiaryInsurancePolicy: 'yes' | 'no' | 'unsure' | '';
+  
+  // Discretionary Trust Settlor & Beneficiary fields
+  discretionarySettlorAndBeneficiarySpouseExcluded: 'yes' | 'no' | 'not_sure' | '';
 }
 
 export default function PropertyTrustDetailsScreen() {
-  const { personActions, beneficiaryGroupActions } = useAppState();
+  const { personActions, beneficiaryGroupActions, trustActions, bequeathalActions } = useAppState();
+  const params = useLocalSearchParams();
+  const propertyId = params.propertyId as string | undefined;
+  const trustId = params.trustId as string | undefined;
 
   // Base trust data
   const [trustData, setTrustData] = useState<TrustData>({
@@ -129,6 +137,7 @@ export default function PropertyTrustDetailsScreen() {
     currentlyLiveInProperty: '',
     bareValueAtTransfer: 0,
     bareSettlorAndBeneficiaryValueUnknown: false,
+    spouseExcludedFromBenefit: '',
     // Discretionary Trust Settlor
     discretionaryTransferMonth: '',
     discretionaryTransferYear: '',
@@ -143,6 +152,8 @@ export default function PropertyTrustDetailsScreen() {
     discretionaryBeneficiaryValueAtTransfer: 0,
     discretionaryBeneficiaryValueUnknown: false,
     discretionaryBeneficiaryInsurancePolicy: '',
+    // Discretionary Trust Settlor & Beneficiary
+    discretionarySettlorAndBeneficiarySpouseExcluded: '',
   });
 
   // Remaindermen (for Life Interest Settlor and optional for Life Interest Beneficiary)
@@ -153,6 +164,92 @@ export default function PropertyTrustDetailsScreen() {
   
   // Co-beneficiaries (for Bare Trust Beneficiary and Settlor & Beneficiary)
   const [bareCoBeneficiaries, setBareCoBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
+
+  // Load existing trust data if trustId provided (Rule 4a pattern)
+  const loadedTrustIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!trustId) {
+      loadedTrustIdRef.current = null;
+      return;
+    }
+    
+    if (loadedTrustIdRef.current === trustId) return;
+    
+    // Wait for AsyncStorage
+    const allTrusts = trustActions.getTrusts();
+    if (allTrusts.length === 0) return;
+    
+    const trust = trustActions.getTrustById(trustId);
+    if (!trust) {
+      loadedTrustIdRef.current = trustId;
+      return;
+    }
+    
+    // Map Trust entity → form state
+    const trustRole = trust.isUserSettlor && trust.isUserBeneficiary 
+      ? 'settlor_and_beneficiary'
+      : trust.isUserSettlor 
+        ? 'settlor'
+        : 'beneficiary';
+    
+    // Map TrustType enum to form value
+    const trustTypeMap: Partial<Record<TrustType, 'life_interest' | 'bare' | 'discretionary'>> = {
+      'life_interest_trust': 'life_interest',
+      'bare_trust': 'bare',
+      'discretionary_trust': 'discretionary',
+      'settlor_interested_trust': 'discretionary', // Map to discretionary for now
+      'interest_in_possession_trust': 'life_interest', // Map to life_interest for now
+    };
+    
+    setTrustData({
+      trustName: trust.name,
+      trustType: trustTypeMap[trust.type] || '',
+      trustRole,
+      creationMonth: trust.creationMonth || '',
+      creationYear: trust.creationYear || '',
+      spouseExcludedFromBenefit: trust.beneficiary?.spouseExcludedFromBenefit || '',
+      discretionarySettlorAndBeneficiarySpouseExcluded: trust.beneficiary?.spouseExcludedFromBenefit || '',
+      // Load other fields as needed
+      reservedBenefit: trust.settlor?.reservedBenefit === 'yes' ? 'yes' : '',
+      payingMarketRent: '',
+      lifeInterestDateUnknown: false,
+      propertyValueAtTransfer: 0,
+      lifeInterestValueUnknown: false,
+      chainedTrustStructure: false,
+      lifeInterestEndingEvents: '',
+      benefitType: '',
+      settlorStillLiving: '',
+      lifeInterestBeganOnPassing: '',
+      lifeInterestBeganWhen: '',
+      interestType: trust.beneficiary?.entitlementType || '',
+      shareLifeInterestWithOthers: '',
+      lifeInterestPercentage: 0,
+      hasComplexCircumstances: false,
+      capitalInterestPercentage: 0,
+      lifeTenantAge: '',
+      knownContingencies: '',
+      bareSettlorDateUnknown: false,
+      bareSettlorValueUnknown: false,
+      currentlyLiveInProperty: trust.beneficiary?.rightOfOccupation ? 'yes' : '',
+      bareValueAtTransfer: 0,
+      bareSettlorAndBeneficiaryValueUnknown: false,
+      discretionaryTransferMonth: '',
+      discretionaryTransferYear: '',
+      discretionarySettlorDateUnknown: false,
+      discretionaryValueAtTransfer: 0,
+      discretionarySettlorValueUnknown: false,
+      discretionaryComplexSituation: false,
+      discretionaryBeneficiaryTransferMonth: '',
+      discretionaryBeneficiaryTransferYear: '',
+      discretionaryBeneficiaryDateUnknown: false,
+      discretionaryBeneficiaryValueAtTransfer: 0,
+      discretionaryBeneficiaryValueUnknown: false,
+      discretionaryBeneficiaryInsurancePolicy: '',
+    });
+    
+    loadedTrustIdRef.current = trustId;
+  });
 
   // Helper to update trust data
   const updateTrustData = (field: keyof TrustData, value: any) => {
@@ -812,6 +909,18 @@ export default function PropertyTrustDetailsScreen() {
             ℹ️ Trustees: PersonSelector integration pending
           </Text>
         </View>
+
+        {/* Spouse/Civil Partner Exclusion Question */}
+        <RadioGroup
+          label="Is your spouse/civil partner excluded from benefit? *"
+          value={trustData.spouseExcludedFromBenefit}
+          onChange={(value) => updateTrustData('spouseExcludedFromBenefit', value as any)}
+          options={[
+            { label: 'Yes - specifically excluded', value: 'yes' },
+            { label: 'No - can benefit', value: 'no' },
+            { label: 'Not sure', value: 'not_sure' },
+          ]}
+        />
       </View>
     );
   };
@@ -1051,6 +1160,18 @@ export default function PropertyTrustDetailsScreen() {
         </Text>
       </View>
 
+      {/* Spouse/Civil Partner Exclusion Question */}
+      <RadioGroup
+        label="Is your spouse/civil partner excluded from benefit? *"
+        value={trustData.discretionarySettlorAndBeneficiarySpouseExcluded}
+        onChange={(value) => updateTrustData('discretionarySettlorAndBeneficiarySpouseExcluded', value as any)}
+        options={[
+          { label: 'Yes - specifically excluded', value: 'yes' },
+          { label: 'No - can benefit', value: 'no' },
+          { label: 'Not sure', value: 'not_sure' },
+        ]}
+      />
+
       <Checkbox
         label="If your situation is more complex, check here and our team will reach out."
         checked={trustData.discretionaryComplexSituation}
@@ -1140,7 +1261,8 @@ export default function PropertyTrustDetailsScreen() {
       
       return (
         trustData.currentlyLiveInProperty !== '' &&
-        (hasValueUnknown || hasValue)
+        (hasValueUnknown || hasValue) &&
+        trustData.spouseExcludedFromBenefit !== '' // NEW: Spouse exclusion required
       );
     }
 
@@ -1203,15 +1325,84 @@ export default function PropertyTrustDetailsScreen() {
 
     // Discretionary Trust Settlor & Beneficiary validation
     if (trustData.trustType === 'discretionary' && trustData.trustRole === 'settlor_and_beneficiary') {
-      return true; // Just warning + optional checkbox
+      return trustData.discretionarySettlorAndBeneficiarySpouseExcluded !== ''; // NEW: Spouse exclusion required
     }
 
     return true;
   };
 
   const handleSave = () => {
-    // TODO: Save trust data to property
-    // TODO: Return to PropertySummaryScreen
+    if (!propertyId) {
+      console.error('Property ID required');
+      return;
+    }
+    
+    // Map form trustType to TrustType enum
+    const trustTypeMap: Record<string, TrustType> = {
+      'life_interest': 'life_interest_trust',
+      'bare': 'bare_trust',
+      'discretionary': 'discretionary_trust',
+    };
+    
+    // Determine settlor data
+    const settlor = trustData.trustRole.includes('settlor') ? {
+      reservedBenefit: (trustData.reservedBenefit ? (trustData.reservedBenefit === 'none' ? 'none' : 'yes') : 'none') as 'yes' | 'none',
+      benefitDescription: trustData.reservedBenefit && trustData.reservedBenefit !== 'none' ? trustData.reservedBenefit : undefined,
+      beneficiaries: bareBeneficiaries.map(b => ({
+        id: b.id,
+        type: b.type as 'person' | 'group' | 'myself',
+        percentage: b.percentage || 0,
+        isManuallyEdited: false,
+      })),
+      trusteeIds: [] as string[],
+    } : undefined;
+    
+    // Determine beneficiary data
+    const beneficiary = trustData.trustRole.includes('beneficiary') ? {
+      entitlementType: trustData.interestType as 'right_to_income' | 'right_to_use' | 'both' | 'other' | undefined,
+      rightOfOccupation: trustData.currentlyLiveInProperty === 'yes',
+      benefitDescription: '',
+      isSettlorOfThisTrust: trustData.trustRole === 'settlor_and_beneficiary' ? 'yes' as const : 'no' as const,
+      spouseExcludedFromBenefit: trustData.trustRole === 'settlor_and_beneficiary' 
+        ? (trustData.trustType === 'bare' 
+          ? trustData.spouseExcludedFromBenefit as 'yes' | 'no' | 'not_sure' | undefined
+          : trustData.discretionarySettlorAndBeneficiarySpouseExcluded as 'yes' | 'no' | 'not_sure' | undefined)
+        : undefined,
+    } : undefined;
+    
+    // Map form data to Trust entity structure
+    const trustEntityData: Omit<Trust, 'id' | 'createdAt' | 'updatedAt'> = {
+      name: trustData.trustName,
+      type: trustTypeMap[trustData.trustType] || 'bare_trust',
+      creationMonth: trustData.creationMonth || '',
+      creationYear: trustData.creationYear || '',
+      isUserSettlor: trustData.trustRole.includes('settlor'),
+      isUserBeneficiary: trustData.trustRole.includes('beneficiary'),
+      isUserTrustee: false,
+      assetIds: [propertyId],
+      createdInContext: 'property',
+      settlor,
+      beneficiary,
+    };
+    
+    // Save to Trust entity
+    let savedTrustId: string;
+    if (trustId) {
+      trustActions.updateTrust(trustId, trustEntityData);
+      savedTrustId = trustId;
+    } else {
+      savedTrustId = trustActions.addTrust(trustEntityData);
+    }
+    
+    // Update PropertyAsset with trustId reference
+    const property = bequeathalActions.getAssetById(propertyId) as PropertyAsset;
+    if (property) {
+      bequeathalActions.updateAsset(propertyId, {
+        ...property,
+        trustId: savedTrustId,
+      });
+    }
+    
     router.push('/bequeathal/property/summary');
   };
 

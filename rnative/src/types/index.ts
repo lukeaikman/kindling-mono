@@ -415,6 +415,9 @@ export interface PropertyAsset extends BaseAsset {
       percentage?: number;
     }>;
   };
+  
+  // Trust reference (foreign key to Trust entity)
+  trustId?: string;
 }
 
 /**
@@ -852,8 +855,9 @@ export interface Trust {
     // General benefit description (all non-bare trust types)
     benefitDescription?: string;
     
-    // Settlor-Interested Trust fields
+    // Settlor-Interested Trust fields (when isUserSettlor && isUserBeneficiary)
     isSettlorOfThisTrust?: 'yes' | 'no';
+    spouseExcludedFromBenefit?: 'yes' | 'no' | 'not_sure';
   };
   
   // Trustee-Specific Data (populated when isUserTrustee = true)

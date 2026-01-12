@@ -119,10 +119,7 @@ interface PropertyData {
   tenantsInCommonCount: number;
   tenantsInCommonPercentage: number;
 
-  // Trust (3 base fields - conditional, more in Phase 14b)
-  trustName: string;
-  trustType: string;
-  trustRole: string;
+  // Trust - handled via Trust entity (no inline fields)
 }
 
 export default function PropertyEntryScreen() {
@@ -200,10 +197,7 @@ export default function PropertyEntryScreen() {
     tenantsInCommonCount: 1,
     tenantsInCommonPercentage: 50,
     
-    // Trust
-    trustName: '',
-    trustType: '',
-    trustRole: '',
+    // Trust - handled via Trust entity (no inline fields)
   });
 
   // Load existing property data if editing
@@ -297,10 +291,7 @@ export default function PropertyEntryScreen() {
       tenantsInCommonCount: 1, // Default, not stored in PropertyAsset
       tenantsInCommonPercentage: property.ownershipPercentage || 50,
       
-      // Trust
-      trustName: property.trustName || '',
-      trustType: property.trustType || '',
-      trustRole: property.trustRole || '',
+      // Trust - handled via Trust entity (no inline fields)
     });
     
     // Load beneficiaries
@@ -366,9 +357,45 @@ export default function PropertyEntryScreen() {
 
   // Save property and navigate
   const handleSave = () => {
-    // If trust-owned, navigate to trust details screen instead of saving
+    // If trust-owned, save property first, then navigate to trust details
     if (isTrustOwned()) {
-      router.push('/bequeathal/property/trust-details');
+      // Save property without trust data
+      const propertyAsset = {
+        type: 'property' as const,
+        title: propertyData.address1,
+        address: {
+          address1: propertyData.address1,
+          address2: propertyData.address2,
+          city: propertyData.townCity,
+          county: propertyData.countyState,
+          postcode: '',
+          country: propertyData.country,
+        },
+        usage: propertyData.usage as PropertyAsset['usage'],
+        propertyType: propertyData.propertyType,
+        ownershipType: propertyData.ownershipType as PropertyAsset['ownershipType'],
+        estimatedValue: propertyData.estimatedValue,
+        hasMortgage: hasMortgage() || undefined,
+        mortgage: hasMortgage() ? {
+          outstandingAmount: propertyData.mortgageAmount,
+          provider: propertyData.mortgageProvider,
+        } : undefined,
+      };
+      
+      // Save or update property
+      let savedPropertyId: string;
+      if (editingPropertyId) {
+        bequeathalActions.updateAsset(editingPropertyId, propertyAsset as any);
+        savedPropertyId = editingPropertyId;
+      } else {
+        savedPropertyId = bequeathalActions.addAsset('property', propertyAsset as any);
+      }
+      
+      // Navigate to trust details with propertyId
+      // If property has trustId, also pass it for editing
+      const property = bequeathalActions.getAssetById(savedPropertyId) as PropertyAsset;
+      const trustIdParam = property?.trustId ? `&trustId=${property.trustId}` : '';
+      router.push(`/bequeathal/property/trust-details?propertyId=${savedPropertyId}${trustIdParam}`);
       return;
     }
     
@@ -438,10 +465,7 @@ export default function PropertyEntryScreen() {
       companyNotes: isCompanyOwned() ? propertyData.companyNotes : undefined,
       companyArticlesConfident: isCompanyOwned() ? propertyData.companyArticlesConfident : undefined,
       
-      // Trust (conditional)
-      trustName: isTrustOwned() ? propertyData.trustName : undefined,
-      trustType: isTrustOwned() ? (propertyData.trustType as any) : undefined,
-      trustRole: isTrustOwned() ? (propertyData.trustRole as any) : undefined,
+      // Trust - handled via Trust entity (trustId set in trust-details screen)
       
       // Joint ownership (conditional)
       jointOwnershipType: isJointlyOwned() ? (propertyData.jointOwnershipType as any) : undefined,
