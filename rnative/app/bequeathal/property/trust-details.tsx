@@ -795,48 +795,46 @@ export default function PropertyTrustDetailsScreen() {
           As a beneficiary of this discretionary trust, we need to check if there's potential tax liability from the 7-year rule.
         </Text>
 
-        {/* Transfer Date - hide if "I don't know" is checked */}
+        {/* Transfer Date - title always visible, fields hidden if "I don't know" is checked */}
+        <Text style={styles.fieldLabel}>Month and year this property was transferred into trust *</Text>
+        <Text style={styles.helperText}>
+          For 7-year rule tracking
+        </Text>
         {!trustData.discretionaryBeneficiaryDateUnknown && (
-          <>
-            <Text style={styles.fieldLabel}>Month and year this property was transferred into trust *</Text>
-            <Text style={styles.helperText}>
-              For 7-year rule tracking
-            </Text>
-            <View style={styles.dateRow}>
-              <View style={styles.dateField}>
-                <Select
-                  placeholder="Month..."
-                  value={trustData.discretionaryBeneficiaryTransferMonth}
-                  options={[
-                    { label: 'January', value: '01' },
-                    { label: 'February', value: '02' },
-                    { label: 'March', value: '03' },
-                    { label: 'April', value: '04' },
-                    { label: 'May', value: '05' },
-                    { label: 'June', value: '06' },
-                    { label: 'July', value: '07' },
-                    { label: 'August', value: '08' },
-                    { label: 'September', value: '09' },
-                    { label: 'October', value: '10' },
-                    { label: 'November', value: '11' },
-                    { label: 'December', value: '12' },
-                  ]}
-                  onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferMonth', value)}
-                />
-              </View>
-              <View style={styles.dateField}>
-                <Select
-                  placeholder="Year..."
-                  value={trustData.discretionaryBeneficiaryTransferYear}
-                  options={Array.from({ length: 100 }, (_, i) => {
-                    const year = new Date().getFullYear() - i;
-                    return { label: year.toString(), value: year.toString() };
-                  })}
-                  onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferYear', value)}
-                />
-              </View>
+          <View style={styles.dateRow}>
+            <View style={styles.dateField}>
+              <Select
+                placeholder="Month..."
+                value={trustData.discretionaryBeneficiaryTransferMonth}
+                options={[
+                  { label: 'January', value: '01' },
+                  { label: 'February', value: '02' },
+                  { label: 'March', value: '03' },
+                  { label: 'April', value: '04' },
+                  { label: 'May', value: '05' },
+                  { label: 'June', value: '06' },
+                  { label: 'July', value: '07' },
+                  { label: 'August', value: '08' },
+                  { label: 'September', value: '09' },
+                  { label: 'October', value: '10' },
+                  { label: 'November', value: '11' },
+                  { label: 'December', value: '12' },
+                ]}
+                onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferMonth', value)}
+              />
             </View>
-          </>
+            <View style={styles.dateField}>
+              <Select
+                placeholder="Year..."
+                value={trustData.discretionaryBeneficiaryTransferYear}
+                options={Array.from({ length: 100 }, (_, i) => {
+                  const year = new Date().getFullYear() - i;
+                  return { label: year.toString(), value: year.toString() };
+                })}
+                onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferYear', value)}
+              />
+            </View>
+          </View>
         )}
 
         {/* "I don't know" checkbox for date */}
@@ -853,20 +851,18 @@ export default function PropertyTrustDetailsScreen() {
           }}
         />
 
-        {/* Value at Transfer - hide if "I don't know" is checked */}
+        {/* Value at Transfer - title always visible, field hidden if "I don't know" is checked */}
+        <Text style={styles.fieldLabel}>£ Value when transferred (not current value) *</Text>
         {!trustData.discretionaryBeneficiaryValueUnknown && (
-          <>
-            <CurrencyInput
-              label="£ Value when transferred (not current value) *"
-              placeholder="Enter value at transfer..."
-              value={trustData.discretionaryBeneficiaryValueAtTransfer}
-              onValueChange={(value) => updateTrustData('discretionaryBeneficiaryValueAtTransfer', value)}
-            />
-            <Text style={styles.helperText}>
-              ℹ️ This determines potential tax if the settlor dies within 7 years
-            </Text>
-          </>
+          <CurrencyInput
+            placeholder="Enter value at transfer..."
+            value={trustData.discretionaryBeneficiaryValueAtTransfer}
+            onValueChange={(value) => updateTrustData('discretionaryBeneficiaryValueAtTransfer', value)}
+          />
         )}
+        <Text style={styles.helperText}>
+          ℹ️ This determines potential tax if the settlor dies within 7 years
+        </Text>
 
         {/* "I don't know" checkbox for value */}
         <Checkbox
