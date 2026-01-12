@@ -375,48 +375,6 @@ export type AssetType =
 export type HeldInTrust = 'yes' | 'no' | 'not-sure';
 
 /**
- * Beneficiary Assignment
- * 
- * Ultra-clean beneficiary allocation structure (4 fields max).
- * Used by ALL asset types that support beneficiary designation.
- * 
- * Design Principles:
- * - No caching: Names/relationships looked up from Person/Group records
- * - No calculated fields: Totals/types computed via helper functions
- * - Minimal storage: Only IDs and allocations
- * - Single source of truth: Person/Group records are authoritative
- * 
- * @property id - Person ID, Group ID, or 'estate'
- * @property type - Beneficiary type discriminator
- * @property percentage - Percentage allocation 0-100 (optional, for percentage mode)
- * @property amount - Amount allocation in £ (optional, for amount mode)
- */
-export interface BeneficiaryAssignment {
-  id: string;
-  type: 'person' | 'group' | 'estate';
-  percentage?: number;
-  amount?: number;
-}
-
-/**
- * Beneficiary Assignments Container
- * 
- * Simple array wrapper for beneficiary assignments.
- * All metadata computed via helper functions in beneficiaryHelpers.ts:
- * - getAllocationType() - infer 'none' | 'percentage' | 'amount'
- * - getTotalAllocated() - calculate sum
- * - validatePercentageAllocation() - check 100% total
- * - getBeneficiaryDisplayName() - lookup names
- * - getAssetsForBeneficiary() - find assets for person
- * - calculateBeneficiaryInheritance() - total inheritance value
- * 
- * @property beneficiaries - Array of beneficiary assignments
- */
-export interface BeneficiaryAssignments {
-  beneficiaries: BeneficiaryAssignment[];
-}
-
-/**
  * Base asset interface - extended by specific asset types
  */
 export interface BaseAsset {
@@ -433,91 +391,30 @@ export interface BaseAsset {
 }
 
 /**
- * Property Usage Type
- */
-export type PropertyUsage = 'residential' | 'let_residential' | 'commercial';
-
-/**
  * Property asset - real estate holdings
- * 
- * Complex asset type with conditional fields based on usage and ownership.
- * Supports IHT calculations: RNRB, BPR (FHL), APR (Agricultural), GROB (Trusts).
- * 
- * Conditional fields only populated when relevant:
- * - FHL fields: Only if propertyType includes 'furnished_holiday_let'
- * - Agricultural fields: Only if propertyType = 'agricultural_property'
- * - Mixed-use fields: Only if propertyType = 'mixed_use_property'
- * - Buy-to-let fields: Only if propertyType = 'buy_to_let'
- * - Company fields: Only if ownershipType = 'company_owned'
- * - Trust fields: Only if ownershipType = 'trust_owned'
+ * Simplified flat structure (no basicDetails duplication)
  */
 export interface PropertyAsset extends BaseAsset {
   type: 'property';
   address: AddressData;
-  
-  // Usage & Type (REQUIRED)
-  usage: PropertyUsage;
-  propertyType: string; // Conditional options based on usage
-  
-  // Ownership (REQUIRED)
-  ownershipType: 'personally_owned' | 'jointly_owned' | 'company_owned' | 'trust_owned';
+  propertyType: 'residential' | 'commercial' | 'land' | 'other';
+  ownershipType: 'sole' | 'joint-tenants' | 'tenants-in-common';
   ownershipPercentage?: number;
-  
-  // Mortgage (derived from amount, not input)
+  primaryResidence?: boolean;
+  hasLivedThere?: boolean;
   hasMortgage?: boolean;
   mortgage?: {
     outstandingAmount: number;
     provider: string;
   };
-  
-  // Acquisition (OPTIONAL - executor context, not IHT-critical)
-  acquisitionMonth?: string;
-  acquisitionYear?: string;
-  
-  // FHL specific (conditional on propertyType)
-  fhlAvailableOver210Days?: boolean;
-  fhlActuallyLet105Days?: boolean;
-  fhlLongLetsUnder155Days?: boolean;
-  fhlEstimatedAnnualIncome?: number;
-  
-  // Agricultural specific (conditional on propertyType)
-  agriculturalActivelyFarmed?: boolean;
-  agriculturalWhoFarms?: 'owner' | 'tenant' | 'contract_farmer';
-  agriculturalPre1995Tenancy?: boolean;
-  agriculturalBuildingsIncluded?: boolean;
-  agriculturalTotalAcreage?: number;
-  agriculturalFarmingType?: 'arable' | 'livestock' | 'mixed' | 'horticulture' | 'forestry' | 'other';
-  agriculturalFarmingTypeOther?: string;
-  
-  // Mixed-Use specific (conditional on propertyType)
-  mixedUseCommercialPercentage?: number;
-  mixedUseSeparateEntrances?: boolean;
-  mixedUseResidentialWasMainHome?: boolean;
-  
-  // Buy-to-Let specific (conditional on propertyType)
-  buyToLetAnnualRentalIncome?: number;
-  buyToLetTenancyType?: 'ast' | 'company_let' | 'unknown' | 'other';
-  buyToLetTenancyTypeOther?: string;
-  buyToLetTenantedAtDeath?: boolean;
-  
-  // Company ownership (conditional on ownershipType)
-  companyName?: string;
-  companyOwnershipPercentage?: number;
-  companyCountryOfRegistration?: string;
-  companyShareClass?: string;
-  companyNotes?: string;
-  companyArticlesConfident?: boolean;
-  isCompanyDirector?: boolean;
-  
-  // Trust reference (foreign key to Trust entity)
-  trustId?: string; // Links to Trust.id - trust details stored in separate Trust table
-  
-  // Joint ownership (conditional on ownershipType)
-  jointOwnershipType?: 'joint_tenants' | 'tenants_in_common' | 'not_sure';
-  jointTenants?: Array<{id: string, name: string, relationship?: string}>;
-  
-  // Beneficiaries (uses unified type)
-  beneficiaryAssignments?: BeneficiaryAssignments;
+  beneficiaryAssignments?: {
+    beneficiaries: Array<{
+      id: string;
+      type: 'person' | 'group' | 'estate';
+      name?: string;
+      percentage?: number;
+    }>;
+  };
 }
 
 /**
@@ -526,9 +423,16 @@ export interface PropertyAsset extends BaseAsset {
  */
 export interface ImportantItemAsset extends BaseAsset {
   type: 'important-items';
+  category?: string;
   specificDetails?: string;
   sentimentalValue?: boolean;
-  beneficiaryAssignments?: BeneficiaryAssignments;  // Unified type
+  beneficiaryAssignments?: {
+    beneficiaries: Array<{
+      id: string;
+      type: 'person' | 'group' | 'estate';
+      name?: string;
+    }>;
+  };
 }
 
 /**
@@ -539,67 +443,43 @@ export interface InvestmentAsset extends BaseAsset {
   investmentType: string;
   provider: string;
   accountNumber?: string;
-  beneficiaryAssignments?: BeneficiaryAssignments;  // Unified type
 }
 
 /**
- * Pension type options
- */
-export type PensionType = 
-  | 'defined-benefit'
-  | 'defined-contribution'
-  | 'sipp'
-  | 'workplace'
-  | 'unsure';
-
-/**
  * Pension asset - workplace and personal pensions
- * Simplified for will creation + visualization (value first, executor details later)
  */
 export interface PensionAsset extends BaseAsset {
   type: 'pensions';
   provider: string;
-  pensionType: PensionType;
+  policyNumber?: string;
+  linkedEmployer?: string;
+  pensionType: string;
+  monthlyContribution?: number;
+  employerContribution?: number;
+  pensionOwner?: 'me' | 'spouse' | 'child' | 'other';
+  customOwner?: string;
   beneficiaryNominated?: 'yes' | 'no' | 'not-sure';
-  beneficiaryAssignments?: BeneficiaryAssignments;  // Conditional: only when beneficiaryNominated === 'yes'
-  // Fields deferred to Executor Facilitation phase:
-  // - policyNumber, linkedEmployer (for executor access, not will creation)
 }
 
 /**
  * Life insurance asset - life insurance policies
  */
-/**
- * Life Insurance Premium Status
- * Indicates whether policy is actively paying out if life assured dies
- */
-export type PremiumStatus = 'active' | 'paid-up' | 'lapsed' | 'suspended';
-
-/**
- * Life Insurance Policy Type
- */
-export type PolicyType = 'term' | 'whole-life';
-
-/**
- * Life Insurance Asset
- * Simplified from web prototype - focuses on value and distribution
- * 
- * Design: Person IDs (not text names) for proper inheritance visualization
- * Allocation mode at policy level (not per beneficiary) for simpler UX
- */
 export interface LifeInsuranceAsset extends BaseAsset {
   type: 'life-insurance';
-  provider: string;                     // Provider name
-  lifeAssured: string;                  // Person ID whose life is insured (or 'unknown')
-  sumInsured: number;                   // Payout amount
-  policyType: PolicyType;               // Term or Whole Life
-  heldInTrust: HeldInTrust;             // Affects estate calculation and IHT
-  premiumStatus: PremiumStatus;         // Active, Paid Up, Lapsed, Suspended
-  allocationMode: 'percentage' | 'amount';  // How beneficiaries split payout
-  beneficiaryAssignments?: BeneficiaryAssignments;  // Unified type (conditional on heldInTrust)
-  // Fields deferred to Executor Facilitation phase:
-  // - policyNumber: string (for executor access)
-  // - monthlyPremium: number (not needed for value visualization)
+  policyType: string;
+  provider: string;
+  policyNumber: string;
+  lifeAssured: string;
+  sumInsured: number;
+  monthlyPremium?: number;
+  beneficiaryKnown?: 'yes' | 'no' | 'partial';
+  premiumStatus?: 'active' | 'paid-up' | 'lapsed' | 'suspended';
+  beneficiaries?: Array<{
+    name: string;
+    allocationMode: 'percentage' | 'currency';
+    percentage?: number;
+    currencyAmount?: number;
+  }>;
 }
 
 /**
@@ -613,9 +493,6 @@ export interface BankAccountAsset extends BaseAsset {
   sortCode?: string;
   ownershipType?: 'personal' | 'joint';
   isNonUkBank?: boolean;
-  nonUkBankName?: string;
-  accountId?: string;
-  notes?: string;
 }
 
 /**
@@ -624,115 +501,68 @@ export interface BankAccountAsset extends BaseAsset {
 export interface PrivateCompanySharesAsset extends BaseAsset {
   type: 'private-company-shares';
   companyName: string;
-  
-  // User enters ONE of these (inline toggle in UI):
-  numberOfShares?: number;       // Integer, > 0
-  percentageOwnership?: number;  // 0-100, up to 2 decimals
-  
-  notes?: string;                // Transfer restrictions, special terms
-  excludeFromNetWorth?: boolean; // For illiquid/speculative shares
-  
-  // IHT Planning fields (Business Property Relief eligibility)
+  numberOfShares: number;
+  shareClass?: string;
+  totalValue: number;
+  costBasis?: number;
+  // IHT Planning fields
   isActivelyTrading?: boolean;
   heldForTwoPlusYears?: boolean;
+  doesNotDealInRestrictedAssets?: boolean;
   isNotHoldingCompany?: boolean;
 }
 
 /**
  * Assets held through business - assets owned by businesses
- * 
- * Ultra-clean relational model: stores only asset-specific data.
- * Business details (name, ownership %) looked up via businessId foreign key.
- * 
- * @property businessId - Foreign key to Business record (single source of truth)
- * @property assetType - Type of asset (property, equipment, vehicles, etc.)
- * @property assetDescription - Brief description of the asset
  */
 export interface AssetsHeldThroughBusinessAsset extends BaseAsset {
   type: 'assets-held-through-business';
-  businessId: string;  // Foreign key to Business record
-  assetType: 'property' | 'equipment' | 'vehicles' | 'bank-accounts' | 
-             'investments' | 'inventory' | 'intellectual-property' | 'other';
+  businessId: string;
+  businessName: string;
+  businessType?: string;
+  assetType: string;
   assetDescription?: string;
-  
-  // All business details looked up via: businessActions.getBusinessById(businessId)
-  // REMOVED: businessName (duplication - lookup via businessId)
-  // REMOVED: businessType (removed from Business interface)
-  // REMOVED: businessOwnershipPercentage (duplication - lookup via businessId)
-  // REMOVED: numberOfUnits (dead code, never used)
-  // REMOVED: excludeFromBusinessValuation (unrealistic use case)
+  businessOwnershipPercentage?: number;
+  numberOfUnits?: number;
+  excludeFromBusinessValuation?: boolean;
 }
 
 /**
- * Agricultural asset - personally-owned farms, land, agricultural equipment
- * 
- * ROUTING: Company-owned agricultural property is routed to AssetsHeldThroughBusinessAsset.
- * This interface is ONLY for personal/partnership/trust ownership.
- * 
- * APR/BPR Qualification:
- * - Agricultural Property Relief (APR): Land, buildings, farmhouse (if personally owned)
- * - Business Property Relief (BPR): Equipment, livery stud farms
- * - Conditional fields determine relief eligibility (100% IHT relief potential)
- * 
- * @property aprOwnershipStructure - How property is owned (personal/partnership/trust only - company routes away)
- * @property aprOwnershipDuration - How long owned (APR requires 2+ years)
- * @property aprTrustType - Trust type if held in trust
- * @property farmWorkerOccupied - Farm worker cottage occupancy (determines APR eligibility)
- * @property woodlandPurpose - Agricultural shelter vs commercial (determines APR vs no relief)
- * @property studFarmActivity - Breeding vs livery (determines APR vs BPR)
+ * Agricultural asset - farms, land, agricultural equipment
  */
 export interface AgriculturalAsset extends BaseAsset {
   type: 'agricultural-assets';
-  assetType: 'agricultural-land' | 'farm-buildings' | 'farmhouse' | 'farm-worker-cottage' | 
-             'woodland' | 'stud-farm' | 'standing-crops' | 'fish-farming' | 'agricultural-equipment' | 'other';
+  assetType: 'agricultural-land' | 'farm-buildings' | 'farmhouse' | 'farm-worker-cottage' | 'woodland' | 'stud-farm' | 'standing-crops' | 'fish-farming' | 'agricultural-equipment' | 'other';
   assetDescription?: string;
-  
-  // Ownership (routing decision - company option routes to Phase 12)
-  aprOwnershipStructure?: 'personal' | 'partnership' | 'trust' | 'not-sure';
-  
-  // Asset-type conditional fields
+  location?: string;
+  ownershipStructure?: 'individual' | 'partnership' | 'limited-company' | 'trust' | 'other';
+  customOwnershipStructure?: string;
+  sizeQuantity?: string;
+  yearsOwned?: number;
+  activeAgriculturalUse?: 'yes' | 'no' | 'partial';
+  hasDebtsEncumbrances?: 'yes' | 'no';
+  debtAmount?: number;
+  debtDescription?: string;
   farmWorkerOccupied?: 'yes' | 'no' | 'not-sure';
   woodlandPurpose?: 'shelter' | 'commercial' | 'not-sure';
   studFarmActivity?: 'breeding' | 'livery' | 'not-sure';
   otherAssetTypeDetail?: string;
-  
-  // Debts
-  hasDebtsEncumbrances?: 'yes' | 'no';
-  debtAmount?: number;
-  debtDescription?: string;
-  
-  // APR qualification (Agricultural Property Relief)
   aprOwnershipDuration?: 'year-1' | 'year-2' | 'year-3' | 'year-4' | 'year-5' | 'year-6' | 'gt-7' | 'not-sure';
+  aprOwnershipStructure?: 'personal' | 'partnership' | 'company' | 'trust' | 'not-sure';
   aprTrustType?: string;
-  
-  // BPR qualification (Business Property Relief)
   bprActiveTrading?: 'yes' | 'no' | 'not-sure';
   bprOwnershipDuration?: 'lt-2' | 'gte-2' | 'not-sure';
-  
-  // Additional context
   notes?: string;
-  
-  // REMOVED: location (dead code, never used)
-  // REMOVED: sizeQuantity (dead code, never used)
-  // REMOVED: yearsOwned (superseded by aprOwnershipDuration)
-  // REMOVED: activeAgriculturalUse (dead code, never used)
-  // REMOVED: ownershipStructure (redundant with aprOwnershipStructure)
-  // REMOVED: customOwnershipStructure (removed 'other' option)
 }
 
 /**
  * Cryptocurrency asset - digital currencies and tokens
  */
-/**
- * Cryptocurrency asset - simplified account-based model
- * Tracks crypto accounts/wallets rather than individual coin holdings
- * Estate planning focused: helps executors find and access accounts
- */
 export interface CryptoCurrencyAsset extends BaseAsset {
   type: 'crypto-currency';
-  platform: string;          // Wallet or exchange name (Coinbase, Hardware Wallet, etc.)
-  accountUsername?: string;  // Account ID/username for executor access
-  notes?: string;           // Additional details (hardware wallet location, etc.)
+  cryptoType: string;
+  platform: string;
+  quantity: number;
 }
 
 /**
@@ -773,15 +603,14 @@ export interface AssetSummary {
 export interface Business {
   id: string;
   name: string;
-  ownershipPercentage: number;    // From Private Company Shares
-  estimatedValue: number;          // Calculated from assets
+  businessType: string;
+  registrationNumber?: string;
+  ownershipPercentage: number;
+  estimatedValue: number;
   description?: string;
+  address?: AddressData;
   createdAt: Date;
   updatedAt: Date;
-  
-  // REMOVED: businessType (not needed - ownership via shares/GIAs)
-  // REMOVED: registrationNumber (defer to Executor Facilitation)
-  // REMOVED: address (defer to Executor Facilitation)
 }
 
 /**
@@ -876,9 +705,6 @@ export interface BequeathalActions {
   getAssetById: (id: string) => Asset | undefined;
   getAssetsByType: (type: AssetType) => Asset[];
   getAllAssets: () => Asset[];
-  getSelectedCategories: () => string[];
-  setSelectedCategories: (categories: string[]) => void;
-  toggleCategory: (category: string) => void;
 }
 
 /**
@@ -999,10 +825,9 @@ export interface Trust {
   id: string;
   name: string; // User-provided trust name
   type: TrustType;
-  creationMonth: string; // '01' to '12' or '' if unknown
-  creationYear: string;  // Year as string or '' if unknown
+  creationMonth: string;
+  creationYear: string;
   creationDate?: Date; // Computed from month/year for easier filtering
-  createdOver7YearsAgo?: 'yes' | 'no' | 'not_sure'; // Only populated if month/year unknown
   
   // User's Relationship to Trust (boolean flags for multiple roles)
   isUserSettlor: boolean;

@@ -37,31 +37,16 @@ export default function TrustSandboxScreen() {
           </Text>
           
           <View style={styles.linkCard}>
-            <Text style={styles.linkTitle}>Create Test Trust</Text>
+            <Text style={styles.linkTitle}>Trust Details Screen</Text>
             <Text style={styles.linkDescription}>
-              Create a standalone trust to test CRUD operations (Create, Read, Update, Delete).
+              Full trust details form with all types (Bare, Life Interest, Discretionary) and roles (Settlor, Beneficiary, Both).
             </Text>
             <View style={styles.linkButton}>
               <Text
                 style={styles.linkButtonText}
                 onPress={() => router.push('/bequeathal/property/trust-details')}
               >
-                Create New Trust →
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.linkCard}>
-            <Text style={styles.linkTitle}>Test Trust Summary</Text>
-            <Text style={styles.linkDescription}>
-              View all test trusts, edit existing trusts, or delete test data.
-            </Text>
-            <View style={styles.linkButton}>
-              <Text
-                style={styles.linkButtonText}
-                onPress={() => router.push('/developer/trust-test-summary')}
-              >
-                View Test Trusts →
+                Open Trust Details →
               </Text>
             </View>
           </View>

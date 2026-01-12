@@ -483,20 +483,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
                   <View 
                     style={[
                       styles.percentageBackground,
-                      (() => {
-                        const fill = Math.min(100, Number(currentValue) || 0);
-                        const isFull = fill >= 99.9;
-                        if (isFull) {
-                          return {
-                            width: undefined,
-                            left: -Spacing.md,
-                            right: -Spacing.md,
-                            borderTopRightRadius: 8,
-                            borderBottomRightRadius: 8,
-                          };
-                        }
-                        return { width: `${fill}%` };
-                      })()
+                      { width: `${Math.min(100, Number(currentValue) || 0)}%` }
                     ]} 
                   />
                 )}
@@ -676,9 +663,9 @@ const styles = StyleSheet.create({
   },
   percentageBackground: {
     position: 'absolute',
-    top: -Spacing.md,
-    left: -Spacing.md,
-    bottom: -Spacing.md,
+    top: 0,
+    left: 0,
+    bottom: 0,
     backgroundColor: `${KindlingColors.green}15`,
     borderTopLeftRadius: 8,
     borderBottomLeftRadius: 8,

@@ -12,24 +12,12 @@
 
 **Only shown if:** `ownershipType === 'trust_owned'` from PropertyEntryScreen
 
-**Base Fields:**
+**Base Fields (3):**
 1. Trust Name *
 2. Trust Type * (Life Interest / Bare / Discretionary)
 3. Your Role in Trust * (options vary by type)
 
-**Additional Fields (Discretionary Trust + Beneficiary only):**
-4. Do all beneficiaries have the right to collapse the trust? * (RadioGroup: Yes/No/Not sure)
-   - Field: `discretionaryBeneficiaryRightToCollapse`
-   - Values: `'yes' | 'no' | 'not_sure'`
-5. Does the trust give you a default entitlement? * (RadioGroup: Yes/No/Not sure)
-   - Field: `discretionaryBeneficiaryDefaultEntitlement`
-   - Values: `'yes' | 'no' | 'not_sure'`
-
-**Conditional Message (Discretionary Beneficiary):**
-- IF either field = 'yes': Show "Team will reach out" message
-- ELSE: Show optional complexity checkbox
-
-**Then renders 1 of 8 fieldsets based on type + role**
+**Then renders 1 of 9 fieldsets based on type + role**
 
 ---
     
@@ -211,12 +199,32 @@
 
 ## Trust Fieldset 6: Discretionary Trust > Beneficiary
 
-**Note:** Additional questions for this role are shown in the base "Your Role in Trust" section (see above). No additional fieldset content needed.
+**Fields (3):**
 
-**Validation:**
-- `discretionaryBeneficiaryRightToCollapse` REQUIRED (cannot be empty)
-- `discretionaryBeneficiaryDefaultEntitlement` REQUIRED (cannot be empty)
-- Optional complexity checkbox (if neither field = 'yes')
+**Explanatory Text (Always Shown):**
+> "While you're enjoying a benefit from this discretionary trust, the property is not part of your estate and therefore is not yours to give via your will."
+
+**Your Role in the Trust:**
+
+1. **Do all beneficiaries have the right to collapse the trust?** * (RadioGroup)
+   - Yes
+   - No  
+   - Not sure
+
+2. **Does the trust give you a default entitlement?** * (RadioGroup)
+   - Yes
+   - No
+   - Not sure
+
+**Conditional Message:**
+
+**IF right to collapse OR default entitlement = 'yes':**
+> ℹ️ Our team will reach out to you to clarify important details once the asset entry process is complete.
+
+**ELSE (both 'no' or 'not sure'):**
+- Checkbox: "If you think your situation may be more complicated than this, check this box and we'll reach out to you."
+
+**Validation:** Both questions REQUIRED (cannot be blank)
 
 ---
 

@@ -618,3 +618,6 @@ const johnsTotal = calculateBeneficiaryInheritance('person-123', allAssets);
 - Then proceed to component implementation
 
 
+
+
+

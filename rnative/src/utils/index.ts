@@ -57,4 +57,3 @@ export {
   getNextCategoryRoute,
   getFirstCategoryRoute,
 } from './categoryNavigation';
-

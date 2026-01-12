@@ -97,3 +97,6 @@ export const getFirstCategoryRoute = (selectedCategories: string[]): string => {
   return getCategoryIntroRoute(selectedCategories[0]);
 };
 
+
+
+

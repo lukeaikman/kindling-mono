@@ -101,11 +101,6 @@ export interface RadioGroupProps {
    * Useful for custom logic after selection
    */
   onAfterSelect?: (value: string) => void;
-  
-  /**
-   * Custom style override for container
-   */
-  style?: any;
 }
 
 /**
@@ -174,7 +169,6 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
   scrollOffset = 0,
   scrollDelay = 400,
   onAfterSelect,
-  style,
 }) => {
   // Track whether the group is expanded (showing all options)
   // Start expanded if no value is selected, or if collapseOnSelect is false
@@ -234,7 +228,7 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
   const isCollapsed = collapseOnSelect && !isExpanded && value;
   
   return (
-    <View style={[styles.container, style]}>
+    <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
       
       <RadioButton.Group onValueChange={handleSelect} value={value}>
