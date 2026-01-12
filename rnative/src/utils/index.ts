@@ -48,9 +48,7 @@ export {
   getBeneficiaryDisplayName,
   getAssetsForBeneficiary,
   calculateBeneficiaryInheritance,
-} from './beneficiaryHelpers';
-
-// Category navigation
+} from './beneficiaryHelpers';// Category navigation
 export {
   getCategoryIntroRoute,
   getCategoryEntryRoute,
