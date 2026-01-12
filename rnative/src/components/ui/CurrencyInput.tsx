@@ -42,6 +42,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   value,
   onValueChange,
   disabled = false,
+  clearButtonMode = 'while-editing',
   ...props
 }) => {
   // Display value as plain number (no £ in the text itself)
@@ -87,6 +88,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
       leftIcon="currency-gbp"
       placeholder="0"
       disabled={disabled}
+      clearButtonMode={clearButtonMode}
     />
   );
 };

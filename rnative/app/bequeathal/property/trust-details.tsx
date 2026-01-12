@@ -858,6 +858,7 @@ export default function PropertyTrustDetailsScreen() {
             placeholder="Enter value at transfer..."
             value={trustData.discretionaryBeneficiaryValueAtTransfer}
             onValueChange={(value) => updateTrustData('discretionaryBeneficiaryValueAtTransfer', value)}
+            clearButtonMode="while-editing"
           />
         )}
         <Text style={styles.helperText}>

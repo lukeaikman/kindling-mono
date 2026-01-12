@@ -9,9 +9,9 @@
  * @module components/ui/Input
  */
 
-import React, { forwardRef, RefObject } from 'react';
+import React, { forwardRef, RefObject, useEffect, useRef } from 'react';
 import { TextInput as PaperTextInput, TextInput } from 'react-native-paper';
-import { StyleSheet, ViewStyle, TextStyle, KeyboardTypeOptions, TextInput as RNTextInput } from 'react-native';
+import { StyleSheet, ViewStyle, TextStyle, KeyboardTypeOptions, TextInput as RNTextInput, Platform } from 'react-native';
 import { KindlingColors } from '../../styles/theme';
 
 /**
@@ -151,6 +151,13 @@ export interface InputProps {
    * Useful for validation or side effects
    */
   onBeforeAutoFocus?: () => void;
+  
+  /**
+   * iOS clear button mode
+   * Controls when the clear button (X) appears in the text input
+   * @default 'while-editing' (shows while editing, hides when not focused)
+   */
+  clearButtonMode?: 'never' | 'while-editing' | 'unless-editing' | 'always';
 }
 
 /**
@@ -252,6 +259,7 @@ export const Input = forwardRef<RNTextInput, InputProps>(({
   nextFieldRef,
   returnKeyType: returnKeyTypeProp,
   onBeforeAutoFocus,
+  clearButtonMode = 'while-editing',
 }, ref) => {
   const keyboardType = keyboardTypeProp || getKeyboardType(type);
   const autoCapitalize = autoCapitalizeProp || getAutoCapitalize(type);
@@ -268,9 +276,30 @@ export const Input = forwardRef<RNTextInput, InputProps>(({
     }
   };
   
+  // Internal ref to access underlying native TextInput for clearButtonMode
+  const internalRef = useRef<RNTextInput>(null);
+  
+  // Merge forwarded ref with internal ref
+  const setRefs = (node: RNTextInput | null) => {
+    internalRef.current = node;
+    if (typeof ref === 'function') {
+      ref(node);
+    } else if (ref) {
+      ref.current = node;
+    }
+  };
+  
+  // Set clearButtonMode on underlying native TextInput (iOS only)
+  useEffect(() => {
+    if (Platform.OS === 'ios' && internalRef.current && clearButtonMode) {
+      // Use setNativeProps to set clearButtonMode on the native component
+      internalRef.current.setNativeProps({ clearButtonMode });
+    }
+  }, [clearButtonMode]);
+  
   return (
     <PaperTextInput
-      ref={ref}
+      ref={setRefs}
       label={label}
       value={value}
       onChangeText={onChangeText}
