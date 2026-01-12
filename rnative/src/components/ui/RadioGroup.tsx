@@ -33,6 +33,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export interface RadioOption {
   label: string;
   value: string;
+  /**
+   * Optional helper text displayed below the label
+   * Provides additional context or explanation for the option
+   */
+  helperText?: string;
 }
 
 /**
@@ -251,13 +256,24 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
               color={KindlingColors.green}
               uncheckedColor={KindlingColors.border}
             />
-            <Text style={[
-              styles.optionLabel,
-              value === option.value && styles.optionLabelSelected,
-              disabled && styles.optionLabelDisabled
-            ]}>
-              {option.label}
-            </Text>
+            <View style={styles.optionTextContainer}>
+              <Text style={[
+                styles.optionLabel,
+                value === option.value && styles.optionLabelSelected,
+                disabled && styles.optionLabelDisabled
+              ]}>
+                {option.label}
+              </Text>
+              {option.helperText && (
+                <Text style={[
+                  styles.optionHelperText,
+                  value === option.value && styles.optionHelperTextSelected,
+                  disabled && styles.optionHelperTextDisabled
+                ]}>
+                  {option.helperText}
+                </Text>
+              )}
+            </View>
             
             {/* Right side icon: refresh for collapsed selected, ? for unselected */}
             {value === option.value && isCollapsed ? (
@@ -313,17 +329,31 @@ const styles = StyleSheet.create({
   optionContainerDisabled: {
     opacity: 0.5,
   },
+  optionTextContainer: {
+    flex: 1,
+    marginLeft: Spacing.sm,
+  },
   optionLabel: {
     fontSize: 16,
     color: KindlingColors.navy,
-    marginLeft: Spacing.sm,
-    flex: 1,
   },
   optionLabelSelected: {
     fontWeight: '600',
     color: KindlingColors.green,
   },
   optionLabelDisabled: {
+    opacity: 0.5,
+  },
+  optionHelperText: {
+    fontSize: 13,
+    color: KindlingColors.brown,
+    marginTop: Spacing.xs / 2,
+    lineHeight: 18,
+  },
+  optionHelperTextSelected: {
+    color: KindlingColors.brown,
+  },
+  optionHelperTextDisabled: {
     opacity: 0.5,
   },
   questionMark: {

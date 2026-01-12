@@ -264,18 +264,34 @@ export default function PropertyTrustDetailsScreen() {
 
   // Get role options based on trust type
   const getRoleOptions = () => {
+    const beneficiaryOption = {
+      label: 'Beneficiary',
+      value: 'beneficiary',
+      helperText: 'You can receive benefits but didn\'t create the trust',
+    };
+    const settlorOption = {
+      label: 'Settlor',
+      value: 'settlor',
+      helperText: 'You created the trust but cannot benefit from it',
+    };
+    const settlorAndBeneficiaryOption = {
+      label: 'Settlor & Beneficiary',
+      value: 'settlor_and_beneficiary',
+      helperText: 'You created the trust and can benefit from it',
+    };
+
     switch (trustData.trustType) {
       case 'life_interest':
         return [
-          { label: 'Beneficiary', value: 'beneficiary' },
-          { label: 'Settlor', value: 'settlor' },
+          beneficiaryOption,
+          settlorOption,
         ];
       case 'bare':
       case 'discretionary':
         return [
-          { label: 'Beneficiary', value: 'beneficiary' },
-          { label: 'Settlor', value: 'settlor' },
-          { label: 'Settlor & Beneficiary', value: 'settlor_and_beneficiary' },
+          beneficiaryOption,
+          settlorOption,
+          settlorAndBeneficiaryOption,
         ];
       default:
         return [];
