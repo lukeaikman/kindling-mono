@@ -9,32 +9,35 @@
  * @module screens/bequeathal/property/trust-details
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router } from 'expo-router';
 import { Button, BackButton, Input, Select, RadioGroup, Checkbox, CurrencyInput, PercentageInput } from '../../../src/components/ui';
 import { BeneficiaryWithPercentages } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import type { BeneficiaryAssignment } from '../../../src/types';
+
+/**
+ * Beneficiary assignment type (matches structure from beneficiaryAssignments)
+ */
+type BeneficiaryAssignment = {
+  id: string;
+  type: 'person' | 'group' | 'estate';
+  name?: string;
+  percentage?: number;
+};
 
 /**
  * Trust data structure
  */
 interface TrustData {
-  // Base fields
+  // Base fields (3)
   trustName: string;
   trustType: 'life_interest' | 'bare' | 'discretionary' | '';
   trustRole: string; // Options depend on trust type
-  
-  // Trust creation date (for ALL trust types)
-  trustCreationMonth: string; // '01' to '12' or '' if unknown
-  trustCreationYear: string;  // Year as string or '' if unknown
-  trustCreationDateUnknown: boolean; // Checkbox state
-  createdOver7YearsAgo: 'yes' | 'no' | 'not_sure' | ''; // Only if unknown checked
   
   // Life Interest Settlor fields (11)
   reservedBenefit: string;
@@ -64,35 +67,28 @@ interface TrustData {
   currentlyLiveInProperty: string;
   bareValueAtTransfer: number;
   
-  // Discretionary Trust fields
+  // Discretionary Trust Settlor fields
   discretionaryTransferMonth: string;
   discretionaryTransferYear: string;
   discretionaryValueAtTransfer: number;
   discretionaryComplexSituation: boolean;
   
-  // Discretionary Beneficiary fields
-  discretionaryBeneficiaryRightToCollapse: 'yes' | 'no' | 'not_sure' | '';
-  discretionaryBeneficiaryDefaultEntitlement: 'yes' | 'no' | 'not_sure' | '';
+  // Discretionary Trust Beneficiary fields
+  discretionaryBeneficiaryTransferMonth: string;
+  discretionaryBeneficiaryTransferYear: string;
+  discretionaryBeneficiaryValueAtTransfer: number;
+  discretionaryBeneficiaryDetailsUnknown: boolean;
+  discretionaryBeneficiaryInsurancePolicy: 'yes' | 'no' | 'unsure' | '';
 }
 
 export default function PropertyTrustDetailsScreen() {
-  const { personActions, beneficiaryGroupActions, bequeathalActions, trustActions, willActions } = useAppState();
-  const params = useLocalSearchParams();
-  const propertyId = params.propertyId as string | undefined;
-  const trustId = params.trustId as string | undefined;
-  const loadedPropertyIdRef = useRef<string | null>(null);
-  const loadedTrustIdRef = useRef<string | null>(null);
+  const { personActions, beneficiaryGroupActions } = useAppState();
 
   // Base trust data
   const [trustData, setTrustData] = useState<TrustData>({
     trustName: '',
     trustType: '',
     trustRole: '',
-    // Trust creation date
-    trustCreationMonth: '',
-    trustCreationYear: '',
-    trustCreationDateUnknown: false,
-    createdOver7YearsAgo: '',
     // Life Interest Settlor
     reservedBenefit: '',
     payingMarketRent: '',
@@ -117,14 +113,17 @@ export default function PropertyTrustDetailsScreen() {
     // Bare Trust Settlor & Beneficiary
     currentlyLiveInProperty: '',
     bareValueAtTransfer: 0,
-    // Discretionary Trust
+    // Discretionary Trust Settlor
     discretionaryTransferMonth: '',
     discretionaryTransferYear: '',
     discretionaryValueAtTransfer: 0,
     discretionaryComplexSituation: false,
-    // Discretionary Beneficiary
-    discretionaryBeneficiaryRightToCollapse: '',
-    discretionaryBeneficiaryDefaultEntitlement: '',
+    // Discretionary Trust Beneficiary
+    discretionaryBeneficiaryTransferMonth: '',
+    discretionaryBeneficiaryTransferYear: '',
+    discretionaryBeneficiaryValueAtTransfer: 0,
+    discretionaryBeneficiaryDetailsUnknown: false,
+    discretionaryBeneficiaryInsurancePolicy: '',
   });
 
   // Remaindermen (for Life Interest Settlor and optional for Life Interest Beneficiary)
@@ -135,112 +134,6 @@ export default function PropertyTrustDetailsScreen() {
   
   // Co-beneficiaries (for Bare Trust Beneficiary and Settlor & Beneficiary)
   const [bareCoBeneficiaries, setBareCoBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
-
-  // Co-beneficiaries (for Discretionary Beneficiary)
-  const [discretionaryCoBeneficiaries, setDiscretionaryCoBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
-
-  // Will-maker error (if none found/created)
-  const [willMakerError, setWillMakerError] = useState<string | null>(null);
-
-  /**
-   * Ensure we have a will-maker person available for sandbox testing.
-   * Returns the person id to use as the default bare trust beneficiary.
-   */
-  const ensureWillMakerPerson = async (): Promise<string | null> => {
-    // 1) Live will-maker (if already set)
-    const liveUser = willActions.getUser?.();
-    if (liveUser) return liveUser.id;
-
-    // 2) Existing test seed by exact name
-    const existingTest = personActions.getPersonByName?.('Will Maker', '(Test User)');
-    if (existingTest) {
-      willActions.updateWillData?.({ userId: existingTest.id });
-      return existingTest.id;
-    }
-
-    // 3) Any other will-maker role
-    const roleUser = personActions.getPeopleByRole?.('will-maker')?.[0];
-    if (roleUser) {
-      willActions.updateWillData?.({ userId: roleUser.id });
-      return roleUser.id;
-    }
-
-    // 4) Create synthetic test user + attach to will (fallback)
-    const newId = personActions.addPerson({
-      firstName: 'Will Maker',
-      lastName: '(Test User)',
-      email: 'willmaker+test@example.com',
-      phone: '',
-      relationship: 'other',
-      roles: ['will-maker', 'beneficiary'],
-    });
-    willActions.updateWillData?.({ userId: newId, willType: 'simple', status: 'draft' });
-    return newId;
-  };
-
-  // Load existing trust data (Rule 4a pattern)
-  useEffect(() => {
-    // Option 1: Load from property's trust
-    if (propertyId && loadedPropertyIdRef.current !== propertyId) {
-      const allAssets = bequeathalActions.getAllAssets();
-      if (allAssets.length === 0) return;
-      
-      const property = bequeathalActions.getAssetById(propertyId) as any;
-      if (property && property.type === 'property' && property.trustId) {
-        const trust = trustActions.getTrustById(property.trustId);
-        if (trust) {
-          loadTrustIntoForm(trust);
-        }
-      }
-      loadedPropertyIdRef.current = propertyId;
-    }
-    
-    // Option 2: Load standalone trust directly
-    if (trustId && loadedTrustIdRef.current !== trustId) {
-      const allTrusts = trustActions.getTrusts();
-      if (allTrusts.length === 0) return;
-      
-      const trust = trustActions.getTrustById(trustId);
-      if (trust) {
-        loadTrustIntoForm(trust);
-      }
-      loadedTrustIdRef.current = trustId;
-    }
-  });
-  
-  // Default: if user is a bare trust beneficiary, pre-select will-maker at 100%
-  useEffect(() => {
-    if (trustData.trustType === 'bare' && trustData.trustRole === 'beneficiary' && bareCoBeneficiaries.length === 0) {
-      setWillMakerError(null);
-      (async () => {
-        const willMakerId = await ensureWillMakerPerson();
-        if (willMakerId) {
-          setBareCoBeneficiaries([{ id: willMakerId, type: 'person', percentage: 100 }]);
-        } else {
-          setWillMakerError('Please add a will-maker to continue.');
-        }
-      })();
-    }
-  }, [trustData.trustType, trustData.trustRole, bareCoBeneficiaries.length]);
-
-  const loadTrustIntoForm = (trust: any) => {
-    const formType = trust.type === 'bare_trust' ? 'bare' :
-                    trust.type === 'life_interest_trust' ? 'life_interest' : 'discretionary';
-    const role = trust.isUserSettlor && trust.isUserBeneficiary ? 'settlor_and_beneficiary' :
-                trust.isUserSettlor ? 'settlor' : 'beneficiary';
-    
-    setTrustData(prev => ({
-      ...prev,
-      trustName: trust.name,
-      trustType: formType,
-      trustRole: role,
-      trustCreationMonth: trust.creationMonth || '',
-      trustCreationYear: trust.creationYear || '',
-      trustCreationDateUnknown: !trust.creationMonth && !trust.creationYear,
-      createdOver7YearsAgo: trust.createdOver7YearsAgo || '',
-    }));
-  };
-  
 
   // Helper to update trust data
   const updateTrustData = (field: keyof TrustData, value: any) => {
@@ -742,12 +635,6 @@ export default function PropertyTrustDetailsScreen() {
         onAddNewGroup={() => alert('Add group functionality to be implemented')}
       />
 
-      {willMakerError && (
-        <Text style={[styles.helperText, { color: KindlingColors.destructive, marginTop: Spacing.xs }]}>
-          {willMakerError}
-        </Text>
-      )}
-
       {/* TODO: Trustees PersonSelector - Phase 10 integration */}
       <View style={styles.infoBox}>
         <Text style={styles.infoText}>
@@ -881,25 +768,126 @@ export default function PropertyTrustDetailsScreen() {
     </View>
   );
 
-  const renderDiscretionaryBeneficiaryFieldset = () => (
-    <View style={styles.fieldsetContent}>
-      <Text style={styles.helperText}>
-        Add other beneficiaries who have discretionary interests alongside you.
-      </Text>
+  const renderDiscretionaryBeneficiaryFieldset = () => {
+    // Calculate if transfer date is under 7 years or unknown
+    const isDateUnknown = trustData.discretionaryBeneficiaryDetailsUnknown || 
+      (!trustData.discretionaryBeneficiaryTransferMonth && !trustData.discretionaryBeneficiaryTransferYear);
+    
+    const isUnder7Years = (() => {
+      if (isDateUnknown) return true; // Unknown = show insurance field
+      if (!trustData.discretionaryBeneficiaryTransferMonth || !trustData.discretionaryBeneficiaryTransferYear) return true;
+      
+      const transferDate = new Date(
+        parseInt(trustData.discretionaryBeneficiaryTransferYear),
+        parseInt(trustData.discretionaryBeneficiaryTransferMonth) - 1
+      );
+      const now = new Date();
+      const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+      return yearsDiff < 7;
+    })();
+    
+    const showInsuranceField = isUnder7Years || isDateUnknown;
 
-      <Text style={styles.fieldLabel}>Co-beneficiaries (Optional)</Text>
-      <BeneficiaryWithPercentages
-        allocationMode="percentage"
-        value={discretionaryCoBeneficiaries}
-        onChange={setDiscretionaryCoBeneficiaries}
-        personActions={personActions}
-        beneficiaryGroupActions={beneficiaryGroupActions}
-        label="Co-beneficiaries"
-        onAddNewPerson={() => alert('Add person functionality to be implemented')}
-        onAddNewGroup={() => alert('Add group functionality to be implemented')}
-      />
-    </View>
-  );
+    return (
+      <View style={styles.fieldsetContent}>
+        <Text style={styles.helperText}>
+          As a beneficiary of this discretionary trust, we need to check if there's potential tax liability from the 7-year rule.
+        </Text>
+
+        {/* Transfer Date */}
+        <Text style={styles.fieldLabel}>Month and year this property was transferred into trust *</Text>
+        <Text style={styles.helperText}>
+          For 7-year rule tracking
+        </Text>
+        <View style={[styles.dateRow, isDateUnknown && styles.disabledInputContainer]}>
+          <View style={styles.dateField}>
+            <Select
+              placeholder="Month..."
+              value={trustData.discretionaryBeneficiaryTransferMonth}
+              options={[
+                { label: 'January', value: '01' },
+                { label: 'February', value: '02' },
+                { label: 'March', value: '03' },
+                { label: 'April', value: '04' },
+                { label: 'May', value: '05' },
+                { label: 'June', value: '06' },
+                { label: 'July', value: '07' },
+                { label: 'August', value: '08' },
+                { label: 'September', value: '09' },
+                { label: 'October', value: '10' },
+                { label: 'November', value: '11' },
+                { label: 'December', value: '12' },
+              ]}
+              onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferMonth', value)}
+              disabled={isDateUnknown}
+            />
+          </View>
+          <View style={styles.dateField}>
+            <Select
+              placeholder="Year..."
+              value={trustData.discretionaryBeneficiaryTransferYear}
+              options={Array.from({ length: 100 }, (_, i) => {
+                const year = new Date().getFullYear() - i;
+                return { label: year.toString(), value: year.toString() };
+              })}
+              onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferYear', value)}
+              disabled={isDateUnknown}
+            />
+          </View>
+        </View>
+
+        {/* Value at Transfer */}
+        <CurrencyInput
+          label="£ Value when transferred (not current value) *"
+          placeholder="Enter value at transfer..."
+          value={trustData.discretionaryBeneficiaryValueAtTransfer}
+          onValueChange={(value) => updateTrustData('discretionaryBeneficiaryValueAtTransfer', value)}
+          disabled={isDateUnknown}
+        />
+        <Text style={styles.helperText}>
+          ℹ️ This determines potential tax if the settlor dies within 7 years
+        </Text>
+
+        {/* "I don't know" checkbox */}
+        <Checkbox
+          label="I don't know these details"
+          checked={trustData.discretionaryBeneficiaryDetailsUnknown}
+          onCheckedChange={(value) => {
+            updateTrustData('discretionaryBeneficiaryDetailsUnknown', value);
+            if (value) {
+              // Clear fields when checked
+              updateTrustData('discretionaryBeneficiaryTransferMonth', '');
+              updateTrustData('discretionaryBeneficiaryTransferYear', '');
+              updateTrustData('discretionaryBeneficiaryValueAtTransfer', 0);
+            }
+          }}
+        />
+
+        {/* Risk message when unknown */}
+        {trustData.discretionaryBeneficiaryDetailsUnknown && (
+          <View style={styles.infoBox}>
+            <Text style={styles.infoText}>
+              Estimated current IHT risk: Unknown. The trust may face a tax bill if the settlor dies within 7 years of transfer.
+            </Text>
+          </View>
+        )}
+
+        {/* Insurance Policy Field - only show if under 7 years or unknown */}
+        {showInsuranceField && (
+          <RadioGroup
+            label="Is there an insurance policy to cover potentially exempt transfers? *"
+            value={trustData.discretionaryBeneficiaryInsurancePolicy}
+            onChange={(value) => updateTrustData('discretionaryBeneficiaryInsurancePolicy', value as any)}
+            options={[
+              { label: 'Yes', value: 'yes' },
+              { label: 'No', value: 'no' },
+              { label: 'Unsure', value: 'unsure' },
+            ]}
+          />
+        )}
+      </View>
+    );
+  };
 
   const renderDiscretionarySettlorAndBeneficiaryFieldset = () => (
     <View style={styles.fieldsetContent}>
@@ -922,13 +910,6 @@ export default function PropertyTrustDetailsScreen() {
   const isFormValid = () => {
     // Base fields always required
     if (!trustData.trustName || !trustData.trustType || !trustData.trustRole) {
-      return false;
-    }
-    
-    // Creation date validation - EITHER specific date OR 7-year estimate
-    const hasSpecificDate = trustData.trustCreationMonth && trustData.trustCreationYear;
-    const has7YearEstimate = trustData.trustCreationDateUnknown && trustData.createdOver7YearsAgo !== '';
-    if (!hasSpecificDate && !has7YearEstimate) {
       return false;
     }
 
@@ -1003,10 +984,40 @@ export default function PropertyTrustDetailsScreen() {
 
     // Discretionary Trust Beneficiary validation
     if (trustData.trustType === 'discretionary' && trustData.trustRole === 'beneficiary') {
-      return (
-        trustData.discretionaryBeneficiaryRightToCollapse !== '' &&
-        trustData.discretionaryBeneficiaryDefaultEntitlement !== ''
-      );
+      // Either "I don't know" is checked OR date fields are filled
+      const hasDateUnknown = trustData.discretionaryBeneficiaryDetailsUnknown;
+      const hasDate = trustData.discretionaryBeneficiaryTransferMonth && trustData.discretionaryBeneficiaryTransferYear;
+      
+      if (!hasDateUnknown && !hasDate) {
+        return false; // Need either unknown checkbox OR date
+      }
+      
+      // If date is provided, value must be > 0
+      if (hasDate && trustData.discretionaryBeneficiaryValueAtTransfer <= 0) {
+        return false;
+      }
+      
+      // Calculate if under 7 years or unknown
+      const isDateUnknown = hasDateUnknown || (!trustData.discretionaryBeneficiaryTransferMonth && !trustData.discretionaryBeneficiaryTransferYear);
+      const isUnder7Years = (() => {
+        if (isDateUnknown) return true;
+        if (!hasDate) return true;
+        
+        const transferDate = new Date(
+          parseInt(trustData.discretionaryBeneficiaryTransferYear),
+          parseInt(trustData.discretionaryBeneficiaryTransferMonth) - 1
+        );
+        const now = new Date();
+        const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+        return yearsDiff < 7;
+      })();
+      
+      // If under 7 years or unknown, insurance policy is required
+      if ((isUnder7Years || isDateUnknown) && !trustData.discretionaryBeneficiaryInsurancePolicy) {
+        return false;
+      }
+      
+      return true;
     }
 
     // Discretionary Trust Settlor & Beneficiary validation
@@ -1017,51 +1028,10 @@ export default function PropertyTrustDetailsScreen() {
     return true;
   };
 
-  // Map form trust type to Trust entity type
-  const mapToTrustType = (formType: string): 'bare_trust' | 'life_interest_trust' | 'discretionary_trust' => {
-    if (formType === 'bare') return 'bare_trust';
-    if (formType === 'life_interest') return 'life_interest_trust';
-    return 'discretionary_trust';
-  };
-
   const handleSave = () => {
-    const dateUnknown = !trustData.trustCreationMonth && !trustData.trustCreationYear;
-    
-    const trustPayload: any = {
-      name: trustData.trustName,
-      type: mapToTrustType(trustData.trustType),
-      creationMonth: trustData.trustCreationMonth,
-      creationYear: trustData.trustCreationYear,
-      createdOver7YearsAgo: dateUnknown && trustData.createdOver7YearsAgo !== '' 
-        ? trustData.createdOver7YearsAgo 
-        : undefined,
-      isUserSettlor: trustData.trustRole.includes('settlor'),
-      isUserBeneficiary: trustData.trustRole.includes('beneficiary'),
-      isUserTrustee: false,
-      assetIds: propertyId ? [propertyId] : [],
-    };
-    
-    // Editing existing trust
-    if (trustId) {
-      trustActions.updateTrust(trustId, trustPayload);
-      router.push(propertyId ? '/bequeathal/property/summary' : '/developer/trust-test-summary');
-      return;
-    }
-    
-    // Creating new trust linked to property
-    if (propertyId) {
-      const property = bequeathalActions.getAssetById(propertyId);
-      if (property && property.type === 'property') {
-        const newTrustId = trustActions.addTrust(trustPayload as any);
-        bequeathalActions.updateAsset(propertyId, { trustId: newTrustId });
-        router.push('/bequeathal/property/summary');
-      }
-      return;
-    }
-    
-    // Creating standalone trust (sandbox mode)
-    trustActions.addTrust(trustPayload as any);
-    router.push('/developer/trust-test-summary');
+    // TODO: Save trust data to property
+    // TODO: Return to PropertySummaryScreen
+    router.push('/bequeathal/property/summary');
   };
 
   return (
@@ -1093,102 +1063,24 @@ export default function PropertyTrustDetailsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Trust Information</Text>
 
-            <View>
-              <Input
-                placeholder="Enter trust name..."
-                value={trustData.trustName}
-                onChangeText={(value) => updateTrustData('trustName', value)}
-              />
-            </View>
+            <Input
+              label="Trust Name *"
+              placeholder="Enter trust name..."
+              value={trustData.trustName}
+              onChangeText={(value) => updateTrustData('trustName', value)}
+            />
 
-            <View>
-              {!trustData.trustCreationDateUnknown && (
-                <Text style={styles.fieldLabel}>Trust Creation Date (estimate) *</Text>
-              )}
-              
-              {!trustData.trustCreationDateUnknown && (
-                <>
-                  <View style={styles.dateRow}>
-                    <View style={styles.dateField}>
-                      <Select
-                        placeholder="Month..."
-                        value={trustData.trustCreationMonth}
-                        options={[
-                          { label: 'January', value: '01' },
-                          { label: 'February', value: '02' },
-                          { label: 'March', value: '03' },
-                          { label: 'April', value: '04' },
-                          { label: 'May', value: '05' },
-                          { label: 'June', value: '06' },
-                          { label: 'July', value: '07' },
-                          { label: 'August', value: '08' },
-                          { label: 'September', value: '09' },
-                          { label: 'October', value: '10' },
-                          { label: 'November', value: '11' },
-                          { label: 'December', value: '12' },
-                        ]}
-                        onChange={(value) => updateTrustData('trustCreationMonth', value)}
-                      />
-                    </View>
-                    <View style={styles.dateField}>
-                      <Select
-                        placeholder="Year..."
-                        value={trustData.trustCreationYear}
-                        options={Array.from({ length: 100 }, (_, i) => {
-                          const year = new Date().getFullYear() - i;
-                          return { label: year.toString(), value: year.toString() };
-                        })}
-                        onChange={(value) => updateTrustData('trustCreationYear', value)}
-                      />
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() => {
-                      updateTrustData('trustCreationDateUnknown', true);
-                      updateTrustData('trustCreationMonth', '');
-                      updateTrustData('trustCreationYear', '');
-                    }}
-                    style={styles.checkboxRowCentered}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.checkboxCircle}>
-                      {/* Empty - not checked */}
-                    </View>
-                    <Text style={styles.checkboxLabel}>Not sure</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-
-              {/* Show 7-year question when unknown checked */}
-              {trustData.trustCreationDateUnknown && (
-                <RadioGroup
-                  label="Was trust created 7+ years ago? *"
-                  value={trustData.createdOver7YearsAgo}
-                  onChange={(value) => updateTrustData('createdOver7YearsAgo', value)}
-                  options={[
-                    { label: 'Yes', value: 'yes' },
-                    { label: 'No', value: 'no' },
-                    { label: 'Not sure', value: 'not_sure' },
-                  ]}
-                  style={styles.compactRadioGroup}
-                />
-              )}
-            </View>
-
-            <View>
-              <Text style={styles.fieldLabel}>Trust Type *</Text>
-              <Select
-                placeholder="Select trust type..."
-                value={trustData.trustType}
-                options={[
-                  { label: 'Life Interest Trust', value: 'life_interest' },
-                  { label: 'Bare Trust', value: 'bare' },
-                  { label: 'Discretionary Trust', value: 'discretionary' },
-                ]}
-                onChange={(value) => updateTrustData('trustType', value as any)}
-              />
-            </View>
+            <Select
+              label="Trust Type *"
+              placeholder="Select trust type..."
+              value={trustData.trustType}
+              options={[
+                { label: 'Life Interest Trust', value: 'life_interest' },
+                { label: 'Bare Trust', value: 'bare' },
+                { label: 'Discretionary Trust', value: 'discretionary' },
+              ]}
+              onChange={(value) => updateTrustData('trustType', value as any)}
+            />
 
             {trustData.trustType && (
               <RadioGroup
@@ -1196,63 +1088,18 @@ export default function PropertyTrustDetailsScreen() {
                 options={getRoleOptions()}
                 value={trustData.trustRole}
                 onChange={(value) => updateTrustData('trustRole', value)}
-                style={styles.compactRadioGroup}
               />
-            )}
-
-            {/* Discretionary Beneficiary Additional Questions */}
-            {trustData.trustType === 'discretionary' && trustData.trustRole === 'beneficiary' && (
-              <>
-                <RadioGroup
-                  label="Do all beneficiaries have the right to collapse the trust? *"
-                  value={trustData.discretionaryBeneficiaryRightToCollapse}
-                  onChange={(value) => updateTrustData('discretionaryBeneficiaryRightToCollapse', value)}
-                  options={[
-                    { label: 'Yes', value: 'yes' },
-                    { label: 'No', value: 'no' },
-                    { label: 'Not sure', value: 'not_sure' },
-                  ]}
-                  style={styles.compactRadioGroup}
-                />
-
-                <RadioGroup
-                  label="Does the trust give you a default entitlement? *"
-                  value={trustData.discretionaryBeneficiaryDefaultEntitlement}
-                  onChange={(value) => updateTrustData('discretionaryBeneficiaryDefaultEntitlement', value)}
-                  options={[
-                    { label: 'Yes', value: 'yes' },
-                    { label: 'No', value: 'no' },
-                    { label: 'Not sure', value: 'not_sure' },
-                  ]}
-                  style={styles.compactRadioGroup}
-                />
-
-                {(() => {
-                  const hasCollapse = trustData.discretionaryBeneficiaryRightToCollapse === 'yes';
-                  const hasEntitlement = trustData.discretionaryBeneficiaryDefaultEntitlement === 'yes';
-                  const needsReview = hasCollapse || hasEntitlement;
-                  
-                  return needsReview ? (
-                    <View style={styles.infoBox}>
-                      <Text style={styles.infoText}>
-                        ℹ️ Our team will reach out to you to clarify important details once the asset entry process is complete.
-                      </Text>
-                    </View>
-                  ) : (
-                    <Checkbox
-                      label="If you think your situation may be more complicated than this, check this box and we'll reach out to you."
-                      checked={trustData.discretionaryComplexSituation}
-                      onCheckedChange={(value) => updateTrustData('discretionaryComplexSituation', value)}
-                    />
-                  );
-                })()}
-              </>
             )}
           </View>
 
           {/* Conditional Fieldset based on type + role */}
           {trustData.trustType && trustData.trustRole && (
             <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                {trustData.trustType === 'life_interest' ? 'Life Interest Trust' : 
+                 trustData.trustType === 'bare' ? 'Bare Trust' : 
+                 'Discretionary Trust'} Details
+              </Text>
               {renderFieldset()}
             </View>
           )}
@@ -1336,7 +1183,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderWidth: 1,
     borderColor: KindlingColors.border,
-    gap: Spacing.md, // 16px between field groups
+    gap: Spacing.md,
   },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
@@ -1364,53 +1211,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.brown,
     lineHeight: 20,
-  },
-  compactRadioGroup: {
-    marginVertical: 0, // Remove RadioGroup's default 16px margin
-    marginBottom: 0,
-    marginTop: 0,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  dateField: {
-    flex: 1,
-  },
-  disabledInputContainer: {
-    opacity: 0.5,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.xs,
-  },
-  checkboxRowCentered: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 0,
-    marginTop: Spacing.xs,
-    marginBottom: 0,
-  },
-  checkboxCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: `${KindlingColors.beige}4D`,
-    backgroundColor: KindlingColors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxCircleSelected: {
-    backgroundColor: KindlingColors.green,
-    borderColor: KindlingColors.green,
-  },
-  checkboxLabel: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.navy,
-    marginLeft: Spacing.sm,
   },
   fieldLabel: {
     fontSize: Typography.fontSize.md,
@@ -1447,6 +1247,16 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.brown,
     lineHeight: 20,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  dateField: {
+    flex: 1,
+  },
+  disabledInputContainer: {
+    opacity: 0.5,
   },
   footer: {
     paddingHorizontal: Spacing.lg,
