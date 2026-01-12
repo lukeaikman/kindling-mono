@@ -44,7 +44,9 @@ interface TrustData {
   payingMarketRent: string;
   creationMonth: string;
   creationYear: string;
+  lifeInterestDateUnknown: boolean;
   propertyValueAtTransfer: number;
+  lifeInterestValueUnknown: boolean;
   chainedTrustStructure: boolean;
   lifeInterestEndingEvents: string;
   
@@ -63,14 +65,21 @@ interface TrustData {
   lifeTenantAge: string;
   knownContingencies: string;
   
+  // Bare Trust Settlor fields
+  bareSettlorDateUnknown: boolean;
+  bareSettlorValueUnknown: boolean;
+  
   // Bare Trust Settlor & Beneficiary fields
   currentlyLiveInProperty: string;
   bareValueAtTransfer: number;
+  bareSettlorAndBeneficiaryValueUnknown: boolean;
   
   // Discretionary Trust Settlor fields
   discretionaryTransferMonth: string;
   discretionaryTransferYear: string;
+  discretionarySettlorDateUnknown: boolean;
   discretionaryValueAtTransfer: number;
+  discretionarySettlorValueUnknown: boolean;
   discretionaryComplexSituation: boolean;
   
   // Discretionary Trust Beneficiary fields
@@ -95,7 +104,9 @@ export default function PropertyTrustDetailsScreen() {
     payingMarketRent: '',
     creationMonth: '',
     creationYear: '',
+    lifeInterestDateUnknown: false,
     propertyValueAtTransfer: 0,
+    lifeInterestValueUnknown: false,
     chainedTrustStructure: false,
     lifeInterestEndingEvents: '',
     // Life Interest Beneficiary
@@ -111,13 +122,19 @@ export default function PropertyTrustDetailsScreen() {
     capitalInterestPercentage: 0,
     lifeTenantAge: '',
     knownContingencies: '',
+    // Bare Trust Settlor
+    bareSettlorDateUnknown: false,
+    bareSettlorValueUnknown: false,
     // Bare Trust Settlor & Beneficiary
     currentlyLiveInProperty: '',
     bareValueAtTransfer: 0,
+    bareSettlorAndBeneficiaryValueUnknown: false,
     // Discretionary Trust Settlor
     discretionaryTransferMonth: '',
     discretionaryTransferYear: '',
+    discretionarySettlorDateUnknown: false,
     discretionaryValueAtTransfer: 0,
+    discretionarySettlorValueUnknown: false,
     discretionaryComplexSituation: false,
     // Discretionary Trust Beneficiary
     discretionaryBeneficiaryTransferMonth: '',
@@ -263,46 +280,80 @@ export default function PropertyTrustDetailsScreen() {
         <Text style={styles.helperText}>
           For tracking 7-year rule (tapered IHT if you die within 7 years of creating trust)
         </Text>
-        <View style={styles.dateRow}>
-          <View style={styles.dateField}>
-            <Select
-              placeholder="Month..."
-              value={trustData.creationMonth}
-              options={[
-                { label: 'January', value: '01' },
-                { label: 'February', value: '02' },
-                { label: 'March', value: '03' },
-                { label: 'April', value: '04' },
-                { label: 'May', value: '05' },
-                { label: 'June', value: '06' },
-                { label: 'July', value: '07' },
-                { label: 'August', value: '08' },
-                { label: 'September', value: '09' },
-                { label: 'October', value: '10' },
-                { label: 'November', value: '11' },
-                { label: 'December', value: '12' },
-              ]}
-              onChange={(value) => updateTrustData('creationMonth', value)}
-            />
+        {!trustData.lifeInterestDateUnknown && (
+          <View style={styles.dateRow}>
+            <View style={styles.dateField}>
+              <Select
+                placeholder="Month..."
+                value={trustData.creationMonth}
+                options={[
+                  { label: 'January', value: '01' },
+                  { label: 'February', value: '02' },
+                  { label: 'March', value: '03' },
+                  { label: 'April', value: '04' },
+                  { label: 'May', value: '05' },
+                  { label: 'June', value: '06' },
+                  { label: 'July', value: '07' },
+                  { label: 'August', value: '08' },
+                  { label: 'September', value: '09' },
+                  { label: 'October', value: '10' },
+                  { label: 'November', value: '11' },
+                  { label: 'December', value: '12' },
+                ]}
+                onChange={(value) => updateTrustData('creationMonth', value)}
+                disabled={trustData.lifeInterestDateUnknown}
+              />
+            </View>
+            <View style={styles.dateField}>
+              <Select
+                placeholder="Year..."
+                value={trustData.creationYear}
+                options={Array.from({ length: 100 }, (_, i) => {
+                  const year = new Date().getFullYear() - i;
+                  return { label: year.toString(), value: year.toString() };
+                })}
+                onChange={(value) => updateTrustData('creationYear', value)}
+                disabled={trustData.lifeInterestDateUnknown}
+              />
+            </View>
           </View>
-          <View style={styles.dateField}>
-            <Select
-              placeholder="Year..."
-              value={trustData.creationYear}
-              options={Array.from({ length: 100 }, (_, i) => {
-                const year = new Date().getFullYear() - i;
-                return { label: year.toString(), value: year.toString() };
-              })}
-              onChange={(value) => updateTrustData('creationYear', value)}
-            />
-          </View>
-        </View>
+        )}
 
-        <CurrencyInput
-          label="Property value when transferred to trust *"
-          placeholder="Enter value at transfer..."
-          value={trustData.propertyValueAtTransfer}
-          onValueChange={(value) => updateTrustData('propertyValueAtTransfer', value)}
+        {/* "I don't know" checkbox for date - always enabled */}
+        <Checkbox
+          label="I don't know these details"
+          checked={trustData.lifeInterestDateUnknown}
+          onCheckedChange={(value) => {
+            updateTrustData('lifeInterestDateUnknown', value);
+            if (value) {
+              // Clear fields when checked
+              updateTrustData('creationMonth', '');
+              updateTrustData('creationYear', '');
+            }
+          }}
+        />
+
+        <Text style={styles.fieldLabel}>Property value when transferred to trust *</Text>
+        {!trustData.lifeInterestValueUnknown && (
+          <CurrencyInput
+            placeholder="Enter value at transfer..."
+            value={trustData.propertyValueAtTransfer}
+            onValueChange={(value) => updateTrustData('propertyValueAtTransfer', value)}
+          />
+        )}
+
+        {/* "I don't know" checkbox for value - disabled when value > 0 */}
+        <Checkbox
+          label="I don't know these details"
+          checked={trustData.lifeInterestValueUnknown}
+          onCheckedChange={(value) => {
+            updateTrustData('lifeInterestValueUnknown', value);
+            if (value) {
+              // Clear value when checked
+              updateTrustData('propertyValueAtTransfer', 0);
+            }
+          }}
+          disabled={trustData.propertyValueAtTransfer > 0}
         />
 
         <Checkbox
@@ -558,46 +609,80 @@ export default function PropertyTrustDetailsScreen() {
 
       {/* Trust Creation Date */}
       <Text style={styles.fieldLabel}>Trust Creation Date *</Text>
-      <View style={styles.dateRow}>
-        <View style={styles.dateField}>
-          <Select
-            placeholder="Month..."
-            value={trustData.creationMonth}
-            options={[
-              { label: 'January', value: '01' },
-              { label: 'February', value: '02' },
-              { label: 'March', value: '03' },
-              { label: 'April', value: '04' },
-              { label: 'May', value: '05' },
-              { label: 'June', value: '06' },
-              { label: 'July', value: '07' },
-              { label: 'August', value: '08' },
-              { label: 'September', value: '09' },
-              { label: 'October', value: '10' },
-              { label: 'November', value: '11' },
-              { label: 'December', value: '12' },
-            ]}
-            onChange={(value) => updateTrustData('creationMonth', value)}
-          />
+      {!trustData.bareSettlorDateUnknown && (
+        <View style={styles.dateRow}>
+          <View style={styles.dateField}>
+            <Select
+              placeholder="Month..."
+              value={trustData.creationMonth}
+              options={[
+                { label: 'January', value: '01' },
+                { label: 'February', value: '02' },
+                { label: 'March', value: '03' },
+                { label: 'April', value: '04' },
+                { label: 'May', value: '05' },
+                { label: 'June', value: '06' },
+                { label: 'July', value: '07' },
+                { label: 'August', value: '08' },
+                { label: 'September', value: '09' },
+                { label: 'October', value: '10' },
+                { label: 'November', value: '11' },
+                { label: 'December', value: '12' },
+              ]}
+              onChange={(value) => updateTrustData('creationMonth', value)}
+              disabled={trustData.bareSettlorDateUnknown}
+            />
+          </View>
+          <View style={styles.dateField}>
+            <Select
+              placeholder="Year..."
+              value={trustData.creationYear}
+              options={Array.from({ length: 100 }, (_, i) => {
+                const year = new Date().getFullYear() - i;
+                return { label: year.toString(), value: year.toString() };
+              })}
+              onChange={(value) => updateTrustData('creationYear', value)}
+              disabled={trustData.bareSettlorDateUnknown}
+            />
+          </View>
         </View>
-        <View style={styles.dateField}>
-          <Select
-            placeholder="Year..."
-            value={trustData.creationYear}
-            options={Array.from({ length: 100 }, (_, i) => {
-              const year = new Date().getFullYear() - i;
-              return { label: year.toString(), value: year.toString() };
-            })}
-            onChange={(value) => updateTrustData('creationYear', value)}
-          />
-        </View>
-      </View>
+      )}
 
-      <CurrencyInput
-        label="Property value when transferred *"
-        placeholder="Enter value at transfer..."
-        value={trustData.bareValueAtTransfer}
-        onValueChange={(value) => updateTrustData('bareValueAtTransfer', value)}
+      {/* "I don't know" checkbox for date - always enabled */}
+      <Checkbox
+        label="I don't know these details"
+        checked={trustData.bareSettlorDateUnknown}
+        onCheckedChange={(value) => {
+          updateTrustData('bareSettlorDateUnknown', value);
+          if (value) {
+            // Clear fields when checked
+            updateTrustData('creationMonth', '');
+            updateTrustData('creationYear', '');
+          }
+        }}
+      />
+
+      <Text style={styles.fieldLabel}>Property value when transferred *</Text>
+      {!trustData.bareSettlorValueUnknown && (
+        <CurrencyInput
+          placeholder="Enter value at transfer..."
+          value={trustData.bareValueAtTransfer}
+          onValueChange={(value) => updateTrustData('bareValueAtTransfer', value)}
+        />
+      )}
+
+      {/* "I don't know" checkbox for value - disabled when value > 0 */}
+      <Checkbox
+        label="I don't know these details"
+        checked={trustData.bareSettlorValueUnknown}
+        onCheckedChange={(value) => {
+          updateTrustData('bareSettlorValueUnknown', value);
+          if (value) {
+            // Clear value when checked
+            updateTrustData('bareValueAtTransfer', 0);
+          }
+        }}
+        disabled={trustData.bareValueAtTransfer > 0}
       />
 
       {/* Beneficiaries */}
@@ -679,15 +764,31 @@ export default function PropertyTrustDetailsScreen() {
           </View>
         )}
 
-        <CurrencyInput
-          label="Property value at point of transfer *"
-          placeholder="Enter value at transfer..."
-          value={trustData.bareValueAtTransfer}
-          onValueChange={(value) => updateTrustData('bareValueAtTransfer', value)}
-        />
+        <Text style={styles.fieldLabel}>Property value at point of transfer *</Text>
+        {!trustData.bareSettlorAndBeneficiaryValueUnknown && (
+          <CurrencyInput
+            placeholder="Enter value at transfer..."
+            value={trustData.bareValueAtTransfer}
+            onValueChange={(value) => updateTrustData('bareValueAtTransfer', value)}
+          />
+        )}
         <Text style={styles.helperText}>
           Value when property was transferred into the bare trust
         </Text>
+
+        {/* "I don't know" checkbox for value - disabled when value > 0 */}
+        <Checkbox
+          label="I don't know these details"
+          checked={trustData.bareSettlorAndBeneficiaryValueUnknown}
+          onCheckedChange={(value) => {
+            updateTrustData('bareSettlorAndBeneficiaryValueUnknown', value);
+            if (value) {
+              // Clear value when checked
+              updateTrustData('bareValueAtTransfer', 0);
+            }
+          }}
+          disabled={trustData.bareValueAtTransfer > 0}
+        />
 
         {/* Co-beneficiaries */}
         <Text style={styles.fieldLabel}>Co-beneficiaries</Text>
@@ -726,46 +827,80 @@ export default function PropertyTrustDetailsScreen() {
       <Text style={styles.helperText}>
         For 7-year rule tracking
       </Text>
-      <View style={styles.dateRow}>
-        <View style={styles.dateField}>
-          <Select
-            placeholder="Month..."
-            value={trustData.discretionaryTransferMonth}
-            options={[
-              { label: 'January', value: '01' },
-              { label: 'February', value: '02' },
-              { label: 'March', value: '03' },
-              { label: 'April', value: '04' },
-              { label: 'May', value: '05' },
-              { label: 'June', value: '06' },
-              { label: 'July', value: '07' },
-              { label: 'August', value: '08' },
-              { label: 'September', value: '09' },
-              { label: 'October', value: '10' },
-              { label: 'November', value: '11' },
-              { label: 'December', value: '12' },
-            ]}
-            onChange={(value) => updateTrustData('discretionaryTransferMonth', value)}
-          />
+      {!trustData.discretionarySettlorDateUnknown && (
+        <View style={styles.dateRow}>
+          <View style={styles.dateField}>
+            <Select
+              placeholder="Month..."
+              value={trustData.discretionaryTransferMonth}
+              options={[
+                { label: 'January', value: '01' },
+                { label: 'February', value: '02' },
+                { label: 'March', value: '03' },
+                { label: 'April', value: '04' },
+                { label: 'May', value: '05' },
+                { label: 'June', value: '06' },
+                { label: 'July', value: '07' },
+                { label: 'August', value: '08' },
+                { label: 'September', value: '09' },
+                { label: 'October', value: '10' },
+                { label: 'November', value: '11' },
+                { label: 'December', value: '12' },
+              ]}
+              onChange={(value) => updateTrustData('discretionaryTransferMonth', value)}
+              disabled={trustData.discretionarySettlorDateUnknown}
+            />
+          </View>
+          <View style={styles.dateField}>
+            <Select
+              placeholder="Year..."
+              value={trustData.discretionaryTransferYear}
+              options={Array.from({ length: 100 }, (_, i) => {
+                const year = new Date().getFullYear() - i;
+                return { label: year.toString(), value: year.toString() };
+              })}
+              onChange={(value) => updateTrustData('discretionaryTransferYear', value)}
+              disabled={trustData.discretionarySettlorDateUnknown}
+            />
+          </View>
         </View>
-        <View style={styles.dateField}>
-          <Select
-            placeholder="Year..."
-            value={trustData.discretionaryTransferYear}
-            options={Array.from({ length: 100 }, (_, i) => {
-              const year = new Date().getFullYear() - i;
-              return { label: year.toString(), value: year.toString() };
-            })}
-            onChange={(value) => updateTrustData('discretionaryTransferYear', value)}
-          />
-        </View>
-      </View>
+      )}
 
-      <CurrencyInput
-        label="Value at time of transfer *"
-        placeholder="Enter value at transfer..."
-        value={trustData.discretionaryValueAtTransfer}
-        onValueChange={(value) => updateTrustData('discretionaryValueAtTransfer', value)}
+      {/* "I don't know" checkbox for date - always enabled */}
+      <Checkbox
+        label="I don't know these details"
+        checked={trustData.discretionarySettlorDateUnknown}
+        onCheckedChange={(value) => {
+          updateTrustData('discretionarySettlorDateUnknown', value);
+          if (value) {
+            // Clear fields when checked
+            updateTrustData('discretionaryTransferMonth', '');
+            updateTrustData('discretionaryTransferYear', '');
+          }
+        }}
+      />
+
+      <Text style={styles.fieldLabel}>Value at time of transfer *</Text>
+      {!trustData.discretionarySettlorValueUnknown && (
+        <CurrencyInput
+          placeholder="Enter value at transfer..."
+          value={trustData.discretionaryValueAtTransfer}
+          onValueChange={(value) => updateTrustData('discretionaryValueAtTransfer', value)}
+        />
+      )}
+
+      {/* "I don't know" checkbox for value - disabled when value > 0 */}
+      <Checkbox
+        label="I don't know these details"
+        checked={trustData.discretionarySettlorValueUnknown}
+        onCheckedChange={(value) => {
+          updateTrustData('discretionarySettlorValueUnknown', value);
+          if (value) {
+            // Clear value when checked
+            updateTrustData('discretionaryValueAtTransfer', 0);
+          }
+        }}
+        disabled={trustData.discretionaryValueAtTransfer > 0}
       />
     </View>
   );
@@ -821,6 +956,7 @@ export default function PropertyTrustDetailsScreen() {
                   { label: 'December', value: '12' },
                 ]}
                 onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferMonth', value)}
+                disabled={trustData.discretionaryBeneficiaryDateUnknown}
               />
             </View>
             <View style={styles.dateField}>
@@ -832,12 +968,13 @@ export default function PropertyTrustDetailsScreen() {
                   return { label: year.toString(), value: year.toString() };
                 })}
                 onChange={(value) => updateTrustData('discretionaryBeneficiaryTransferYear', value)}
+                disabled={trustData.discretionaryBeneficiaryDateUnknown}
               />
             </View>
           </View>
         )}
 
-        {/* "I don't know" checkbox for date */}
+        {/* "I don't know" checkbox for date - always enabled */}
         <Checkbox
           label="I don't know these details"
           checked={trustData.discretionaryBeneficiaryDateUnknown}
@@ -865,7 +1002,7 @@ export default function PropertyTrustDetailsScreen() {
           ℹ️ This determines potential tax if the settlor dies within 7 years
         </Text>
 
-        {/* "I don't know" checkbox for value */}
+        {/* "I don't know" checkbox for value - disabled when value > 0 */}
         <Checkbox
           label="I don't know these details"
           checked={trustData.discretionaryBeneficiaryValueUnknown}
@@ -876,6 +1013,7 @@ export default function PropertyTrustDetailsScreen() {
               updateTrustData('discretionaryBeneficiaryValueAtTransfer', 0);
             }
           }}
+          disabled={trustData.discretionaryBeneficiaryValueAtTransfer > 0}
         />
 
         {/* Risk message when date is unknown */}
@@ -932,12 +1070,19 @@ export default function PropertyTrustDetailsScreen() {
     if (trustData.trustType === 'life_interest' && trustData.trustRole === 'settlor') {
       const hasOccupationBenefit = trustData.reservedBenefit.includes('occupy');
       
+      // Date: Either "I don't know" is checked OR date fields are filled
+      const hasDateUnknown = trustData.lifeInterestDateUnknown;
+      const hasDate = trustData.creationMonth && trustData.creationYear;
+      
+      // Value: Either "I don't know" is checked OR value is > 0
+      const hasValueUnknown = trustData.lifeInterestValueUnknown;
+      const hasValue = trustData.propertyValueAtTransfer > 0;
+      
       return (
         trustData.reservedBenefit !== '' &&
         (!hasOccupationBenefit || trustData.payingMarketRent !== '') &&
-        trustData.creationMonth !== '' &&
-        trustData.creationYear !== '' &&
-        trustData.propertyValueAtTransfer > 0 &&
+        (hasDateUnknown || hasDate) &&
+        (hasValueUnknown || hasValue) &&
         remaindermen.length > 0
       );
     }
@@ -967,10 +1112,17 @@ export default function PropertyTrustDetailsScreen() {
 
     // Bare Trust Settlor validation
     if (trustData.trustType === 'bare' && trustData.trustRole === 'settlor') {
+      // Date: Either "I don't know" is checked OR date fields are filled
+      const hasDateUnknown = trustData.bareSettlorDateUnknown;
+      const hasDate = trustData.creationMonth && trustData.creationYear;
+      
+      // Value: Either "I don't know" is checked OR value is > 0
+      const hasValueUnknown = trustData.bareSettlorValueUnknown;
+      const hasValue = trustData.bareValueAtTransfer > 0;
+      
       return (
-        trustData.creationMonth !== '' &&
-        trustData.creationYear !== '' &&
-        trustData.bareValueAtTransfer > 0 &&
+        (hasDateUnknown || hasDate) &&
+        (hasValueUnknown || hasValue) &&
         bareBeneficiaries.length > 0
       );
     }
@@ -982,18 +1134,29 @@ export default function PropertyTrustDetailsScreen() {
 
     // Bare Trust Settlor & Beneficiary validation
     if (trustData.trustType === 'bare' && trustData.trustRole === 'settlor_and_beneficiary') {
+      // Value: Either "I don't know" is checked OR value is > 0
+      const hasValueUnknown = trustData.bareSettlorAndBeneficiaryValueUnknown;
+      const hasValue = trustData.bareValueAtTransfer > 0;
+      
       return (
         trustData.currentlyLiveInProperty !== '' &&
-        trustData.bareValueAtTransfer > 0
+        (hasValueUnknown || hasValue)
       );
     }
 
     // Discretionary Trust Settlor validation
     if (trustData.trustType === 'discretionary' && trustData.trustRole === 'settlor') {
+      // Date: Either "I don't know" is checked OR date fields are filled
+      const hasDateUnknown = trustData.discretionarySettlorDateUnknown;
+      const hasDate = trustData.discretionaryTransferMonth && trustData.discretionaryTransferYear;
+      
+      // Value: Either "I don't know" is checked OR value is > 0
+      const hasValueUnknown = trustData.discretionarySettlorValueUnknown;
+      const hasValue = trustData.discretionaryValueAtTransfer > 0;
+      
       return (
-        trustData.discretionaryTransferMonth !== '' &&
-        trustData.discretionaryTransferYear !== '' &&
-        trustData.discretionaryValueAtTransfer > 0
+        (hasDateUnknown || hasDate) &&
+        (hasValueUnknown || hasValue)
       );
     }
 
