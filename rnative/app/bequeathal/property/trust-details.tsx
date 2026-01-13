@@ -1199,6 +1199,7 @@ export default function PropertyTrustDetailsScreen() {
                   </View>
                 </View>
               )}
+              {/* TODO: Need to trigger task to backend team to reach out to explain implications of PET */}
               <Checkbox
                 label="Unsure"
                 checked={trustData.remaindermanTransferDateUnsure}
