@@ -1163,42 +1163,42 @@ export default function PropertyTrustDetailsScreen() {
                   Determines if transfer was within 7 years. If settlor dies within 7 years, remainder beneficiaries may face IHT liability on failed PET.
                 </Text>
               )}
-              <View style={styles.dateRow}>
-                <View style={styles.dateField}>
-                  <Select
-                    placeholder="Month..."
-                    value={trustData.remaindermanTransferMonth}
-                    options={[
-                      { label: 'January', value: '01' },
-                      { label: 'February', value: '02' },
-                      { label: 'March', value: '03' },
-                      { label: 'April', value: '04' },
-                      { label: 'May', value: '05' },
-                      { label: 'June', value: '06' },
-                      { label: 'July', value: '07' },
-                      { label: 'August', value: '08' },
-                      { label: 'September', value: '09' },
-                      { label: 'October', value: '10' },
-                      { label: 'November', value: '11' },
-                      { label: 'December', value: '12' },
-                    ]}
-                    onChange={(value) => updateTrustData('remaindermanTransferMonth', value)}
-                    disabled={trustData.remaindermanTransferDateUnsure}
-                  />
+              {!trustData.remaindermanTransferDateUnsure && (
+                <View style={styles.dateRow}>
+                  <View style={styles.dateField}>
+                    <Select
+                      placeholder="Month..."
+                      value={trustData.remaindermanTransferMonth}
+                      options={[
+                        { label: 'January', value: '01' },
+                        { label: 'February', value: '02' },
+                        { label: 'March', value: '03' },
+                        { label: 'April', value: '04' },
+                        { label: 'May', value: '05' },
+                        { label: 'June', value: '06' },
+                        { label: 'July', value: '07' },
+                        { label: 'August', value: '08' },
+                        { label: 'September', value: '09' },
+                        { label: 'October', value: '10' },
+                        { label: 'November', value: '11' },
+                        { label: 'December', value: '12' },
+                      ]}
+                      onChange={(value) => updateTrustData('remaindermanTransferMonth', value)}
+                    />
+                  </View>
+                  <View style={styles.dateField}>
+                    <Select
+                      placeholder="Year..."
+                      value={trustData.remaindermanTransferYear}
+                      options={Array.from({ length: 100 }, (_, i) => {
+                        const year = new Date().getFullYear() - i;
+                        return { label: year.toString(), value: year.toString() };
+                      })}
+                      onChange={(value) => updateTrustData('remaindermanTransferYear', value)}
+                    />
+                  </View>
                 </View>
-                <View style={styles.dateField}>
-                  <Select
-                    placeholder="Year..."
-                    value={trustData.remaindermanTransferYear}
-                    options={Array.from({ length: 100 }, (_, i) => {
-                      const year = new Date().getFullYear() - i;
-                      return { label: year.toString(), value: year.toString() };
-                    })}
-                    onChange={(value) => updateTrustData('remaindermanTransferYear', value)}
-                    disabled={trustData.remaindermanTransferDateUnsure}
-                  />
-                </View>
-              </View>
+              )}
               <Checkbox
                 label="Unsure"
                 checked={trustData.remaindermanTransferDateUnsure}
