@@ -275,8 +275,8 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
               )}
             </View>
             
-            {/* Right side icon: refresh for collapsed selected, ? for unselected */}
-            {value === option.value && isCollapsed ? (
+            {/* Right side icon: refresh for collapsed selected */}
+            {value === option.value && isCollapsed && (
               <TouchableOpacity 
                 onPress={handleRefresh}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -289,9 +289,7 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
                   style={styles.refreshIcon}
                 />
               </TouchableOpacity>
-            ) : value !== option.value ? (
-              <Text style={styles.questionMark}>?</Text>
-            ) : null}
+            )}
           </TouchableOpacity>
         ))}
       </RadioButton.Group>
@@ -355,12 +353,6 @@ const styles = StyleSheet.create({
   },
   optionHelperTextDisabled: {
     opacity: 0.5,
-  },
-  questionMark: {
-    fontSize: 16,
-    color: KindlingColors.mutedForeground,
-    marginLeft: Spacing.xs,
-    fontWeight: '600',
   },
   refreshButton: {
     marginRight: -8,

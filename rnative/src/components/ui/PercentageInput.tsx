@@ -7,7 +7,7 @@
  * @module components/ui/PercentageInput
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input, InputProps } from './Input';
 import { formatPercentage } from '../../utils/helpers';
 
@@ -55,11 +55,32 @@ export const PercentageInput: React.FC<PercentageInputProps> = ({
   max = 100,
   ...props
 }) => {
-  const [displayValue, setDisplayValue] = useState(value.toString());
+  // Show placeholder when value is 0, otherwise show the value
+  const [displayValue, setDisplayValue] = useState(value === 0 ? '' : value.toString());
   const [error, setError] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  
+  // Update display value when prop value changes externally (but not while user is typing)
+  useEffect(() => {
+    if (!isFocused) {
+      // Only sync when input is not focused (user finished editing)
+      if (value === 0) {
+        setDisplayValue('');
+      } else {
+        setDisplayValue(value.toString());
+      }
+    }
+  }, [value, isFocused]);
   
   const handleChange = (text: string) => {
     setDisplayValue(text);
+    
+    // If empty, clear the value
+    if (text === '' || text.trim() === '') {
+      onValueChange(0);
+      setError(false);
+      return;
+    }
     
     // Parse the numeric value
     const cleanedText = text.replace(/[^0-9.]/g, '');
@@ -80,9 +101,17 @@ export const PercentageInput: React.FC<PercentageInputProps> = ({
   };
   
   const handleBlur = () => {
+    // If empty on blur, set to 0
+    if (displayValue === '' || displayValue.trim() === '') {
+      setDisplayValue('');
+      onValueChange(0);
+      setError(false);
+      return;
+    }
+    
     // Clamp value to range and reformat
     const clampedValue = Math.max(min, Math.min(max, value));
-    setDisplayValue(clampedValue.toString());
+    setDisplayValue(clampedValue === 0 ? '' : clampedValue.toString());
     setError(false);
     
     if (clampedValue !== value) {
@@ -95,9 +124,14 @@ export const PercentageInput: React.FC<PercentageInputProps> = ({
       {...props}
       value={displayValue}
       onChangeText={handleChange}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => {
+        setIsFocused(false);
+        handleBlur();
+      }}
       type="number"
       rightIcon={props.rightIcon === "" ? undefined : (props.rightIcon || "percent")}
-      placeholder="0"
+      placeholder={props.placeholder || "0"}
       error={error || props.error}
       errorMessage={error ? `Value must be between ${min} and ${max}` : props.errorMessage}
     />

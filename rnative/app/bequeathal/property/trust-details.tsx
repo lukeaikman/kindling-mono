@@ -10,12 +10,12 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Input, Select, RadioGroup, Checkbox, CurrencyInput, PercentageInput } from '../../../src/components/ui';
-import { BeneficiaryWithPercentages } from '../../../src/components/forms';
+import { BeneficiaryWithPercentages, MultiBeneficiarySelector } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { PropertyAsset, Trust, TrustType } from '../../../src/types';
 import { KindlingColors } from '../../../src/styles/theme';
@@ -52,7 +52,17 @@ interface TrustData {
   lifeInterestEndingEvents: string;
   
   // Life Interest Beneficiary fields
-  benefitType: string; // 'life_interest' or 'remainderman'
+  benefitType: string; // 'life_interest' or 'remainderman' (auto-set based on role)
+  // New Life Interest fields (per spec)
+  lifeInterestTrustCreationDate: string; // 'before_2006' | 'on_or_after_2006' | ''
+  lifeInterestIsIPDI: string; // 'yes' | 'no' | '' - Only shown if post-2006
+  lifeInterestSpouseSuccession: string; // 'yes' | 'no' | ''
+  lifeInterestSharing: string; // 'not_shared' | 'shared_equally' | 'shared_unequally' | 'successive' | ''
+  lifeInterestEqualSharingCount: number; // 2-10+
+  lifeInterestUnequalSharingPercentage: number; // 1-99
+  lifeInterestSuccessiveCurrentTenant: string; // Text input
+  lifeInterestSuccessiveCurrentStatus: string; // 'not_started' | 'active' | 'not_sure' | ''
+  // Legacy fields (kept for backwards compatibility, may be removed later)
   settlorStillLiving: string;
   lifeInterestBeganOnPassing: string;
   lifeInterestBeganWhen: string;
@@ -61,7 +71,16 @@ interface TrustData {
   lifeInterestPercentage: number;
   hasComplexCircumstances: boolean;
   
-  // Remainderman fields
+  // Remainderman fields (new spec)
+  remaindermanLifeTenantAlive: string; // 'yes' | 'no' | 'not_sure' | ''
+  remaindermanOwnershipClarification: string; // 'now_own' | 'not_sure' | ''
+  remaindermanLifeTenantAge: number; // 18-110
+  remaindermanTransferMonth: string;
+  remaindermanTransferYear: string;
+  remaindermanTransferValue: number;
+  remaindermanSettlorAlive: string; // 'yes' | 'no' | 'not_sure' | ''
+  remaindermanSuccessionBeneficiary: string; // Person/group/estate ID for succession planning
+  // Legacy fields (kept for backwards compatibility)
   capitalInterestPercentage: number;
   lifeTenantAge: string;
   knownContingencies: string;
@@ -131,6 +150,16 @@ export default function PropertyTrustDetailsScreen() {
     lifeInterestEndingEvents: '',
     // Life Interest Beneficiary
     benefitType: '',
+    // New Life Interest fields
+    lifeInterestTrustCreationDate: '',
+    lifeInterestIsIPDI: '',
+    lifeInterestSpouseSuccession: '',
+    lifeInterestSharing: '',
+    lifeInterestEqualSharingCount: 0,
+    lifeInterestUnequalSharingPercentage: 0,
+    lifeInterestSuccessiveCurrentTenant: '',
+    lifeInterestSuccessiveCurrentStatus: '',
+    // Legacy fields (kept for backwards compatibility)
     settlorStillLiving: '',
     lifeInterestBeganOnPassing: '',
     lifeInterestBeganWhen: '',
@@ -138,7 +167,16 @@ export default function PropertyTrustDetailsScreen() {
     shareLifeInterestWithOthers: '',
     lifeInterestPercentage: 0,
     hasComplexCircumstances: false,
-    // Remainderman
+    // Remainderman (new spec)
+    remaindermanLifeTenantAlive: '',
+    remaindermanOwnershipClarification: '',
+    remaindermanLifeTenantAge: 0,
+    remaindermanTransferMonth: '',
+    remaindermanTransferYear: '',
+    remaindermanTransferValue: 0,
+    remaindermanSettlorAlive: '',
+    remaindermanSuccessionBeneficiary: '',
+    // Legacy fields (kept for backwards compatibility)
     capitalInterestPercentage: 0,
     lifeTenantAge: '',
     knownContingencies: '',
@@ -186,6 +224,9 @@ export default function PropertyTrustDetailsScreen() {
   
   // Co-beneficiaries (for Bare Trust Beneficiary and Settlor & Beneficiary)
   const [bareCoBeneficiaries, setBareCoBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
+  
+  // Helper text visibility state for remainderman fields
+  const [showRemaindermanHelper, setShowRemaindermanHelper] = useState<Record<string, boolean>>({});
 
   // Load existing trust data if trustId provided (Rule 4a pattern)
   const loadedTrustIdRef = useRef<string | null>(null);
@@ -208,13 +249,6 @@ export default function PropertyTrustDetailsScreen() {
       return;
     }
     
-    // Map Trust entity → form state
-    const trustRole = trust.isUserSettlor && trust.isUserBeneficiary 
-      ? 'settlor_and_beneficiary'
-      : trust.isUserSettlor 
-        ? 'settlor'
-        : 'beneficiary';
-    
     // Map TrustType enum to form value
     const trustTypeMap: Partial<Record<TrustType, 'life_interest' | 'bare' | 'discretionary'>> = {
       'life_interest_trust': 'life_interest',
@@ -223,6 +257,32 @@ export default function PropertyTrustDetailsScreen() {
       'settlor_interested_trust': 'discretionary', // Map to discretionary for now
       'interest_in_possession_trust': 'life_interest', // Map to life_interest for now
     };
+    const mappedTrustType = trustTypeMap[trust.type] || '';
+    
+    // Map Trust entity → form state
+    // For life interest trusts, use specific roles
+    let trustRole: string;
+    if (mappedTrustType === 'life_interest') {
+      // Life interest trusts have specific roles
+      if (trust.isUserSettlor && trust.isUserBeneficiary) {
+        trustRole = 'settlor_and_beneficial_interest';
+      } else if (trust.isUserSettlor) {
+        trustRole = 'settlor';
+      } else if (trust.isUserBeneficiary) {
+        // Default to 'life_interest' - user can change to 'remainderman' if needed
+        // Could also check beneficiary data to determine, but for now default to life_interest
+        trustRole = 'life_interest';
+      } else {
+        trustRole = 'beneficiary'; // Fallback
+      }
+    } else {
+      // For other trust types, use original logic
+      trustRole = trust.isUserSettlor && trust.isUserBeneficiary 
+        ? 'settlor_and_beneficiary'
+        : trust.isUserSettlor 
+          ? 'settlor'
+          : 'beneficiary';
+    }
     
     setTrustData({
       trustName: trust.name,
@@ -240,7 +300,21 @@ export default function PropertyTrustDetailsScreen() {
       lifeInterestValueUnknown: false,
       chainedTrustStructure: false,
       lifeInterestEndingEvents: '',
-      benefitType: '',
+      benefitType: mappedTrustType === 'life_interest' && trustRole === 'remainderman' 
+        ? 'remainderman' 
+        : mappedTrustType === 'life_interest' && (trustRole === 'life_interest' || trustRole === 'beneficiary')
+          ? 'life_interest'
+          : '',
+      // New Life Interest fields
+      lifeInterestTrustCreationDate: '',
+      lifeInterestIsIPDI: '',
+      lifeInterestSpouseSuccession: '',
+      lifeInterestSharing: '',
+      lifeInterestEqualSharingCount: 0,
+      lifeInterestUnequalSharingPercentage: 0,
+      lifeInterestSuccessiveCurrentTenant: '',
+      lifeInterestSuccessiveCurrentStatus: '',
+      // Legacy fields (kept for backwards compatibility)
       settlorStillLiving: '',
       lifeInterestBeganOnPassing: '',
       lifeInterestBeganWhen: '',
@@ -248,6 +322,16 @@ export default function PropertyTrustDetailsScreen() {
       shareLifeInterestWithOthers: '',
       lifeInterestPercentage: 0,
       hasComplexCircumstances: false,
+      // Remainderman (new spec)
+      remaindermanLifeTenantAlive: '',
+      remaindermanOwnershipClarification: '',
+      remaindermanLifeTenantAge: 0,
+      remaindermanTransferMonth: '',
+      remaindermanTransferYear: '',
+      remaindermanTransferValue: 0,
+      remaindermanSettlorAlive: '',
+      remaindermanSuccessionBeneficiary: '',
+      // Legacy fields (kept for backwards compatibility)
       capitalInterestPercentage: 0,
       lifeTenantAge: '',
       knownContingencies: '',
@@ -284,6 +368,17 @@ export default function PropertyTrustDetailsScreen() {
     loadedTrustIdRef.current = trustId;
   });
 
+  // Auto-set benefitType when role changes for life interest trusts
+  useEffect(() => {
+    if (trustData.trustType === 'life_interest') {
+      if (trustData.trustRole === 'life_interest' && trustData.benefitType !== 'life_interest') {
+        setTrustData(prev => ({ ...prev, benefitType: 'life_interest' }));
+      } else if (trustData.trustRole === 'remainderman' && trustData.benefitType !== 'remainderman') {
+        setTrustData(prev => ({ ...prev, benefitType: 'remainderman' }));
+      }
+    }
+  }, [trustData.trustType, trustData.trustRole, trustData.benefitType]);
+
   // Helper to update trust data
   const updateTrustData = (field: keyof TrustData, value: any) => {
     setTrustData(prev => ({ ...prev, [field]: value }));
@@ -315,8 +410,26 @@ export default function PropertyTrustDetailsScreen() {
     switch (trustData.trustType) {
       case 'life_interest':
         return [
-          beneficiaryOption,
-          settlorOption,
+          {
+            label: 'Life interest',
+            value: 'life_interest',
+            helperText: 'You have the right to income/occupation for life',
+          },
+          {
+            label: 'Remainderman',
+            value: 'remainderman',
+            helperText: 'You will receive the property when the life tenant dies',
+          },
+          {
+            label: 'Settlor',
+            value: 'settlor',
+            helperText: 'You created the trust but have no right to benefit',
+          },
+          {
+            label: 'Settlor + A Beneficial Interest',
+            value: 'settlor_and_beneficial_interest',
+            helperText: 'You created the trust and retained some benefit',
+          },
         ];
       case 'bare':
       case 'discretionary':
@@ -343,9 +456,17 @@ export default function PropertyTrustDetailsScreen() {
     // For now, just show placeholder for each combination
     // Will be implemented in Tasks 14b.2-14b.5
     switch (fieldsetKey) {
+      case 'life_interest_life_interest':
+        return renderLifeInterestBeneficiaryFieldset();
+      case 'life_interest_remainderman':
+        return renderLifeInterestBeneficiaryFieldset();
       case 'life_interest_settlor':
         return renderLifeInterestSettlorFieldset();
+      case 'life_interest_settlor_and_beneficial_interest':
+        // Use same fieldset as settlor (handles reserved benefits)
+        return renderLifeInterestSettlorFieldset();
       case 'life_interest_beneficiary':
+        // Legacy case - keep for backwards compatibility
         return renderLifeInterestBeneficiaryFieldset();
       case 'bare_settlor':
         return renderBareSettlorFieldset();
@@ -555,194 +676,660 @@ export default function PropertyTrustDetailsScreen() {
   };
 
   const renderLifeInterestBeneficiaryFieldset = () => {
-    const isLifeInterest = trustData.benefitType === 'life_interest';
-    const isRemainderman = trustData.benefitType === 'remainderman';
+    // Determine which path based on role (benefitType is auto-set by useEffect)
+    const isLifeInterest = trustData.trustRole === 'life_interest' || trustData.benefitType === 'life_interest';
+    const isRemainderman = trustData.trustRole === 'remainderman' || trustData.benefitType === 'remainderman';
 
     return (
       <View style={styles.fieldsetContent}>
-        <Text style={styles.helperText}>
-          As a beneficiary of a life interest trust, first tell us what type of interest you have.
-        </Text>
-
-        <RadioGroup
-          label="Benefit Type *"
-          options={[
-            { label: 'Life Interest Beneficiary', value: 'life_interest' },
-            { label: 'Remainderman', value: 'remainderman' },
-          ]}
-          value={trustData.benefitType}
-          onChange={(value) => updateTrustData('benefitType', value)}
-        />
-
-        {/* Life Interest Path (10 fields) */}
+        {/* Life Interest Path - New Spec Implementation */}
         {isLifeInterest && (
           <>
-            {/* TODO: Settlor PersonSelector - Phase 10 integration */}
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                ℹ️ Settlor selection: PersonSelector integration pending
-              </Text>
-            </View>
-
+            {/* 0. Trust Creation Date */}
             <RadioGroup
-              label="Is settlor still living? *"
+              label="When was this trust created? *"
+              value={trustData.lifeInterestTrustCreationDate}
               options={[
-                { label: 'Yes', value: 'yes' },
-                { label: 'No', value: 'no' },
+                { label: 'Before 22 March 2006', value: 'before_2006' },
+                { label: 'On or after 22 March 2006', value: 'on_or_after_2006' },
               ]}
-              value={trustData.settlorStillLiving}
-              onChange={(value) => updateTrustData('settlorStillLiving', value)}
+              onChange={(value) => updateTrustData('lifeInterestTrustCreationDate', value)}
             />
+            {/* <Text style={styles.helperText}>
+              Determines if this is a qualifying Interest in Possession (IIP) for IHT purposes. Pre-2006 trusts are automatically qualifying.
+            </Text> */}
 
-            {trustData.settlorStillLiving === 'no' && (
+            {/* 0a. IPDI Check (Conditional - only if post-2006) */}
+            {trustData.lifeInterestTrustCreationDate === 'on_or_after_2006' && (
               <>
                 <RadioGroup
-                  label="Did life interest begin immediately on their passing? *"
+                  label="Was this trust created by someone's will (Immediate Post-Death Interest)? *"
                   options={[
                     { label: 'Yes', value: 'yes' },
                     { label: 'No', value: 'no' },
                   ]}
-                  value={trustData.lifeInterestBeganOnPassing}
-                  onChange={(value) => updateTrustData('lifeInterestBeganOnPassing', value)}
+                  value={trustData.lifeInterestIsIPDI}
+                  onChange={(value) => updateTrustData('lifeInterestIsIPDI', value)}
                 />
-
-                {trustData.lifeInterestBeganOnPassing === 'no' && (
-                  <Select
-                    label="It began: *"
-                    placeholder="Select when interest began..."
-                    value={trustData.lifeInterestBeganWhen}
-                    options={[
-                      { label: 'On death of preceding life interest holder', value: 'on_preceding_death' },
-                      { label: 'During their lifetime', value: 'during_lifetime' },
-                    ]}
-                    onChange={(value) => updateTrustData('lifeInterestBeganWhen', value)}
-                  />
-                )}
+                {/* <Text style={styles.helperText}>
+                  IPDIs are qualifying IIPs even if post-2006. This changes IHT treatment from £0 to full property value in estate.
+                </Text> */}
               </>
             )}
 
-            <Select
-              label="Interest type *"
-              placeholder="Select interest type..."
-              value={trustData.interestType}
-              options={[
-                { label: 'Occupation only', value: 'occupation_only' },
-                { label: 'Income only', value: 'income_only' },
-                { label: 'Income and Occupation', value: 'income_and_occupation' },
-              ]}
-              onChange={(value) => updateTrustData('interestType', value)}
-            />
-
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                ℹ️ Life interests are included in your estate for inheritance tax purposes. Note: You cannot pass on the interest - the trust deed dictates what happens on your passing.
-              </Text>
-            </View>
-
+            {/* 1. Spouse Succession Rights */}
             <RadioGroup
-              label="Share life interest with others?"
+              label="Can your spouse/civil partner succeed to your life interest? *"
               options={[
                 { label: 'Yes', value: 'yes' },
                 { label: 'No', value: 'no' },
               ]}
-              value={trustData.shareLifeInterestWithOthers}
-              onChange={(value) => updateTrustData('shareLifeInterestWithOthers', value)}
+              value={trustData.lifeInterestSpouseSuccession}
+              onChange={(value) => updateTrustData('lifeInterestSpouseSuccession', value)}
             />
+            {/* <Text style={styles.helperText}>
+              Affects spouse exemption planning. If yes, potential IHT saving through spouse exemption on first death.
+            </Text> */}
 
-            {trustData.shareLifeInterestWithOthers === 'yes' && (
-              <PercentageInput
-                label="Your % of life interest *"
-                placeholder="Enter your percentage..."
-                value={trustData.lifeInterestPercentage}
-                onValueChange={(value) => updateTrustData('lifeInterestPercentage', value)}
-              />
+            {/* 2. Life Interest Sharing */}
+            <RadioGroup
+              label="Is your life interest shared? *"
+              value={trustData.lifeInterestSharing}
+              options={[
+                { 
+                  label: 'Not shared', 
+                  value: 'not_shared',
+                  helperText: 'I have sole life interest'
+                },
+                { 
+                  label: 'Shared equally with others', 
+                  value: 'shared_equally',
+                  helperText: 'Equal division among all life interest holders'
+                },
+                { 
+                  label: 'Shared unequally with others', 
+                  value: 'shared_unequally',
+                  helperText: 'Different percentages for each holder'
+                },
+                { 
+                  label: 'Successive', 
+                  value: 'successive',
+                  helperText: 'I have rights after someone else dies'
+                },
+              ]}
+              onChange={(value) => updateTrustData('lifeInterestSharing', value)}
+            />
+            {/* <Text style={styles.helperText}>
+              Determines how to calculate your proportionate share for IHT purposes.
+            </Text> */}
+
+            {/* 2a. Equal Sharing Details (Conditional) */}
+            {trustData.lifeInterestSharing === 'shared_equally' && (
+              <>
+                <Select
+                  label="Shared equally with how many people (including you)? *"
+                  placeholder="Select number..."
+                  value={trustData.lifeInterestEqualSharingCount > 0 ? trustData.lifeInterestEqualSharingCount.toString() : ''}
+                  options={[
+                    { label: '2', value: '2' },
+                    { label: '3', value: '3' },
+                    { label: '4', value: '4' },
+                    { label: '5', value: '5' },
+                    { label: '6', value: '6' },
+                    { label: '7', value: '7' },
+                    { label: '8', value: '8' },
+                    { label: '9', value: '9' },
+                    { label: '10+', value: '10' },
+                  ]}
+                  onChange={(value) => updateTrustData('lifeInterestEqualSharingCount', parseInt(value) || 0)}
+                />
+                {/* <Text style={styles.helperText}>
+                  Your share: {trustData.lifeInterestEqualSharingCount > 0 ? (100 / trustData.lifeInterestEqualSharingCount).toFixed(1) : '0'}%
+                </Text> */}
+              </>
             )}
 
-            {/* Optional remaindermen for visualization */}
-            <Text style={styles.fieldLabel}>Remaindermen (Optional)</Text>
-            <Text style={styles.helperText}>
-              Though not yours to give, we can include in visualization of who gets what on your passing
-            </Text>
-            <BeneficiaryWithPercentages
-              allocationMode="percentage"
-              value={remaindermen}
-              onChange={setRemaindermen}
-              personActions={personActions}
-              beneficiaryGroupActions={beneficiaryGroupActions}
-              label="Remaindermen"
-              onAddNewPerson={() => alert('Add person functionality to be implemented')}
-              onAddNewGroup={() => alert('Add group functionality to be implemented')}
-            />
+            {/* 2b. Unequal Sharing Details (Conditional) */}
+            {trustData.lifeInterestSharing === 'shared_unequally' && (
+              <>
+                <PercentageInput
+                  label="What is your percentage share? *"
+                  placeholder="Enter percentage..."
+                  value={trustData.lifeInterestUnequalSharingPercentage}
+                  onValueChange={(value) => updateTrustData('lifeInterestUnequalSharingPercentage', value)}
+                />
+                {/* <Text style={styles.helperText}>
+                  Precise calculation needed for IHT liability on your specific share.
+                </Text> */}
+              </>
+            )}
 
-            <Checkbox
-              label="More complicated? Check here, we'll contact you."
-              checked={trustData.hasComplexCircumstances}
-              onCheckedChange={(value) => updateTrustData('hasComplexCircumstances', value)}
-            />
+            {/* 2c. Successive Interest Details (Conditional) */}
+            {trustData.lifeInterestSharing === 'successive' && (
+              <>
+                <Input
+                  label="Who currently has the life interest before you? *"
+                  placeholder="e.g., My mother, My spouse"
+                  value={trustData.lifeInterestSuccessiveCurrentTenant}
+                  onChangeText={(value) => updateTrustData('lifeInterestSuccessiveCurrentTenant', value)}
+                />
+                <Select
+                  label="Is this person still alive? *"
+                  placeholder="Select status..."
+                  value={trustData.lifeInterestSuccessiveCurrentStatus}
+                  options={[
+                    { label: 'Yes - my interest hasn\'t started yet', value: 'not_started' },
+                    { label: 'No - I now have the active life interest', value: 'active' },
+                    { label: 'Not sure', value: 'not_sure' },
+                  ]}
+                  onChange={(value) => updateTrustData('lifeInterestSuccessiveCurrentStatus', value)}
+                />
+                {/* <Text style={styles.helperText}>
+                  If current life tenant is alive, your interest is not yet active. If deceased, you have active life interest with full IHT implications.
+                </Text> */}
+              </>
+            )}
+
+            {/* 4. Conditional Explainer (shows when all fields filled) */}
+            {(() => {
+              // Check if all required fields are filled
+              const allFieldsFilled = 
+                trustData.lifeInterestTrustCreationDate &&
+                trustData.lifeInterestSpouseSuccession &&
+                trustData.lifeInterestSharing &&
+                (trustData.lifeInterestTrustCreationDate !== 'on_or_after_2006' || trustData.lifeInterestIsIPDI) &&
+                (trustData.lifeInterestSharing === 'not_shared' ||
+                 (trustData.lifeInterestSharing === 'shared_equally' && trustData.lifeInterestEqualSharingCount >= 2) ||
+                 (trustData.lifeInterestSharing === 'shared_unequally' && trustData.lifeInterestUnequalSharingPercentage > 0 && trustData.lifeInterestUnequalSharingPercentage < 100) ||
+                 (trustData.lifeInterestSharing === 'successive' && trustData.lifeInterestSuccessiveCurrentTenant && trustData.lifeInterestSuccessiveCurrentStatus));
+
+              if (!allFieldsFilled) return null;
+
+              // Simple variables for switch statement
+              const trustDate = trustData.lifeInterestTrustCreationDate;
+              const isIPDI = trustData.lifeInterestIsIPDI === 'yes';
+              const shareType = trustData.lifeInterestSharing;
+              const spouseCanSucceed = trustData.lifeInterestSpouseSuccession === 'yes';
+              const currentTenantAlive = trustData.lifeInterestSuccessiveCurrentStatus;
+              const currentTenant = trustData.lifeInterestSuccessiveCurrentTenant;
+              
+              // Get current property value from property asset
+              let propertyValue = 0;
+              let hasPropertyValue = false;
+              if (propertyId) {
+                const property = bequeathalActions.getAssetById(propertyId) as PropertyAsset | undefined;
+                if (property?.estimatedValue) {
+                  propertyValue = property.estimatedValue;
+                  hasPropertyValue = true;
+                }
+              }
+              
+              // Check if qualifying IIP
+              const isQualifying = trustDate === 'before_2006' || (trustDate === 'on_or_after_2006' && isIPDI);
+              
+              // Initialize result
+              let icon = '';
+              let taxStatus = '';
+              let yourRights = '';
+              
+              // Handle successive interests first (before qualifying check)
+              if (shareType === 'successive') {
+                if (currentTenantAlive === 'not_started') {
+                  icon = '⏳';
+                  taxStatus = `Not yet active - your interest begins when ${currentTenant} dies`;
+                  yourRights = "You'll receive the life interest in future. No current tax impact or rights to the property.";
+                  return (
+                    <View style={styles.explainerBox}>
+                      <Text style={styles.explainerText}>
+                        {icon} <Text style={styles.explainerLabel}>Tax Status: </Text>
+                        {taxStatus}
+                      </Text>
+                      <Text style={styles.explainerText}>
+                        <Text style={styles.explainerLabel}>Your Rights: </Text>
+                        {yourRights}
+                      </Text>
+                    </View>
+                  );
+                }
+                if (currentTenantAlive === 'not_sure') {
+                  icon = '❓';
+                  taxStatus = `Unclear status - verify if ${currentTenant} is still alive`;
+                  yourRights = "If they're alive, you have no current rights. If they've died, you may have an active life interest.";
+                  return (
+                    <View style={styles.explainerBox}>
+                      <Text style={styles.explainerText}>
+                        {icon} <Text style={styles.explainerLabel}>Tax Status: </Text>
+                        {taxStatus}
+                      </Text>
+                      <Text style={styles.explainerText}>
+                        <Text style={styles.explainerLabel}>Your Rights: </Text>
+                        {yourRights}
+                      </Text>
+                    </View>
+                  );
+                }
+                // If active, continue to qualifying logic below
+              }
+              
+              // Handle non-qualifying (post-2006 non-IPDI)
+              if (!isQualifying) {
+                icon = '✅';
+                taxStatus = "No inheritance tax impact - this property doesn't count in your estate";
+                yourRights = "You have the right to income or occupation for life, but this ends when you die and cannot be passed in your will.";
+              } else {
+                // Qualifying IIP - calculate share value
+                if (!hasPropertyValue) {
+                  // Fallback when property value not available
+                  let sharePercentage = 100;
+                  
+                  switch (shareType) {
+                    case 'shared_equally':
+                      sharePercentage = 100 / trustData.lifeInterestEqualSharingCount;
+                      break;
+                    case 'shared_unequally':
+                      sharePercentage = trustData.lifeInterestUnequalSharingPercentage;
+                      break;
+                    case 'not_shared':
+                    case 'successive':
+                      sharePercentage = 100;
+                      break;
+                  }
+                  
+                  icon = '⚠️';
+                  taxStatus = `There will be inheritance tax liability on your ${sharePercentage === 100 ? 'full' : `${sharePercentage.toFixed(1)}%`} share of the property's current value.`;
+                  yourRights = "IHT will be calculated as: current property value × your share percentage. Please provide the current property value for an accurate calculation.";
+                } else {
+                  // Calculate share value with available property value
+                  let shareValue = propertyValue;
+                  let shareText = '';
+                  
+                  switch (shareType) {
+                    case 'shared_equally':
+                      const percent = 100 / trustData.lifeInterestEqualSharingCount;
+                      shareValue = propertyValue * (percent / 100);
+                      shareText = ` (your ${percent.toFixed(1)}% share)`;
+                      break;
+                    case 'shared_unequally':
+                      shareValue = propertyValue * (trustData.lifeInterestUnequalSharingPercentage / 100);
+                      shareText = ` (your ${trustData.lifeInterestUnequalSharingPercentage}% share)`;
+                      break;
+                    case 'not_shared':
+                    case 'successive':
+                      // Full value
+                      break;
+                  }
+                  
+                  // Format currency
+                  const formattedValue = new Intl.NumberFormat('en-GB', {
+                    style: 'currency',
+                    currency: 'GBP',
+                    maximumFractionDigits: 0
+                  }).format(shareValue);
+                  
+                  icon = '⚠️';
+                  taxStatus = `${formattedValue} counts in your estate for inheritance tax${shareText}`;
+                  
+                  // Build yourRights based on spouse and sharing
+                  if (spouseCanSucceed && shareType === 'not_shared') {
+                    yourRights = "Your spouse can take over this interest when you die, potentially saving tax through spouse exemption.";
+                  } else if (shareType !== 'not_shared') {
+                    yourRights = "You share the income/occupation rights with others. Your interest ends at death and cannot be passed in your will.";
+                  } else {
+                    yourRights = "You have income/occupation for life. This ends when you die and cannot be passed in your will.";
+                  }
+                }
+              }
+
+              return (
+                <View style={styles.explainerBox}>
+                  <Text style={styles.explainerText}>
+                    {icon} <Text style={styles.explainerLabel}>Tax Status: </Text>
+                    {taxStatus}
+                  </Text>
+                  <View style={styles.explainerSpacer} />
+                  <Text style={styles.explainerText}>
+                    <Text style={styles.explainerLabel}>Your Rights: </Text>
+                    {yourRights}
+                  </Text>
+                </View>
+              );
+            })()}
           </>
         )}
 
-        {/* Remainderman Path (5 fields) */}
-        {isRemainderman && (
-          <>
-            <PercentageInput
-              label="Your % of capital interest *"
-              placeholder="Enter your percentage..."
-              value={trustData.capitalInterestPercentage}
-              onValueChange={(value) => updateTrustData('capitalInterestPercentage', value)}
-            />
-
-            {/* TODO: Life Tenant PersonSelector - Phase 10 integration */}
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                ℹ️ Life Tenant selection: PersonSelector integration pending
-              </Text>
+        {/* Remainderman Path - New Spec Implementation */}
+        {isRemainderman && (() => {
+          // Helper function to render label with ? icon
+          const renderLabelWithHelp = (label: string, helperKey: string, helperText: string) => (
+            <View style={styles.labelWithHelpContainer}>
+              <Text style={[styles.fieldLabel, styles.fieldLabelInRow]}>{label}</Text>
+              <TouchableOpacity
+                onPress={() => setShowRemaindermanHelper(prev => ({ ...prev, [helperKey]: !prev[helperKey] }))}
+                style={styles.helpIconButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <IconButton
+                  icon="help-circle-outline"
+                  size={18}
+                  iconColor={KindlingColors.brown}
+                  style={styles.helpIcon}
+                />
+              </TouchableOpacity>
             </View>
-
-            <Input
-              label="Life tenant age estimate"
-              placeholder="Approximate age..."
-              value={trustData.lifeTenantAge}
-              onChangeText={(value) => updateTrustData('lifeTenantAge', value)}
-              type="number"
-            />
-            <Text style={styles.helperText}>
-              Approximate age helps estimate when remainder interest might vest
-            </Text>
-
-            <Input
-              label="Known contingencies"
-              placeholder="e.g., Interest contingent on surviving life tenant..."
-              value={trustData.knownContingencies}
-              onChangeText={(value) => updateTrustData('knownContingencies', value)}
-              multiline
-            />
-            <Text style={styles.helperText}>
-              If your interest is contingent on you surviving life tenant, or other conditions, note here
-            </Text>
-
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                If you survive the life tenant: Property becomes yours and passes per your will.{'\n\n'}
-                If you die first: Your remainder interest passes to your chosen beneficiaries (unless contingent on surviving).
-              </Text>
-            </View>
-
-          </>
-        )}
+          );
+          
+          // Calculate if transfer was within 7 years
+          const isWithin7Years = (() => {
+            if (!trustData.remaindermanTransferMonth || !trustData.remaindermanTransferYear) return false;
+            const transferDate = new Date(
+              parseInt(trustData.remaindermanTransferYear),
+              parseInt(trustData.remaindermanTransferMonth) - 1
+            );
+            const now = new Date();
+            const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+            return yearsDiff < 7;
+          })();
+          
+          return (
+            <>
+              {/* 1. Life Tenant Status */}
+              <RadioGroup
+                label="Is the life tenant (person with current rights) still alive? *"
+                value={trustData.remaindermanLifeTenantAlive}
+                options={[
+                  { label: "Yes, they're still alive", value: 'yes' },
+                  { label: "No, they've passed away", value: 'no' },
+                  { label: 'Not sure', value: 'not_sure' },
+                ]}
+                onChange={(value) => updateTrustData('remaindermanLifeTenantAlive', value)}
+              />
+              
+              {/* 1a. Ownership Clarification (Conditional) */}
+              {trustData.remaindermanLifeTenantAlive === 'no' && (
+                <>
+                  <RadioGroup
+                    label="What is your current position? *"
+                    value={trustData.remaindermanOwnershipClarification}
+                    options={[
+                      { label: "I now own this property", value: 'now_own' },
+                      { label: "I'm not sure where I stand", value: 'not_sure' },
+                    ]}
+                    onChange={(value) => {
+                      updateTrustData('remaindermanOwnershipClarification', value);
+                    }}
+                  />
+                  
+                  {/* Message for "I now own this property" */}
+                  {trustData.remaindermanOwnershipClarification === 'now_own' && (
+                    <View style={styles.infoBox}>
+                      <Text style={styles.infoText}>
+                        You'll be redirected to the property form with the ownership status amended to 'owner'
+                      </Text>
+                      <Button
+                        onPress={() => {
+                          if (propertyId) {
+                            router.push(`/bequeathal/property/entry?propertyId=${propertyId}&updateOwnership=owner`);
+                          }
+                        }}
+                        style={styles.messageButton}
+                      >
+                        Next
+                      </Button>
+                    </View>
+                  )}
+                  
+                  {/* Message for "Not sure" */}
+                  {trustData.remaindermanOwnershipClarification === 'not_sure' && (
+                    <View style={styles.infoBox}>
+                      <Text style={styles.infoText}>
+                        Our team will reach out to help clarify your position
+                      </Text>
+                      {/* TODO: Create admin task for team follow-up on unclear remainder status */}
+                    </View>
+                  )}
+                </>
+              )}
+              
+              {/* 2. Life Tenant's Age (Conditional) - Only show if life tenant is alive */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && (
+                <>
+                  {renderLabelWithHelp(
+                    "Approximately how old is the life tenant? *",
+                    'lifeTenantAge',
+                    "Essential for calculating actuarial value of remainder interest using HMRC tables. Younger life tenant = lower current value of remainder."
+                  )}
+                  {showRemaindermanHelper.lifeTenantAge && (
+                    <Text style={styles.helperText}>
+                      Essential for calculating actuarial value of remainder interest using HMRC tables. Younger life tenant = lower current value of remainder.
+                    </Text>
+                  )}
+                  <View style={{ marginBottom: Spacing.sm }}>
+                    <Input
+                      placeholder="Enter age..."
+                      value={trustData.remaindermanLifeTenantAge > 0 ? trustData.remaindermanLifeTenantAge.toString() : ''}
+                      onChangeText={(value) => {
+                        // Allow empty string
+                        if (value === '') {
+                          updateTrustData('remaindermanLifeTenantAge', 0);
+                          return;
+                        }
+                        
+                        // Only allow numeric input
+                        if (!/^\d+$/.test(value)) {
+                          return; // Don't update if non-numeric
+                        }
+                        
+                        const num = parseInt(value, 10);
+                        
+                        // Allow typing any number while typing (0-999), validation happens on blur
+                        // This allows user to type "1", "12", "123" etc. while typing
+                        if (!isNaN(num) && num >= 0 && num <= 999) {
+                          updateTrustData('remaindermanLifeTenantAge', num);
+                        }
+                      }}
+                      onBlur={() => {
+                        // Validate on blur - clamp to valid range
+                        const age = trustData.remaindermanLifeTenantAge;
+                        if (age > 0 && age < 18) {
+                          updateTrustData('remaindermanLifeTenantAge', 0); // Clear if too low
+                        } else if (age > 110) {
+                          updateTrustData('remaindermanLifeTenantAge', 110); // Clamp to max
+                        }
+                      }}
+                      type="number"
+                      rightIcon=""
+                      style={{ marginTop: 0, marginVertical: 0 }}
+                    />
+                  </View>
+                </>
+              )}
+              
+              {/* 3. Property Transfer Date - Only show if life tenant is alive */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && (
+                <>
+                  {renderLabelWithHelp(
+                "Approximately when was this property transferred into the trust? *",
+                'transferDate',
+                "Determines if transfer was within 7 years. If settlor dies within 7 years, remainder beneficiaries may face IHT liability on failed PET."
+              )}
+              {showRemaindermanHelper.transferDate && (
+                <Text style={styles.helperText}>
+                  Determines if transfer was within 7 years. If settlor dies within 7 years, remainder beneficiaries may face IHT liability on failed PET.
+                </Text>
+              )}
+              <View style={styles.dateRow}>
+                <View style={styles.dateField}>
+                  <Select
+                    placeholder="Month..."
+                    value={trustData.remaindermanTransferMonth}
+                    options={[
+                      { label: 'January', value: '01' },
+                      { label: 'February', value: '02' },
+                      { label: 'March', value: '03' },
+                      { label: 'April', value: '04' },
+                      { label: 'May', value: '05' },
+                      { label: 'June', value: '06' },
+                      { label: 'July', value: '07' },
+                      { label: 'August', value: '08' },
+                      { label: 'September', value: '09' },
+                      { label: 'October', value: '10' },
+                      { label: 'November', value: '11' },
+                      { label: 'December', value: '12' },
+                    ]}
+                    onChange={(value) => updateTrustData('remaindermanTransferMonth', value)}
+                  />
+                </View>
+                <View style={styles.dateField}>
+                  <Select
+                    placeholder="Year..."
+                    value={trustData.remaindermanTransferYear}
+                    options={Array.from({ length: 100 }, (_, i) => {
+                      const year = new Date().getFullYear() - i;
+                      return { label: year.toString(), value: year.toString() };
+                    })}
+                    onChange={(value) => updateTrustData('remaindermanTransferYear', value)}
+                  />
+                </View>
+              </View>
+                </>
+              )}
+              
+              {/* 4. Transfer Value (Conditional) - Only show if life tenant is alive */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && isWithin7Years && trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear && (
+                <>
+                  {renderLabelWithHelp(
+                    "Approximately what was the property value when transferred into trust? *",
+                    'transferValue',
+                    "Failed PET calculations use original transfer value, not current value. Needed for taper relief calculations."
+                  )}
+                  {showRemaindermanHelper.transferValue && (
+                    <Text style={styles.helperText}>
+                      Failed PET calculations use original transfer value, not current value. Needed for taper relief calculations.
+                    </Text>
+                  )}
+                  <CurrencyInput
+                    placeholder="Enter value..."
+                    value={trustData.remaindermanTransferValue}
+                    onValueChange={(value) => updateTrustData('remaindermanTransferValue', value)}
+                  />
+                </>
+              )}
+              
+              {/* 5. Settlor Status (Conditional) - Only show if life tenant is alive */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && isWithin7Years && trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear && (
+                <>
+                  <View>
+                    {renderLabelWithHelp(
+                      "Is the person who created this trust still alive? *",
+                      'settlorStatus',
+                      "If settlor has died within 7 years, immediate IHT liability check needed. If alive, calculate potential future liability."
+                    )}
+                    {showRemaindermanHelper.settlorStatus && (
+                      <Text style={styles.helperText}>
+                        If settlor has died within 7 years, immediate IHT liability check needed. If alive, calculate potential future liability.
+                      </Text>
+                    )}
+                    <RadioGroup
+                      value={trustData.remaindermanSettlorAlive}
+                      options={[
+                        { label: 'Yes, still alive', value: 'yes' },
+                        { label: 'No, has passed away', value: 'no' },
+                        { label: 'Not sure who created it', value: 'not_sure' },
+                      ]}
+                      onChange={(value) => updateTrustData('remaindermanSettlorAlive', value)}
+                    />
+                  </View>
+                </>
+              )}
+              
+              {/* 6. Succession Planning - Only show if life tenant is alive */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && (
+                <>
+                  {renderLabelWithHelp(
+                "Who will you leave your remainder interest to? *",
+                'succession',
+                "Your remainder interest is a valuable asset that can be left to anyone in your will. If you die before the life tenant, your chosen beneficiaries will inherit this future right to receive the property."
+              )}
+              {showRemaindermanHelper.succession && (
+                <Text style={styles.helperText}>
+                  Your remainder interest is a valuable asset that can be left to anyone in your will. If you die before the life tenant, your chosen beneficiaries will inherit this future right to receive the property.
+                </Text>
+              )}
+              <MultiBeneficiarySelector
+                mode="single"
+                value={(() => {
+                  if (!trustData.remaindermanSuccessionBeneficiary) {
+                    return { id: '', type: 'person' as const, name: '' };
+                  }
+                  const id = trustData.remaindermanSuccessionBeneficiary;
+                  if (id === 'estate') {
+                    return { id: 'estate', type: 'estate' as const, name: 'The Estate' };
+                  }
+                  const person = personActions.getPersonById(id);
+                  if (person) {
+                    return {
+                      id: person.id,
+                      type: 'person' as const,
+                      name: `${person.firstName} ${person.lastName}`.trim(),
+                    };
+                  }
+                  return { id: '', type: 'person' as const, name: '' };
+                })()}
+                onChange={(selection) => {
+                  if (selection && !Array.isArray(selection)) {
+                    updateTrustData('remaindermanSuccessionBeneficiary', selection.id);
+                  } else if (!selection) {
+                    updateTrustData('remaindermanSuccessionBeneficiary', '');
+                  }
+                }}
+                allowEstate={true}
+                allowGroups={false}
+                excludePersonIds={[]} // TODO: Exclude current user ID when available
+                personActions={personActions}
+                beneficiaryGroupActions={beneficiaryGroupActions}
+                placeholder="Select beneficiary..."
+              />
+                </>
+              )}
+              
+              {/* 7. Educational Notice - Only show if life tenant is alive */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && (
+                <View style={styles.infoBox}>
+                <Text style={styles.infoText}>
+                  <Text style={styles.infoTitle}>Important: </Text>
+                  Your remainder interest is a real asset with current value. It increases in value as the life tenant ages and can be sold, gifted, or passed through your will.
+                </Text>
+              </View>
+              )}
+            </>
+          );
+        })()}
       </View>
     );
   };
 
-  const renderBareSettlorFieldset = () => (
-    <View style={styles.fieldsetContent}>
-      <Text style={styles.helperText}>
-        The bare trust beneficiaries own the property absolutely. This property will not be a part of your estate for inheritance tax purposes, unless you die within 7 years of creating the trust. These details help with "7-year rule" calculations.
-      </Text>
+  const renderBareSettlorFieldset = () => {
+    // Calculate if transfer was less than 7 years ago
+    const isLessThan7Years = (() => {
+      if (!trustData.creationMonth || !trustData.creationYear) return false;
+      
+      const transferDate = new Date(
+        parseInt(trustData.creationYear),
+        parseInt(trustData.creationMonth) - 1
+      );
+      const now = new Date();
+      const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+      return yearsDiff < 7;
+    })();
 
-      {/* Trust Creation Date */}
-      <Text style={styles.fieldLabel}>Trust Creation Date *</Text>
-      {!trustData.bareSettlorDateUnknown && (
+    return (
+      <View style={styles.fieldsetContent}>
+        <Text style={styles.helperText}>
+          The bare trust beneficiaries own the property absolutely. This property will not be a part of your estate for inheritance tax purposes, unless you die within 7 years of creating the trust.
+        </Text>
+
+        {/* When did you transfer this property into Trust? */}
+        <Text style={styles.fieldLabel}>When did you transfer this property into Trust? *</Text>
         <View style={styles.dateRow}>
           <View style={styles.dateField}>
             <Select
@@ -763,7 +1350,6 @@ export default function PropertyTrustDetailsScreen() {
                 { label: 'December', value: '12' },
               ]}
               onChange={(value) => updateTrustData('creationMonth', value)}
-              disabled={trustData.bareSettlorDateUnknown}
             />
           </View>
           <View style={styles.dateField}>
@@ -775,63 +1361,36 @@ export default function PropertyTrustDetailsScreen() {
                 return { label: year.toString(), value: year.toString() };
               })}
               onChange={(value) => updateTrustData('creationYear', value)}
-              disabled={trustData.bareSettlorDateUnknown}
             />
           </View>
         </View>
-      )}
 
-      {/* "I don't know" checkbox for date - always enabled */}
-      <Checkbox
-        label="I don't know these details"
-        checked={trustData.bareSettlorDateUnknown}
-        onCheckedChange={(value) => {
-          updateTrustData('bareSettlorDateUnknown', value);
-          if (value) {
-            // Clear fields when checked
-            updateTrustData('creationMonth', '');
-            updateTrustData('creationYear', '');
-          }
-        }}
-      />
+        {/* IF <7 years: Show value input */}
+        {isLessThan7Years && trustData.creationMonth && trustData.creationYear && (
+          <>
+            <Text style={styles.fieldLabel}>Value when transferred? *</Text>
+            <CurrencyInput
+              placeholder="Enter value..."
+              value={trustData.bareValueAtTransfer}
+              onValueChange={(value) => updateTrustData('bareValueAtTransfer', value)}
+            />
+            <Text style={styles.helperText}>
+              This affects IHT if you die within 7 years
+            </Text>
+          </>
+        )}
 
-      <Text style={styles.fieldLabel}>Property value when transferred *</Text>
-      {!trustData.bareSettlorValueUnknown && (
-        <CurrencyInput
-          placeholder="Enter value at transfer..."
-          value={trustData.bareValueAtTransfer}
-          onValueChange={(value) => updateTrustData('bareValueAtTransfer', value)}
-        />
-      )}
-
-      {/* "I don't know" checkbox for value - disabled when value > 0 */}
-      <Checkbox
-        label="I don't know these details"
-        checked={trustData.bareSettlorValueUnknown}
-        onCheckedChange={(value) => {
-          updateTrustData('bareSettlorValueUnknown', value);
-          if (value) {
-            // Clear value when checked
-            updateTrustData('bareValueAtTransfer', 0);
-          }
-        }}
-        disabled={trustData.bareValueAtTransfer > 0}
-      />
-
-      {/* Beneficiaries */}
-      <Text style={styles.fieldLabel}>Beneficiaries *</Text>
-      <BeneficiaryWithPercentages
-        allocationMode="percentage"
-        value={bareBeneficiaries}
-        onChange={setBareBeneficiaries}
-        personActions={personActions}
-        beneficiaryGroupActions={beneficiaryGroupActions}
-        label="Bare Trust Beneficiaries"
-        onAddNewPerson={() => alert('Add person functionality to be implemented')}
-        onAddNewGroup={() => alert('Add group functionality to be implemented')}
-      />
-    </View>
-  );
+        {/* IF >7 years: Show success message */}
+        {!isLessThan7Years && trustData.creationMonth && trustData.creationYear && (
+          <View style={styles.successBox}>
+            <Text style={styles.successText}>
+              ✓ Transfer fully exempt - no IHT impact
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderBareBeneficiaryFieldset = () => {
     const percentageUnknown = trustData.bareBeneficiaryPercentageUnknown;
@@ -1390,8 +1949,9 @@ export default function PropertyTrustDetailsScreen() {
       return false;
     }
 
-    // Life Interest Settlor validation
-    if (trustData.trustType === 'life_interest' && trustData.trustRole === 'settlor') {
+    // Life Interest Settlor validation (also applies to settlor_and_beneficial_interest)
+    if (trustData.trustType === 'life_interest' && 
+        (trustData.trustRole === 'settlor' || trustData.trustRole === 'settlor_and_beneficial_interest')) {
       const hasOccupationBenefit = trustData.reservedBenefit.includes('occupy');
       
       // Date: Either "I don't know" is checked OR date fields are filled
@@ -1411,7 +1971,90 @@ export default function PropertyTrustDetailsScreen() {
       );
     }
 
-    // Life Interest Beneficiary validation
+    // Life Interest Beneficiary validation (life_interest role) - New Spec
+    if (trustData.trustType === 'life_interest' && trustData.trustRole === 'life_interest') {
+      // Required base fields
+      if (!trustData.lifeInterestTrustCreationDate || !trustData.lifeInterestSpouseSuccession || !trustData.lifeInterestSharing) {
+        return false;
+      }
+      
+      // IPDI check required if post-2006
+      if (trustData.lifeInterestTrustCreationDate === 'on_or_after_2006') {
+        if (!trustData.lifeInterestIsIPDI || (trustData.lifeInterestIsIPDI !== 'yes' && trustData.lifeInterestIsIPDI !== 'no')) {
+          return false; // Must answer IPDI question
+        }
+      }
+      
+      // Conditional fields based on sharing type
+      if (trustData.lifeInterestSharing === 'shared_equally') {
+        if (trustData.lifeInterestEqualSharingCount < 2) return false;
+      } else if (trustData.lifeInterestSharing === 'shared_unequally') {
+        if (trustData.lifeInterestUnequalSharingPercentage <= 0 || trustData.lifeInterestUnequalSharingPercentage >= 100) return false;
+      } else if (trustData.lifeInterestSharing === 'successive') {
+        if (!trustData.lifeInterestSuccessiveCurrentTenant || !trustData.lifeInterestSuccessiveCurrentStatus) return false;
+      }
+      
+      return true;
+    }
+
+    // Remainderman validation - New Spec
+    if (trustData.trustType === 'life_interest' && trustData.trustRole === 'remainderman') {
+      // Life tenant status is required
+      if (!trustData.remaindermanLifeTenantAlive) {
+        return false;
+      }
+      
+      // If life tenant has passed away, ownership clarification is required
+      if (trustData.remaindermanLifeTenantAlive === 'no') {
+        return trustData.remaindermanOwnershipClarification !== '';
+      }
+      
+      // If life tenant is alive, require:
+      // - Life tenant age
+      // - Transfer date (month and year)
+      // - Succession beneficiary
+      if (trustData.remaindermanLifeTenantAlive === 'yes') {
+        if (!trustData.remaindermanLifeTenantAge || trustData.remaindermanLifeTenantAge < 18) {
+          return false;
+        }
+        if (!trustData.remaindermanTransferMonth || !trustData.remaindermanTransferYear) {
+          return false;
+        }
+        if (!trustData.remaindermanSuccessionBeneficiary) {
+          return false;
+        }
+        
+        // If transfer was within 7 years, also require transfer value and settlor status
+        const isWithin7Years = (() => {
+          if (!trustData.remaindermanTransferMonth || !trustData.remaindermanTransferYear) return false;
+          const transferDate = new Date(
+            parseInt(trustData.remaindermanTransferYear),
+            parseInt(trustData.remaindermanTransferMonth) - 1
+          );
+          const now = new Date();
+          const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+          return yearsDiff < 7;
+        })();
+        
+        if (isWithin7Years) {
+          if (trustData.remaindermanTransferValue <= 0) {
+            return false;
+          }
+          if (!trustData.remaindermanSettlorAlive) {
+            return false;
+          }
+        }
+      }
+      
+      // If "not sure" about life tenant status, still allow save (they've indicated uncertainty)
+      if (trustData.remaindermanLifeTenantAlive === 'not_sure') {
+        return true;
+      }
+      
+      return true;
+    }
+
+    // Legacy: Life Interest Beneficiary validation (for backwards compatibility)
     if (trustData.trustType === 'life_interest' && trustData.trustRole === 'beneficiary') {
       if (!trustData.benefitType) return false;
       
@@ -1436,19 +2079,29 @@ export default function PropertyTrustDetailsScreen() {
 
     // Bare Trust Settlor validation
     if (trustData.trustType === 'bare' && trustData.trustRole === 'settlor') {
-      // Date: Either "I don't know" is checked OR date fields are filled
-      const hasDateUnknown = trustData.bareSettlorDateUnknown;
+      // Date is required
       const hasDate = trustData.creationMonth && trustData.creationYear;
+      if (!hasDate) return false;
       
-      // Value: Either "I don't know" is checked OR value is > 0
-      const hasValueUnknown = trustData.bareSettlorValueUnknown;
-      const hasValue = trustData.bareValueAtTransfer > 0;
+      // Calculate if <7 years
+      const isLessThan7Years = (() => {
+        if (!trustData.creationMonth || !trustData.creationYear) return false;
+        const transferDate = new Date(
+          parseInt(trustData.creationYear),
+          parseInt(trustData.creationMonth) - 1
+        );
+        const now = new Date();
+        const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+        return yearsDiff < 7;
+      })();
       
-      return (
-        (hasDateUnknown || hasDate) &&
-        (hasValueUnknown || hasValue) &&
-        bareBeneficiaries.length > 0
-      );
+      // If <7 years, value is required
+      if (isLessThan7Years) {
+        return trustData.bareValueAtTransfer > 0;
+      }
+      
+      // If >=7 years, no value required (shows success message)
+      return true;
     }
 
     // Bare Trust Beneficiary validation (all optional)
@@ -1542,8 +2195,27 @@ export default function PropertyTrustDetailsScreen() {
       'discretionary': 'discretionary_trust',
     };
     
+    // Helper to determine if role is settlor
+    const isSettlorRole = () => {
+      if (trustData.trustType === 'life_interest') {
+        return trustData.trustRole === 'settlor' || trustData.trustRole === 'settlor_and_beneficial_interest';
+      }
+      return trustData.trustRole.includes('settlor');
+    };
+    
+    // Helper to determine if role is beneficiary
+    const isBeneficiaryRole = () => {
+      if (trustData.trustType === 'life_interest') {
+        return trustData.trustRole === 'life_interest' || 
+               trustData.trustRole === 'remainderman' || 
+               trustData.trustRole === 'settlor_and_beneficial_interest' ||
+               trustData.trustRole === 'beneficiary'; // Legacy
+      }
+      return trustData.trustRole.includes('beneficiary');
+    };
+    
     // Determine settlor data
-    const settlor = trustData.trustRole.includes('settlor') ? {
+    const settlor = isSettlorRole() ? {
       reservedBenefit: (trustData.reservedBenefit ? (trustData.reservedBenefit === 'none' ? 'none' : 'yes') : 'none') as 'yes' | 'none',
       benefitDescription: trustData.reservedBenefit && trustData.reservedBenefit !== 'none' ? trustData.reservedBenefit : undefined,
       beneficiaries: bareBeneficiaries.map(b => ({
@@ -1556,12 +2228,12 @@ export default function PropertyTrustDetailsScreen() {
     } : undefined;
     
     // Determine beneficiary data
-    const beneficiary = trustData.trustRole.includes('beneficiary') ? {
+    const beneficiary = isBeneficiaryRole() ? {
       entitlementType: trustData.interestType as 'right_to_income' | 'right_to_use' | 'both' | 'other' | undefined,
       rightOfOccupation: trustData.currentlyLiveInProperty === 'yes',
       benefitDescription: '',
-      isSettlorOfThisTrust: trustData.trustRole === 'settlor_and_beneficiary' ? 'yes' as const : 'no' as const,
-      spouseExcludedFromBenefit: trustData.trustRole === 'settlor_and_beneficiary' 
+      isSettlorOfThisTrust: (trustData.trustRole === 'settlor_and_beneficiary' || trustData.trustRole === 'settlor_and_beneficial_interest') ? 'yes' as const : 'no' as const,
+      spouseExcludedFromBenefit: (trustData.trustRole === 'settlor_and_beneficiary' || trustData.trustRole === 'settlor_and_beneficial_interest')
         ? (trustData.trustType === 'bare' 
           ? trustData.spouseExcludedFromBenefit as 'yes' | 'no' | 'not_sure' | undefined
           : trustData.discretionarySettlorAndBeneficiarySpouseExcluded as 'yes' | 'no' | 'not_sure' | undefined)
@@ -1580,8 +2252,8 @@ export default function PropertyTrustDetailsScreen() {
         type: trustTypeMap[trustData.trustType] || 'bare_trust',
         creationMonth: trustData.creationMonth || '',
         creationYear: trustData.creationYear || '',
-        isUserSettlor: trustData.trustRole.includes('settlor'),
-        isUserBeneficiary: trustData.trustRole.includes('beneficiary'),
+        isUserSettlor: isSettlorRole(),
+        isUserBeneficiary: isBeneficiaryRole(),
         isUserTrustee: false,
         assetIds: [], // Empty in sandbox - trust exists but not linked to property
         createdInContext: 'other', // Mark as sandbox/test
@@ -1817,7 +2489,7 @@ const styles = StyleSheet.create({
     borderColor: KindlingColors.beige,
   },
   fieldsetContent: {
-    gap: Spacing.md,
+    gap: 0, // No gap - RadioGroup's marginVertical provides spacing
   },
   placeholderText: {
     fontSize: Typography.fontSize.md,
@@ -1854,6 +2526,19 @@ const styles = StyleSheet.create({
     color: '#856404',
     lineHeight: 20,
   },
+  successBox: {
+    backgroundColor: '#D4EDDA',
+    padding: Spacing.md,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: KindlingColors.green,
+  },
+  successText: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: '#155724',
+    lineHeight: 20,
+  },
   infoBox: {
     backgroundColor: `${KindlingColors.beige}33`,
     padding: Spacing.md,
@@ -1865,6 +2550,64 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.brown,
     lineHeight: 20,
+  },
+  infoTitle: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.brown,
+  },
+  messageButton: {
+    marginTop: Spacing.md,
+  },
+  explainerBox: {
+    backgroundColor: `${KindlingColors.green}10`, // Light green background
+    padding: Spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: KindlingColors.green,
+    marginTop: Spacing.md,
+  },
+  explainerText: {
+    fontSize: Typography.fontSize.md,
+    color: KindlingColors.navy,
+    lineHeight: 22,
+  },
+  explainerLabel: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+  },
+  explainerSpacer: {
+    height: Spacing.sm,
+  },
+  labelWithHelpContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+    width: '100%',
+  },
+  fieldLabelInRow: {
+    flex: 1,
+    flexShrink: 1,
+    // Allow text to wrap to multiple lines without being clipped when siblings change size
+    flexBasis: 0,
+    minWidth: 0,
+    lineHeight: 22,
+    marginBottom: 0,
+  },
+  helpIconButton: {
+    marginLeft: Spacing.xs,
+    marginTop: 2,
+    flexShrink: 0,
+  },
+  helpIcon: {
+    margin: 0,
+  },
+  suffixText: {
+    fontSize: Typography.fontSize.md,
+    color: KindlingColors.navy,
+    marginTop: -Spacing.md,
+    marginBottom: Spacing.sm,
   },
   dateRow: {
     flexDirection: 'row',
