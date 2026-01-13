@@ -78,6 +78,8 @@ interface TrustData {
   remaindermanTransferMonth: string;
   remaindermanTransferYear: string;
   remaindermanTransferValue: number;
+  remaindermanTransferDateUnsure: boolean; // User is unsure about transfer date
+  remaindermanTransferValueUnsure: boolean; // User is unsure about transfer value
   remaindermanSettlorAlive: string; // 'yes' | 'no' | 'not_sure' | ''
   remaindermanSuccessionBeneficiary: string; // Person/group/estate ID for succession planning
   // Legacy fields (kept for backwards compatibility)
@@ -174,6 +176,8 @@ export default function PropertyTrustDetailsScreen() {
     remaindermanTransferMonth: '',
     remaindermanTransferYear: '',
     remaindermanTransferValue: 0,
+    remaindermanTransferDateUnsure: false,
+    remaindermanTransferValueUnsure: false,
     remaindermanSettlorAlive: '',
     remaindermanSuccessionBeneficiary: '',
     // Legacy fields (kept for backwards compatibility)
@@ -329,6 +333,8 @@ export default function PropertyTrustDetailsScreen() {
       remaindermanTransferMonth: '',
       remaindermanTransferYear: '',
       remaindermanTransferValue: 0,
+      remaindermanTransferDateUnsure: trust.remaindermanTransferDateUnsure || false,
+      remaindermanTransferValueUnsure: trust.remaindermanTransferValueUnsure || false,
       remaindermanSettlorAlive: '',
       remaindermanSuccessionBeneficiary: '',
       // Legacy fields (kept for backwards compatibility)
@@ -1177,6 +1183,7 @@ export default function PropertyTrustDetailsScreen() {
                       { label: 'December', value: '12' },
                     ]}
                     onChange={(value) => updateTrustData('remaindermanTransferMonth', value)}
+                    disabled={trustData.remaindermanTransferDateUnsure}
                   />
                 </View>
                 <View style={styles.dateField}>
@@ -1188,14 +1195,27 @@ export default function PropertyTrustDetailsScreen() {
                       return { label: year.toString(), value: year.toString() };
                     })}
                     onChange={(value) => updateTrustData('remaindermanTransferYear', value)}
+                    disabled={trustData.remaindermanTransferDateUnsure}
                   />
                 </View>
               </View>
+              <Checkbox
+                label="Unsure"
+                checked={trustData.remaindermanTransferDateUnsure}
+                onCheckedChange={(value) => {
+                  updateTrustData('remaindermanTransferDateUnsure', value);
+                  // Clear month/year when unsure is checked
+                  if (value) {
+                    updateTrustData('remaindermanTransferMonth', '');
+                    updateTrustData('remaindermanTransferYear', '');
+                  }
+                }}
+              />
                 </>
               )}
               
-              {/* 4. Transfer Value (Conditional) - Only show if life tenant is alive */}
-              {trustData.remaindermanLifeTenantAlive === 'yes' && isWithin7Years && trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear && (
+              {/* 4. Transfer Value (Conditional) - Only show if life tenant is alive and date is not unsure and within 7 years */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && !trustData.remaindermanTransferDateUnsure && isWithin7Years && trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear && (
                 <>
                   {renderLabelWithHelp(
                     "Approximately what was the property value when transferred into trust? *",
@@ -1211,12 +1231,24 @@ export default function PropertyTrustDetailsScreen() {
                     placeholder="Enter value..."
                     value={trustData.remaindermanTransferValue}
                     onValueChange={(value) => updateTrustData('remaindermanTransferValue', value)}
+                    disabled={trustData.remaindermanTransferValueUnsure}
+                  />
+                  <Checkbox
+                    label="Unsure"
+                    checked={trustData.remaindermanTransferValueUnsure}
+                    onCheckedChange={(value) => {
+                      updateTrustData('remaindermanTransferValueUnsure', value);
+                      // Clear value when unsure is checked
+                      if (value) {
+                        updateTrustData('remaindermanTransferValue', 0);
+                      }
+                    }}
                   />
                 </>
               )}
               
-              {/* 5. Settlor Status (Conditional) - Only show if life tenant is alive */}
-              {trustData.remaindermanLifeTenantAlive === 'yes' && isWithin7Years && trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear && (
+              {/* 5. Settlor Status (Conditional) - Only show if life tenant is alive and (transfer date is unsure OR within 7 years) */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && (trustData.remaindermanTransferDateUnsure || (isWithin7Years && trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear)) && (
                 <>
                   <View>
                     {renderLabelWithHelp(
@@ -2017,14 +2049,19 @@ export default function PropertyTrustDetailsScreen() {
         if (!trustData.remaindermanLifeTenantAge || trustData.remaindermanLifeTenantAge < 18) {
           return false;
         }
-        if (!trustData.remaindermanTransferMonth || !trustData.remaindermanTransferYear) {
-          return false;
+        
+        // Transfer date validation - not required if unsure
+        if (!trustData.remaindermanTransferDateUnsure) {
+          if (!trustData.remaindermanTransferMonth || !trustData.remaindermanTransferYear) {
+            return false;
+          }
         }
+        
         if (!trustData.remaindermanSuccessionBeneficiary) {
           return false;
         }
         
-        // If transfer was within 7 years, also require transfer value and settlor status
+        // Calculate if within 7 years (only if date is provided)
         const isWithin7Years = (() => {
           if (!trustData.remaindermanTransferMonth || !trustData.remaindermanTransferYear) return false;
           const transferDate = new Date(
@@ -2036,11 +2073,16 @@ export default function PropertyTrustDetailsScreen() {
           return yearsDiff < 7;
         })();
         
-        if (isWithin7Years) {
+        // Settlor status - required if transfer date is unsure OR if within 7 years
+        const showSettlorStatus = trustData.remaindermanTransferDateUnsure || 
+          (trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear && isWithin7Years);
+        if (showSettlorStatus && !trustData.remaindermanSettlorAlive) {
+          return false;
+        }
+        
+        // Transfer value - only required if not unsure and within 7 years
+        if (!trustData.remaindermanTransferValueUnsure && isWithin7Years) {
           if (trustData.remaindermanTransferValue <= 0) {
-            return false;
-          }
-          if (!trustData.remaindermanSettlorAlive) {
             return false;
           }
         }

@@ -925,6 +925,10 @@ export interface Trust {
   // Asset References
   assetIds: string[]; // Array of asset IDs held in this trust
   
+  // Remainderman-specific fields (for life interest trusts)
+  remaindermanTransferDateUnsure?: boolean; // User is unsure about transfer date
+  remaindermanTransferValueUnsure?: boolean; // User is unsure about transfer value
+  
   // Metadata
   createdAt: Date;
   updatedAt: Date;
