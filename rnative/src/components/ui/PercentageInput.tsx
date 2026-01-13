@@ -96,7 +96,7 @@ export const PercentageInput: React.FC<PercentageInputProps> = ({
       value={displayValue}
       onChangeText={handleChange}
       type="number"
-      rightIcon="percent"
+      rightIcon={props.rightIcon === "" ? undefined : (props.rightIcon || "percent")}
       placeholder="0"
       error={error || props.error}
       errorMessage={error ? `Value must be between ${min} and ${max}` : props.errorMessage}

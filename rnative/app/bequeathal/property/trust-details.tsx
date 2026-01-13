@@ -70,6 +70,17 @@ interface TrustData {
   bareSettlorDateUnknown: boolean;
   bareSettlorValueUnknown: boolean;
   
+  // Bare Trust Beneficiary fields
+  bareBeneficiaryPercentage: number;
+  bareBeneficiaryPercentageUnknown: boolean;
+  bareBeneficiaryShareWithOthers: string; // 'yes' | 'no' | ''
+  bareBeneficiaryNumberOfOthers: string; // 'unknown' | '1' | '2' | ... | '30' | ''
+  bareBeneficiaryEstimatedPercentage: number; // Calculated
+  bareBeneficiaryTotalUnknownBeneficiaries: number; // Calculated: 1 + numberOfOthers
+  bareBeneficiaryGiftedByLivingSettlor: string; // 'yes_less_than_7' | 'yes_more_than_7' | 'no_not_sure' | ''
+  bareBeneficiaryGiftMonth: string;
+  bareBeneficiaryGiftYear: string;
+  
   // Bare Trust Settlor & Beneficiary fields
   currentlyLiveInProperty: string;
   bareValueAtTransfer: number;
@@ -134,6 +145,16 @@ export default function PropertyTrustDetailsScreen() {
     // Bare Trust Settlor
     bareSettlorDateUnknown: false,
     bareSettlorValueUnknown: false,
+    // Bare Trust Beneficiary
+    bareBeneficiaryPercentage: 0,
+    bareBeneficiaryPercentageUnknown: false,
+    bareBeneficiaryShareWithOthers: '',
+    bareBeneficiaryNumberOfOthers: '',
+    bareBeneficiaryEstimatedPercentage: 0,
+    bareBeneficiaryTotalUnknownBeneficiaries: 0,
+    bareBeneficiaryGiftedByLivingSettlor: '',
+    bareBeneficiaryGiftMonth: '',
+    bareBeneficiaryGiftYear: '',
     // Bare Trust Settlor & Beneficiary
     currentlyLiveInProperty: '',
     bareValueAtTransfer: 0,
@@ -232,6 +253,17 @@ export default function PropertyTrustDetailsScreen() {
       knownContingencies: '',
       bareSettlorDateUnknown: false,
       bareSettlorValueUnknown: false,
+      // Bare Trust Beneficiary
+      bareBeneficiaryPercentage: 0,
+      bareBeneficiaryPercentageUnknown: false,
+      bareBeneficiaryShareWithOthers: '',
+      bareBeneficiaryNumberOfOthers: '',
+      bareBeneficiaryEstimatedPercentage: 0,
+      bareBeneficiaryTotalUnknownBeneficiaries: 0,
+      bareBeneficiaryGiftedByLivingSettlor: '',
+      bareBeneficiaryGiftMonth: '',
+      bareBeneficiaryGiftYear: '',
+      // Bare Trust Settlor & Beneficiary
       currentlyLiveInProperty: trust.beneficiary?.rightOfOccupation ? 'yes' : '',
       bareValueAtTransfer: 0,
       bareSettlorAndBeneficiaryValueUnknown: false,
@@ -481,13 +513,6 @@ export default function PropertyTrustDetailsScreen() {
           </Text>
         )}
 
-        {/* TODO: Trustees (PersonSelector multi) - Phase 10 integration */}
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            ℹ️ Trustees: PersonSelector integration pending (Phase 10)
-          </Text>
-        </View>
-
         {/* TODO: Life Interest Beneficiaries (PersonSelector with metadata) - Phase 10 integration */}
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
@@ -703,12 +728,6 @@ export default function PropertyTrustDetailsScreen() {
               </Text>
             </View>
 
-            {/* TODO: Trustees PersonSelector - Phase 10 integration */}
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                ℹ️ Trustees: PersonSelector integration pending
-              </Text>
-            </View>
           </>
         )}
       </View>
@@ -814,36 +833,209 @@ export default function PropertyTrustDetailsScreen() {
     </View>
   );
 
-  const renderBareBeneficiaryFieldset = () => (
-    <View style={styles.fieldsetContent}>
-      <Text style={styles.helperText}>
-        Bare trust beneficiaries own the property absolutely. As a beneficiary, you have absolute ownership.
-      </Text>
+  const renderBareBeneficiaryFieldset = () => {
+    const percentageUnknown = trustData.bareBeneficiaryPercentageUnknown;
+    const shareWithOthers = trustData.bareBeneficiaryShareWithOthers === 'yes';
+    const numberOfOthers = trustData.bareBeneficiaryNumberOfOthers;
+    const isGiftedLessThan7Years = trustData.bareBeneficiaryGiftedByLivingSettlor === 'yes_less_than_7';
+    
+    // Calculate estimated percentage when sharing with others
+    const calculateEstimatedPercentage = () => {
+      if (!shareWithOthers || !numberOfOthers || numberOfOthers === 'unknown') {
+        return 0;
+      }
+      const numOthers = parseInt(numberOfOthers, 10);
+      if (isNaN(numOthers) || numOthers < 1 || numOthers > 30) {
+        return 0;
+      }
+      const totalPeople = 1 + numOthers; // User + others
+      return Math.round((100 / totalPeople) * 100) / 100; // Round to 2 decimal places
+    };
+    
+    // Calculate total unknown beneficiaries
+    const calculateTotalUnknownBeneficiaries = () => {
+      if (!shareWithOthers || !numberOfOthers || numberOfOthers === 'unknown') {
+        return 1; // Just the user
+      }
+      const numOthers = parseInt(numberOfOthers, 10);
+      if (isNaN(numOthers) || numOthers < 1 || numOthers > 30) {
+        return 1;
+      }
+      return 1 + numOthers; // User + others
+    };
+    
+    // Calculate values for display
+    const estimatedPercentage = calculateEstimatedPercentage();
+    const totalUnknownBeneficiaries = calculateTotalUnknownBeneficiaries();
+    
+    // Handler to update number of others and recalculate
+    const handleNumberOfOthersChange = (value: string) => {
+      updateTrustData('bareBeneficiaryNumberOfOthers', value);
+      
+      // Recalculate and update stored values
+      if (value && value !== 'unknown') {
+        const numOthers = parseInt(value, 10);
+        if (!isNaN(numOthers) && numOthers >= 1 && numOthers <= 30) {
+          const totalPeople = 1 + numOthers;
+          const estimated = Math.round((100 / totalPeople) * 100) / 100;
+          updateTrustData('bareBeneficiaryEstimatedPercentage', estimated);
+          updateTrustData('bareBeneficiaryTotalUnknownBeneficiaries', totalPeople);
+        }
+      } else {
+        updateTrustData('bareBeneficiaryEstimatedPercentage', 0);
+        updateTrustData('bareBeneficiaryTotalUnknownBeneficiaries', 0);
+      }
+    };
+    
+    // Handler to update share with others
+    const handleShareWithOthersChange = (value: string) => {
+      updateTrustData('bareBeneficiaryShareWithOthers', value);
+      if (value !== 'yes') {
+        updateTrustData('bareBeneficiaryNumberOfOthers', '');
+        updateTrustData('bareBeneficiaryEstimatedPercentage', 0);
+        updateTrustData('bareBeneficiaryTotalUnknownBeneficiaries', 0);
+      }
+    };
 
-      {/* Co-beneficiaries (Optional) */}
-      <Text style={styles.fieldLabel}>Co-beneficiaries (Optional)</Text>
-      <Text style={styles.helperText}>
-        Others who share absolute ownership
-      </Text>
-      <BeneficiaryWithPercentages
-        allocationMode="percentage"
-        value={bareCoBeneficiaries}
-        onChange={setBareCoBeneficiaries}
-        personActions={personActions}
-        beneficiaryGroupActions={beneficiaryGroupActions}
-        label="Co-beneficiaries"
-        onAddNewPerson={() => alert('Add person functionality to be implemented')}
-        onAddNewGroup={() => alert('Add group functionality to be implemented')}
-      />
-
-      {/* TODO: Trustees PersonSelector - Phase 10 integration */}
-      <View style={styles.infoBox}>
-        <Text style={styles.infoText}>
-          ℹ️ Trustees: PersonSelector integration pending. For executor information.
+    return (
+      <View style={styles.fieldsetContent}>
+        <Text style={styles.helperText}>
+          Bare trust beneficiaries own the property absolutely. As a beneficiary, you have absolute ownership.
         </Text>
+
+        {/* % of benefit - inline layout */}
+        <View style={styles.inlineFieldRow}>
+          {!percentageUnknown ? (
+            <>
+              <View style={styles.inlineInputContainer}>
+                <PercentageInput
+                  placeholder="0"
+                  value={trustData.bareBeneficiaryPercentage}
+                  onValueChange={(value) => updateTrustData('bareBeneficiaryPercentage', value)}
+                  clearButtonMode="never"
+                  style={styles.inlinePercentageInput}
+                  rightIcon=""
+                  maxLength={3}
+                />
+              </View>
+              <Text style={styles.inlinePercentSymbol}>%</Text>
+              <Text style={styles.inlineLabel}>of benefit</Text>
+            </>
+          ) : (
+            <Text style={styles.inlineLabel}>% of benefit</Text>
+          )}
+        </View>
+        
+        <Checkbox
+          label="Unknown"
+          checked={percentageUnknown}
+          onCheckedChange={(value) => {
+            updateTrustData('bareBeneficiaryPercentageUnknown', value);
+            if (value) {
+              updateTrustData('bareBeneficiaryPercentage', 0);
+            }
+          }}
+        />
+
+        {/* Do you share with others? (only shown when Unknown is checked) */}
+        {percentageUnknown && (
+          <>
+            <RadioGroup
+              label="Do you share with others?"
+              value={trustData.bareBeneficiaryShareWithOthers}
+              onChange={handleShareWithOthersChange}
+              options={[
+                { label: 'Yes', value: 'yes' },
+                { label: 'No', value: 'no' },
+              ]}
+            />
+
+            {/* How many others? (only shown when Yes is selected) */}
+            {shareWithOthers && (
+              <>
+                <Select
+                  label="How many others?"
+                  placeholder="Select number..."
+                  value={numberOfOthers}
+                  options={[
+                    { label: 'Unknown', value: 'unknown' },
+                    ...Array.from({ length: 30 }, (_, i) => ({
+                      label: (i + 1).toString(),
+                      value: (i + 1).toString(),
+                    })),
+                  ]}
+                  onChange={handleNumberOfOthersChange}
+                />
+                
+                {/* Show calculated estimate */}
+                {numberOfOthers && numberOfOthers !== 'unknown' && (
+                  <View style={styles.infoBox}>
+                    <Text style={styles.infoText}>
+                      Estimated: {calculateEstimatedPercentage()}% each (based on {calculateTotalUnknownBeneficiaries()} total beneficiaries)
+                    </Text>
+                  </View>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {/* Was property gifted by living settlor? */}
+        <RadioGroup
+          label="Was property gifted to the bare trust by living settlor?"
+          value={trustData.bareBeneficiaryGiftedByLivingSettlor}
+          onChange={(value) => updateTrustData('bareBeneficiaryGiftedByLivingSettlor', value)}
+          options={[
+            { label: 'Yes - less than 7 years ago', value: 'yes_less_than_7' },
+            { label: 'Yes - more than 7 years ago', value: 'yes_more_than_7' },
+            { label: 'No / Not sure', value: 'no_not_sure' },
+          ]}
+        />
+
+        {/* When roughly? (only shown when "Yes - less than 7 years ago" is selected) */}
+        {isGiftedLessThan7Years && (
+          <>
+            <Text style={styles.fieldLabel}>When roughly?</Text>
+            <View style={styles.dateRow}>
+              <View style={styles.dateField}>
+                <Select
+                  placeholder="Month..."
+                  value={trustData.bareBeneficiaryGiftMonth}
+                  options={[
+                    { label: 'January', value: '01' },
+                    { label: 'February', value: '02' },
+                    { label: 'March', value: '03' },
+                    { label: 'April', value: '04' },
+                    { label: 'May', value: '05' },
+                    { label: 'June', value: '06' },
+                    { label: 'July', value: '07' },
+                    { label: 'August', value: '08' },
+                    { label: 'September', value: '09' },
+                    { label: 'October', value: '10' },
+                    { label: 'November', value: '11' },
+                    { label: 'December', value: '12' },
+                  ]}
+                  onChange={(value) => updateTrustData('bareBeneficiaryGiftMonth', value)}
+                />
+              </View>
+              <View style={styles.dateField}>
+                <Select
+                  placeholder="Year..."
+                  value={trustData.bareBeneficiaryGiftYear}
+                  options={Array.from({ length: 100 }, (_, i) => {
+                    const year = new Date().getFullYear() - i;
+                    return { label: year.toString(), value: year.toString() };
+                  })}
+                  onChange={(value) => updateTrustData('bareBeneficiaryGiftYear', value)}
+                />
+              </View>
+            </View>
+          </>
+        )}
+
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderBareSettlorAndBeneficiaryFieldset = () => {
     const livesInProperty = trustData.currentlyLiveInProperty === 'yes';
@@ -920,12 +1112,6 @@ export default function PropertyTrustDetailsScreen() {
           onAddNewGroup={() => alert('Add group functionality to be implemented')}
         />
 
-        {/* TODO: Trustees PersonSelector - Phase 10 integration */}
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            ℹ️ Trustees: PersonSelector integration pending
-          </Text>
-        </View>
 
         {/* Spouse/Civil Partner Exclusion Question */}
         <RadioGroup
@@ -1686,6 +1872,28 @@ const styles = StyleSheet.create({
   },
   dateField: {
     flex: 1,
+  },
+  inlineFieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  inlineInputContainer: {
+    width: 70, // Width for 3 characters (e.g., "100") with padding
+  },
+  inlinePercentageInput: {
+    marginBottom: 0,
+  },
+  inlinePercentSymbol: {
+    fontSize: Typography.fontSize.md, // Same as input text (16px)
+    fontWeight: Typography.fontWeight.semibold, // Same as RadioGroup label
+    color: KindlingColors.navy,
+  },
+  inlineLabel: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold, // Same as RadioGroup label
+    color: KindlingColors.navy,
   },
   disabledInputContainer: {
     opacity: 0.5,
