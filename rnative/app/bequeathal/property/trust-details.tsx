@@ -487,8 +487,7 @@ export default function PropertyTrustDetailsScreen() {
       case 'life_interest_settlor':
         return renderLifeInterestSettlorFieldset();
       case 'life_interest_settlor_and_beneficial_interest':
-        // Use same fieldset as settlor (handles reserved benefits)
-        return renderLifeInterestSettlorFieldset();
+        return renderLifeInterestSettlorAndBeneficialInterestFieldset();
       case 'life_interest_beneficiary':
         // Legacy case - keep for backwards compatibility
         return renderLifeInterestBeneficiaryFieldset();
@@ -682,6 +681,18 @@ export default function PropertyTrustDetailsScreen() {
             )}
           </>
         )}
+      </View>
+    );
+  };
+
+  // Life Interest Trust → Settlor + A Beneficial Interest Fieldset
+  // TODO: Implement new field specification for Settlor + A Beneficial Interest role
+  const renderLifeInterestSettlorAndBeneficialInterestFieldset = () => {
+    return (
+      <View style={styles.fieldsetContent}>
+        <Text style={styles.helperText}>
+          Life Interest Trust - Settlor + A Beneficial Interest fields will be implemented here.
+        </Text>
       </View>
     );
   };
