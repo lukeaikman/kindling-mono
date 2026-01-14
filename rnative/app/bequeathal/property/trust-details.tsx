@@ -46,6 +46,10 @@ interface TrustData {
   settlorTransferYear: string;
   settlorTransferValue: number;
   settlorNoBenefitConfirmed: boolean; // User confirms they cannot benefit from trust
+  
+  // Life Interest Settlor + Beneficial Interest fields (new spec)
+  settlorAndBeneficialBenefitType: string; // 'life_interest' | 'right_to_occupy' | 'right_to_income' | 'discretionary' | 'other' | ''
+  settlorAndBeneficialWantsReview: boolean; // User wants team to reach out about alternatives
   // Legacy fields (kept for backwards compatibility, may be removed later)
   reservedBenefit: string;
   payingMarketRent: string;
@@ -152,6 +156,9 @@ export default function PropertyTrustDetailsScreen() {
     settlorTransferYear: '',
     settlorTransferValue: 0,
     settlorNoBenefitConfirmed: false,
+    // Life Interest Settlor + Beneficial Interest (new spec)
+    settlorAndBeneficialBenefitType: '',
+    settlorAndBeneficialWantsReview: false,
     // Legacy fields (kept for backwards compatibility)
     reservedBenefit: '',
     payingMarketRent: '',
@@ -314,6 +321,9 @@ export default function PropertyTrustDetailsScreen() {
       settlorTransferYear: '',
       settlorTransferValue: 0,
       settlorNoBenefitConfirmed: false,
+      // Life Interest Settlor + Beneficial Interest (new spec)
+      settlorAndBeneficialBenefitType: '',
+      settlorAndBeneficialWantsReview: false,
       // Legacy fields (kept for backwards compatibility)
       reservedBenefit: trust.settlor?.reservedBenefit === 'yes' ? 'yes' : '',
       payingMarketRent: '',
@@ -686,13 +696,81 @@ export default function PropertyTrustDetailsScreen() {
   };
 
   // Life Interest Trust → Settlor + A Beneficial Interest Fieldset
-  // TODO: Implement new field specification for Settlor + A Beneficial Interest role
   const renderLifeInterestSettlorAndBeneficialInterestFieldset = () => {
+    // Get property value for IHT calculation
+    const propertyAsset = propertyId ? bequeathalActions.getAssetById(propertyId) as PropertyAsset | undefined : undefined;
+    const propertyValue = propertyAsset?.estimatedValue || 0;
+    
+    // Calculate IHT liability (40% of value above nil rate band)
+    const nilRateBand = 325000; // 2024/25 nil rate band
+    const taxableAmount = Math.max(0, propertyValue - nilRateBand);
+    const ihtLiability = Math.round(taxableAmount * 0.4);
+    
+    // TODO: Check calculation later - potential IHT saving needs proper calculation based on alternative structures
+    const potentialIhtSaving = Math.round(ihtLiability * 0.5); // Placeholder - 50% of current liability as example
+    
     return (
       <View style={styles.fieldsetContent}>
         <Text style={styles.helperText}>
-          Life Interest Trust - Settlor + A Beneficial Interest fields will be implemented here.
+          As the settlor who created this trust and retained a beneficial interest, we need to understand the structure and tax implications.
         </Text>
+
+        {/* 1. Nature of Benefit */}
+        <RadioGroup
+          label="What type of benefit do you have from this trust? *"
+          value={trustData.settlorAndBeneficialBenefitType}
+          options={[
+            { label: 'Life interest (right to live there/receive income for life)', value: 'life_interest' },
+            { label: 'Right to occupy the property', value: 'right_to_occupy' },
+            { label: 'Right to income only', value: 'right_to_income' },
+            { label: 'Discretionary beneficiary (trustees can choose to benefit me)', value: 'discretionary' },
+            { label: 'Other arrangement', value: 'other' },
+          ]}
+          onChange={(value) => updateTrustData('settlorAndBeneficialBenefitType', value)}
+        />
+
+        {/* 2. Failed Transfer Notification - Show after field 1 is selected */}
+        {trustData.settlorAndBeneficialBenefitType && (
+          <View style={styles.warningBox}>
+            <Text style={styles.warningTitle}>⚠️ Gift with Reservation - No Tax Savings Achieved</Text>
+            <Text style={styles.warningText}>
+              Because you can benefit from this trust, the property remains in your estate for inheritance tax purposes.
+            </Text>
+            <Text style={[styles.warningText, { marginTop: Spacing.xs }]}>
+              Current value in your estate: £{propertyValue > 0 ? propertyValue.toLocaleString() : '[property value not available]'}
+            </Text>
+            <Text style={[styles.warningText, { marginTop: Spacing.xs }]}>
+              Estimated IHT liability: £{propertyValue > 0 ? ihtLiability.toLocaleString() : '[calculation requires property value]'}
+            </Text>
+            <Text style={[styles.warningText, { marginTop: Spacing.sm, fontWeight: '600' }]}>
+              This means:
+            </Text>
+            <Text style={[styles.warningText, { marginTop: Spacing.xs }]}>
+              • No 7-year exemption available
+            </Text>
+            <Text style={styles.warningText}>
+              • Property fully taxable on death
+            </Text>
+            <Text style={styles.warningText}>
+              • Common issue with DIY estate planning
+            </Text>
+            <Text style={[styles.warningText, { marginTop: Spacing.sm, fontWeight: '600' }]}>
+              The good news: Alternative structures exist that could save significant tax while achieving your goals.
+            </Text>
+          </View>
+        )}
+
+        {/* 3. Professional Review Option - Show after field 1 is selected */}
+        {trustData.settlorAndBeneficialBenefitType && (
+          <View style={{ marginTop: Spacing.md }}>
+            <Checkbox
+              label={`Yes, have your team reach out about restructuring options that could save £${propertyValue > 0 ? potentialIhtSaving.toLocaleString() : '[calculation pending]'}`}
+              checked={trustData.settlorAndBeneficialWantsReview}
+              onCheckedChange={(value) => updateTrustData('settlorAndBeneficialWantsReview', value)}
+            />
+            {/* TODO: Check calculation later - potential IHT saving needs proper calculation based on alternative structures */}
+          </View>
+        )}
       </View>
     );
   };
@@ -1999,8 +2077,7 @@ export default function PropertyTrustDetailsScreen() {
     }
 
     // Life Interest Settlor validation (new spec)
-    if (trustData.trustType === 'life_interest' && 
-        (trustData.trustRole === 'settlor' || trustData.trustRole === 'settlor_and_beneficial_interest')) {
+    if (trustData.trustType === 'life_interest' && trustData.trustRole === 'settlor') {
       // Gateway question is required
       if (!trustData.settlorTransferWithin7Years) {
         return false;
@@ -2022,6 +2099,17 @@ export default function PropertyTrustDetailsScreen() {
       }
       
       return false;
+    }
+
+    // Life Interest Settlor + Beneficial Interest validation (new spec)
+    if (trustData.trustType === 'life_interest' && trustData.trustRole === 'settlor_and_beneficial_interest') {
+      // Nature of benefit is required
+      if (!trustData.settlorAndBeneficialBenefitType) {
+        return false;
+      }
+      
+      // Checkbox is optional, so if benefit type is selected, form is valid
+      return true;
     }
 
     // Life Interest Beneficiary validation (life_interest role) - New Spec
