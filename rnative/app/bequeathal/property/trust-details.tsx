@@ -647,13 +647,11 @@ export default function PropertyTrustDetailsScreen() {
             {/* 4. No Benefit Confirmation */}
             <View style={{ marginTop: Spacing.md }}>
               <Text style={styles.fieldLabel}>Important declaration *</Text>
-              <View style={{ marginTop: Spacing.xs }}>
-                <Checkbox
-                  label="I confirm I cannot benefit from this trust in any way"
-                  checked={trustData.settlorNoBenefitConfirmed}
-                  onCheckedChange={(value) => updateTrustData('settlorNoBenefitConfirmed', value)}
-                />
-              </View>
+              <Checkbox
+                label="I confirm I cannot benefit from this trust in any way"
+                checked={trustData.settlorNoBenefitConfirmed}
+                onCheckedChange={(value) => updateTrustData('settlorNoBenefitConfirmed', value)}
+              />
               {!trustData.settlorNoBenefitConfirmed && (
                 <Text style={[styles.helperText, { marginTop: Spacing.xs }]}>
                   If you have some benefit from this trust, please select the role "Settlor + A Beneficial Interest" above.
