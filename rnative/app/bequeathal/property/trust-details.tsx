@@ -644,15 +644,22 @@ export default function PropertyTrustDetailsScreen() {
             {/* 4. No Benefit Confirmation */}
             <View style={{ marginTop: Spacing.md }}>
               <Text style={styles.fieldLabel}>Important declaration *</Text>
-              <Checkbox
-                label="I confirm I cannot benefit from this trust in any way"
-                checked={trustData.settlorNoBenefitConfirmed}
-                onCheckedChange={(value) => updateTrustData('settlorNoBenefitConfirmed', value)}
-              />
+              <View style={{ marginTop: Spacing.xs }}>
+                <Checkbox
+                  label="I confirm I cannot benefit from this trust in any way"
+                  checked={trustData.settlorNoBenefitConfirmed}
+                  onCheckedChange={(value) => updateTrustData('settlorNoBenefitConfirmed', value)}
+                />
+              </View>
+              {!trustData.settlorNoBenefitConfirmed && (
+                <Text style={[styles.helperText, { marginTop: Spacing.xs }]}>
+                  If you have some benefit from this trust, please select the role "Settlor + A Beneficial Interest" above.
+                </Text>
+              )}
             </View>
 
-            {/* 5. Taper Relief Display */}
-            {taperInfo && taperInfo.taxLiability > 0 && (
+            {/* 5. Taper Relief Display - Only show after confirmation */}
+            {trustData.settlorNoBenefitConfirmed && taperInfo && taperInfo.taxLiability > 0 && (
               <View style={styles.infoBox}>
                 <Text style={styles.infoTitle}>📊 Taper Relief Calculation</Text>
                 <Text style={styles.infoText}>
@@ -664,7 +671,7 @@ export default function PropertyTrustDetailsScreen() {
               </View>
             )}
 
-            {taperInfo && taperInfo.taxLiability === 0 && yearsElapsed < 7 && (
+            {trustData.settlorNoBenefitConfirmed && taperInfo && taperInfo.taxLiability === 0 && yearsElapsed < 7 && (
               <View style={styles.successBox}>
                 <Text style={styles.successTitle}>✅ No immediate tax liability</Text>
                 <Text style={styles.successText}>
