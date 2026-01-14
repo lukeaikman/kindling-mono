@@ -94,7 +94,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginVertical: Spacing.sm,
   },
   checkboxCircle: {
@@ -119,6 +119,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: KindlingColors.navy,
     marginLeft: Spacing.sm,
+    lineHeight: 22,
+    flexWrap: 'wrap',
     flex: 1,
   },
   labelDisabled: {

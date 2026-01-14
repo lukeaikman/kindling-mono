@@ -2558,6 +2558,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
+    lineHeight: 22,
     marginBottom: Spacing.xs,
   },
   warningBox: {
