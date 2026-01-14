@@ -766,7 +766,11 @@ export default function PropertyTrustDetailsScreen() {
             <Checkbox
               label={`Yes, have your team reach out about restructuring options that could save £${propertyValue > 0 ? potentialIhtSaving.toLocaleString() : '[calculation pending]'}`}
               checked={trustData.settlorAndBeneficialWantsReview}
-              onCheckedChange={(value) => updateTrustData('settlorAndBeneficialWantsReview', value)}
+              onCheckedChange={(value) => {
+                updateTrustData('settlorAndBeneficialWantsReview', value);
+                // TODO: If value is true, create backend task for team to reach out about restructuring options
+                // Task should include: trust ID, property ID, benefit type, current IHT liability, potential savings
+              }}
             />
             {/* TODO: Check calculation later - potential IHT saving needs proper calculation based on alternative structures */}
           </View>
