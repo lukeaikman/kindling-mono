@@ -634,12 +634,15 @@ export default function PropertyTrustDetailsScreen() {
             </View>
 
             {/* 3. Transfer Value */}
-            <CurrencyInput
-              label="What was the approximate value at transfer? *"
-              placeholder="Enter value..."
-              value={trustData.settlorTransferValue}
-              onValueChange={(value) => updateTrustData('settlorTransferValue', value)}
-            />
+            <View style={{ marginBottom: Spacing.sm }}>
+              <CurrencyInput
+                label="What was the approximate value at transfer? *"
+                placeholder="Enter value..."
+                value={trustData.settlorTransferValue}
+                onValueChange={(value) => updateTrustData('settlorTransferValue', value)}
+                style={{ marginVertical: 0 }}
+              />
+            </View>
 
             {/* 4. No Benefit Confirmation */}
             <View style={{ marginTop: Spacing.md }}>
