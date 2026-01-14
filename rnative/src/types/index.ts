@@ -859,7 +859,8 @@ export type TrustType =
   | 'life_interest_trust'
   | 'discretionary_trust'
   | 'settlor_interested_trust'
-  | 'interest_in_possession_trust';
+  | 'interest_in_possession_trust'
+  | 'other_trust';
 
 /**
  * Trust beneficiary allocation

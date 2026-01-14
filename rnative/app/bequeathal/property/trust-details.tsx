@@ -37,7 +37,7 @@ type BeneficiaryAssignment = {
 interface TrustData {
   // Base fields (3)
   trustName: string;
-  trustType: 'life_interest' | 'bare' | 'discretionary' | '';
+  trustType: 'life_interest' | 'bare' | 'discretionary' | 'other' | '';
   trustRole: string; // Options depend on trust type
   
   // Life Interest Settlor fields (new spec)
@@ -2076,7 +2076,17 @@ export default function PropertyTrustDetailsScreen() {
   // Validation helper
   const isFormValid = () => {
     // Base fields always required
-    if (!trustData.trustName || !trustData.trustType || !trustData.trustRole) {
+    if (!trustData.trustName || !trustData.trustType) {
+      return false;
+    }
+    
+    // If trust type is 'other', no role is needed - team will collect details separately
+    if (trustData.trustType === 'other') {
+      return true;
+    }
+    
+    // For other trust types, role is required
+    if (!trustData.trustRole) {
       return false;
     }
 
@@ -2348,10 +2358,14 @@ export default function PropertyTrustDetailsScreen() {
       'life_interest': 'life_interest_trust',
       'bare': 'bare_trust',
       'discretionary': 'discretionary_trust',
+      'other': 'other_trust',
     };
     
     // Helper to determine if role is settlor
     const isSettlorRole = () => {
+      if (trustData.trustType === 'other') {
+        return false; // 'other' trust type has no role
+      }
       if (trustData.trustType === 'life_interest') {
         return trustData.trustRole === 'settlor' || trustData.trustRole === 'settlor_and_beneficial_interest';
       }
@@ -2360,6 +2374,9 @@ export default function PropertyTrustDetailsScreen() {
     
     // Helper to determine if role is beneficiary
     const isBeneficiaryRole = () => {
+      if (trustData.trustType === 'other') {
+        return false; // 'other' trust type has no role
+      }
       if (trustData.trustType === 'life_interest') {
         return trustData.trustRole === 'life_interest' || 
                trustData.trustRole === 'remainderman' || 
@@ -2420,6 +2437,10 @@ export default function PropertyTrustDetailsScreen() {
         ? (trustActions.updateTrust(trustId, trustEntityData), trustId)
         : trustActions.addTrust(trustEntityData);
       
+      // TODO: If trustData.trustType === 'other', create backend task for team to reach out about trust details
+      // Task should include: trust ID, trust name, user ID
+      // This indicates property is owned by a trust but details need to be collected separately
+      
       Alert.alert(
         '✅ Trust Saved',
         `Trust ID: ${savedTrustId}\n\nCheck Data Explorer to verify the trust was saved correctly.`,
@@ -2450,8 +2471,8 @@ export default function PropertyTrustDetailsScreen() {
       type: trustTypeMap[trustData.trustType] || 'bare_trust',
       creationMonth: trustData.creationMonth || '',
       creationYear: trustData.creationYear || '',
-      isUserSettlor: trustData.trustRole.includes('settlor'),
-      isUserBeneficiary: trustData.trustRole.includes('beneficiary'),
+      isUserSettlor: trustData.trustType === 'other' ? false : trustData.trustRole.includes('settlor'),
+      isUserBeneficiary: trustData.trustType === 'other' ? false : trustData.trustRole.includes('beneficiary'),
       isUserTrustee: false,
       assetIds: [propertyId],
       createdInContext: 'property',
@@ -2475,6 +2496,10 @@ export default function PropertyTrustDetailsScreen() {
         trustId: savedTrustId,
       });
     }
+    
+    // TODO: If trustData.trustType === 'other', create backend task for team to reach out about trust details
+    // Task should include: property ID, trust ID, trust name, user ID
+    // This indicates property is owned by a trust but details need to be collected separately
     
     router.push('/bequeathal/property/summary');
   };
@@ -2523,11 +2548,26 @@ export default function PropertyTrustDetailsScreen() {
                 { label: 'Life Interest Trust', value: 'life_interest' },
                 { label: 'Bare Trust', value: 'bare' },
                 { label: 'Discretionary Trust', value: 'discretionary' },
+                { label: 'Other', value: 'other' },
               ]}
-              onChange={(value) => updateTrustData('trustType', value as any)}
+              onChange={(value) => {
+                updateTrustData('trustType', value as any);
+                // TODO: If value is 'other', create backend task for team to reach out about trust details
+                // Task should include: property ID, trust name (if provided), user ID
+                // This indicates property is owned by a trust but details need to be collected separately
+              }}
             />
 
-            {trustData.trustType && (
+            {/* Notification for 'other' trust type */}
+            {trustData.trustType === 'other' && (
+              <View style={styles.infoBox}>
+                <Text style={styles.infoText}>
+                  We will not take the trust details at this point, please continue and our team will reach out to speak to you regarding the details of the trust.
+                </Text>
+              </View>
+            )}
+
+            {trustData.trustType && trustData.trustType !== 'other' && (
               <RadioGroup
                 label="Your Role in Trust *"
                 options={getRoleOptions()}
