@@ -483,7 +483,9 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
                   <View 
                     style={[
                       styles.percentageBackground,
-                      { width: `${Math.min(100, Number(currentValue) || 0)}%` }
+                      Number(currentValue) === 100 
+                        ? { right: 0, borderTopRightRadius: 8, borderBottomRightRadius: 8 }
+                        : { width: `${Math.min(100, Number(currentValue) || 0)}%` }
                     ]} 
                   />
                 )}
