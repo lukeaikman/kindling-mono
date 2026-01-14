@@ -47,11 +47,12 @@ interface InterfaceDefinition {
  * Sophisticated data viewer with drill-down navigation
  */
 export default function DataExplorerScreen() {
-  const { personActions, willActions, bequeathalActions, businessActions, relationshipActions, beneficiaryGroupActions, estateRemainderActions } = useAppState();
+  const { personActions, willActions, bequeathalActions, businessActions, relationshipActions, beneficiaryGroupActions, estateRemainderActions, trustActions, bequestActions } = useAppState();
   
   // Navigation state
   const [selectedInterface, setSelectedInterface] = useState<string | null>(null);
   const [selectedInstance, setSelectedInstance] = useState<any>(null);
+  const [selectedPropertyFromTrust, setSelectedPropertyFromTrust] = useState<any>(null); // For viewing property from trust
   const [personRoleFilter, setPersonRoleFilter] = useState<string>('all');
   const [showCopiedSnackbar, setShowCopiedSnackbar] = useState(false);
   
@@ -79,6 +80,8 @@ export default function DataExplorerScreen() {
   const allBusinesses = businessActions.getBusinessData();
   const beneficiaryGroups = beneficiaryGroupActions.getGroups();
   const estateRemainderState = estateRemainderActions.getEstateRemainderState();
+  const allTrusts = trustActions.getTrusts();
+  const allBequests = bequestActions.getBequests();
   
   // Define interfaces
   const interfaces: InterfaceDefinition[] = useMemo(() => [
@@ -210,17 +213,38 @@ export default function DataExplorerScreen() {
       getDisplayName: () => 'Estate Remainder Allocation',
       getKey: () => 'estate-remainder',
     },
-  ], [allPeople, allAssets, allBusinesses, beneficiaryGroups, relationshipEdges, willData, estateRemainderState, personRoleFilter]);
+    {
+      name: 'Trust',
+      icon: 'shield-account',
+      getData: () => allTrusts,
+      getDisplayName: (trust) => `${trust.name || 'Untitled Trust'} (${trust.type})`,
+      getKey: (trust) => trust.id,
+    },
+    {
+      name: 'Bequest',
+      icon: 'gift',
+      getData: () => allBequests,
+      getDisplayName: (bequest) => {
+        const asset = bequeathalActions.getAssetById(bequest.assetId);
+        const assetName = asset?.title || asset?.address?.address1 || 'Unknown Asset';
+        return `${assetName} → ${bequest.beneficiaries.length} beneficiary${bequest.beneficiaries.length !== 1 ? 'ies' : ''}`;
+      },
+      getKey: (bequest) => bequest.id,
+    },
+  ], [allPeople, allAssets, allBusinesses, beneficiaryGroups, relationshipEdges, willData, estateRemainderState, personRoleFilter, allTrusts, allBequests]);
   
   const handleBack = useCallback(() => {
-    if (selectedInstance) {
+    if (selectedPropertyFromTrust) {
+      // If viewing a property from a trust, go back to trust details
+      setSelectedPropertyFromTrust(null);
+    } else if (selectedInstance) {
       setSelectedInstance(null);
     } else if (selectedInterface) {
       setSelectedInterface(null);
     } else {
       router.back();
     }
-  }, [selectedInstance, selectedInterface]);
+  }, [selectedInstance, selectedInterface, selectedPropertyFromTrust]);
   
   const handleCopy = useCallback(async (data: any) => {
     const success = await copyToClipboard(data);
@@ -235,7 +259,7 @@ export default function DataExplorerScreen() {
   
   // Render Level 1: Interface List
   const renderInterfaceList = () => (
-    <View style={styles.content}>
+    <ScrollView style={styles.content} contentContainerStyle={styles.interfaceListContainer}>
       <Text style={styles.helpText}>Tap on an interface to view its data instances</Text>
       <View style={styles.interfaceList}>
         {interfaces.map((interfaceDef) => {
@@ -273,12 +297,13 @@ export default function DataExplorerScreen() {
           );
         })}
       </View>
-    </View>
+    </ScrollView>
   );
   
+
   // Render Level 2: Instances List
   const renderInstancesList = () => (
-    <View style={styles.content}>
+    <>
       {/* Role filter for Person interface */}
       {selectedInterface === 'Person' && (
         <View style={styles.filterSection}>
@@ -316,6 +341,7 @@ export default function DataExplorerScreen() {
         </View>
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={currentData}
           keyExtractor={(item) => currentInterface?.getKey(item) || Math.random().toString()}
           renderItem={({ item }) => (
@@ -344,17 +370,133 @@ export default function DataExplorerScreen() {
           contentContainerStyle={styles.listContent}
         />
       )}
-    </View>
+    </>
   );
   
   // Render Level 3: Properties View
   const renderPropertiesView = () => {
+    // If viewing a property from a trust, show property details
+    if (selectedPropertyFromTrust) {
+      const properties = Object.entries(selectedPropertyFromTrust).filter(
+        ([key, value]) => value !== null && value !== undefined && value !== ''
+      );
+      
+      return (
+        <ScrollView 
+          style={{ flex: 1 }} 
+          contentContainerStyle={styles.propertiesContent}
+        >
+          {properties.map(([key, value]) => (
+            <View key={key} style={styles.propertyRow}>
+              <View style={styles.propertyInfo}>
+                <Text style={styles.propertyKey}>{key}</Text>
+                <View style={styles.propertyValueContainer}>
+                  {renderPropertyValue(key, value)}
+                </View>
+              </View>
+              <IconButton
+                icon="content-copy"
+                size={16}
+                iconColor={KindlingColors.green}
+                onPress={() => handleCopy(value)}
+              />
+            </View>
+          ))}
+        </ScrollView>
+      );
+    }
+    
+    // Special handling for Trust entities - show properties list + JSON
+    if (selectedInterface === 'Trust' && selectedInstance && !selectedPropertyFromTrust) {
+      const trustProperties = allAssets.filter(asset => 
+        (asset as any).trustId === selectedInstance.id
+      );
+      
+      const properties = Object.entries(selectedInstance).filter(
+        ([key, value]) => value !== null && value !== undefined && value !== ''
+      );
+      
+      return (
+        <ScrollView 
+          style={{ flex: 1 }} 
+          contentContainerStyle={styles.propertiesContent}
+        >
+          {/* Properties owned by this trust */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Properties Owned by This Trust</Text>
+            {trustProperties.length === 0 ? (
+              <View style={styles.emptySection}>
+                <Text style={styles.emptySectionText}>
+                  This trust does not own any properties
+                </Text>
+              </View>
+            ) : (
+              trustProperties.map((property) => {
+                const propertyName = (property as any).address?.address1 || (property as any).title || 'Untitled Property';
+                return (
+                  <TouchableOpacity
+                    key={property.id}
+                    style={styles.instanceCard}
+                    onPress={() => setSelectedPropertyFromTrust(property)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.instanceCardContent}>
+                      <View style={styles.instanceInfo}>
+                        <Text style={styles.instanceName}>
+                          {propertyName}
+                        </Text>
+                        <Text style={styles.instanceId}>
+                          ID: {property.id}
+                        </Text>
+                      </View>
+                      <IconButton
+                        icon="chevron-right"
+                        size={16}
+                        iconColor={`${KindlingColors.navy}66`}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </View>
+          
+          {/* Trust Details JSON */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Trust Details</Text>
+            {properties.map(([key, value]) => (
+              <View key={key} style={styles.propertyRow}>
+                <View style={styles.propertyInfo}>
+                  <Text style={styles.propertyKey}>{key}</Text>
+                  <View style={styles.propertyValueContainer}>
+                    {renderPropertyValue(key, value)}
+                  </View>
+                </View>
+                <IconButton
+                  icon="content-copy"
+                  size={16}
+                  iconColor={KindlingColors.green}
+                  onPress={() => handleCopy(value)}
+                />
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      );
+    }
+    
+    // Standard properties view for other entities
+    if (!selectedInstance) return null;
+    
     const properties = Object.entries(selectedInstance).filter(
       ([key, value]) => value !== null && value !== undefined && value !== ''
     );
     
     return (
-      <ScrollView style={styles.content} contentContainerStyle={styles.propertiesContent}>
+      <ScrollView 
+        style={{ flex: 1 }} 
+        contentContainerStyle={styles.propertiesContent}
+      >
         {properties.map(([key, value]) => (
           <View key={key} style={styles.propertyRow}>
             <View style={styles.propertyInfo}>
@@ -411,6 +553,10 @@ export default function DataExplorerScreen() {
   
   // Get header title based on current level
   const getHeaderTitle = () => {
+    if (selectedPropertyFromTrust) {
+      const propertyName = (selectedPropertyFromTrust as any).address?.address1 || (selectedPropertyFromTrust as any).title || 'Property';
+      return propertyName;
+    }
     if (selectedInstance) {
       return currentInterface?.getDisplayName(selectedInstance) || 'Properties';
     }
@@ -437,19 +583,27 @@ export default function DataExplorerScreen() {
         </View>
         <View style={styles.headerRight}>
           {/* Copy All button when viewing instances or properties */}
-          {(selectedInterface || selectedInstance) && (
+          {(selectedInterface || selectedInstance || selectedPropertyFromTrust) && (
             <IconButton
               icon="content-copy"
               size={20}
               iconColor={KindlingColors.green}
-              onPress={() => handleCopy(selectedInstance || currentData)}
+              onPress={() => {
+                if (selectedPropertyFromTrust) {
+                  handleCopy(selectedPropertyFromTrust);
+                } else if (selectedInstance) {
+                  handleCopy(selectedInstance);
+                } else {
+                  handleCopy(currentData);
+                }
+              }}
             />
           )}
         </View>
       </View>
       
       {/* Subtitle showing count */}
-      {selectedInterface && !selectedInstance && (
+      {selectedInterface && !selectedInstance && !selectedPropertyFromTrust && (
         <View style={styles.subtitle}>
           <Text style={styles.subtitleText}>
             {currentData.length} {currentData.length === 1 ? 'instance' : 'instances'} found
@@ -459,8 +613,8 @@ export default function DataExplorerScreen() {
       
       {/* Content based on current level */}
       {!selectedInterface && renderInterfaceList()}
-      {selectedInterface && !selectedInstance && renderInstancesList()}
-      {selectedInstance && renderPropertiesView()}
+      {selectedInterface && !selectedInstance && !selectedPropertyFromTrust && renderInstancesList()}
+      {(selectedInstance || selectedPropertyFromTrust) && renderPropertiesView()}
       
       {/* Snackbar for copy confirmation */}
       <Snackbar
@@ -517,6 +671,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  interfaceListContainer: {
+    paddingBottom: Spacing.lg,
   },
   helpText: {
     fontSize: Typography.fontSize.sm,
@@ -642,6 +799,30 @@ const styles = StyleSheet.create({
   },
   snackbar: {
     backgroundColor: KindlingColors.green,
+  },
+  sectionContainer: {
+    marginBottom: Spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+    marginBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: KindlingColors.border,
+  },
+  emptySection: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: `${KindlingColors.cream}80`,
+    borderRadius: 8,
+  },
+  emptySectionText: {
+    fontSize: Typography.fontSize.sm,
+    color: `${KindlingColors.navy}99`,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 });
 

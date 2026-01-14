@@ -150,9 +150,9 @@ export default function PropertyEntryScreen() {
     propertyType: '',
     
     // FHL
-    fhlAvailableOver210Days: true,
-    fhlActuallyLet105Days: true,
-    fhlLongLetsUnder155Days: true,
+    fhlAvailableOver210Days: false,
+    fhlActuallyLet105Days: false,
+    fhlLongLetsUnder155Days: false,
     fhlEstimatedAnnualIncome: 0,
     
     // Agricultural
@@ -244,9 +244,9 @@ export default function PropertyEntryScreen() {
       propertyType: property.propertyType || '',
       
       // FHL
-      fhlAvailableOver210Days: property.fhlAvailableOver210Days ?? true,
-      fhlActuallyLet105Days: property.fhlActuallyLet105Days ?? true,
-      fhlLongLetsUnder155Days: property.fhlLongLetsUnder155Days ?? true,
+      fhlAvailableOver210Days: property.fhlAvailableOver210Days ?? false,
+      fhlActuallyLet105Days: property.fhlActuallyLet105Days ?? false,
+      fhlLongLetsUnder155Days: property.fhlLongLetsUnder155Days ?? false,
       fhlEstimatedAnnualIncome: property.fhlEstimatedAnnualIncome || 0,
       
       // Agricultural
@@ -804,7 +804,7 @@ export default function PropertyEntryScreen() {
                       </Text>
                     ) : (
                       <Text style={styles.qualificationWarningText}>
-                        ⚠️ Does not qualify as FHL. Will be treated as standard let property.
+                        ⚠️ Without the conditions above checked this property does not qualify as a Furnished Holiday Let and will be treated as a standard let property.
                       </Text>
                     )}
                   </View>
