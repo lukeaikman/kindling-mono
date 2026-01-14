@@ -40,7 +40,13 @@ interface TrustData {
   trustType: 'life_interest' | 'bare' | 'discretionary' | '';
   trustRole: string; // Options depend on trust type
   
-  // Life Interest Settlor fields (11)
+  // Life Interest Settlor fields (new spec)
+  settlorTransferWithin7Years: string; // 'yes' | 'no' | ''
+  settlorTransferMonth: string;
+  settlorTransferYear: string;
+  settlorTransferValue: number;
+  settlorNoBenefitConfirmed: boolean; // User confirms they cannot benefit from trust
+  // Legacy fields (kept for backwards compatibility, may be removed later)
   reservedBenefit: string;
   payingMarketRent: string;
   creationMonth: string;
@@ -140,7 +146,13 @@ export default function PropertyTrustDetailsScreen() {
     trustName: '',
     trustType: '',
     trustRole: '',
-    // Life Interest Settlor
+    // Life Interest Settlor (new spec)
+    settlorTransferWithin7Years: '',
+    settlorTransferMonth: '',
+    settlorTransferYear: '',
+    settlorTransferValue: 0,
+    settlorNoBenefitConfirmed: false,
+    // Legacy fields (kept for backwards compatibility)
     reservedBenefit: '',
     payingMarketRent: '',
     creationMonth: '',
@@ -296,7 +308,13 @@ export default function PropertyTrustDetailsScreen() {
       creationYear: trust.creationYear || '',
       spouseExcludedFromBenefit: trust.beneficiary?.spouseExcludedFromBenefit || '',
       discretionarySettlorAndBeneficiarySpouseExcluded: trust.beneficiary?.spouseExcludedFromBenefit || '',
-      // Load other fields as needed
+      // Life Interest Settlor (new spec)
+      settlorTransferWithin7Years: '',
+      settlorTransferMonth: '',
+      settlorTransferYear: '',
+      settlorTransferValue: 0,
+      settlorNoBenefitConfirmed: false,
+      // Legacy fields (kept for backwards compatibility)
       reservedBenefit: trust.settlor?.reservedBenefit === 'yes' ? 'yes' : '',
       payingMarketRent: '',
       lifeInterestDateUnknown: false,
@@ -492,13 +510,170 @@ export default function PropertyTrustDetailsScreen() {
   };
 
   // Life Interest Trust → Settlor Fieldset
-  // TODO: Implement new field specification for Settlor (no benefit) role
   const renderLifeInterestSettlorFieldset = () => {
+    // Calculate if transfer is within 7 years (for taper relief display)
+    const transferDate = trustData.settlorTransferMonth && trustData.settlorTransferYear
+      ? new Date(parseInt(trustData.settlorTransferYear), parseInt(trustData.settlorTransferMonth) - 1)
+      : null;
+    
+    const now = new Date();
+    const yearsElapsed = transferDate 
+      ? (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+      : 0;
+    
+    // Calculate taper relief
+    const calculateTaperRelief = () => {
+      if (!transferDate || !trustData.settlorTransferValue) return null;
+      
+      const yearsRemaining = Math.max(0, 7 - yearsElapsed);
+      const monthsRemaining = Math.floor((yearsRemaining % 1) * 12);
+      const fullYearsRemaining = Math.floor(yearsRemaining);
+      
+      // Taper relief rates (3-7 years)
+      const getTaperRate = (years: number) => {
+        if (years >= 7) return 0;
+        if (years >= 6) return 20;
+        if (years >= 5) return 40;
+        if (years >= 4) return 60;
+        if (years >= 3) return 80;
+        return 100; // Less than 3 years = full rate
+      };
+      
+      const currentRate = getTaperRate(yearsElapsed);
+      const nilRateBand = 325000; // 2024/25 nil rate band
+      const transferAmount = trustData.settlorTransferValue;
+      
+      // Calculate tax liability
+      const taxableAmount = Math.max(0, transferAmount - nilRateBand);
+      const taxLiability = (taxableAmount * 0.4 * currentRate) / 100;
+      
+      return {
+        taxLiability: Math.round(taxLiability),
+        currentRate,
+        yearsRemaining: fullYearsRemaining,
+        monthsRemaining,
+        transferAmount
+      };
+    };
+    
+    const taperInfo = calculateTaperRelief();
+    
     return (
       <View style={styles.fieldsetContent}>
         <Text style={styles.helperText}>
-          Life Interest Trust - Settlor (no benefit) fields will be implemented here.
+          As the settlor who created this trust without retaining any benefit, we need to understand the inheritance tax implications.
         </Text>
+
+        {/* 1. Seven Year Gateway Question */}
+        <RadioGroup
+          label="Did you transfer this property into the trust within the last 7 years? *"
+          value={trustData.settlorTransferWithin7Years}
+          options={[
+            { label: 'Yes', value: 'yes' },
+            { label: 'No', value: 'no' },
+          ]}
+          onChange={(value) => {
+            updateTrustData('settlorTransferWithin7Years', value);
+            // Clear conditional fields if switching to 'no'
+            if (value === 'no') {
+              updateTrustData('settlorTransferMonth', '');
+              updateTrustData('settlorTransferYear', '');
+              updateTrustData('settlorTransferValue', 0);
+            }
+          }}
+        />
+
+        {/* 1a. Success Message if NO */}
+        {trustData.settlorTransferWithin7Years === 'no' && (
+          <View style={styles.successBox}>
+            <Text style={styles.successTitle}>✅ Excellent - this transfer is fully exempt from inheritance tax</Text>
+            <Text style={styles.successText}>
+              As more than 7 years have passed, this gift no longer affects your estate.
+            </Text>
+          </View>
+        )}
+
+        {/* Conditional fields if YES */}
+        {trustData.settlorTransferWithin7Years === 'yes' && (
+          <>
+            {/* 2. Transfer Date */}
+            <Text style={styles.fieldLabel}>Approximately when did you transfer it? *</Text>
+            <View style={styles.dateRow}>
+              <View style={styles.dateField}>
+                <Select
+                  placeholder="Month..."
+                  value={trustData.settlorTransferMonth}
+                  options={[
+                    { label: 'January', value: '01' },
+                    { label: 'February', value: '02' },
+                    { label: 'March', value: '03' },
+                    { label: 'April', value: '04' },
+                    { label: 'May', value: '05' },
+                    { label: 'June', value: '06' },
+                    { label: 'July', value: '07' },
+                    { label: 'August', value: '08' },
+                    { label: 'September', value: '09' },
+                    { label: 'October', value: '10' },
+                    { label: 'November', value: '11' },
+                    { label: 'December', value: '12' },
+                  ]}
+                  onChange={(value) => updateTrustData('settlorTransferMonth', value)}
+                />
+              </View>
+              <View style={styles.dateField}>
+                <Select
+                  placeholder="Year..."
+                  value={trustData.settlorTransferYear}
+                  options={Array.from({ length: 7 }, (_, i) => {
+                    const year = new Date().getFullYear() - i;
+                    return { label: year.toString(), value: year.toString() };
+                  })}
+                  onChange={(value) => updateTrustData('settlorTransferYear', value)}
+                />
+              </View>
+            </View>
+
+            {/* 3. Transfer Value */}
+            <CurrencyInput
+              label="What was the approximate value at transfer? *"
+              placeholder="Enter value..."
+              value={trustData.settlorTransferValue}
+              onValueChange={(value) => updateTrustData('settlorTransferValue', value)}
+            />
+
+            {/* 4. No Benefit Confirmation */}
+            <View style={{ marginTop: Spacing.md }}>
+              <Text style={styles.fieldLabel}>Important declaration *</Text>
+              <Checkbox
+                label="I confirm I cannot benefit from this trust in any way"
+                checked={trustData.settlorNoBenefitConfirmed}
+                onCheckedChange={(value) => updateTrustData('settlorNoBenefitConfirmed', value)}
+              />
+            </View>
+
+            {/* 5. Taper Relief Display */}
+            {taperInfo && taperInfo.taxLiability > 0 && (
+              <View style={styles.infoBox}>
+                <Text style={styles.infoTitle}>📊 Taper Relief Calculation</Text>
+                <Text style={styles.infoText}>
+                  If you died today, £{taperInfo.taxLiability.toLocaleString()} would be due from your estate ({taperInfo.currentRate}% rate).
+                  {taperInfo.yearsRemaining > 0 && (
+                    <> However, if you survive another {taperInfo.yearsRemaining} year{taperInfo.yearsRemaining !== 1 ? 's' : ''}{taperInfo.monthsRemaining > 0 ? ` and ${taperInfo.monthsRemaining} month${taperInfo.monthsRemaining !== 1 ? 's' : ''}` : ''}, the tax liability will reduce to £0 (fully exempt).</>
+                  )}
+                </Text>
+              </View>
+            )}
+
+            {taperInfo && taperInfo.taxLiability === 0 && yearsElapsed < 7 && (
+              <View style={styles.successBox}>
+                <Text style={styles.successTitle}>✅ No immediate tax liability</Text>
+                <Text style={styles.successText}>
+                  The transfer value is within the nil rate band. However, if you survive another {taperInfo.yearsRemaining} year{taperInfo.yearsRemaining !== 1 ? 's' : ''}{taperInfo.monthsRemaining > 0 ? ` and ${taperInfo.monthsRemaining} month${taperInfo.monthsRemaining !== 1 ? 's' : ''}` : ''}, this gift will be fully exempt from your estate.
+                </Text>
+              </View>
+            )}
+          </>
+        )}
       </View>
     );
   };
@@ -1804,26 +1979,30 @@ export default function PropertyTrustDetailsScreen() {
       return false;
     }
 
-    // Life Interest Settlor validation (also applies to settlor_and_beneficial_interest)
+    // Life Interest Settlor validation (new spec)
     if (trustData.trustType === 'life_interest' && 
         (trustData.trustRole === 'settlor' || trustData.trustRole === 'settlor_and_beneficial_interest')) {
-      const hasOccupationBenefit = trustData.reservedBenefit.includes('occupy');
+      // Gateway question is required
+      if (!trustData.settlorTransferWithin7Years) {
+        return false;
+      }
       
-      // Date: Either "I don't know" is checked OR date fields are filled
-      const hasDateUnknown = trustData.lifeInterestDateUnknown;
-      const hasDate = trustData.creationMonth && trustData.creationYear;
+      // If answered 'no' (>7 years), that's all we need
+      if (trustData.settlorTransferWithin7Years === 'no') {
+        return true;
+      }
       
-      // Value: Either "I don't know" is checked OR value is > 0
-      const hasValueUnknown = trustData.lifeInterestValueUnknown;
-      const hasValue = trustData.propertyValueAtTransfer > 0;
+      // If answered 'yes' (<7 years), require all conditional fields
+      if (trustData.settlorTransferWithin7Years === 'yes') {
+        return (
+          trustData.settlorTransferMonth !== '' &&
+          trustData.settlorTransferYear !== '' &&
+          trustData.settlorTransferValue > 0 &&
+          trustData.settlorNoBenefitConfirmed === true
+        );
+      }
       
-      return (
-        trustData.reservedBenefit !== '' &&
-        (!hasOccupationBenefit || trustData.payingMarketRent !== '') &&
-        (hasDateUnknown || hasDate) &&
-        (hasValueUnknown || hasValue) &&
-        remaindermen.length > 0
-      );
+      return false;
     }
 
     // Life Interest Beneficiary validation (life_interest role) - New Spec
@@ -2398,9 +2577,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: KindlingColors.green,
   },
-  successText: {
+  successTitle: {
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
+    color: '#155724',
+    marginBottom: Spacing.xs,
+  },
+  successText: {
+    fontSize: Typography.fontSize.sm,
     color: '#155724',
     lineHeight: 20,
   },
