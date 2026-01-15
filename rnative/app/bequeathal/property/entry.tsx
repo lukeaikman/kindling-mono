@@ -552,6 +552,7 @@ export default function PropertyEntryScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
+          <View style={styles.accordionContainer}>
             {/* Accordion 1: Address (Always) */}
             <Accordion
               title="Address"
@@ -1120,8 +1121,8 @@ export default function PropertyEntryScreen() {
 
                   {propertyData.companyShareClass === 'other' && (
                     <Input
-                      label="Notes"
-                      placeholder="Transfer restrictions, special terms (optional)..."
+                      label="Notes on share class (optional)"
+                      placeholder="Restrictions, special terms, etc (optional)..."
                       value={propertyData.companyNotes}
                       onChangeText={(value) => updatePropertyData('companyNotes', value)}
                       multiline
@@ -1176,6 +1177,7 @@ export default function PropertyEntryScreen() {
                 </View>
               </Accordion>
             )}
+          </View>
 
           {/* Joint Ownership Section (Outside Accordions) */}
           {isJointlyOwned() && (
@@ -1379,6 +1381,12 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     gap: Spacing.lg,
+  },
+  accordionContainer: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: KindlingColors.border,
   },
   accordionContent: {
     padding: Spacing.md,
