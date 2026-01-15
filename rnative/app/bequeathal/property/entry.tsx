@@ -111,7 +111,7 @@ interface PropertyData {
   companyOwnershipPercentage: number;
   companyShareClass: string;
   companyNotes: string;
-  companyArticlesConfident: boolean;
+  companyArticlesConfident: string; // 'standard', 'customized', 'not_sure'
 
   // Joint Ownership (conditional)
   jointOwnershipType: string;
@@ -187,9 +187,9 @@ export default function PropertyEntryScreen() {
     companyName: '',
     companyCountryOfRegistration: 'uk',
     companyOwnershipPercentage: 100,
-    companyShareClass: '',
+    companyShareClass: 'ordinary',
     companyNotes: '',
-    companyArticlesConfident: false,
+    companyArticlesConfident: '',
     
     // Joint Ownership
     jointOwnershipType: '',
@@ -281,9 +281,9 @@ export default function PropertyEntryScreen() {
       companyName: property.companyName || '',
       companyCountryOfRegistration: property.companyCountryOfRegistration || 'uk',
       companyOwnershipPercentage: property.companyOwnershipPercentage || 100,
-      companyShareClass: property.companyShareClass || '',
+      companyShareClass: property.companyShareClass || 'ordinary',
       companyNotes: property.companyNotes || '',
-      companyArticlesConfident: property.companyArticlesConfident ?? false,
+      companyArticlesConfident: property.companyArticlesConfident || '',
       
       // Joint Ownership
       jointOwnershipType: property.jointOwnershipType || '',
@@ -353,6 +353,47 @@ export default function PropertyEntryScreen() {
     const value = propertyData.estimatedValue || 0;
     const mortgage = propertyData.mortgageAmount || 0;
     return value - mortgage;
+  };
+
+  /**
+   * Determines the next accordion section based on current accordion and property data.
+   * Returns the next accordion ID, or empty string to close all accordions.
+   */
+  const getNextAccordion = (currentAccordion: string): string => {
+    switch (currentAccordion) {
+      case 'address':
+        return 'details';
+      
+      case 'details':
+        return 'usage';
+      
+      case 'usage':
+        // After usage, check for conditional sections or company ownership
+        if (isFHL()) return 'fhl';
+        if (isAgricultural()) return 'agricultural';
+        if (isMixedUse()) return 'mixeduse';
+        if (isBuyToLet()) return 'buytolet';
+        // If no conditional section, check for company ownership
+        if (isCompanyOwned()) return 'company';
+        // Otherwise, close (next sections are outside accordions)
+        return '';
+      
+      case 'fhl':
+      case 'agricultural':
+      case 'mixeduse':
+      case 'buytolet':
+        // After conditional sections, go to company ownership if applicable
+        if (isCompanyOwned()) return 'company';
+        // Otherwise, close
+        return '';
+      
+      case 'company':
+        // After company ownership, close (next sections are outside accordions)
+        return '';
+      
+      default:
+        return '';
+    }
   };
 
   // Save property and navigate
@@ -568,7 +609,7 @@ export default function PropertyEntryScreen() {
                 />
 
                 <Button
-                  onPress={() => setExpandedAccordion('details')}
+                  onPress={() => setExpandedAccordion(getNextAccordion('address'))}
                   variant="primary"
                   disabled={!propertyData.address1 || !propertyData.townCity || !propertyData.country}
                 >
@@ -677,7 +718,7 @@ export default function PropertyEntryScreen() {
                 )}
 
                 <Button
-                  onPress={() => setExpandedAccordion('usage')}
+                  onPress={() => setExpandedAccordion(getNextAccordion('details'))}
                   variant="primary"
                   disabled={propertyData.estimatedValue === 0 || !propertyData.ownershipType || !propertyData.mortgageProvider}
                 >
@@ -741,21 +782,7 @@ export default function PropertyEntryScreen() {
                 )}
 
                 <Button
-                  onPress={() => {
-                    // Next button logic - opens appropriate accordion
-                    if (isFHL()) {
-                      setExpandedAccordion('fhl');
-                    } else if (isAgricultural()) {
-                      setExpandedAccordion('agricultural');
-                    } else if (isMixedUse()) {
-                      setExpandedAccordion('mixeduse');
-                    } else if (isBuyToLet()) {
-                      setExpandedAccordion('buytolet');
-                    } else {
-                      // If no conditional accordion needed, close all
-                      setExpandedAccordion('');
-                    }
-                  }}
+                  onPress={() => setExpandedAccordion(getNextAccordion('usage'))}
                   variant="primary"
                   disabled={!propertyData.usage || !propertyData.propertyType}
                 >
@@ -817,7 +844,7 @@ export default function PropertyEntryScreen() {
                   />
 
                   <Button
-                    onPress={() => setExpandedAccordion('details')}
+                    onPress={() => setExpandedAccordion(getNextAccordion('fhl'))}
                     variant="primary"
                     disabled={propertyData.fhlEstimatedAnnualIncome === 0}
                   >
@@ -867,7 +894,7 @@ export default function PropertyEntryScreen() {
                   )}
 
                   <Button
-                    onPress={() => setExpandedAccordion('details')}
+                    onPress={() => setExpandedAccordion(getNextAccordion('agricultural'))}
                     variant="primary"
                   >
                     Next
@@ -938,7 +965,7 @@ export default function PropertyEntryScreen() {
                   )}
 
                   <Button
-                    onPress={() => setExpandedAccordion('details')}
+                    onPress={() => setExpandedAccordion(getNextAccordion('mixeduse'))}
                     variant="primary"
                     disabled={propertyData.mixedUseCommercialPercentage === 0}
                   >
@@ -1012,7 +1039,7 @@ export default function PropertyEntryScreen() {
                   </View>
 
                   <Button
-                    onPress={() => setExpandedAccordion('details')}
+                    onPress={() => setExpandedAccordion(getNextAccordion('buytolet'))}
                     variant="primary"
                     disabled={
                       propertyData.buyToLetAnnualRentalIncome === 0 ||
@@ -1074,29 +1101,70 @@ export default function PropertyEntryScreen() {
                     onValueChange={(value) => updatePropertyData('companyOwnershipPercentage', value)}
                   />
 
-                  <Input
+                  <RadioGroup
                     label="Share Class"
-                    placeholder="e.g. Ordinary, Class A (optional)..."
+                    options={[
+                      { 
+                        label: 'Ordinary', 
+                        value: 'ordinary',
+                        helperText: 'Standard share class with equal rights'
+                      },
+                      { 
+                        label: 'Other', 
+                        value: 'other',
+                        helperText: 'Custom share class or special arrangement'
+                      },
+                    ]}
                     value={propertyData.companyShareClass}
-                    onChangeText={(value) => updatePropertyData('companyShareClass', value)}
+                    onChange={(value) => updatePropertyData('companyShareClass', value)}
                   />
 
-                  <Input
-                    label="Notes"
-                    placeholder="Transfer restrictions, special terms (optional)..."
-                    value={propertyData.companyNotes}
-                    onChangeText={(value) => updatePropertyData('companyNotes', value)}
-                    multiline
+                  {propertyData.companyShareClass === 'other' && (
+                    <Input
+                      label="Notes"
+                      placeholder="Transfer restrictions, special terms (optional)..."
+                      value={propertyData.companyNotes}
+                      onChangeText={(value) => updatePropertyData('companyNotes', value)}
+                      multiline
+                    />
+                  )}
+
+                  <RadioGroup
+                    label="Was your company set up with standard documents?"
+                    options={[
+                      { 
+                        label: 'Yes', 
+                        value: 'standard',
+                        helperText: 'Used standard formation documents'
+                      },
+                      { 
+                        label: 'No', 
+                        value: 'customized',
+                        helperText: 'We customized the setup'
+                      },
+                      { 
+                        label: 'Not sure', 
+                        value: 'not_sure',
+                        helperText: 'Most property companies use standard setup'
+                      },
+                    ]}
+                    value={propertyData.companyArticlesConfident}
+                    onChange={(value) => {
+                      updatePropertyData('companyArticlesConfident', value);
+                      // TODO: If value is 'customized' or 'not_sure', create backend task for admin team to reach out about company structure and transfer rights
+                    }}
                   />
 
-                  <Checkbox
-                    label="Confident articles of association allow property ownership transfer?"
-                    checked={propertyData.companyArticlesConfident}
-                    onCheckedChange={(value) => updatePropertyData('companyArticlesConfident', value)}
-                  />
+                  {(propertyData.companyArticlesConfident === 'customized' || propertyData.companyArticlesConfident === 'not_sure') && (
+                    <View style={styles.infoBox}>
+                      <Text style={styles.infoText}>
+                        📞 Our team may reach out if they have any questions
+                      </Text>
+                    </View>
+                  )}
 
                   <Button
-                    onPress={() => setExpandedAccordion('')}
+                    onPress={() => setExpandedAccordion(getNextAccordion('company'))}
                     variant="primary"
                     disabled={
                       !propertyData.companyName ||
