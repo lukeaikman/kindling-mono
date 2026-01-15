@@ -104,6 +104,7 @@ export const Accordion: React.FC<AccordionProps> = ({
       left={icon ? (props) => <List.Icon {...props} icon={icon} /> : undefined}
       titleStyle={styles.title}
       style={[styles.accordion, isExpanded && styles.accordionExpanded]}
+      contentStyle={styles.content}
     >
       {children}
     </List.Accordion>
@@ -124,6 +125,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: KindlingColors.navy,
+  },
+  content: {
+    paddingHorizontal: 0, // Remove Paper's default asymmetric padding to ensure equal padding on both sides
   },
 });
 
