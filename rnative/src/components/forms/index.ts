@@ -20,6 +20,9 @@ export type { MultiBeneficiarySelectorProps, BeneficiarySelection } from './Mult
 export { GroupManagementDrawer } from './GroupManagementDrawer';
 export type { GroupManagementDrawerProps } from './GroupManagementDrawer';
 
+export { AddPersonDialog } from './AddPersonDialog';
+export type { AddPersonDialogProps } from './AddPersonDialog';
+
 export { BeneficiaryWithPercentages } from './BeneficiaryWithPercentages';
 export type { BeneficiaryWithPercentagesProps } from './BeneficiaryWithPercentages';
 

@@ -22,8 +22,8 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Button, BackButton, SearchableSelect, Select, RadioGroup, CurrencyInput, Dialog } from '../../../src/components/ui';
-import { PersonSelector, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
+import { Button, BackButton, SearchableSelect, Select, RadioGroup, CurrencyInput } from '../../../src/components/ui';
+import { AddPersonDialog, PersonSelector, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
@@ -61,6 +61,7 @@ export default function LifeInsuranceEntryScreen() {
   const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
   const [isListExpanded, setIsListExpanded] = useState(true);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
+  const [addPersonContext, setAddPersonContext] = useState<'lifeAssured' | 'beneficiaries'>('beneficiaries');
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
 
   // Load existing policies
@@ -342,7 +343,10 @@ export default function LifeInsuranceEntryScreen() {
                 personActions={personActions}
                 allowUnknown={true}
                 excludePersonIds={excludePersonIds}
-                onAddNewPerson={() => setShowAddPersonDialog(true)}
+                onAddNewPerson={() => {
+                  setAddPersonContext('lifeAssured');
+                  setShowAddPersonDialog(true);
+                }}
               />
 
               {/* Sum Insured */}
@@ -412,7 +416,10 @@ export default function LifeInsuranceEntryScreen() {
                     beneficiaryGroupActions={beneficiaryGroupActions}
                     excludePersonIds={excludePersonIds}
                     label="Who will receive the payout? *"
-                    onAddNewPerson={() => setShowAddPersonDialog(true)}
+                onAddNewPerson={() => {
+                  setAddPersonContext('beneficiaries');
+                  setShowAddPersonDialog(true);
+                }}
                     onAddNewGroup={() => setShowGroupDrawer(true)}
                   />
                 </>
@@ -589,18 +596,22 @@ export default function LifeInsuranceEntryScreen() {
       </ScrollView>
 
       {/* Dialogs */}
-      <Dialog
+      <AddPersonDialog
         visible={showAddPersonDialog}
         onDismiss={() => setShowAddPersonDialog(false)}
-        title="Add New Person"
-      >
-        <Text style={styles.dialogText}>
-          Person creation to be implemented. For now, add people from Onboarding screens.
-        </Text>
-        <Button onPress={() => setShowAddPersonDialog(false)} variant="primary">
-          OK
-        </Button>
-      </Dialog>
+        personActions={personActions}
+        roles={['beneficiary']}
+        onCreated={(personId) => {
+          if (addPersonContext === 'lifeAssured') {
+            setFormData(prev => ({ ...prev, lifeAssured: personId }));
+          } else {
+            setFormData(prev => ({
+              ...prev,
+              beneficiaries: [...prev.beneficiaries, { id: personId, type: 'person' }]
+            }));
+          }
+        }}
+      />
 
       <GroupManagementDrawer
         visible={showGroupDrawer}

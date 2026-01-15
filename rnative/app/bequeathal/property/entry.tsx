@@ -17,7 +17,7 @@ import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Accordion, Input, Select, Checkbox, CurrencyInput, Switch, PercentageInput, RadioGroup } from '../../../src/components/ui';
 import { SearchableSelect } from '../../../src/components/ui/SearchableSelect';
-import { BeneficiaryWithPercentages } from '../../../src/components/forms';
+import { AddPersonDialog, BeneficiaryWithPercentages } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
@@ -132,6 +132,7 @@ export default function PropertyEntryScreen() {
 
   // Beneficiaries state
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
+  const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   
   // Track which property ID we've loaded (prevent infinite loop)
   const loadedPropertyIdRef = useRef<string | null>(null);
@@ -1293,8 +1294,7 @@ export default function PropertyEntryScreen() {
                 useSliders={beneficiaries.length >= 3}
                 requireComplete={false}
                 onAddNewPerson={() => {
-                  // TODO: Implement add person dialog
-                  alert('Add person functionality to be implemented');
+                  setShowAddPersonDialog(true);
                 }}
                 onAddNewGroup={() => {
                   // TODO: Implement add group dialog
@@ -1326,6 +1326,15 @@ export default function PropertyEntryScreen() {
       </View>
         </View>
       </ScrollView>
+      <AddPersonDialog
+        visible={showAddPersonDialog}
+        onDismiss={() => setShowAddPersonDialog(false)}
+        personActions={personActions}
+        roles={['beneficiary']}
+        onCreated={(personId) => {
+          setBeneficiaries((prev) => [...prev, { id: personId, type: 'person' }]);
+        }}
+      />
     </SafeAreaView>
   );
 }

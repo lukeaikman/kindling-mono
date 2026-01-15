@@ -14,8 +14,8 @@ import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Button, BackButton, Input, CurrencyInput, Dialog } from '../../../src/components/ui';
-import { MultiBeneficiarySelector, BeneficiarySelection, GroupManagementDrawer } from '../../../src/components/forms';
+import { Button, BackButton, Input, CurrencyInput } from '../../../src/components/ui';
+import { AddPersonDialog, MultiBeneficiarySelector, BeneficiarySelection, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
@@ -336,20 +336,27 @@ export default function ImportantItemsEntryScreen() {
         </View>
       </ScrollView>
 
-      {/* Add Person Dialog */}
-      <Dialog
+      <AddPersonDialog
         visible={showAddPersonDialog}
         onDismiss={() => setShowAddPersonDialog(false)}
-        title="Add New Person"
-      >
-        <Text style={styles.dialogText}>
-          Person creation dialog to be implemented.
-          For now, please add people from the Onboarding or Family screens.
-        </Text>
-        <Button onPress={() => setShowAddPersonDialog(false)} variant="primary">
-          OK
-        </Button>
-      </Dialog>
+        personActions={personActions}
+        roles={['beneficiary']}
+        onCreated={(personId) => {
+          const person = personActions.getPersonById(personId);
+          if (!person) return;
+          const relationship = getPersonRelationshipDisplay(person);
+          const selection: BeneficiarySelection = {
+            id: person.id,
+            type: 'person',
+            name: getPersonFullName(person),
+            relationship: relationship || undefined,
+          };
+          setFormData(prev => ({
+            ...prev,
+            beneficiaries: [...prev.beneficiaries, selection]
+          }));
+        }}
+      />
 
       {/* Group Management Drawer */}
       <GroupManagementDrawer

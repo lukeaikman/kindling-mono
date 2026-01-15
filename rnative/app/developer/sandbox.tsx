@@ -14,7 +14,7 @@ import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Button, BackButton, Dialog, Select, Accordion, Input, RadioGroup, Checkbox, CurrencyInput } from '../../src/components/ui';
 import { SearchableSelect } from '../../src/components/ui/SearchableSelect';
-import { GroupManagementDrawer, BeneficiaryWithPercentages } from '../../src/components/forms';
+import { AddPersonDialog, GroupManagementDrawer, BeneficiaryWithPercentages } from '../../src/components/forms';
 import { MultiBeneficiarySelector, BeneficiarySelection } from '../../src/components/forms/MultiBeneficiarySelector';
 import { Slider } from '../../src/components/ui/Slider';
 import { Card } from '../../src/components/ui/Card';
@@ -22,6 +22,7 @@ import type { BeneficiaryAssignment } from '../../src/types';
 import { useAppState } from '../../src/hooks/useAppState';
 import * as Haptics from 'expo-haptics';
 import { KindlingColors } from '../../src/styles/theme';
+import { getPersonFullName, getPersonRelationshipDisplay } from '../../src/utils/helpers';
 import { Spacing, Typography } from '../../src/styles/constants';
 
 export default function SandboxScreen() {
@@ -34,6 +35,7 @@ export default function SandboxScreen() {
   const [singleBeneficiary, setSingleBeneficiary] = useState<BeneficiarySelection>({ id: '', type: 'person', name: '' });
   const [multiBeneficiaries, setMultiBeneficiaries] = useState<BeneficiarySelection[]>([]);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
+  const [addPersonContext, setAddPersonContext] = useState<'single' | 'multi'>('single');
   const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);
   const [shortSelect, setShortSelect] = useState('');
   const [longSelect, setLongSelect] = useState('');
@@ -524,7 +526,10 @@ export default function SandboxScreen() {
               placeholder="Choose a person..."
               personActions={personActions}
               beneficiaryGroupActions={beneficiaryGroupActions}
-              onAddNewPerson={() => setShowAddPersonDialog(true)}
+              onAddNewPerson={() => {
+                setAddPersonContext('single');
+                setShowAddPersonDialog(true);
+              }}
               onAddNewGroup={() => setShowAddGroupDialog(true)}
             />
 
@@ -557,7 +562,10 @@ export default function SandboxScreen() {
               placeholder="Add recipients..."
               personActions={personActions}
               beneficiaryGroupActions={beneficiaryGroupActions}
-              onAddNewPerson={() => setShowAddPersonDialog(true)}
+              onAddNewPerson={() => {
+                setAddPersonContext('multi');
+                setShowAddPersonDialog(true);
+              }}
               onAddNewGroup={() => setShowAddGroupDialog(true)}
             />
 
@@ -881,19 +889,27 @@ export default function SandboxScreen() {
           willId={willActions.getUser()?.id || 'default-user'}
         />
 
-        {/* Add Person Dialog Placeholder */}
-        <Dialog
+        <AddPersonDialog
           visible={showAddPersonDialog}
           onDismiss={() => setShowAddPersonDialog(false)}
-          title="Add New Person"
-        >
-          <Text style={styles.dialogText}>
-            Person creation to be implemented. For now, add people from Onboarding screens.
-          </Text>
-          <Button onPress={() => setShowAddPersonDialog(false)} variant="primary">
-            OK
-          </Button>
-        </Dialog>
+          personActions={personActions}
+          roles={['beneficiary']}
+          onCreated={(personId) => {
+            const person = personActions.getPersonById(personId);
+            if (!person) return;
+            const selection: BeneficiarySelection = {
+              id: person.id,
+              type: 'person',
+              name: getPersonFullName(person),
+              relationship: getPersonRelationshipDisplay(person) || undefined,
+            };
+            if (addPersonContext === 'single') {
+              setSingleBeneficiary(selection);
+            } else {
+              setMultiBeneficiaries((prev) => [...prev, selection]);
+            }
+          }}
+        />
 
         {/* Add Group Dialog Placeholder */}
         <Dialog

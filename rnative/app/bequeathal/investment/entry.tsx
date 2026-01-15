@@ -15,8 +15,8 @@ import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Button, BackButton, Select, Input, CurrencyInput, Dialog } from '../../../src/components/ui';
-import { BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
+import { Button, BackButton, Select, Input, CurrencyInput } from '../../../src/components/ui';
+import { AddPersonDialog, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
@@ -429,19 +429,18 @@ export default function InvestmentsEntryScreen() {
         </View>
       </ScrollView>
 
-      {/* Add Person Dialog Placeholder */}
-      <Dialog
+      <AddPersonDialog
         visible={showAddPersonDialog}
         onDismiss={() => setShowAddPersonDialog(false)}
-        title="Add New Person"
-      >
-        <Text style={styles.dialogText}>
-          Person creation to be implemented. For now, add people from Onboarding screens.
-        </Text>
-        <Button onPress={() => setShowAddPersonDialog(false)} variant="primary">
-          OK
-        </Button>
-      </Dialog>
+        personActions={personActions}
+        roles={['beneficiary']}
+        onCreated={(personId) => {
+          setFormData(prev => ({
+            ...prev,
+            beneficiaries: [...prev.beneficiaries, { id: personId, type: 'person' }]
+          }));
+        }}
+      />
 
       {/* Group Management Drawer */}
       <GroupManagementDrawer

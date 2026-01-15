@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Input, Select, RadioGroup, Checkbox, CurrencyInput, PercentageInput } from '../../../src/components/ui';
-import { BeneficiaryWithPercentages, MultiBeneficiarySelector } from '../../../src/components/forms';
+import { AddPersonDialog, BeneficiaryWithPercentages, MultiBeneficiarySelector } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { PropertyAsset, Trust, TrustType } from '../../../src/types';
 import { KindlingColors } from '../../../src/styles/theme';
@@ -247,6 +247,7 @@ export default function PropertyTrustDetailsScreen() {
   
   // Co-beneficiaries (for Bare Trust Beneficiary and Settlor & Beneficiary)
   const [bareCoBeneficiaries, setBareCoBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
+  const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   
   // Helper text visibility state for remainderman fields
   const [showRemaindermanHelper, setShowRemaindermanHelper] = useState<Record<string, boolean>>({});
@@ -1798,7 +1799,7 @@ export default function PropertyTrustDetailsScreen() {
           personActions={personActions}
           beneficiaryGroupActions={beneficiaryGroupActions}
           label="Co-beneficiaries"
-          onAddNewPerson={() => alert('Add person functionality to be implemented')}
+          onAddNewPerson={() => setShowAddPersonDialog(true)}
           onAddNewGroup={() => alert('Add group functionality to be implemented')}
         />
 
@@ -2590,6 +2591,16 @@ export default function PropertyTrustDetailsScreen() {
           )}
         </View>
       </ScrollView>
+
+      <AddPersonDialog
+        visible={showAddPersonDialog}
+        onDismiss={() => setShowAddPersonDialog(false)}
+        personActions={personActions}
+        roles={['beneficiary']}
+        onCreated={(personId) => {
+          setBareCoBeneficiaries((prev) => [...prev, { id: personId, type: 'person' }]);
+        }}
+      />
 
       {/* Footer */}
       <View style={styles.footer}>
