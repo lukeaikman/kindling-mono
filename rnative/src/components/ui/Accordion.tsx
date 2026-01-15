@@ -7,8 +7,8 @@
  */
 
 import React from 'react';
-import { List } from 'react-native-paper';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { IconButton, List, Text } from 'react-native-paper';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing } from '../../styles/constants';
 
@@ -97,16 +97,27 @@ export const Accordion: React.FC<AccordionProps> = ({
   };
 
   return (
-    <List.Accordion
-      title={title}
-      expanded={isExpanded}
-      onPress={handlePress}
-      left={icon ? (props) => <List.Icon {...props} icon={icon} /> : undefined}
-      titleStyle={styles.title}
-      style={[styles.accordion, isExpanded && styles.accordionExpanded]}
-    >
-      {children}
-    </List.Accordion>
+    <View style={[styles.accordion, isExpanded && styles.accordionExpanded]}>
+      <TouchableOpacity
+        onPress={handlePress}
+        activeOpacity={0.7}
+        style={styles.header}
+      >
+        <View style={styles.headerLeft}>
+          {icon && (
+            <List.Icon icon={icon} color={KindlingColors.navy} style={styles.headerIcon} />
+          )}
+          <Text style={styles.title}>{title}</Text>
+        </View>
+        <IconButton
+          icon={isExpanded ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          iconColor={KindlingColors.navy}
+          style={styles.chevronIcon}
+        />
+      </TouchableOpacity>
+      {isExpanded && <View style={styles.content}>{children}</View>}
+    </View>
   );
 };
 
@@ -120,10 +131,32 @@ const styles = StyleSheet.create({
     backgroundColor: `${KindlingColors.cream}66`, // Light cream background when expanded
     borderBottomColor: KindlingColors.navy,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerIcon: {
+    margin: 0,
+    marginRight: Spacing.xs,
+  },
   title: {
     fontSize: 16,
     fontWeight: '600',
     color: KindlingColors.navy,
+  },
+  chevronIcon: {
+    margin: 0,
+  },
+  content: {
+    padding: 0,
   },
 });
 
