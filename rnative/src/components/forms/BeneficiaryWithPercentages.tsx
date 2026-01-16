@@ -75,8 +75,9 @@ export interface BeneficiaryWithPercentagesProps {
   
   /**
    * Callback for adding new person
+   * Receives optional callback to select the newly created person
    */
-  onAddNewPerson?: () => void;
+  onAddNewPerson?: (onCreated?: (personId: string) => void) => void;
   
   /**
    * Callback for adding new group
@@ -231,9 +232,21 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
     
     const updatedList = [...value, ...newBeneficiaries];
     
-    // Smart default: If only 1 beneficiary total in percentage mode, auto-set to 100%
-    if (allocationMode === 'percentage' && updatedList.length === 1) {
-      updatedList[0] = { ...updatedList[0], percentage: 100 };
+    if (allocationMode === 'percentage') {
+      const hasManualEdits = value.some(b => b.isManuallyEdited);
+      const existingAllEmpty = value.every(b => !b.percentage || b.percentage === 0);
+      const existingSingleAt100 = value.length === 1 && value[0].percentage === 100 && !value[0].isManuallyEdited;
+      const canAutoSplit = !hasManualEdits && (existingAllEmpty || existingSingleAt100 || value.length === 0);
+
+      // Smart default: If only 1 beneficiary total in percentage mode, auto-set to 100%
+      if (updatedList.length === 1) {
+        updatedList[0] = { ...updatedList[0], percentage: 100, isManuallyEdited: false };
+      } else if (newBeneficiaries.length > 0 && canAutoSplit) {
+        const equalShare = parseFloat((100 / updatedList.length).toFixed(1));
+        updatedList.forEach((b, idx) => {
+          updatedList[idx] = { ...b, percentage: equalShare, isManuallyEdited: false };
+        });
+      }
     }
     
     onChange(updatedList);
@@ -245,12 +258,19 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
     return tempSelections.some(s => s.id === id && s.type === type);
   };
 
+  const addTempSelection = (id: string, type: 'person' | 'group' | 'estate') => {
+    setTempSelections(prev => {
+      const exists = prev.some(s => s.id === id && s.type === type);
+      return exists ? prev : [...prev, { id, type }];
+    });
+  };
+
   const handleRemove = (index: number) => {
     const updated = value.filter((_, i) => i !== index);
     
     // Smart default: If only 1 beneficiary remains in percentage mode, auto-set to 100%
-    if (allocationMode === 'percentage' && updated.length === 1) {
-      updated[0] = { ...updated[0], percentage: 100 };
+    if (allocationMode === 'percentage' && updated.length === 1 && !updated[0].isManuallyEdited) {
+      updated[0] = { ...updated[0], percentage: 100, isManuallyEdited: false };
     }
     
     onChange(updated);
@@ -259,9 +279,21 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
   const handleUpdateAllocation = (index: number, allocationValue: number) => {
     const updated = [...value];
     if (allocationMode === 'percentage') {
-      updated[index] = { ...updated[index], percentage: allocationValue };
+      updated[index] = { ...updated[index], percentage: allocationValue, isManuallyEdited: true };
     } else {
       updated[index] = { ...updated[index], amount: allocationValue };
+    }
+    onChange(updated);
+  };
+
+  const handleClearAllocation = (index: number) => {
+    const updated = [...value];
+    if (allocationMode === 'percentage') {
+      const { percentage, ...rest } = updated[index];
+      updated[index] = { ...rest, percentage: undefined, isManuallyEdited: false };
+    } else {
+      const { amount, ...rest } = updated[index];
+      updated[index] = { ...rest, amount: undefined };
     }
     onChange(updated);
   };
@@ -305,6 +337,20 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
       return rest;
     });
     onChange(cleared);
+  };
+
+  const handleScaleToHundred = () => {
+    const currentTotal = getTotalAllocated({ beneficiaries: value });
+    if (allocationMode !== 'percentage' || currentTotal === 0) return;
+
+    const scaleFactor = 100 / currentTotal;
+    const updated = value.map(b => ({
+      ...b,
+      percentage: (b.percentage || 0) * scaleFactor,
+    }));
+
+    onChange(updated);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   // Calculate total and validation
@@ -396,7 +442,10 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
                     style={styles.drawerOptionSpecial}
                     onPress={() => {
                       setShowSelectionDrawer(false);
-                      onAddNewPerson();
+                      onAddNewPerson((personId) => {
+                        addTempSelection(personId, 'person');
+                        setShowSelectionDrawer(true);
+                      });
                     }}
                   >
                     <Text style={styles.drawerOptionSpecialText}>+ Add New Person</Text>
@@ -522,7 +571,10 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
                         const maxValue = allocationMode === 'percentage' ? 100 : 999999999;
                         handleUpdateAllocation(index, Math.min(maxValue, num));
                       }}
-                      onFocus={() => setFocusedIndex(index)}
+                      onFocus={() => {
+                        setFocusedIndex(index);
+                        handleClearAllocation(index);
+                      }}
                       onBlur={() => setFocusedIndex(null)}
                       keyboardType="decimal-pad"
                       placeholder="0"
@@ -617,19 +669,17 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
             </Text>
           )}
           
-          {!isValid && allocationMode === 'percentage' && (
-            <Text style={styles.errorText}>
-              Percentages must total 100%
-            </Text>
-          )}
-
-          {/* Clear All Button */}
+          {/* Scale to 100% */}
           {value.some(b => b.percentage || b.amount) && (
             <TouchableOpacity
-              onPress={handleClearAll}
+              onPress={allocationMode === 'percentage' ? handleScaleToHundred : handleClearAll}
               style={styles.clearAllButton}
             >
-              <Text style={styles.clearAllText}>Clear All {allocationMode === 'percentage' ? 'Percentages' : 'Amounts'}</Text>
+              <Text style={styles.clearAllText}>
+                {allocationMode === 'percentage'
+                  ? 'Scale all percentages proportionately to equal 100%'
+                  : 'Clear All Amounts'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>

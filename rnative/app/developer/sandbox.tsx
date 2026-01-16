@@ -36,6 +36,7 @@ export default function SandboxScreen() {
   const [multiBeneficiaries, setMultiBeneficiaries] = useState<BeneficiarySelection[]>([]);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const [addPersonContext, setAddPersonContext] = useState<'single' | 'multi'>('single');
+  const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);
   const [shortSelect, setShortSelect] = useState('');
   const [longSelect, setLongSelect] = useState('');
@@ -600,7 +601,10 @@ export default function SandboxScreen() {
               personActions={personActions}
               beneficiaryGroupActions={beneficiaryGroupActions}
               label="Beneficiaries with Percentages"
-              onAddNewPerson={() => setShowAddPersonDialog(true)}
+              onAddNewPerson={(onCreated) => {
+                addPersonSelectionRef.current = onCreated || null;
+                setShowAddPersonDialog(true);
+              }}
               onAddNewGroup={() => setShowGroupDrawer(true)}
             />
 
@@ -634,7 +638,10 @@ export default function SandboxScreen() {
               personActions={personActions}
               beneficiaryGroupActions={beneficiaryGroupActions}
               label="Beneficiaries with Amounts"
-              onAddNewPerson={() => setShowAddPersonDialog(true)}
+              onAddNewPerson={(onCreated) => {
+                addPersonSelectionRef.current = onCreated || null;
+                setShowAddPersonDialog(true);
+              }}
               onAddNewGroup={() => setShowGroupDrawer(true)}
             />
 
@@ -895,6 +902,11 @@ export default function SandboxScreen() {
           personActions={personActions}
           roles={['beneficiary']}
           onCreated={(personId) => {
+            if (addPersonSelectionRef.current) {
+              addPersonSelectionRef.current(personId);
+              addPersonSelectionRef.current = null;
+              return;
+            }
             const person = personActions.getPersonById(personId);
             if (!person) return;
             const selection: BeneficiarySelection = {

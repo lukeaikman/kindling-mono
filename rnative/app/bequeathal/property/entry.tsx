@@ -133,6 +133,7 @@ export default function PropertyEntryScreen() {
   // Beneficiaries state
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
+  const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   
   // Track which property ID we've loaded (prevent infinite loop)
   const loadedPropertyIdRef = useRef<string | null>(null);
@@ -1293,7 +1294,8 @@ export default function PropertyEntryScreen() {
                 label="Property Beneficiaries *"
                 useSliders={beneficiaries.length >= 3}
                 requireComplete={false}
-                onAddNewPerson={() => {
+                onAddNewPerson={(onCreated) => {
+                  addPersonSelectionRef.current = onCreated || null;
                   setShowAddPersonDialog(true);
                 }}
                 onAddNewGroup={() => {
@@ -1332,6 +1334,11 @@ export default function PropertyEntryScreen() {
         personActions={personActions}
         roles={['beneficiary']}
         onCreated={(personId) => {
+          if (addPersonSelectionRef.current) {
+            addPersonSelectionRef.current(personId);
+            addPersonSelectionRef.current = null;
+            return;
+          }
           setBeneficiaries((prev) => [...prev, { id: personId, type: 'person' }]);
         }}
       />

@@ -248,6 +248,7 @@ export default function PropertyTrustDetailsScreen() {
   // Co-beneficiaries (for Bare Trust Beneficiary and Settlor & Beneficiary)
   const [bareCoBeneficiaries, setBareCoBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
+  const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   
   // Helper text visibility state for remainderman fields
   const [showRemaindermanHelper, setShowRemaindermanHelper] = useState<Record<string, boolean>>({});
@@ -1799,7 +1800,10 @@ export default function PropertyTrustDetailsScreen() {
           personActions={personActions}
           beneficiaryGroupActions={beneficiaryGroupActions}
           label="Co-beneficiaries"
-          onAddNewPerson={() => setShowAddPersonDialog(true)}
+          onAddNewPerson={(onCreated) => {
+            addPersonSelectionRef.current = onCreated || null;
+            setShowAddPersonDialog(true);
+          }}
           onAddNewGroup={() => alert('Add group functionality to be implemented')}
         />
 
@@ -2598,6 +2602,11 @@ export default function PropertyTrustDetailsScreen() {
         personActions={personActions}
         roles={['beneficiary']}
         onCreated={(personId) => {
+          if (addPersonSelectionRef.current) {
+            addPersonSelectionRef.current(personId);
+            addPersonSelectionRef.current = null;
+            return;
+          }
           setBareCoBeneficiaries((prev) => [...prev, { id: personId, type: 'person' }]);
         }}
       />

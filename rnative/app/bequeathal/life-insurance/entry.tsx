@@ -17,7 +17,7 @@
  * @module screens/bequeathal/life-insurance/entry
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
@@ -62,6 +62,7 @@ export default function LifeInsuranceEntryScreen() {
   const [isListExpanded, setIsListExpanded] = useState(true);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const [addPersonContext, setAddPersonContext] = useState<'lifeAssured' | 'beneficiaries'>('beneficiaries');
+  const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
 
   // Load existing policies
@@ -345,6 +346,7 @@ export default function LifeInsuranceEntryScreen() {
                 excludePersonIds={excludePersonIds}
                 onAddNewPerson={() => {
                   setAddPersonContext('lifeAssured');
+                  addPersonSelectionRef.current = null;
                   setShowAddPersonDialog(true);
                 }}
               />
@@ -418,6 +420,12 @@ export default function LifeInsuranceEntryScreen() {
                     label="Who will receive the payout? *"
                 onAddNewPerson={() => {
                   setAddPersonContext('beneficiaries');
+                  addPersonSelectionRef.current = null;
+                  setShowAddPersonDialog(true);
+                }}
+                onAddNewPerson={(onCreated) => {
+                  setAddPersonContext('beneficiaries');
+                  addPersonSelectionRef.current = onCreated || null;
                   setShowAddPersonDialog(true);
                 }}
                     onAddNewGroup={() => setShowGroupDrawer(true)}
@@ -604,12 +612,17 @@ export default function LifeInsuranceEntryScreen() {
         onCreated={(personId) => {
           if (addPersonContext === 'lifeAssured') {
             setFormData(prev => ({ ...prev, lifeAssured: personId }));
-          } else {
-            setFormData(prev => ({
-              ...prev,
-              beneficiaries: [...prev.beneficiaries, { id: personId, type: 'person' }]
-            }));
+            return;
           }
+          if (addPersonSelectionRef.current) {
+            addPersonSelectionRef.current(personId);
+            addPersonSelectionRef.current = null;
+            return;
+          }
+          setFormData(prev => ({
+            ...prev,
+            beneficiaries: [...prev.beneficiaries, { id: personId, type: 'person' }]
+          }));
         }}
       />
 

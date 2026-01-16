@@ -454,6 +454,23 @@ export interface BaseAsset {
 }
 
 /**
+ * Beneficiary assignment (legacy inline allocations)
+ * Used by BeneficiaryWithPercentages and related helpers.
+ */
+export interface BeneficiaryAssignment {
+  id: string;
+  type: 'person' | 'group' | 'estate';
+  name?: string;
+  percentage?: number;
+  amount?: number;
+  isManuallyEdited?: boolean;
+}
+
+export interface BeneficiaryAssignments {
+  beneficiaries: BeneficiaryAssignment[];
+}
+
+/**
  * Property asset - real estate holdings
  * Simplified flat structure (no basicDetails duplication)
  */

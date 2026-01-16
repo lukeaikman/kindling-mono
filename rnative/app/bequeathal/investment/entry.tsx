@@ -10,7 +10,7 @@
  * - Continue: Proceeds to next category or order-of-things
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
@@ -45,6 +45,7 @@ export default function InvestmentsEntryScreen() {
   const [balanceNotSure, setBalanceNotSure] = useState(false);
   const [editingInvestmentId, setEditingInvestmentId] = useState<string | null>(null);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
+  const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
 
   // Investment type options
@@ -246,7 +247,10 @@ export default function InvestmentsEntryScreen() {
                 beneficiaryGroupActions={beneficiaryGroupActions}
                 excludePersonIds={excludePersonIds}
                 label="Who will receive this? *"
-                onAddNewPerson={() => setShowAddPersonDialog(true)}
+                onAddNewPerson={(onCreated) => {
+                  addPersonSelectionRef.current = onCreated || null;
+                  setShowAddPersonDialog(true);
+                }}
                 onAddNewGroup={() => setShowGroupDrawer(true)}
               />
 
@@ -435,6 +439,11 @@ export default function InvestmentsEntryScreen() {
         personActions={personActions}
         roles={['beneficiary']}
         onCreated={(personId) => {
+          if (addPersonSelectionRef.current) {
+            addPersonSelectionRef.current(personId);
+            addPersonSelectionRef.current = null;
+            return;
+          }
           setFormData(prev => ({
             ...prev,
             beneficiaries: [...prev.beneficiaries, { id: personId, type: 'person' }]
