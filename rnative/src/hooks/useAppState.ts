@@ -952,7 +952,6 @@ export const useAppState = () => {
           newBusinessesToAdd.push({
             name: share.companyName,
             businessType: '',
-            ownershipPercentage: 0,
             estimatedValue: 0,
           });
         }
@@ -964,7 +963,6 @@ export const useAppState = () => {
           newBusinessesToAdd.push({
             name: asset.businessName,
             businessType: asset.businessType || '',
-            ownershipPercentage: 0,
             estimatedValue: 0,
           });
         }

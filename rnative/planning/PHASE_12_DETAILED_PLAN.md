@@ -38,7 +38,6 @@ export interface Business {
   name: string;
   businessType: string;           // ← REMOVE
   registrationNumber?: string;
-  ownershipPercentage: number;
   estimatedValue: number;
   description?: string;
   address?: AddressData;
@@ -47,12 +46,11 @@ export interface Business {
 }
 ```
 
-**UPDATED (Simplified - 7 fields):**
+**UPDATED (Simplified - 6 fields):**
 ```typescript
 export interface Business {
   id: string;
   name: string;
-  ownershipPercentage: number;    // From Private Company Shares
   estimatedValue: number;          // Calculated from assets
   description?: string;
   createdAt: Date;
@@ -81,7 +79,7 @@ export interface AssetsHeldThroughBusinessAsset extends BaseAsset {
   businessType?: string;             // ← DUPLICATION (lookup from Business)
   assetType: string;
   assetDescription?: string;
-  businessOwnershipPercentage?: number;  // ← DUPLICATION (lookup from Business)
+  businessOwnershipPercentage?: number;  // ← DUPLICATION (lookup from shareholdings if needed)
   numberOfUnits?: number;            // ← DEAD CODE (never used)
   excludeFromBusinessValuation?: boolean;  // ← UNREALISTIC (goodwill example)
 }
@@ -103,7 +101,7 @@ export interface AssetsHeldThroughBusinessAsset extends BaseAsset {
   
   // REMOVED: businessName (lookup via businessId)
   // REMOVED: businessType (removed from Business interface too)
-  // REMOVED: businessOwnershipPercentage (lookup via businessId)
+  // REMOVED: businessOwnershipPercentage (not stored; derive from shareholdings if needed)
   // REMOVED: numberOfUnits (dead code, never used anywhere)
   // REMOVED: excludeFromBusinessValuation (unrealistic use case)
 }
@@ -194,9 +192,8 @@ interface AssetsHeldThroughBusinessAsset extends BaseAsset {
 - Option at bottom: "📝 Add New Business" (for edge cases)
 
 **If "Add New Business" selected:**
-- Show 2-field mini-form:
+- Show 1-field mini-form:
   1. Business Name (text input)
-  2. Ownership % (number input, 0-100)
 - Creates minimal Business record
 - Proceeds to Step 2
 
@@ -204,7 +201,6 @@ interface AssetsHeldThroughBusinessAsset extends BaseAsset {
 - If business exists in Private Company Shares:
   - businessId = share.id
   - name = share.companyName
-  - ownershipPercentage = share.percentageOwnership
   - estimatedValue = 0 (calculated from assets later)
 - If new business:
   - Create new Business record with entered data
@@ -336,13 +332,12 @@ const canSubmit = selectedBusinessId && formData.assetType && formData.assetDesc
 
 ### State Management
 
-**Load Private Company Shares (for business selector):**
+**Load Businesses (for business selector):**
 ```typescript
-const privateShares = bequeathalActions.getAssetsByType('private-company-shares');
-const businessOptions = privateShares.map(share => ({
-  label: share.companyName,
-  sublabel: share.percentageOwnership ? `${share.percentageOwnership}% owned` : undefined,
-  value: share.id  // Use share.id as businessId
+const businesses = businessActions.getBusinesses();
+const businessOptions = businesses.map(business => ({
+  label: business.name,
+  value: business.id
 }));
 ```
 
@@ -351,7 +346,6 @@ const businessOptions = privateShares.map(share => ({
 // Only needed for "Add new business" option
 const newBusinessId = businessActions.addBusiness({
   name: businessName,
-  ownershipPercentage: parseFloat(ownershipPercent) || 0,
   estimatedValue: 0,  // Calculated from assets
 });
 ```
@@ -377,11 +371,10 @@ const business = businessActions.getBusinessById(asset.businessId);
 
 // Defensive null checks (Gates's improvement)
 const displayName = business?.name || 'Unknown Business (deleted)';
-const displayOwnership = business?.ownershipPercentage ?? 0;
 const displayValue = asset.estimatedValue ?? 0;
 
 // Display:
-// "{displayName} ({displayOwnership}% owned)"
+// "{displayName}"
 // "Asset: {asset.assetDescription}"
 // "Value: £{displayValue.toLocaleString()}"
 ```
@@ -438,7 +431,7 @@ title: `${business.name} - ${assetDescription || assetTypeLabel}`
 **Removed (Data Normalization):**
 - ❌ businessName field (lookup via businessId)
 - ❌ businessType field (removed from Business interface entirely)
-- ❌ businessOwnershipPercentage field (lookup via businessId)
+- ❌ businessOwnershipPercentage field (not stored; derive from shareholdings if needed)
 - ❌ numberOfUnits field (dead code, never used)
 - ❌ excludeFromBusinessValuation field (unrealistic use case)
 
@@ -518,7 +511,6 @@ title: `${business.name} - ${assetDescription || assetTypeLabel}`
 // Always use defensive checks when looking up business
 const business = businessActions.getBusinessById(asset.businessId);
 const name = business?.name || 'Unknown Business (deleted)';
-const ownership = business?.ownershipPercentage ?? 0;
 ```
 
 **Jobs's Grouped Dropdown:**
@@ -537,7 +529,7 @@ const ownership = business?.ownershipPercentage ?? 0;
 // REMOVE: businessType field
 // REMOVE: registrationNumber field (defer)
 // REMOVE: address field (defer)
-// Keep: id, name, ownershipPercentage, estimatedValue, description, dates
+// Keep: id, name, estimatedValue, description, dates
 ```
 
 **Step 2: UPDATE AssetsHeldThroughBusinessAsset interface**
@@ -547,7 +539,7 @@ const ownership = business?.ownershipPercentage ?? 0;
 // KEEP: businessId, assetType, assetDescription
 // REMOVE: businessName (lookup via businessId)
 // REMOVE: businessType (removed from Business too)
-// REMOVE: businessOwnershipPercentage (lookup via businessId)
+// REMOVE: businessOwnershipPercentage (not stored; derive from shareholdings if needed)
 // REMOVE: numberOfUnits (dead code)
 // REMOVE: excludeFromBusinessValuation (unrealistic)
 // Change assetType to strict union type
@@ -588,7 +580,6 @@ const ownership = business?.ownershipPercentage ?? 0;
 // Group assets by businessId
 // For each business:
 //   - Show business name (lookup via businessActions.getBusinessById)
-//   - Show ownership % (lookup from business record)
 //   - List assets under business
 //   - Show subtotal for business
 // Grand total across all businesses
@@ -600,14 +591,13 @@ const ownership = business?.ownershipPercentage ?? 0;
 const getBusinessDetails = (businessId: string) => {
   const business = businessActions.getBusinessById(businessId);
   return {
-    name: business?.name || 'Unknown Business',
-    ownership: business?.ownershipPercentage || 0
+    name: business?.name || 'Unknown Business'
   };
 };
 
 // Use in display:
-const { name, ownership } = getBusinessDetails(asset.businessId);
-// Show: "{name} ({ownership}% owned)"
+const { name } = getBusinessDetails(asset.businessId);
+// Show: "{name}"
 ```
 
 **Step 8: IMPLEMENT Multi-Business Support**
@@ -652,7 +642,6 @@ const { name, ownership } = getBusinessDetails(asset.businessId);
   businessId: "abc-123",
   businessName: "Acme Ltd",  // ← Duplicated 10 times
   businessType: "limited-company",  // ← Duplicated 10 times
-  businessOwnershipPercentage: 33,  // ← Duplicated 10 times
   assetType: "property",
   assetDescription: "Office",
   estimatedValue: 500000,
@@ -675,7 +664,6 @@ const { name, ownership } = getBusinessDetails(asset.businessId);
 {
   id: "abc-123",
   name: "Acme Ltd",
-  ownershipPercentage: 33,
   estimatedValue: 0  // Auto-calculated
 }
 ```
@@ -683,9 +671,9 @@ const { name, ownership } = getBusinessDetails(asset.businessId);
 **Savings per 10 assets:**
 - Name duplication: 9 × "Acme Ltd" strings = ~90 bytes saved
 - Type duplication: 9 × "limited-company" = ~135 bytes saved
-- Ownership duplication: 9 × number = 72 bytes saved
-- **Total per business: ~300 bytes saved**
-- **Multiply by 5 businesses = 1.5KB saved**
+- Ownership duplication: removed (ownership now lives on shareholdings)
+- **Total per business: ~200+ bytes saved**
+- **Multiply by 5 businesses = ~1KB+ saved**
 
 **More importantly:**
 - Update business name in 1 place → reflects everywhere

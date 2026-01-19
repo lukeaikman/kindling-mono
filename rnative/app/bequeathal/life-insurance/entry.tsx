@@ -699,12 +699,13 @@ const styles = StyleSheet.create({
     gap: Spacing.lg,
   },
   formCard: {
-    backgroundColor: KindlingColors.background,
+    backgroundColor: `${KindlingColors.cream}33`,
     borderRadius: 12,
+    padding: Spacing.md,
     borderWidth: 1,
-    borderColor: KindlingColors.border,
-    padding: Spacing.lg,
+    borderColor: KindlingColors.cream,
     gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   formTitle: {
     fontSize: Typography.fontSize.lg,

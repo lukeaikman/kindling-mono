@@ -23,7 +23,7 @@ import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
-import type { AssetsHeldThroughBusinessAsset, PrivateCompanySharesAsset } from '../../../src/types';
+import type { AssetsHeldThroughBusinessAsset } from '../../../src/types';
 
 interface AssetForm {
   assetType: string;
@@ -33,7 +33,6 @@ interface AssetForm {
 
 interface NewBusinessForm {
   name: string;
-  ownershipPercentage: string;
 }
 
 export default function AssetsHeldThroughBusinessEntryScreen() {
@@ -43,7 +42,6 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
   const [showNewBusinessForm, setShowNewBusinessForm] = useState(false);
   const [newBusinessForm, setNewBusinessForm] = useState<NewBusinessForm>({
     name: '',
-    ownershipPercentage: '',
   });
   const [formData, setFormData] = useState<AssetForm>({
     assetType: '',
@@ -81,26 +79,18 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
     return placeholders[assetType] || 'e.g., Office building, Delivery van';
   };
 
-  // Load Private Company Shares for business selector
-  const privateShares = bequeathalActions.getAssetsByType('private-company-shares') as PrivateCompanySharesAsset[];
-  
-  // Create business options from shares
-  const businessOptions = useMemo(() => {
-    const options = privateShares.map(share => ({
-      label: share.companyName,
-      sublabel: share.percentageOwnership ? `${share.percentageOwnership}% owned` : undefined,
-      value: share.id,
-    }));
-    
-    // Add "Add New Business" option at bottom
-    options.push({
+  // Create business options from business registry
+  const businessOptions = [
+    ...businessActions.getBusinesses().map(business => ({
+      label: business.name,
+      value: business.id,
+    })),
+    {
       label: '📝 Add New Business',
       sublabel: undefined,
       value: '__ADD_NEW__',
-    });
-    
-    return options;
-  }, [privateShares]);
+    },
+  ];
 
   // Load existing assets
   const existingAssets = bequeathalActions.getAssetsByType('assets-held-through-business') as AssetsHeldThroughBusinessAsset[];
@@ -129,11 +119,11 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
       setSelectedBusinessId('');
       setSelectedBusinessName('');
     } else {
-      // Find share to get business name
-      const share = privateShares.find(s => s.id === businessId);
-      if (share) {
+      // Find business to get name
+      const business = businessActions.getBusinessById(businessId);
+      if (business) {
         setSelectedBusinessId(businessId);
-        setSelectedBusinessName(share.companyName);
+        setSelectedBusinessName(business.name);
         setShowNewBusinessForm(false);
       }
     }
@@ -141,19 +131,17 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
 
   const handleCreateNewBusiness = () => {
     if (!newBusinessForm.name.trim()) return;
-
-    const ownershipPercent = parseFloat(newBusinessForm.ownershipPercentage) || 0;
     
     const newBusinessId = businessActions.addBusiness({
       name: newBusinessForm.name,
-      ownershipPercentage: ownershipPercent,
+      businessType: '',
       estimatedValue: 0,
     });
 
     setSelectedBusinessId(newBusinessId);
     setSelectedBusinessName(newBusinessForm.name);
     setShowNewBusinessForm(false);
-    setNewBusinessForm({ name: '', ownershipPercentage: '' });
+    setNewBusinessForm({ name: '' });
   };
 
   const handleAddAsset = () => {
@@ -218,7 +206,6 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
     const business = businessActions.getBusinessById(businessId);
     return {
       name: business?.name || 'Unknown Business (deleted)',
-      ownership: business?.ownershipPercentage ?? 0,
     };
   };
 
@@ -278,19 +265,11 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
                 onChangeText={(value) => setNewBusinessForm(prev => ({ ...prev, name: value }))}
               />
 
-              <Input
-                label="Your Ownership % *"
-                placeholder="e.g., 50"
-                value={newBusinessForm.ownershipPercentage}
-                onChangeText={(value) => setNewBusinessForm(prev => ({ ...prev, ownershipPercentage: value }))}
-                keyboardType="decimal-pad"
-              />
-
               <View style={styles.buttonRow}>
                 <Button
                   onPress={() => {
                     setShowNewBusinessForm(false);
-                    setNewBusinessForm({ name: '', ownershipPercentage: '' });
+                    setNewBusinessForm({ name: '' });
                   }}
                   variant="outline"
                   style={styles.halfButton}
@@ -317,9 +296,6 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
                 <View style={styles.selectedBusinessHeader}>
                   <View style={styles.selectedBusinessInfo}>
                     <Text style={styles.selectedBusinessName}>{selectedBusinessName}</Text>
-                    <Text style={styles.selectedBusinessOwnership}>
-                      ({getBusinessDetails(selectedBusinessId).ownership}% owned)
-                    </Text>
                   </View>
                   <TouchableOpacity onPress={handleAddForAnotherBusiness}>
                     <Text style={styles.changeBusinessText}>Change</Text>
@@ -448,13 +424,13 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
               <Text style={styles.allBusinessesTitle}>All Business Assets</Text>
 
               {Array.from(assetsByBusiness.entries()).map(([businessId, assets]) => {
-                const { name, ownership } = getBusinessDetails(businessId);
+                const { name } = getBusinessDetails(businessId);
                 const subtotal = assets.reduce((sum, a) => sum + (a.estimatedValue ?? 0), 0);
 
                 return (
                   <View key={businessId} style={styles.businessGroup}>
                     <Text style={styles.businessGroupName}>
-                      {name} ({ownership}% owned)
+                      {name}
                     </Text>
                     {assets.map((asset) => {
                       const assetTypeLabel = assetTypeOptions.find(opt => opt.value === asset.assetType)?.label || asset.assetType;
@@ -648,10 +624,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
-  },
-  selectedBusinessOwnership: {
-    fontSize: Typography.fontSize.sm,
-    color: `${KindlingColors.navy}99`,
   },
   changeBusinessText: {
     fontSize: Typography.fontSize.sm,

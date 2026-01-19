@@ -21,7 +21,7 @@ import { AddPersonDialog, BeneficiaryWithPercentages } from '../../../src/compon
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import type { PropertyAsset, BeneficiaryAssignment } from '../../../src/types';
+import type { PropertyAsset, BeneficiaryAssignment, PrivateCompanySharesAsset } from '../../../src/types';
 
 /**
  * UK Mortgage Providers
@@ -106,12 +106,13 @@ interface PropertyData {
   mortgageAmount: number;
 
   // Company Ownership (6 fields - conditional)
+  businessId: string;
   companyName: string;
   companyCountryOfRegistration: string;
   companyOwnershipPercentage: number;
   companyShareClass: string;
   companyNotes: string;
-  companyArticlesConfident: string; // 'standard', 'customized', 'not_sure'
+  companyArticlesConfident: 'standard' | 'customized' | 'not_sure' | ''; // 'standard', 'customized', 'not_sure'
 
   // Joint Ownership (conditional)
   jointOwnershipType: string;
@@ -123,7 +124,7 @@ interface PropertyData {
 }
 
 export default function PropertyEntryScreen() {
-  const { bequeathalActions, personActions, beneficiaryGroupActions } = useAppState();
+  const { bequeathalActions, personActions, beneficiaryGroupActions, businessActions } = useAppState();
   const params = useLocalSearchParams();
   const editingPropertyId = params.id as string | undefined;
 
@@ -186,6 +187,7 @@ export default function PropertyEntryScreen() {
     mortgageAmount: 0,
     
     // Company Ownership
+    businessId: '',
     companyName: '',
     companyCountryOfRegistration: 'uk',
     companyOwnershipPercentage: 100,
@@ -201,6 +203,55 @@ export default function PropertyEntryScreen() {
     
     // Trust - handled via Trust entity (no inline fields)
   });
+
+  const [companySelection, setCompanySelection] = useState<string>('');
+
+  const companyOptions = [
+    ...businessActions.getBusinesses().map(business => ({
+      label: business.name,
+      value: business.id,
+    })),
+    { label: 'Add new company', value: '__NEW__' },
+  ];
+
+  const handleCompanySelection = (value: string) => {
+    setCompanySelection(value);
+    if (value === '__NEW__') {
+      setPropertyData(prev => ({
+        ...prev,
+        businessId: '',
+        companyName: '',
+        companyCountryOfRegistration: 'uk',
+        companyOwnershipPercentage: 100,
+        companyShareClass: 'ordinary',
+        companyNotes: '',
+        companyArticlesConfident: '',
+      }));
+      return;
+    }
+
+    if (!value) {
+      return;
+    }
+
+    const business = businessActions.getBusinessById(value);
+    const shareholdings = bequeathalActions.getAssetsByType('private-company-shares') as PrivateCompanySharesAsset[];
+    const shareholding = shareholdings.find(share => share.businessId === value);
+
+    if (business) {
+      setPropertyData(prev => ({
+        ...prev,
+        businessId: business.id,
+        companyName: business.name,
+        companyOwnershipPercentage: shareholding?.percentageOwnership ?? prev.companyOwnershipPercentage,
+        companyShareClass: shareholding?.shareClass || prev.companyShareClass,
+        companyNotes: shareholding?.companyNotes || prev.companyNotes,
+        companyArticlesConfident: shareholding?.companyArticlesConfident || prev.companyArticlesConfident,
+        companyCountryOfRegistration: shareholding?.companyCountryOfRegistration || prev.companyCountryOfRegistration,
+      }));
+    }
+  };
+
 
   // Load existing property data if editing
   useEffect(() => {
@@ -280,12 +331,13 @@ export default function PropertyEntryScreen() {
       mortgageAmount: property.mortgage?.outstandingAmount || 0,
       
       // Company Ownership
+      businessId: property.businessId || '',
       companyName: property.companyName || '',
       companyCountryOfRegistration: property.companyCountryOfRegistration || 'uk',
       companyOwnershipPercentage: property.companyOwnershipPercentage || 100,
       companyShareClass: property.companyShareClass || 'ordinary',
       companyNotes: property.companyNotes || '',
-      companyArticlesConfident: property.companyArticlesConfident || '',
+      companyArticlesConfident: (property.companyArticlesConfident as PropertyData['companyArticlesConfident']) || '',
       
       // Joint Ownership
       jointOwnershipType: property.jointOwnershipType || '',
@@ -300,6 +352,15 @@ export default function PropertyEntryScreen() {
     if (property.beneficiaryAssignments?.beneficiaries) {
       setBeneficiaries(property.beneficiaryAssignments.beneficiaries);
     }
+
+    if (property.businessId) {
+      setCompanySelection(property.businessId);
+    } else if (property.companyName) {
+      setCompanySelection('__NEW__');
+    } else {
+      setCompanySelection('');
+    }
+
     
     loadedPropertyIdRef.current = editingPropertyId; // Mark THIS property as loaded
     console.log('✅ Form populated successfully');
@@ -442,6 +503,36 @@ export default function PropertyEntryScreen() {
       return;
     }
     
+    const normalizeBusinessName = (name: string) => name.trim().toLowerCase();
+
+    const resolveBusinessId = (): string | undefined => {
+      if (!isCompanyOwned()) return undefined;
+      if (companySelection !== '__NEW__' && propertyData.businessId) {
+        return propertyData.businessId;
+      }
+      const normalizedName = normalizeBusinessName(propertyData.companyName);
+      if (!normalizedName) return undefined;
+
+      const existing = businessActions.getBusinesses().find(business =>
+        normalizeBusinessName(business.name) === normalizedName
+      );
+
+      if (existing) {
+        businessActions.updateBusiness(existing.id, {
+          name: propertyData.companyName.trim(),
+        });
+        return existing.id;
+      }
+
+      return businessActions.addBusiness({
+        name: propertyData.companyName.trim(),
+        businessType: '',
+        estimatedValue: 0,
+      });
+    };
+
+    const resolvedBusinessId = resolveBusinessId();
+
     // Convert propertyData to PropertyAsset format
     const propertyAsset = {
       type: 'property' as const,
@@ -501,6 +592,7 @@ export default function PropertyEntryScreen() {
       buyToLetTenantedAtDeath: isBuyToLet() ? propertyData.buyToLetTenantedAtDeath : undefined,
       
       // Company ownership (conditional)
+      businessId: isCompanyOwned() ? resolvedBusinessId : undefined,
       companyName: isCompanyOwned() ? propertyData.companyName : undefined,
       companyOwnershipPercentage: isCompanyOwned() ? propertyData.companyOwnershipPercentage : undefined,
       companyCountryOfRegistration: isCompanyOwned() ? propertyData.companyCountryOfRegistration : undefined,
@@ -521,6 +613,41 @@ export default function PropertyEntryScreen() {
         beneficiaries,
       } : undefined,
     };
+
+    if (isCompanyOwned() && resolvedBusinessId) {
+      const existingShares = bequeathalActions.getAssetsByType('private-company-shares') as any[];
+      const normalizedName = normalizeBusinessName(propertyData.companyName);
+      const existingShare = existingShares.find(share =>
+        share.businessId === resolvedBusinessId ||
+        (share.companyName && normalizeBusinessName(share.companyName) === normalizedName)
+      );
+
+      const shareData: Partial<PrivateCompanySharesAsset> = {
+        title: propertyData.companyName.trim(),
+        companyName: propertyData.companyName.trim(),
+        businessId: resolvedBusinessId,
+        percentageOwnership: propertyData.companyOwnershipPercentage || undefined,
+        shareClass: propertyData.companyShareClass || undefined,
+        companyCountryOfRegistration: propertyData.companyCountryOfRegistration || undefined,
+        companyNotes: propertyData.companyNotes || undefined,
+        companyArticlesConfident: propertyData.companyArticlesConfident || undefined,
+        estimatedValue: 0,
+        netValue: 0,
+      };
+
+      if (existingShare?.id) {
+        bequeathalActions.updateAsset(existingShare.id, {
+          ...shareData,
+          percentageOwnership: existingShare.percentageOwnership ?? shareData.percentageOwnership,
+          shareClass: existingShare.shareClass ?? shareData.shareClass,
+          companyNotes: existingShare.companyNotes ?? shareData.companyNotes,
+          companyArticlesConfident: existingShare.companyArticlesConfident ?? shareData.companyArticlesConfident,
+          companyCountryOfRegistration: existingShare.companyCountryOfRegistration ?? shareData.companyCountryOfRegistration,
+        });
+      } else {
+        bequeathalActions.addAsset('private-company-shares', shareData as any);
+      }
+    }
 
     // Save to state - update if editing, add if new
     if (editingPropertyId) {
@@ -1071,107 +1198,121 @@ export default function PropertyEntryScreen() {
                     </Text>
                   </View>
 
-                  <Input
-                    label="Company Name *"
-                    placeholder="Enter company name..."
-                    value={propertyData.companyName}
-                    onChangeText={(value) => updatePropertyData('companyName', value)}
-                  />
-
                   <Select
-                    label="Country of Registration *"
-                    placeholder="Select country..."
-                    value={propertyData.companyCountryOfRegistration}
-                    options={[
-                      { label: 'United Kingdom', value: 'uk' },
-                      { label: 'United States', value: 'us' },
-                      { label: 'Ireland', value: 'ie' },
-                      { label: 'France', value: 'fr' },
-                      { label: 'Germany', value: 'de' },
-                      { label: 'Spain', value: 'es' },
-                      { label: 'Italy', value: 'it' },
-                      { label: 'Netherlands', value: 'nl' },
-                      { label: 'Other', value: 'other' },
-                    ]}
-                    onChange={(value) => updatePropertyData('companyCountryOfRegistration', value)}
+                    label="Company"
+                    placeholder="Select or Create a Company"
+                    value={companySelection}
+                    options={companyOptions}
+                    onChange={handleCompanySelection}
                   />
 
-                  <PercentageInput
-                    label="Your % Share Holding in Company *"
-                    placeholder="Enter percentage..."
-                    value={propertyData.companyOwnershipPercentage}
-                    onValueChange={(value) => updatePropertyData('companyOwnershipPercentage', value)}
-                  />
+                  {companySelection === '__NEW__' && (
+                    <>
+                      <Input
+                        label="Company Name *"
+                        placeholder="Enter company name..."
+                        value={propertyData.companyName}
+                        onChangeText={(value) => updatePropertyData('companyName', value)}
+                      />
 
-                  <RadioGroup
-                    label="Share Class"
-                    options={[
-                      { 
-                        label: 'Ordinary', 
-                        value: 'ordinary',
-                        helperText: 'Standard share class with equal rights'
-                      },
-                      { 
-                        label: 'Other', 
-                        value: 'other',
-                        helperText: 'Custom share class or special arrangement'
-                      },
-                    ]}
-                    value={propertyData.companyShareClass}
-                    onChange={(value) => updatePropertyData('companyShareClass', value)}
-                  />
+                      <Select
+                        label="Country of Registration *"
+                        placeholder="Select country..."
+                        value={propertyData.companyCountryOfRegistration}
+                        options={[
+                          { label: 'United Kingdom', value: 'uk' },
+                          { label: 'United States', value: 'us' },
+                          { label: 'Ireland', value: 'ie' },
+                          { label: 'France', value: 'fr' },
+                          { label: 'Germany', value: 'de' },
+                          { label: 'Spain', value: 'es' },
+                          { label: 'Italy', value: 'it' },
+                          { label: 'Netherlands', value: 'nl' },
+                          { label: 'Other', value: 'other' },
+                        ]}
+                        onChange={(value) => updatePropertyData('companyCountryOfRegistration', value)}
+                      />
 
-                  {propertyData.companyShareClass === 'other' && (
-                    <Input
-                      label="Notes on share class (optional)"
-                      placeholder="Restrictions, special terms, etc (optional)..."
-                      value={propertyData.companyNotes}
-                      onChangeText={(value) => updatePropertyData('companyNotes', value)}
-                      multiline
-                    />
-                  )}
+                      <PercentageInput
+                        label="Your % Share Holding in Company *"
+                        placeholder="Enter percentage..."
+                        value={propertyData.companyOwnershipPercentage}
+                        onValueChange={(value) => updatePropertyData('companyOwnershipPercentage', value)}
+                      />
 
-                  <RadioGroup
-                    label="Was your company set up with standard documents?"
-                    options={[
-                      { 
-                        label: 'Yes', 
-                        value: 'standard',
-                        helperText: 'Used standard formation documents'
-                      },
-                      { 
-                        label: 'No', 
-                        value: 'customized',
-                        helperText: 'We customized the setup'
-                      },
-                      { 
-                        label: 'Not sure', 
-                        value: 'not_sure',
-                        helperText: 'Most property companies use standard setup'
-                      },
-                    ]}
-                    value={propertyData.companyArticlesConfident}
-                    onChange={(value) => {
-                      updatePropertyData('companyArticlesConfident', value);
-                      // TODO: If value is 'customized' or 'not_sure', create backend task for admin team to reach out about company structure and transfer rights
-                    }}
-                  />
+                      <RadioGroup
+                        label="Share Class"
+                        options={[
+                          { 
+                            label: 'Ordinary', 
+                            value: 'ordinary',
+                            helperText: 'Standard share class with equal rights'
+                          },
+                          { 
+                            label: 'Other', 
+                            value: 'other',
+                            helperText: 'Custom share class or special arrangement'
+                          },
+                        ]}
+                        value={propertyData.companyShareClass}
+                        onChange={(value) => updatePropertyData('companyShareClass', value)}
+                      />
 
-                  {(propertyData.companyArticlesConfident === 'customized' || propertyData.companyArticlesConfident === 'not_sure') && (
-                    <View style={styles.infoBox}>
-                      <Text style={styles.infoText}>
-                        📞 Our team may reach out if they have any questions
-                      </Text>
-                    </View>
+                      {propertyData.companyShareClass === 'other' && (
+                        <Input
+                          label="Notes on share class (optional)"
+                          placeholder="Restrictions, special terms, etc (optional)..."
+                          value={propertyData.companyNotes}
+                          onChangeText={(value) => updatePropertyData('companyNotes', value)}
+                          multiline
+                        />
+                      )}
+
+                      <RadioGroup
+                        label="Was your company set up with standard documents?"
+                        options={[
+                          { 
+                            label: 'Yes', 
+                            value: 'standard',
+                            helperText: 'Used standard formation documents'
+                          },
+                          { 
+                            label: 'No', 
+                            value: 'customized',
+                            helperText: 'We customized the setup'
+                          },
+                          { 
+                            label: 'Not sure', 
+                            value: 'not_sure',
+                            helperText: 'Most property companies use standard setup'
+                          },
+                        ]}
+                        value={propertyData.companyArticlesConfident}
+                        onChange={(value) => {
+                          updatePropertyData('companyArticlesConfident', value);
+                          // TODO: If value is 'customized' or 'not_sure', create backend task for admin team to reach out about company structure and transfer rights
+                        }}
+                      />
+
+                      {(propertyData.companyArticlesConfident === 'customized' || propertyData.companyArticlesConfident === 'not_sure') && (
+                        <View style={styles.infoBox}>
+                          <Text style={styles.infoText}>
+                            📞 Our team may reach out if they have any questions
+                          </Text>
+                        </View>
+                      )}
+                    </>
                   )}
 
                   <Button
                     onPress={() => setExpandedAccordion(getNextAccordion('company'))}
                     variant="primary"
                     disabled={
-                      !propertyData.companyName ||
-                      !propertyData.companyCountryOfRegistration ||
-                      propertyData.companyOwnershipPercentage === 0
+                      companySelection === '__NEW__'
+                        ? !propertyData.companyName ||
+                          !propertyData.companyCountryOfRegistration ||
+                          propertyData.companyOwnershipPercentage === 0
+                        : !companySelection
                     }
                   >
                     Continue

@@ -9,44 +9,66 @@
  * - Continue: Proceeds to next category or order-of-things
  */
 
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
-import { Button, BackButton, Input, CurrencyInput } from '../../../src/components/ui';
+import { Button, BackButton, Input, CurrencyInput, Select, RadioGroup } from '../../../src/components/ui';
+import { AddPersonDialog, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
-import type { PrivateCompanySharesAsset } from '../../../src/types';
+import { validatePercentageAllocation, getBeneficiaryDisplayName } from '../../../src/utils/beneficiaryHelpers';
+import type { PrivateCompanySharesAsset, BeneficiaryAssignment } from '../../../src/types';
 
 interface ShareForm {
   companyName: string;
+  businessId: string;
+  companyCountryOfRegistration: string;
+  companyShareClass: string;
+  companyNotes: string;
+  companyArticlesConfident: string;
   ownershipValue: string;
+  heldForTwoPlusYears: 'yes' | 'no' | 'not_sure' | '';
+  acquisitionMonth: string;
+  acquisitionYear: string;
+  beneficiaries: BeneficiaryAssignment[];
   estimatedValue: number;
   notes: string;
   excludeFromNetWorth: boolean;
   isActivelyTrading: boolean;
-  heldForTwoPlusYears: boolean;
   isNotHoldingCompany: boolean;
 }
 
 export default function PrivateCompanySharesEntryScreen() {
-  const { bequeathalActions } = useAppState();
+  const { bequeathalActions, personActions, beneficiaryGroupActions, businessActions, willActions } = useAppState();
   const [showForm, setShowForm] = useState(true);
   const [ownershipMode, setOwnershipMode] = useState<'percentage' | 'shares'>('percentage');
   const [formData, setFormData] = useState<ShareForm>({
     companyName: '',
+    businessId: '',
+    companyCountryOfRegistration: 'uk',
+    companyShareClass: 'ordinary',
+    companyNotes: '',
+    companyArticlesConfident: '',
     ownershipValue: '',
+    heldForTwoPlusYears: '',
+    acquisitionMonth: '',
+    acquisitionYear: '',
+    beneficiaries: [],
     estimatedValue: 0,
     notes: '',
     excludeFromNetWorth: false,
     isActivelyTrading: false,
-    heldForTwoPlusYears: false,
     isNotHoldingCompany: false,
   });
   const [valueNotSure, setValueNotSure] = useState(false);
+  const [companySelection, setCompanySelection] = useState<string>('__NEW__');
+  const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
+  const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
+  const [showGroupDrawer, setShowGroupDrawer] = useState(false);
 
   // Load existing shares
   const existingShares = bequeathalActions.getAssetsByType('private-company-shares') as PrivateCompanySharesAsset[];
@@ -56,6 +78,16 @@ export default function PrivateCompanySharesEntryScreen() {
     sum + (share.excludeFromNetWorth ? 0 : (share.estimatedValue || 0)), 0
   );
   const excludedCount = existingShares.filter(s => s.excludeFromNetWorth).length;
+  const willMaker = willActions.getUser();
+  const excludePersonIds = willMaker?.id ? [willMaker.id] : [];
+
+  const companyOptions = [
+    ...businessActions.getBusinesses().map(business => ({
+      label: business.name,
+      value: business.id,
+    })),
+    { label: 'Add new company', value: '__NEW__' },
+  ];
 
   // Hide form after first share if none existed initially
   useEffect(() => {
@@ -66,6 +98,32 @@ export default function PrivateCompanySharesEntryScreen() {
     }
   }, []);
 
+  const handleCompanySelection = (value: string) => {
+    setCompanySelection(value);
+    if (value === '__NEW__') {
+      setFormData(prev => ({
+        ...prev,
+        businessId: '',
+        companyName: '',
+        ownershipValue: '',
+      }));
+      return;
+    }
+
+    const business = businessActions.getBusinessById(value);
+    if (business) {
+      setFormData(prev => ({
+        ...prev,
+        businessId: business.id,
+        companyName: business.name,
+      }));
+    }
+  };
+
+  const handleBeneficiariesChange = (newBeneficiaries: BeneficiaryAssignment[]) => {
+    setFormData(prev => ({ ...prev, beneficiaries: newBeneficiaries }));
+  };
+
   const handleToggleMode = (newMode: 'percentage' | 'shares') => {
     if (newMode === ownershipMode) return;
     setOwnershipMode(newMode);
@@ -75,6 +133,13 @@ export default function PrivateCompanySharesEntryScreen() {
   const handleAddShare = () => {
     // Validation
     if (!formData.companyName.trim()) return;
+    if (formData.heldForTwoPlusYears === 'no' && (!formData.acquisitionMonth || !formData.acquisitionYear)) {
+      Alert.alert('Missing acquisition date', 'Please add the acquisition month and year.');
+      return;
+    }
+    if (formData.beneficiaries.length > 0 && !validatePercentageAllocation({ beneficiaries: formData.beneficiaries })) {
+      return; // Component already shows error state
+    }
 
     // Round value to nearest £1
     const estimatedValue = Math.round(valueNotSure ? 0 : formData.estimatedValue);
@@ -85,23 +150,74 @@ export default function PrivateCompanySharesEntryScreen() {
 
     if (ownershipMode === 'percentage' && formData.ownershipValue) {
       const rawPercentage = parseFloat(formData.ownershipValue);
+      if (isNaN(rawPercentage) || rawPercentage < 0 || rawPercentage > 100) {
+        Alert.alert('Invalid ownership', 'Percentage must be between 0 and 100.');
+        return;
+      }
       percentageOwnership = Math.round(rawPercentage * 100) / 100; // Round to 2dp
     } else if (ownershipMode === 'shares' && formData.ownershipValue) {
-      numberOfShares = parseInt(formData.ownershipValue);
+      const parsedShares = parseInt(formData.ownershipValue);
+      if (isNaN(parsedShares) || parsedShares <= 0) {
+        Alert.alert('Invalid ownership', 'Number of shares must be a positive whole number.');
+        return;
+      }
+      numberOfShares = parsedShares;
     }
 
+    const resolveBusinessId = (): string | undefined => {
+      if (companySelection === '__NEW__' || !formData.businessId) {
+        const newBusinessId = businessActions.addBusiness({
+          name: formData.companyName.trim(),
+          businessType: '',
+          estimatedValue: 0,
+        });
+        return newBusinessId;
+      }
+
+      return formData.businessId;
+    };
+
+    const resolvedBusinessId = resolveBusinessId();
+    const businessName = resolvedBusinessId
+      ? businessActions.getBusinessById(resolvedBusinessId)?.name || formData.companyName.trim()
+      : formData.companyName.trim();
+
+    const heldForTwoPlusYears = formData.heldForTwoPlusYears === 'yes'
+      ? true
+      : formData.heldForTwoPlusYears === 'no'
+        ? false
+        : undefined;
+
     const shareData = {
-      title: formData.companyName,
-      companyName: formData.companyName,
+      title: businessName,
+      companyName: businessName,
+      businessId: resolvedBusinessId,
       percentageOwnership,
       numberOfShares,
+      shareClass: formData.companyShareClass || undefined,
+      companyNotes: formData.companyNotes || undefined,
+      companyArticlesConfident: formData.companyArticlesConfident || undefined,
+      companyCountryOfRegistration: formData.companyCountryOfRegistration || undefined,
       estimatedValue,
       netValue: estimatedValue,
       notes: formData.notes || undefined,
       excludeFromNetWorth: formData.excludeFromNetWorth,
       isActivelyTrading: formData.isActivelyTrading,
-      heldForTwoPlusYears: formData.heldForTwoPlusYears,
+      heldForTwoPlusYears,
       isNotHoldingCompany: formData.isNotHoldingCompany,
+      acquisitionMonth: formData.heldForTwoPlusYears === 'no'
+        ? formData.acquisitionMonth
+        : formData.acquisitionMonth || undefined,
+      acquisitionYear: formData.heldForTwoPlusYears === 'no'
+        ? formData.acquisitionYear
+        : formData.acquisitionYear || undefined,
+      beneficiaryAssignments: formData.beneficiaries.length > 0 ? {
+        beneficiaries: formData.beneficiaries.map(b => ({
+          id: b.id,
+          type: b.type,
+          percentage: b.percentage,
+        })),
+      } : undefined,
     };
 
     bequeathalActions.addAsset('private-company-shares', shareData);
@@ -109,15 +225,24 @@ export default function PrivateCompanySharesEntryScreen() {
     // Reset form
     setFormData({
       companyName: '',
+      businessId: '',
+      companyCountryOfRegistration: 'uk',
+      companyShareClass: 'ordinary',
+      companyNotes: '',
+      companyArticlesConfident: '',
       ownershipValue: '',
+      heldForTwoPlusYears: '',
+      acquisitionMonth: '',
+      acquisitionYear: '',
+      beneficiaries: [],
       estimatedValue: 0,
       notes: '',
       excludeFromNetWorth: false,
       isActivelyTrading: false,
-      heldForTwoPlusYears: false,
       isNotHoldingCompany: false,
     });
     setValueNotSure(false);
+    setCompanySelection('__NEW__');
     setShowForm(false);
   };
 
@@ -145,7 +270,8 @@ export default function PrivateCompanySharesEntryScreen() {
     return null;
   };
 
-  const canSubmit = formData.companyName.trim();
+  const canSubmit = !!formData.companyName.trim()
+    && (formData.heldForTwoPlusYears !== 'no' || (formData.acquisitionMonth && formData.acquisitionYear));
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -177,12 +303,91 @@ export default function PrivateCompanySharesEntryScreen() {
             <View style={styles.formCard}>
               <Text style={styles.formTitle}>Add Shareholding</Text>
               
-              {/* Company Name */}
-              <Input
-                label="Company Name *"
-                placeholder="e.g., Acme Ltd, Smith & Co"
-                value={formData.companyName}
-                onChangeText={(value) => setFormData(prev => ({ ...prev, companyName: value }))}
+              <Select
+                label="Company"
+                placeholder="Select company..."
+                value={companySelection}
+                options={companyOptions}
+                onChange={handleCompanySelection}
+              />
+
+              {/* Company Name (only for new) */}
+              {companySelection === '__NEW__' && (
+                <Input
+                  label="Company Name *"
+                  placeholder="e.g., Acme Ltd, Smith & Co"
+                  value={formData.companyName}
+                  onChangeText={(value) => setFormData(prev => ({ ...prev, companyName: value }))}
+                />
+              )}
+
+              <Select
+                label="Country of Registration"
+                placeholder="Select country..."
+                value={formData.companyCountryOfRegistration}
+                options={[
+                  { label: 'United Kingdom', value: 'uk' },
+                  { label: 'United States', value: 'us' },
+                  { label: 'Ireland', value: 'ie' },
+                  { label: 'France', value: 'fr' },
+                  { label: 'Germany', value: 'de' },
+                  { label: 'Spain', value: 'es' },
+                  { label: 'Italy', value: 'it' },
+                  { label: 'Netherlands', value: 'nl' },
+                  { label: 'Other', value: 'other' },
+                ]}
+                onChange={(value) => setFormData(prev => ({ ...prev, companyCountryOfRegistration: value }))}
+              />
+
+              <RadioGroup
+                label="Share Class"
+                options={[
+                  { 
+                    label: 'Ordinary', 
+                    value: 'ordinary',
+                    helperText: 'Standard share class with equal rights'
+                  },
+                  { 
+                    label: 'Other', 
+                    value: 'other',
+                    helperText: 'Custom share class or special arrangement'
+                  },
+                ]}
+                value={formData.companyShareClass}
+                onChange={(value) => setFormData(prev => ({ ...prev, companyShareClass: value }))}
+              />
+
+              {formData.companyShareClass === 'other' && (
+                <Input
+                  label="Notes on share class (optional)"
+                  placeholder="Restrictions, special terms, etc (optional)..."
+                  value={formData.companyNotes}
+                  onChangeText={(value) => setFormData(prev => ({ ...prev, companyNotes: value }))}
+                  multiline
+                />
+              )}
+
+              <RadioGroup
+                label="Was your company set up with standard documents?"
+                options={[
+                  { 
+                    label: 'Yes', 
+                    value: 'standard',
+                    helperText: 'Used standard formation documents'
+                  },
+                  { 
+                    label: 'No', 
+                    value: 'customized',
+                    helperText: 'We customized the setup'
+                  },
+                  { 
+                    label: 'Not sure', 
+                    value: 'not_sure',
+                    helperText: 'Most property companies use standard setup'
+                  },
+                ]}
+                value={formData.companyArticlesConfident}
+                onChange={(value) => setFormData(prev => ({ ...prev, companyArticlesConfident: value }))}
               />
 
               {/* Shares - Inline Toggle (INNOVATIVE UI) */}
@@ -286,6 +491,25 @@ export default function PrivateCompanySharesEntryScreen() {
                 numberOfLines={3}
               />
 
+              {/* Beneficiaries (Optional) */}
+              <Text style={styles.helperText}>
+                Optional: leave blank to treat this as part of the estate.
+              </Text>
+              <BeneficiaryWithPercentages
+                allocationMode="percentage"
+                value={formData.beneficiaries}
+                onChange={handleBeneficiariesChange}
+                personActions={personActions}
+                beneficiaryGroupActions={beneficiaryGroupActions}
+                excludePersonIds={excludePersonIds}
+                label="Who will receive these shares?"
+                onAddNewPerson={(onCreated) => {
+                  addPersonSelectionRef.current = onCreated || null;
+                  setShowAddPersonDialog(true);
+                }}
+                onAddNewGroup={() => setShowGroupDrawer(true)}
+              />
+
               {/* Exclude from Net Worth */}
               <TouchableOpacity
                 onPress={() => setFormData(prev => ({ ...prev, excludeFromNetWorth: !prev.excludeFromNetWorth }))}
@@ -327,23 +551,59 @@ export default function PrivateCompanySharesEntryScreen() {
                   <Text style={styles.checkboxLabel}>The business is actively trading</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => setFormData(prev => ({ ...prev, heldForTwoPlusYears: !prev.heldForTwoPlusYears }))}
-                  style={styles.checkboxRow}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.checkboxCircle, formData.heldForTwoPlusYears && styles.checkboxCircleSelected]}>
-                    {formData.heldForTwoPlusYears && (
-                      <IconButton
-                        icon="check"
-                        size={16}
-                        iconColor={KindlingColors.background}
-                        style={styles.checkIcon}
-                      />
-                    )}
-                  </View>
-                  <Text style={styles.checkboxLabel}>You've owned the shares 2+ years</Text>
-                </TouchableOpacity>
+                <Select
+                  label="Have you owned the shares for 2+ years?"
+                  placeholder="Select..."
+                  value={formData.heldForTwoPlusYears}
+                  options={[
+                    { label: 'Yes', value: 'yes' },
+                    { label: 'No', value: 'no' },
+                    { label: 'Not sure', value: 'not_sure' },
+                  ]}
+                  onChange={(value) => setFormData(prev => ({ ...prev, heldForTwoPlusYears: value as 'yes' | 'no' | 'not_sure' }))}
+                />
+
+                {(formData.heldForTwoPlusYears === 'no' || formData.heldForTwoPlusYears === 'not_sure') && (
+                  <>
+                    <Text style={styles.helperText}>
+                      Acquisition date (month and year){formData.heldForTwoPlusYears === 'no' ? ' *' : ' (optional)'}
+                    </Text>
+                    <View style={styles.dateRow}>
+                      <View style={styles.dateField}>
+                        <Select
+                          placeholder="Month..."
+                          value={formData.acquisitionMonth}
+                          options={[
+                            { label: 'January', value: '01' },
+                            { label: 'February', value: '02' },
+                            { label: 'March', value: '03' },
+                            { label: 'April', value: '04' },
+                            { label: 'May', value: '05' },
+                            { label: 'June', value: '06' },
+                            { label: 'July', value: '07' },
+                            { label: 'August', value: '08' },
+                            { label: 'September', value: '09' },
+                            { label: 'October', value: '10' },
+                            { label: 'November', value: '11' },
+                            { label: 'December', value: '12' },
+                          ]}
+                          onChange={(value) => setFormData(prev => ({ ...prev, acquisitionMonth: value }))}
+                        />
+                      </View>
+                      <View style={styles.dateField}>
+                        <Select
+                          placeholder="Year..."
+                          value={formData.acquisitionYear}
+                          options={Array.from({ length: 100 }, (_, i) => {
+                            const year = new Date().getFullYear() - i;
+                            return { label: year.toString(), value: year.toString() };
+                          })}
+                          onChange={(value) => setFormData(prev => ({ ...prev, acquisitionYear: value }))}
+                        />
+                      </View>
+                    </View>
+                  </>
+                )}
 
                 <TouchableOpacity
                   onPress={() => setFormData(prev => ({ ...prev, isNotHoldingCompany: !prev.isNotHoldingCompany }))}
@@ -382,36 +642,65 @@ export default function PrivateCompanySharesEntryScreen() {
               </Text>
 
               <View style={styles.sharesList}>
-                {existingShares.map((share) => (
-                  <View key={share.id} style={styles.shareCard}>
-                    <View style={styles.shareInfo}>
-                      <Text style={styles.companyName}>{share.companyName}</Text>
+                {existingShares.map((share) => {
+                  const businessName = share.businessId
+                    ? businessActions.getBusinessById(share.businessId)?.name || share.companyName
+                    : share.companyName;
+                  const beneficiaries = share.beneficiaryAssignments?.beneficiaries || [];
+
+                  return (
+                    <View key={share.id} style={styles.shareCard}>
+                      <View style={styles.shareInfo}>
+                        <Text style={styles.companyName}>{businessName}</Text>
+                        
+                        {getOwnershipDisplay(share) && (
+                          <Text style={styles.ownershipText}>{getOwnershipDisplay(share)}</Text>
+                        )}
+
+                        {beneficiaries.length > 0 && (
+                          <View style={styles.beneficiariesRow}>
+                            <Text style={styles.beneficiaryLabel}>For: </Text>
+                            <View style={styles.beneficiariesList}>
+                              {beneficiaries.map((b, idx) => {
+                                const displayName = getBeneficiaryDisplayName(
+                                  b,
+                                  personActions,
+                                  beneficiaryGroupActions
+                                );
+                                const percentage = b.percentage || 0;
+                                return (
+                                  <Text key={idx} style={styles.beneficiaryText}>
+                                    {displayName} {percentage}%
+                                    {idx < beneficiaries.length - 1 && ', '}
+                                  </Text>
+                                );
+                              })}
+                            </View>
+                          </View>
+                        )}
+                        
+                        {(share.estimatedValue || 0) > 0 && (
+                          <Text style={styles.shareValue}>
+                            £{(share.estimatedValue || 0).toLocaleString()}
+                          </Text>
+                        )}
+                        
+                        {share.excludeFromNetWorth && (
+                          <View style={styles.excludedBadge}>
+                            <Text style={styles.excludedText}>🔸 Excluded from net worth</Text>
+                          </View>
+                        )}
+                      </View>
                       
-                      {getOwnershipDisplay(share) && (
-                        <Text style={styles.ownershipText}>{getOwnershipDisplay(share)}</Text>
-                      )}
-                      
-                      {(share.estimatedValue || 0) > 0 && (
-                        <Text style={styles.shareValue}>
-                          £{(share.estimatedValue || 0).toLocaleString()}
-                        </Text>
-                      )}
-                      
-                      {share.excludeFromNetWorth && (
-                        <View style={styles.excludedBadge}>
-                          <Text style={styles.excludedText}>🔸 Excluded from net worth</Text>
-                        </View>
-                      )}
+                      <TouchableOpacity
+                        onPress={() => handleRemoveShare(share.id)}
+                        style={styles.deleteButton}
+                      >
+                        <IconButton icon="delete" size={20} iconColor={KindlingColors.destructive} />
+                      </TouchableOpacity>
                     </View>
-                    
-                    <TouchableOpacity
-                      onPress={() => handleRemoveShare(share.id)}
-                      style={styles.deleteButton}
-                    >
-                      <IconButton icon="delete" size={20} iconColor={KindlingColors.destructive} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                  );
+                })}
 
                 {/* Total Summary */}
                 <View style={styles.totalSection}>
@@ -429,25 +718,40 @@ export default function PrivateCompanySharesEntryScreen() {
           )}
 
           {/* Action Buttons - at bottom of content */}
-          {existingShares.length > 0 && (
-            <>
-              {!showForm && (
-                <TouchableOpacity
-                  onPress={() => setShowForm(true)}
-                  style={styles.addAnotherButton}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.addAnotherText}>Add Another Shareholding</Text>
-                </TouchableOpacity>
-              )}
-
-              <Button onPress={handleContinue} variant="primary" style={styles.continueButton}>
-                Continue
-              </Button>
-            </>
+          {!showForm && existingShares.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setShowForm(true)}
+              style={styles.addAnotherButton}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.addAnotherText}>Add Another Shareholding</Text>
+            </TouchableOpacity>
           )}
+
+          <Button onPress={handleContinue} variant="primary" style={styles.continueButton}>
+            Continue
+          </Button>
         </View>
       </ScrollView>
+      
+      <AddPersonDialog
+        visible={showAddPersonDialog}
+        onDismiss={() => setShowAddPersonDialog(false)}
+        personActions={personActions}
+        onPersonAdded={(personId) => {
+          if (addPersonSelectionRef.current) {
+            addPersonSelectionRef.current(personId);
+            addPersonSelectionRef.current = null;
+          }
+        }}
+      />
+
+      <GroupManagementDrawer
+        visible={showGroupDrawer}
+        onDismiss={() => setShowGroupDrawer(false)}
+        beneficiaryGroupActions={beneficiaryGroupActions}
+        personActions={personActions}
+      />
     </SafeAreaView>
   );
 }
@@ -646,6 +950,30 @@ const styles = StyleSheet.create({
     color: `${KindlingColors.navy}99`,
     lineHeight: 16,
     marginTop: -Spacing.xs,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  dateField: {
+    flex: 1,
+  },
+  beneficiariesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  beneficiaryLabel: {
+    fontSize: Typography.fontSize.xs,
+    color: `${KindlingColors.navy}99`,
+  },
+  beneficiariesList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    flex: 1,
+  },
+  beneficiaryText: {
+    fontSize: Typography.fontSize.xs,
+    color: `${KindlingColors.navy}99`,
   },
   ihtSection: {
     paddingTop: Spacing.md,

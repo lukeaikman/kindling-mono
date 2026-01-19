@@ -2991,13 +2991,14 @@ export interface PrivateCompanySharesAsset extends BaseAsset {
 }
 ```
 
-**UPDATED (Simplified - 8 fields):**
+**UPDATED (Simplified + Business Linkage):**
 ```typescript
 export interface PrivateCompanySharesAsset extends BaseAsset {
   // BaseAsset includes: id, type, title, description, estimatedValue, netValue, createdAt, updatedAt
   
   type: 'private-company-shares';
   companyName: string;
+  businessId?: string;           // Link to shared Business record
   
   // User enters ONE of these (inline toggle in UI):
   numberOfShares?: number;       // Integer, > 0
@@ -3005,11 +3006,15 @@ export interface PrivateCompanySharesAsset extends BaseAsset {
   
   notes?: string;                // Transfer restrictions, special terms
   excludeFromNetWorth?: boolean; // For illiquid/speculative shares
+  acquisitionMonth?: string;     // Required if held < 2 years (MM)
+  acquisitionYear?: string;      // Required if held < 2 years (YYYY)
   
   // IHT Planning fields (Business Property Relief eligibility)
   isActivelyTrading?: boolean;
   heldForTwoPlusYears?: boolean;
   isNotHoldingCompany?: boolean;
+  
+  // Uses BaseAsset.beneficiaryAssignments for optional allocations
   
   // Fields deferred to Executor Facilitation:
   // - shareType ('ordinary' | 'preference' | 'other')
@@ -3023,12 +3028,15 @@ export interface PrivateCompanySharesAsset extends BaseAsset {
 - ✅ `percentageOwnership` added (alternative to numberOfShares)
 - ✅ `notes` added for restrictions/special terms
 - ✅ `excludeFromNetWorth` added for illiquid shares
+- ✅ `businessId` added for shared Business linkage
+- ✅ `acquisitionMonth` + `acquisitionYear` added (conditional when held < 2 years)
+- ✅ Optional beneficiaries via BaseAsset.beneficiaryAssignments
 - ❌ `totalValue` removed (use `BaseAsset.estimatedValue` instead)
 - ❌ `costBasis` removed (defer to Executor Facilitation)
 - ❌ `shareClass` removed (defer to Executor Facilitation)
 - ❌ `shareType` NOT added (defer to Executor Facilitation)
 
-**Result:** 7 fields (down from 9), cleaner, focused on estate planning needs
+**Result:** Cleaner model with business linkage and conditional acquisition dates
 
 ---
 
@@ -3088,23 +3096,29 @@ and transfer, so getting the basics down now helps your executors enormously.
 interface PrivateCompanySharesAsset extends BaseAsset {
   type: 'private-company-shares';
   companyName: string;
+  businessId?: string;
   numberOfShares?: number;
   percentageOwnership?: number;
   notes?: string;
   excludeFromNetWorth?: boolean;
+  acquisitionMonth?: string;
+  acquisitionYear?: string;
   isActivelyTrading?: boolean;
   heldForTwoPlusYears?: boolean;
   isNotHoldingCompany?: boolean;
 }
 ```
 
-**Form Fields (5 TOTAL - SIMPLIFIED):**
+**Form Fields (7 TOTAL - SIMPLIFIED):**
 
-#### 1. Company Name (Input)
-- Placeholder: "e.g., Acme Ltd, Smith & Co"
-- REQUIRED
-- Text input, single line
-- Trim whitespace on save
+#### 1. Company (Select + Optional Input)
+- Dropdown lists existing businesses + "Add new company"
+- If "Add new company" selected, show Company Name input:
+  - Placeholder: "e.g., Acme Ltd, Smith & Co"
+  - REQUIRED
+  - Trim whitespace on save
+- Dedupe rule: case-insensitive name match with trimmed whitespace before creating a new Business
+- Company-specific details (share class, articles, notes) are captured on the shareholding, not in Property
 
 #### 2. Shares (Input + Inline Toggle) - INNOVATIVE UI
 
@@ -3166,26 +3180,32 @@ const handleToggleMode = (newMode: 'percentage' | 'shares') => {
 - Multiline input
 - Min height: 80px
 
-#### 5. Exclude from Net Worth (Checkbox)
+#### 5. Beneficiaries (Optional)
+- `BeneficiaryWithPercentages` component
+- Copy: "Leave blank to treat this as part of the estate"
+- If entered, percentages must total 100%
+
+#### 6. Exclude from Net Worth (Checkbox)
 - Label: "Don't include in net worth (illiquid or speculative)"
 - Unchecked by default
 - Useful for startup investments with uncertain liquidity
 
-#### 6. Relevant to Inheritance Tax Section (3 Checkboxes)
+#### 7. Relevant to Inheritance Tax Section
 
 **Section Heading:** "Relevant to Inheritance Tax"
 - Border-top separator
 - Margin-top: 16px
 
-**Checkboxes (Custom circle style, matching other screens):**
+**Inputs (Custom circle style + Select):**
 
 1. **The business is actively trading**
    - Field: `isActivelyTrading`
    - Default: unchecked
 
-2. **You've owned the shares 2+ years**
+2. **Have you owned the shares for 2+ years?** (Select: Yes/No/Not sure)
    - Field: `heldForTwoPlusYears`
-   - Default: unchecked
+   - If "No", require acquisition month + year
+   - If "Not sure", show optional acquisition month/year for approximate date
 
 3. **It is NOT a holding company for cash, property or assets**
    - Field: `isNotHoldingCompany`
@@ -3245,10 +3265,11 @@ Or minimal (no ownership info):
 ```
 
 **Display Fields:**
-- Company name (large, bold)
+- Company name (from Business if linked, fallback to share.companyName)
 - Ownership line (if entered):
   - Percentage: "25% ownership"
   - Number: "1,000 shares" (with comma formatting)
+- Beneficiaries line (if provided): "For: Alice 60%, Bob 40%"
 - Value (if known, else hide)
 - "Excluded from net worth" badge (if flagged)
 - Delete button (trash icon, red on hover)
@@ -3268,20 +3289,24 @@ Excludes 1 illiquid/speculative holding
 ### Validation
 
 **Required Fields:**
-- Company name (non-empty after trim)
+- Company selected OR new company name (non-empty after trim)
+- If held < 2 years: acquisition month + year
 
 **Optional but validated if entered:**
 - Percentage ownership: 0-100, up to 2 decimals
 - Number of shares: integer, > 0
 - Estimated value: numeric, ≥ 0
+- Beneficiaries: if provided, percentages total 100%
+- If "Not sure" on holding period: acquisition month/year optional (accept partial, no blocking)
 
 **Can submit with:**
-- Minimal: Just company name (valid for user who knows they have shares but not details)
-- Complete: Company name + ownership + value + notes + IHT flags
+- Minimal: Company selected OR new company name only
+- Complete: Company + ownership + value + notes + IHT flags + beneficiaries
 
 **Validation Logic:**
 ```typescript
-const canSubmit = formData.companyName.trim().length > 0;
+const canSubmit = !!formData.companyName.trim()
+  && (formData.heldForTwoPlusYears !== 'no' || (formData.acquisitionMonth && formData.acquisitionYear));
 
 const isOwnershipValid = () => {
   if (ownershipMode === 'percentage' && ownershipValue) {
@@ -3309,21 +3334,41 @@ const existingShares = bequeathalActions.getAssetsByType('private-company-shares
 ```typescript
 const handleAddShare = () => {
   if (!formData.companyName.trim()) return;
+  if (formData.heldForTwoPlusYears === 'no' && (!formData.acquisitionMonth || !formData.acquisitionYear)) return;
+  if (formData.beneficiaries.length > 0 && !validatePercentageAllocation({ beneficiaries: formData.beneficiaries })) return;
   
-  const estimatedValue = formData.unsureOfValue || !formData.estimatedValue
-    ? 0
-    : parseFloat(formData.estimatedValue.replace(/[^\d.]/g, '')) || 0;
+  const estimatedValue = Math.round(valueNotSure ? 0 : formData.estimatedValue);
+  
+  const resolvedBusinessId = resolveBusinessId(); // create or reuse Business record
+  const businessName = resolvedBusinessId
+    ? businessActions.getBusinessById(resolvedBusinessId)?.name || formData.companyName.trim()
+    : formData.companyName.trim();
+  const heldForTwoPlusYears = formData.heldForTwoPlusYears === 'yes'
+    ? true
+    : formData.heldForTwoPlusYears === 'no'
+      ? false
+      : undefined; // "Not sure" remains undefined
   
   const shareData: Partial<PrivateCompanySharesAsset> = {
-    title: formData.companyName,
-    companyName: formData.companyName,
+    title: businessName,
+    companyName: businessName,
+    businessId: resolvedBusinessId,
     estimatedValue: Math.round(estimatedValue), // Round to £1
     netValue: Math.round(estimatedValue),
     notes: formData.notes || undefined,
     excludeFromNetWorth: formData.excludeFromNetWorth,
     isActivelyTrading: formData.isActivelyTrading,
-    heldForTwoPlusYears: formData.heldForTwoPlusYears,
+    heldForTwoPlusYears,
     isNotHoldingCompany: formData.isNotHoldingCompany,
+    acquisitionMonth: formData.heldForTwoPlusYears === 'no' ? formData.acquisitionMonth : formData.acquisitionMonth || undefined,
+    acquisitionYear: formData.heldForTwoPlusYears === 'no' ? formData.acquisitionYear : formData.acquisitionYear || undefined,
+    beneficiaryAssignments: formData.beneficiaries.length > 0 ? {
+      beneficiaries: formData.beneficiaries.map(b => ({
+        id: b.id,
+        type: b.type,
+        percentage: b.percentage,
+      })),
+    } : undefined,
     status: 'complete'
   };
   
@@ -3365,7 +3410,7 @@ const excludedCount = existingShares.filter(s => s.excludeFromNetWorth).length;
 
 **Simple approach:**
 ```typescript
-title: formData.companyName
+title: businessName // resolved from businessId (fallback to formData.companyName)
 ```
 
 Display name is just the company name. Ownership details shown below in list card.
@@ -3941,6 +3986,16 @@ const excludedCount = existingShares.filter(s => s.excludeFromNetWorth).length;
 
 **CRITICAL:** This phase links business-owned assets to your companies. Since you can't directly bequeath business assets in a personal will (they belong to the business entity), this is informational for executors only.
 
+### Cross-Asset Alignment (Business Canonical)
+- Business registry is the canonical company source for:
+  - Company-owned Property (stores `businessId`)
+  - Private Company Shares (stores `businessId`)
+  - Assets Held Through Business (selects Business by `businessId`)
+- Private Company Shares and Property both create/link Business records inline (no extra screens).
+- Other asset types (bank accounts, investments, pensions, life insurance, important items, crypto) are unaffected by the Business registry model.
+- Dedupe: normalize business name (trim + case-insensitive) before create; reuse existing if match.
+- If a company is created via Property ownership, auto-create a matching Private Company Shares entry (with ownership %) so the user has a shareholding record for that business.
+
 ### DESIGN PHILOSOPHY: Ultra-Clean Relational Model
 
 **Data Normalization Principle:**
@@ -3950,7 +4005,8 @@ const excludedCount = existingShares.filter(s => s.excludeFromNetWorth).length;
 - Proper foreign key relationship (businessId)
 
 **User Experience:**
-- Reuse Private Company Shares (Phase 11) as business source
+- Use Business registry as the canonical company source
+- Businesses are auto-created/linked from Private Company Shares and company-owned Property
 - Don't ask for business details twice
 - Multi-business support (add assets to different businesses)
 
@@ -3975,7 +4031,6 @@ export interface Business {
   name: string;
   businessType: string;           // ← REMOVE
   registrationNumber?: string;    // ← REMOVE (defer)
-  ownershipPercentage: number;
   estimatedValue: number;
   description?: string;
   address?: AddressData;          // ← REMOVE (defer)
@@ -3984,12 +4039,11 @@ export interface Business {
 }
 ```
 
-**UPDATED (Simplified - 7 fields):**
+**UPDATED (Simplified - 6 fields):**
 ```typescript
 export interface Business {
   id: string;
   name: string;
-  ownershipPercentage: number;    // From Private Company Shares
   estimatedValue: number;          // Calculated from assets
   description?: string;
   createdAt: Date;
@@ -4002,6 +4056,7 @@ export interface Business {
 ```
 
 **Note:** Business records are auto-created from Private Company Shares, so most users won't manually create businesses.
+This cleanup is REQUIRED for first release (no future cleanup planned).
 
 ---
 
@@ -4018,7 +4073,7 @@ export interface AssetsHeldThroughBusinessAsset extends BaseAsset {
   businessType?: string;             // ← DUPLICATION (lookup from Business)
   assetType: string;
   assetDescription?: string;
-  businessOwnershipPercentage?: number;  // ← DUPLICATION (lookup from Business)
+  businessOwnershipPercentage?: number;  // ← DUPLICATION (lookup from shareholdings if ever needed)
   numberOfUnits?: number;            // ← DEAD CODE (never used)
   excludeFromBusinessValuation?: boolean;  // ← UNREALISTIC (goodwill example)
 }
@@ -4040,13 +4095,14 @@ export interface AssetsHeldThroughBusinessAsset extends BaseAsset {
   
   // REMOVED: businessName (lookup via businessId)
   // REMOVED: businessType (removed from Business interface too)
-  // REMOVED: businessOwnershipPercentage (lookup via businessId)
+  // REMOVED: businessOwnershipPercentage (not stored; derive from shareholdings if needed)
   // REMOVED: numberOfUnits (dead code, never used anywhere)
   // REMOVED: excludeFromBusinessValuation (unrealistic use case)
 }
 ```
 
 **Result:** 3 fields (down from 8) - **62% reduction**
+This cleanup is REQUIRED for first release (no future cleanup planned).
 
 See detailed plan: `native-app/planning/PHASE_12_DETAILED_PLAN.md`
 
@@ -4072,26 +4128,30 @@ See detailed plan: `native-app/planning/PHASE_12_DETAILED_PLAN.md`
 ### Phase 14: Property (VERY COMPLEX)
 **Screens:**
 - `app/bequeathal/property/intro.tsx`
-- `app/bequeathal/property/address.tsx` (address search step)
 - `app/bequeathal/property/entry.tsx` (basic details)
 - `app/bequeathal/property/trust-details.tsx` (if held in trust)
 - `app/bequeathal/property/summary.tsx` (property summary)
 
-**Form fields (100+ fields across multiple steps):**
-- Address search (AddressSearchField)
+**Form fields (100+ fields, single-screen accordion flow for v1):**
+- Address manual entry (address search deferred to v1.1)
 - Property type, usage, ownership
 - Joint ownership details
 - Company ownership details
 - Trust ownership details (extensive)
 - Mortgage information
-- Funding type (multiple options)
 - Usage-specific fields (FHL, agricultural, mixed-use, buy-to-let)
 
 **Notes:**
 - Most complex asset type by far
-- Requires multi-step wizard
+- Single-screen accordion flow for v1 (multi-step wizard removed)
 - Trust integration (Trust data structure)
 - Beneficiary assignment complex logic
+- Keep the Property company-ownership UI (share class, articles, notes, etc). This is the primary data entry point.
+- On save (company-owned property):
+  - Create or link Company (Business record)
+  - Create/update a Shareholding (Private Company Shares asset) for that Company
+  - Save Property with `businessId` linking to the Company
+- No legacy data migration required for first release; enforce acquisition month/year when held < 2 years.
 
 **Estimated effort:** 5-7 days
 
@@ -4186,11 +4246,11 @@ For each asset type:
 16. ✅ **beneficiary-with-percentages** - Build BeneficiaryWithPercentages component (Phase 9.5)
 17. ✅ **pensions-beneficiaries-retrofit** - Add conditional beneficiary percentages to pensions (Phase 9.6)
 18. ✅ **navigation-bug-fix** - Fix sequential navigation through selected categories
-19. **life-insurance-flow** - Implement life insurance intro and entry screens (uses Phase 9.5 component)
-20. **company-shares-flow** - Implement private company shares intro and entry screens
-21. **business-assets-flow** - Implement assets-held-through-business screens (COMPLEX)
+19. ✅ **life-insurance-flow** - Implement life insurance intro and entry screens (uses Phase 9.5 component)
+20. ✅ **company-shares-flow** - Implement private company shares intro and entry screens
+21. ✅ **business-assets-flow** - Implement assets-held-through-business screens (COMPLEX)
 22. **agricultural-flow** - Implement agricultural assets screens (VERY COMPLEX)
-23. **property-flow** - Implement property screens with multi-step wizard (VERY COMPLEX)
+23. ✅ **property-flow** - Implement property screens (v1 single-screen flow; address search deferred to v1.1)
 
 ---
 

@@ -537,6 +537,27 @@ export default function DataExplorerScreen() {
       const name = person ? `${person.firstName} ${person.lastName}` : value;
       return <Text style={styles.propertyValue}>{name}</Text>;
     }
+
+    if (key === 'businessId' && typeof value === 'string') {
+      const business = businessActions.getBusinessById(value);
+      const businessName = business?.name || 'Unknown Business';
+      return (
+        <TouchableOpacity
+          onPress={() => {
+            if (business) {
+              setSelectedInterface('Business');
+              setSelectedInstance(business);
+              setSelectedPropertyFromTrust(null);
+            }
+          }}
+          disabled={!business}
+        >
+          <Text style={styles.propertyValueLink}>
+            {value} ({businessName})
+          </Text>
+        </TouchableOpacity>
+      );
+    }
     
     // Array/Object JSON formatting
     if (typeof value === 'object') {
@@ -788,6 +809,11 @@ const styles = StyleSheet.create({
   propertyValue: {
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.navy,
+  },
+  propertyValueLink: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.green,
+    textDecorationLine: 'underline',
   },
   propertyValueJson: {
     fontSize: Typography.fontSize.xs,

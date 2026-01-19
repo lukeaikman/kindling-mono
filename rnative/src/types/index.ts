@@ -477,19 +477,65 @@ export interface BeneficiaryAssignments {
 export interface PropertyAsset extends BaseAsset {
   type: 'property';
   address: AddressData;
+  usage?: string;
   propertyType: 'residential' | 'commercial' | 'land' | 'other';
   ownershipType: 'sole' | 'joint-tenants' | 'tenants-in-common';
   ownershipPercentage?: number;
   primaryResidence?: boolean;
   hasLivedThere?: boolean;
+  acquisitionMonth?: string;
+  acquisitionYear?: string;
   hasMortgage?: boolean;
   mortgage?: {
     outstandingAmount: number;
     provider: string;
   };
   
+  // Furnished Holiday Let (FHL)
+  fhlAvailableOver210Days?: boolean;
+  fhlActuallyLet105Days?: boolean;
+  fhlLongLetsUnder155Days?: boolean;
+  fhlEstimatedAnnualIncome?: number;
+  
+  // Agricultural
+  agriculturalActivelyFarmed?: boolean;
+  agriculturalWhoFarms?: string;
+  agriculturalPre1995Tenancy?: boolean;
+  agriculturalBuildingsIncluded?: boolean;
+  agriculturalTotalAcreage?: string;
+  agriculturalFarmingType?: string;
+  agriculturalFarmingTypeOther?: string;
+  
+  // Mixed-Use
+  mixedUseCommercialPercentage?: number;
+  mixedUseSeparateEntrances?: boolean;
+  mixedUseResidentialWasMainHome?: boolean;
+  
+  // Buy-to-Let
+  buyToLetAnnualRentalIncome?: number;
+  buyToLetTenancyType?: string;
+  buyToLetTenancyTypeOther?: string;
+  buyToLetTenantedAtDeath?: boolean;
+  
+  // Joint ownership details
+  jointOwnershipType?: string;
+  jointTenants?: Array<{
+    id: string;
+    name: string;
+    relationship: string;
+  }>;
+  
   // Trust reference (foreign key to Trust entity)
   trustId?: string;
+
+  // Company ownership (legacy fields) + shared Business linkage
+  businessId?: string;
+  companyName?: string;
+  companyCountryOfRegistration?: string;
+  companyOwnershipPercentage?: number;
+  companyShareClass?: string;
+  companyNotes?: string;
+  companyArticlesConfident?: string;
 }
 
 /**
@@ -569,10 +615,17 @@ export interface BankAccountAsset extends BaseAsset {
 export interface PrivateCompanySharesAsset extends BaseAsset {
   type: 'private-company-shares';
   companyName: string;
-  numberOfShares: number;
+  businessId?: string;
+  numberOfShares?: number;
+  percentageOwnership?: number;
   shareClass?: string;
-  totalValue: number;
-  costBasis?: number;
+  companyNotes?: string;
+  companyArticlesConfident?: 'standard' | 'customized' | 'not_sure';
+  companyCountryOfRegistration?: string;
+  notes?: string;
+  excludeFromNetWorth?: boolean;
+  acquisitionMonth?: string;
+  acquisitionYear?: string;
   // IHT Planning fields
   isActivelyTrading?: boolean;
   heldForTwoPlusYears?: boolean;
@@ -674,7 +727,6 @@ export interface Business {
   name: string;
   businessType: string;
   registrationNumber?: string;
-  ownershipPercentage: number;
   estimatedValue: number;
   description?: string;
   address?: AddressData;
@@ -778,6 +830,9 @@ export interface BequeathalActions {
   getAssetById: (id: string) => Asset | undefined;
   getAssetsByType: (type: AssetType) => Asset[];
   getAllAssets: () => Asset[];
+  getSelectedCategories: () => string[];
+  setSelectedCategories: (categories: string[]) => void;
+  toggleCategory: (category: string) => void;
 }
 
 /**

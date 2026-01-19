@@ -56,18 +56,18 @@ export default function AgriculturalAssetsEntryScreen() {
     aprOwnershipStructure: '',
     assetType: 'agricultural-land',
     assetDescription: '',
-    farmWorkerOccupied: 'not-sure',
-    woodlandPurpose: 'not-sure',
-    studFarmActivity: 'not-sure',
+    farmWorkerOccupied: '',
+    woodlandPurpose: '',
+    studFarmActivity: '',
     otherAssetTypeDetail: '',
-    hasDebtsEncumbrances: 'no',
+    hasDebtsEncumbrances: '',
     debtAmount: 0,
     debtDescription: '',
     estimatedValue: 0,
-    aprOwnershipDuration: 'not-sure',
+    aprOwnershipDuration: '',
     aprTrustType: '',
-    bprActiveTrading: 'not-sure',
-    bprOwnershipDuration: 'not-sure',
+    bprActiveTrading: '',
+    bprOwnershipDuration: '',
     notes: '',
   });
   const [valueNotSure, setValueNotSure] = useState(false);
@@ -259,18 +259,18 @@ export default function AgriculturalAssetsEntryScreen() {
       aprOwnershipStructure: '',
       assetType: 'agricultural-land',
       assetDescription: '',
-      farmWorkerOccupied: 'not-sure',
-      woodlandPurpose: 'not-sure',
-      studFarmActivity: 'not-sure',
+      farmWorkerOccupied: '',
+      woodlandPurpose: '',
+      studFarmActivity: '',
       otherAssetTypeDetail: '',
-      hasDebtsEncumbrances: 'no',
+      hasDebtsEncumbrances: '',
       debtAmount: 0,
       debtDescription: '',
       estimatedValue: 0,
-      aprOwnershipDuration: 'not-sure',
+      aprOwnershipDuration: '',
       aprTrustType: '',
-      bprActiveTrading: 'not-sure',
-      bprOwnershipDuration: 'not-sure',
+      bprActiveTrading: '',
+      bprOwnershipDuration: '',
       notes: '',
     });
     setValueNotSure(false);
@@ -284,18 +284,18 @@ export default function AgriculturalAssetsEntryScreen() {
       aprOwnershipStructure: asset.aprOwnershipStructure || '',
       assetType: asset.assetType,
       assetDescription: asset.assetDescription || '',
-      farmWorkerOccupied: asset.farmWorkerOccupied || 'not-sure',
-      woodlandPurpose: asset.woodlandPurpose || 'not-sure',
-      studFarmActivity: asset.studFarmActivity || 'not-sure',
+      farmWorkerOccupied: asset.farmWorkerOccupied || '',
+      woodlandPurpose: asset.woodlandPurpose || '',
+      studFarmActivity: asset.studFarmActivity || '',
       otherAssetTypeDetail: asset.otherAssetTypeDetail || '',
-      hasDebtsEncumbrances: asset.hasDebtsEncumbrances || 'no',
+      hasDebtsEncumbrances: asset.hasDebtsEncumbrances || '',
       debtAmount: asset.debtAmount || 0,
       debtDescription: asset.debtDescription || '',
       estimatedValue: asset.estimatedValue || 0,
-      aprOwnershipDuration: asset.aprOwnershipDuration || 'not-sure',
+      aprOwnershipDuration: asset.aprOwnershipDuration || '',
       aprTrustType: asset.aprTrustType || '',
-      bprActiveTrading: asset.bprActiveTrading || 'not-sure',
-      bprOwnershipDuration: asset.bprOwnershipDuration || 'not-sure',
+      bprActiveTrading: asset.bprActiveTrading || '',
+      bprOwnershipDuration: asset.bprOwnershipDuration || '',
       notes: asset.notes || '',
     });
     setValueNotSure((asset.estimatedValue || 0) === 0);
@@ -325,10 +325,13 @@ export default function AgriculturalAssetsEntryScreen() {
   const canSubmit = formData.aprOwnershipStructure && 
                     formData.assetType && 
                     formData.assetDescription.trim() &&
+                    formData.hasDebtsEncumbrances &&
+                    (!showAprSection || formData.aprOwnershipDuration) &&
+                    (!showBprSection || (formData.bprActiveTrading && formData.bprOwnershipDuration)) &&
                     (formData.assetType !== 'other' || formData.otherAssetTypeDetail.trim()) &&
-                    (formData.assetType !== 'farm-worker-cottage' || formData.farmWorkerOccupied !== 'not-sure') &&
-                    (formData.assetType !== 'woodland' || formData.woodlandPurpose !== 'not-sure') &&
-                    (formData.assetType !== 'stud-farm' || formData.studFarmActivity !== 'not-sure');
+                    (formData.assetType !== 'farm-worker-cottage' || !!formData.farmWorkerOccupied) &&
+                    (formData.assetType !== 'woodland' || !!formData.woodlandPurpose) &&
+                    (formData.assetType !== 'stud-farm' || !!formData.studFarmActivity);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>

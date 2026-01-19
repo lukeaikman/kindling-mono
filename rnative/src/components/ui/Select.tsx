@@ -281,6 +281,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     justifyContent: 'flex-start',
+    backgroundColor: KindlingColors.background,
   },
   selectButtonError: {
     borderColor: KindlingColors.destructive,
