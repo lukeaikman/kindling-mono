@@ -128,7 +128,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 }) => {
   // Load Montserrat font
   const [fontsLoaded] = useFonts({
-    'Montserrat-SemiBold': require('../../../assets/fonts/Montserrat-SemiBold.ttf'),
+    'Montserrat-SemiBold': require('@assets/fonts/Montserrat-SemiBold.ttf'),
   });
 
   // Animation state
@@ -360,7 +360,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         {showUnlockIcon && (
           <Animated.View style={[styles.unlockContainer, { opacity: unlockIconOpacity }]}>
             <Image
-              source={require('../../../assets/unlocked.png')}
+              source={require('@assets/unlocked.png')}
               style={styles.unlockIcon}
               resizeMode="contain"
             />
@@ -376,14 +376,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         >
           {/* Dark KINDLING logo (for cream background) */}
           <Animated.Image
-            source={require('../../../assets/kindling-dark.png')}
+            source={require('@assets/kindling-dark.png')}
             style={[styles.logo, { opacity: darkLogoOpacity }]}
             resizeMode="contain"
           />
 
           {/* Light KIND logo (for blue background) */}
           <Animated.Image
-            source={require('../../../assets/kindling-light.png')}
+            source={require('@assets/kindling-light.png')}
             style={[styles.logo, styles.logoAbsolute, { opacity: lightLogoOpacity }]}
             resizeMode="contain"
           />
