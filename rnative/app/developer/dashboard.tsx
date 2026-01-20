@@ -17,6 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { Select } from '../../src/components/ui/Select';
+import { SplashScreen } from '../../src/components/splash';
 import { useAppState } from '../../src/hooks/useAppState';
 import { seedAllData } from '../../src/utils/seedData';
 import { storage } from '../../src/services/storage';
@@ -33,6 +34,7 @@ export default function DeveloperDashboard() {
   const { personActions, bequeathalActions, willActions, purgeAllData } = useAppState();
   const [storageData, setStorageData] = useState<Record<string, any>>({});
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showSplash, setShowSplash] = useState(false);
   
   // Navigation dropdown states
   const [onboardingScreen, setOnboardingScreen] = useState('/onboarding/welcome');
@@ -79,6 +81,15 @@ export default function DeveloperDashboard() {
     setRefreshKey(prev => prev + 1);
   };
   
+  // Show splash screen when triggered
+  if (showSplash) {
+    return (
+      <SplashScreen
+        onComplete={() => setShowSplash(false)}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -125,6 +136,14 @@ export default function DeveloperDashboard() {
         {/* Testing Sandboxes */}
         <Card title="Testing Sandboxes" style={styles.card}>
           <View style={styles.buttonGroup}>
+            <Button
+              variant="primary"
+              onPress={() => setShowSplash(true)}
+              icon="play"
+            >
+              Run Intro Animation
+            </Button>
+            
             <Button
               variant="secondary"
               onPress={() => router.push('/developer/sandbox')}
