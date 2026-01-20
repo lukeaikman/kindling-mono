@@ -1,0 +1,286 @@
+# .cursorrules — Kindling Rails API
+
+Purpose: enforce consistent, maintainable code for a Rails 8 API backend for estate planning and will creation with authentication, data persistence, and RESTful endpoints.
+
+---
+
+## Rule 0 — Planning Documents Organization
+**Triggers:** Creating or updating planning documents during development
+
+**You must:**
+1. All planning documents go in `/planning` folder.
+2. **Active plans:** UPPERCASE filename with no prefix (e.g., `API_ARCHITECTURE.md`, `DATABASE_SCHEMA.md`).
+3. **Completed plans:** lowercase filename with `x-` prefix (e.g., `x-api-architecture.md`, `x-database-schema.md`).
+4. When a plan is confirmed complete by the user, rename it from UPPERCASE to `x-lowercase`.
+5. Keep planning folder organized—don't create planning documents in root directory.
+
+---
+
+## Rule 1 — Privacy, Safety & PII (ALWAYS)
+**Triggers:** Any change touching persistence, logs, network, or sensitive data
+
+**You must:**
+1. Confirm **NO PII in logs** in production.
+2. Use Rails encrypted credentials for sensitive configuration.
+3. Filter sensitive parameters in logs (passwords, tokens, etc.).
+4. Ensure **console logs and stack traces** never include user content (personal details, asset values, beneficiary information).
+5. Follow data protection best practices (GDPR, data minimization).
+
+---
+
+## Rule 2 — Code Ownership & Structure
+- Keep models, controllers, and services **separate**.
+- Business logic lives in models or service objects, not controllers.
+- Controllers should be thin—delegate to models/services.
+
+**Project layout (enforced)**
+```
+app/
+  controllers/      # API endpoints and request handling
+    api/           # API versioned controllers
+  models/          # ActiveRecord models and business logic
+  mailers/         # Email templates and logic
+  jobs/            # Background jobs
+  services/        # Service objects for complex operations
+config/
+  routes.rb        # API routes definition
+db/
+  migrate/         # Database migrations
+  schema.rb        # Database schema (auto-generated)
+test/
+  controllers/     # Controller tests
+  models/          # Model tests
+  fixtures/        # Test data
+```
+
+---
+
+## Rule 3 — Type Safety & Validation
+- Every model must have validations for required fields.
+- Use strong parameters in controllers to whitelist attributes.
+- Validate data at the model level, not just controller level.
+- Use database constraints (NOT NULL, foreign keys, etc.) for critical fields.
+
+---
+
+## Rule 4 — RESTful API Design
+**Triggers:** Adding new endpoints or modifying existing ones
+
+**You must:**
+1. Follow RESTful conventions (GET, POST, PUT/PATCH, DELETE).
+2. Use proper HTTP status codes (200, 201, 400, 401, 403, 404, 422, 500).
+3. Return consistent JSON responses with proper structure.
+4. Version your API (e.g., `/api/v1/`).
+5. Document endpoints and expected request/response formats.
+
+**Standard Response Formats:**
+```ruby
+# Success
+{ data: { ... }, status: 200 }
+
+# Error
+{ error: "Message", status: 422 }
+```
+
+---
+
+## Rule 5 — Authentication & Authorization
+**Triggers:** Any code touching user authentication or permissions
+
+**You must:**
+1. Use Rails session-based authentication or token-based (JWT).
+2. Implement proper authentication checks on protected endpoints.
+3. Use `before_action` filters for authentication.
+4. Never expose sensitive user data in responses.
+5. Implement authorization (e.g., users can only access their own data).
+
+---
+
+## Rule 6 — Database Migrations & Schema
+**Triggers:** Database changes, adding/removing columns or tables
+
+**You must:**
+1. Always create migrations for schema changes (never edit schema.rb directly).
+2. Migrations must be reversible (implement `down` or `reversible`).
+3. Use descriptive migration names (e.g., `add_name_to_users`).
+4. Add indexes for foreign keys and frequently queried columns.
+5. Test migrations on development before running in production.
+
+---
+
+## Rule 7 — Error Handling & Resilience
+**Triggers:** Data operations, API calls, database queries
+
+**You must:**
+1. Wrap risky operations in `begin/rescue` blocks.
+2. Return meaningful error messages to clients (without exposing internals).
+3. Log errors to Rails logger for debugging.
+4. Never crash the API—always return proper error responses.
+5. Use error tracking (e.g., Sentry, Rollbar) in production.
+
+---
+
+## Rule 8 — Testing Standards
+**Critical areas:**
+- **Unit:** Model validations, associations, and methods
+- **Integration:** Controller endpoints (request specs)
+- **Smoke:** Authentication flow, CRUD operations
+
+**Test coverage minimums:**
+- Models: 80%+
+- Controllers: 70%+
+- Critical business logic: 90%+
+
+---
+
+## Rule 9 — Rails Best Practices
+**Triggers:** Writing Rails code
+
+**You must:**
+1. Follow Rails conventions (DRY, Convention over Configuration).
+2. Use ActiveRecord properly (avoid N+1 queries, use `includes`/`joins`).
+3. Keep controllers RESTful (7 actions max: index, show, new, create, edit, update, destroy).
+4. Use concerns for shared model/controller logic.
+5. Use service objects for complex business logic.
+
+---
+
+## Rule 10 — API Documentation
+**Triggers:** Adding new endpoints or modifying existing ones
+
+**You must:**
+1. Document all API endpoints (consider using tools like Swagger/OpenAPI).
+2. Include request/response examples.
+3. Document authentication requirements.
+4. Keep documentation up to date with code changes.
+
+---
+
+## Rule 11 — Security Best Practices
+**Triggers:** Any code changes
+
+**You must:**
+1. Use CORS properly (configure allowed origins in `config/initializers/cors.rb`).
+2. Protect against CSRF attacks (Rails handles this by default for non-API mode).
+3. Use strong parameters to prevent mass assignment vulnerabilities.
+4. Sanitize user input to prevent SQL injection and XSS.
+5. Keep dependencies up to date (run `bundle audit` regularly).
+
+---
+
+## Rule 12 — Performance & Optimization
+**Triggers:** Database queries, complex operations
+
+**You must:**
+1. Avoid N+1 queries (use `includes`, `preload`, `eager_load`).
+2. Use database indexes for frequently queried columns.
+3. Cache expensive operations (use Rails cache).
+4. Use background jobs for long-running tasks (Sidekiq, Solid Queue).
+5. Monitor query performance (use tools like Bullet, Prosopite).
+
+---
+
+## Rule 13 — Git Commit Standards
+**Triggers:** Every commit
+
+**You must:**
+1. Use conventional commit format: `type: description`
+   - `feat:` for new features
+   - `fix:` for bug fixes
+   - `docs:` for documentation
+   - `style:` for code style changes
+   - `refactor:` for code refactoring
+   - `test:` for tests
+   - `chore:` for maintenance
+2. Write descriptive commit messages explaining WHAT and WHY.
+3. **Test before every commit** - all tests must pass.
+4. Run linters before commit (RuboCop, Brakeman).
+5. Never commit broken code or failing tests.
+
+---
+
+## Rule 14 — Environment Configuration
+**Triggers:** Adding configuration or environment variables
+
+**You must:**
+1. Use Rails credentials for sensitive config (`rails credentials:edit`).
+2. Use environment variables for environment-specific config.
+3. Never commit secrets or API keys to version control.
+4. Document required environment variables in README.
+5. Provide example `.env` file for local development.
+
+---
+
+## Development Commands
+
+```bash
+# Setup
+bin/setup                  # Initial setup
+
+# Development
+bin/dev                    # Start development server
+rails console              # Rails console
+rails db:migrate           # Run migrations
+rails db:seed              # Seed database
+
+# Testing
+rails test                 # Run all tests
+rails test:system          # Run system tests
+
+# Quality Checks
+bin/rubocop               # Ruby linter
+bin/brakeman              # Security scanner
+bin/bundler-audit         # Check for vulnerable dependencies
+
+# Database
+rails db:create           # Create database
+rails db:drop             # Drop database
+rails db:reset            # Drop, create, migrate, seed
+rails db:rollback         # Rollback last migration
+```
+
+---
+
+## Current State
+
+**Completed:**
+- ✅ Rails 8 setup with authentication
+- ✅ User model with sessions
+- ✅ Motor Admin for database management
+- ✅ CORS configuration
+
+**In Progress:**
+- API endpoints development
+- Data models for estate planning
+- Testing suite
+
+**Future Considerations:**
+- Background job processing
+- Email notifications
+- API rate limiting
+- Caching strategy
+
+---
+
+## Notes & Considerations
+
+### Authentication
+- Current: Session-based authentication with cookies
+- Supports password reset via email
+
+### Database
+- PostgreSQL for production
+- SQLite for development/test (can be changed)
+
+### API Structure
+- RESTful design
+- JSON responses
+- Versioned endpoints (`/api/v1/`)
+
+### CORS
+- Configured in `config/initializers/cors.rb`
+- Allow specific origins for security
+
+
+
+
