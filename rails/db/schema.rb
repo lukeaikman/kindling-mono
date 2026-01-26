@@ -10,9 +10,26 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_22_144356) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_26_132100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "api_sessions", force: :cascade do |t|
+    t.datetime "access_expires_at", null: false
+    t.string "access_token_digest", null: false
+    t.datetime "created_at", null: false
+    t.string "device_id"
+    t.string "device_name"
+    t.datetime "refresh_expires_at", null: false
+    t.string "refresh_token_digest", null: false
+    t.datetime "revoked_at"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["access_token_digest"], name: "index_api_sessions_on_access_token_digest", unique: true
+    t.index ["refresh_expires_at"], name: "index_api_sessions_on_refresh_expires_at"
+    t.index ["refresh_token_digest"], name: "index_api_sessions_on_refresh_token_digest", unique: true
+    t.index ["user_id"], name: "index_api_sessions_on_user_id"
+  end
 
   create_table "motor_alert_locks", force: :cascade do |t|
     t.bigint "alert_id", null: false
@@ -219,13 +236,18 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_22_144356) do
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email_address", null: false
+    t.integer "failed_login_count", default: 0, null: false
     t.string "first_name"
     t.string "last_name"
+    t.datetime "locked_until"
     t.string "password_digest", null: false
+    t.string "phone"
+    t.string "status", default: "active", null: false
     t.datetime "updated_at", null: false
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  add_foreign_key "api_sessions", "users"
   add_foreign_key "motor_alert_locks", "motor_alerts", column: "alert_id"
   add_foreign_key "motor_alerts", "motor_queries", column: "query_id"
   add_foreign_key "motor_note_tag_tags", "motor_note_tags", column: "tag_id"

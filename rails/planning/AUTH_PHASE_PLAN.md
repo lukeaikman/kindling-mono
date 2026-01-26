@@ -46,8 +46,8 @@ We will **add token-based auth for API** while keeping session cookies for admin
 ### Phase 4 Endpoints
 
 - **POST `/api/v1/auth/register`**
-  - Body: `email`, `password`, `first_name`, `last_name`, optional `phone`
-  - Validations: email format, password strength, required names
+  - Body: `email`, `password`, `first_name`, `last_name`, optional `phone`, `device_id`, optional `device_name`
+  - Validations: email format, **password min 12 chars with letters + numbers**, required names
   - Response: `user_id`, `first_name`, `last_name`, `email`, `access_token`, `access_expires_at`, `refresh_token`, `refresh_expires_at`
   - Errors: `409` email exists, `422` validation errors
 
@@ -65,13 +65,84 @@ Add to `users`:
 - `failed_login_count` (integer)
 - `locked_until` (datetime)
 
-Add to `sessions` (or new `api_sessions` table):
+Add new `api_sessions` table (separate from web sessions):
 
 - `refresh_token_digest` (hashed)
 - `access_expires_at`
 - `refresh_expires_at`
 - `revoked_at`
 - `device_id` / `device_name` (optional; helps logout-by-device)
+
+### Phase 4 Build Plan (Implementation Steps)
+
+1. **DB schema**
+   - Add `phone`, `status`, `failed_login_count`, `locked_until` to `users`.
+   - Create `api_sessions` with `user_id`, `refresh_token_digest`, `access_expires_at`, `refresh_expires_at`, `revoked_at`, `device_id`, `device_name`.
+   - Index `user_id`, `refresh_token_digest`, `refresh_expires_at` for lookup/cleanup.
+
+2. **Models**
+   - Add `ApiSession` model with `belongs_to :user`.
+   - Add helper methods for `active?`, `revoked?`, and `expired?` checks.
+
+3. **Token generation**
+   - Generate opaque access + refresh tokens (secure random).
+   - Store only **refresh token digest** in DB.
+   - Access token validated against DB session record and `access_expires_at`.
+
+4. **Controllers**
+   - Add `Api::V1::AuthController` with `register` + `validate_email`.
+   - Create API error helper to standardize `{ error, code, status, request_id }`.
+
+5. **Single-device enforcement**
+   - On registration, revoke any existing `api_sessions` for the user.
+   - Store `device_id`/`device_name` on the created session.
+
+6. **Routing**
+   - Add `/api/v1/auth/register` and `/api/v1/auth/register/validate-email`.
+
+7. **Tests**
+   - Request tests for register + validate-email success/error cases.
+   - Token expiry and digest storage checks.
+
+### Phase 4 File Changes
+
+- `config/routes.rb` add `/api/v1/auth` routes.
+- `app/controllers/api/v1/auth_controller.rb` (new).
+- `app/models/api_session.rb` (new).
+- `app/models/user.rb` add validations and lockout fields (if needed).
+- `db/migrate/*_add_auth_fields_to_users.rb` (new).
+- `db/migrate/*_create_api_sessions.rb` (new).
+- `test/controllers/api/v1/auth_controller_test.rb` (new) or `test/integration/auth_flow_test.rb` (new).
+
+### Phase 4 Test Checklist (Postman)
+
+- **Register success**
+  - POST `/api/v1/auth/register` with valid payload.
+  - Expect 200 with `access_token`, `refresh_token`, and correct expiries.
+
+- **Register duplicate email**
+  - Reuse same email.
+  - Expect 409 with `{ error, code, status, request_id }` and `code=email_taken`.
+
+- **Register invalid email**
+  - Invalid email format.
+  - Expect 422 with validation errors.
+
+- **Register weak password**
+  - Password shorter than 12 or missing letters/numbers.
+  - Expect 422 with validation errors.
+
+- **Validate email (available)**
+  - POST `/api/v1/auth/register/validate-email` with new email.
+  - Expect `{ available: true }`.
+
+- **Validate email (taken)**
+  - Use existing email.
+  - Expect `{ available: false }`.
+
+- **Single-device enforcement**
+  - Register user twice (same email) should fail with 409.
+  - Register + login (Phase 5) should revoke previous refresh tokens when re-authing from another device_id.
 
 ## Phase 5 — Login / Logout
 
@@ -146,11 +217,7 @@ Add to `sessions` (or new `api_sessions` table):
 ## Implementation Notes
 
 - Keep HTML/admin auth separate (session cookies) from API tokens.
-- Use refresh token hashing + rotation (store only digest server-side).
+- Use opaque access + refresh tokens with refresh digest storage.
 - Native app currently uses **AsyncStorage** for data; add **Expo SecureStore** for tokens.
 - Add JSON response conventions (success + error payloads).
 - Add request tests for each endpoint and failure mode.
-
-## Decisions Still Needed
-
-- Password strength policy (exact requirements).

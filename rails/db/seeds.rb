@@ -8,12 +8,12 @@ if Rails.env.development?
   user.assign_attributes(
     first_name: "Admin",
     last_name: "User",
-    password: "password123",
-    password_confirmation: "password123"
+    password: "Password12345",
+    password_confirmation: "Password12345"
   )
   
   if user.save
-    puts "✓ Created/updated admin user: admin@kindling.local / password123"
+    puts "✓ Created/updated admin user: admin@kindling.local / Password12345"
   else
     puts "✗ Error creating admin user: #{user.errors.full_messages.join(', ')}"
   end
