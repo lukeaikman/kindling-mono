@@ -20,6 +20,8 @@ Rails.application.routes.draw do
     namespace :v1 do
       post "auth/register", to: "auth#register"
       post "auth/register/validate-email", to: "auth#validate_email"
+      post "auth/login", to: "auth#login"
+      post "auth/logout", to: "auth#logout"
     end
   end
 

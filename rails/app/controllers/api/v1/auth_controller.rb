@@ -1,7 +1,7 @@
 module Api
   module V1
     class AuthController < Api::BaseController
-      allow_unauthenticated_access only: %i[register validate_email]
+      allow_unauthenticated_access only: %i[register validate_email login logout]
 
       def register
         email = normalize_email(params[:email])
@@ -68,6 +68,63 @@ module Api
         render json: { available: !User.exists?(email_address: email) }, status: :ok
       end
 
+      def login
+        email = normalize_email(params[:email])
+        password = params[:password].to_s
+        device_id = params[:device_id].to_s.strip
+        device_name = params[:device_name].to_s.strip.presence
+
+        errors = {}
+        errors[:email] = ["is invalid"] unless valid_email?(email)
+        errors[:password] = ["can't be blank"] if password.blank?
+        errors[:device_id] = ["can't be blank"] if device_id.blank?
+
+        return render_error(:unprocessable_entity, "validation_error", "Validation failed", details: errors) if errors.present?
+
+        user = User.find_by(email_address: email)
+        return handle_failed_login(nil) if user.nil?
+
+        lockout_error = lockout_error_for(user)
+        return lockout_error if lockout_error.present?
+
+        unless User.authenticate_by(email_address: email, password: password)
+          return handle_failed_login(user)
+        end
+
+        reset_lockout_for(user)
+        session, access_token, refresh_token = ApiSession.issue_for(
+          user: user,
+          device_id: device_id,
+          device_name: device_name
+        )
+
+        render json: {
+          access_token: access_token,
+          access_expires_at: session.access_expires_at,
+          refresh_token: refresh_token,
+          refresh_expires_at: session.refresh_expires_at,
+          user: {
+            id: user.id,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email_address,
+            phone: user.phone
+          }
+        }, status: :ok
+      end
+
+      def logout
+        token = bearer_token
+        session = ApiSession.find_by_access_token(token)
+
+        if session.nil? || session.revoked? || session.access_expired?
+          return render_error(:unauthorized, "invalid_token", "Access token is invalid or expired")
+        end
+
+        session.revoke!
+        render json: { success: true }, status: :ok
+      end
+
       private
 
       def render_error(status, code, message, details: nil)
@@ -103,6 +160,58 @@ module Api
         errors[:device_id] = ["can't be blank"] if device_id.blank?
 
         errors
+      end
+
+      def bearer_token
+        auth_header = request.headers["Authorization"].to_s
+        return if auth_header.blank?
+
+        scheme, token = auth_header.split(" ", 2)
+        return unless scheme&.casecmp("Bearer")&.zero?
+
+        token
+      end
+
+      def lockout_error_for(user)
+        return render_error(:forbidden, "locked_support_required", "Account locked. Contact support.") if user.locked?
+        return render_error(:forbidden, "account_suspended", "Account suspended.") if user.suspended?
+
+        if user.locked_until.present? && user.locked_until.future?
+          return render_error(:forbidden, "locked_temporarily", "Account temporarily locked. Try again later.")
+        end
+
+        nil
+      end
+
+      def handle_failed_login(user)
+        if user.nil?
+          return render_error(:unauthorized, "invalid_credentials", "Invalid email or password.")
+        end
+
+        new_count = user.failed_login_count + 1
+        updates = { failed_login_count: new_count }
+
+        if new_count >= 6
+          updates[:status] = "locked"
+          updates[:locked_until] = nil
+          user.update_columns(updates)
+          return render_error(:forbidden, "locked_support_required", "Account locked. Contact support.")
+        end
+
+        if new_count >= 3
+          updates[:locked_until] = 1.hour.from_now
+          user.update_columns(updates)
+          return render_error(:forbidden, "locked_temporarily", "Account temporarily locked. Try again later.")
+        end
+
+        user.update_columns(updates)
+        render_error(:unauthorized, "invalid_credentials", "Invalid email or password.")
+      end
+
+      def reset_lockout_for(user)
+        return if user.failed_login_count.zero? && user.locked_until.nil?
+
+        user.update_columns(failed_login_count: 0, locked_until: nil)
       end
     end
   end

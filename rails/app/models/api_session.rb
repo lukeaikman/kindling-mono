@@ -38,6 +38,20 @@ class ApiSession < ApplicationRecord
     refresh_expires_at <= Time.current
   end
 
+  def access_expired?
+    access_expires_at <= Time.current
+  end
+
+  def revoke!
+    update!(revoked_at: Time.current)
+  end
+
+  def self.find_by_access_token(token)
+    return if token.blank?
+
+    find_by(access_token_digest: digest(token))
+  end
+
   def self.generate_token
     SecureRandom.hex(32)
   end

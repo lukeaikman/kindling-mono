@@ -87,6 +87,137 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
     body = response.parsed_body
     assert_equal "invalid_email", body["code"]
   end
+
+  test "login returns tokens for valid credentials" do
+    User.create!(
+      email_address: "login@example.com",
+      password: "SunsetDrive2026",
+      first_name: "Alex",
+      last_name: "Hall"
+    )
+
+    post "/api/v1/auth/login", params: {
+      email: "login@example.com",
+      password: "SunsetDrive2026",
+      device_id: "device-1"
+    }, as: :json
+
+    assert_response :success
+    body = response.parsed_body
+    assert body["access_token"].present?
+    assert body["refresh_token"].present?
+  end
+
+  test "login returns 401 for invalid credentials" do
+    User.create!(
+      email_address: "login@example.com",
+      password: "SunsetDrive2026",
+      first_name: "Alex",
+      last_name: "Hall"
+    )
+
+    post "/api/v1/auth/login", params: {
+      email: "login@example.com",
+      password: "wrong",
+      device_id: "device-1"
+    }, as: :json
+
+    assert_response :unauthorized
+    body = response.parsed_body
+    assert_equal "invalid_credentials", body["code"]
+  end
+
+  test "login returns 403 locked_temporarily after 3 failures" do
+    user = User.create!(
+      email_address: "locked@example.com",
+      password: "SunsetDrive2026",
+      first_name: "Alex",
+      last_name: "Hall"
+    )
+
+    2.times do
+      post "/api/v1/auth/login", params: {
+        email: "locked@example.com",
+        password: "wrong",
+        device_id: "device-1"
+      }, as: :json
+    end
+
+    post "/api/v1/auth/login", params: {
+      email: "locked@example.com",
+      password: "wrong",
+      device_id: "device-1"
+    }, as: :json
+
+    assert_response :forbidden
+    body = response.parsed_body
+    assert_equal "locked_temporarily", body["code"]
+    assert user.reload.locked_until.present?
+  end
+
+  test "login returns 403 locked_support_required after 6 failures" do
+    user = User.create!(
+      email_address: "locked6@example.com",
+      password: "SunsetDrive2026",
+      first_name: "Alex",
+      last_name: "Hall"
+    )
+
+    3.times do
+      post "/api/v1/auth/login", params: {
+        email: "locked6@example.com",
+        password: "wrong",
+        device_id: "device-1"
+      }, as: :json
+    end
+
+    user.update_columns(locked_until: 1.hour.ago)
+
+    3.times do
+      post "/api/v1/auth/login", params: {
+        email: "locked6@example.com",
+        password: "wrong",
+        device_id: "device-1"
+      }, as: :json
+    end
+
+    assert_response :forbidden
+    body = response.parsed_body
+    assert_equal "locked_support_required", body["code"]
+    assert_equal "locked", user.reload.status
+  end
+
+  test "logout revokes session and returns success" do
+    User.create!(
+      email_address: "logout@example.com",
+      password: "SunsetDrive2026",
+      first_name: "Alex",
+      last_name: "Hall"
+    )
+
+    post "/api/v1/auth/login", params: {
+      email: "logout@example.com",
+      password: "SunsetDrive2026",
+      device_id: "device-1"
+    }, as: :json
+
+    access_token = response.parsed_body["access_token"]
+    assert access_token.present?
+
+    post "/api/v1/auth/logout", headers: { "Authorization" => "Bearer #{access_token}" }
+
+    assert_response :success
+    body = response.parsed_body
+    assert_equal true, body["success"]
+  end
+
+  test "logout returns 401 for invalid token" do
+    post "/api/v1/auth/logout", headers: { "Authorization" => "Bearer invalid" }
+
+    assert_response :unauthorized
+    body = response.parsed_body
+    assert_equal "invalid_token", body["code"]
+  end
 end
 require "test_helper"
 
