@@ -117,3 +117,5 @@ In Phase 1aa we assume **single active profile**, but storage must be user-scope
 - Server-side draft sync retries / conflict resolution
 - Offline sync queue / retry tooling
 - serverId fields on non-Person entities
+
+Reviewed
