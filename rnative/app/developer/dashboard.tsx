@@ -19,6 +19,7 @@ import { Card } from '../../src/components/ui/Card';
 import { Select } from '../../src/components/ui/Select';
 import { SplashScreen } from '../../src/components/splash';
 import { useAppState } from '../../src/hooks/useAppState';
+import { useAuth } from '../../src/hooks/useAuth';
 import { seedAllData } from '../../src/utils/seedData';
 import { storage } from '../../src/services/storage';
 import { STORAGE_KEYS } from '../../src/constants';
@@ -32,6 +33,7 @@ import { Spacing, Typography } from '../../src/styles/constants';
  */
 export default function DeveloperDashboard() {
   const { personActions, bequeathalActions, willActions, purgeAllData } = useAppState();
+  const { logout } = useAuth();
   const [storageData, setStorageData] = useState<Record<string, any>>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [showSplash, setShowSplash] = useState(false);
@@ -79,6 +81,11 @@ export default function DeveloperDashboard() {
   
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/auth/login');
   };
   
   // Show splash screen when triggered
@@ -129,6 +136,13 @@ export default function DeveloperDashboard() {
               onPress={handleRefresh}
             >
               Refresh Data View
+            </Button>
+
+            <Button
+              variant="outline"
+              onPress={handleLogout}
+            >
+              Logout
             </Button>
           </View>
         </Card>

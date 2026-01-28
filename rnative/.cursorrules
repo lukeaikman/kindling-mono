@@ -20,11 +20,13 @@ Purpose: Enforce consistent, maintainable code for a mobile-first React Native a
 **Triggers:** Any change touching persistence, logs, network, or analytics
 
 **You must:**
-1. Confirm **NO PII leaves device** in production (V1 is local-only).
-2. Store **all data locally** in AsyncStorage; do **not** log sensitive user content (names, addresses, asset values, beneficiaries).
+1. Confirm **PII may sync to the Rails backend** in production (V1 uses backend + sync).
+2. Store **all local data** in AsyncStorage but treat server as source of truth post-sync.
 3. Ensure **console logs and stack traces** never include user content (personal details, asset values, beneficiary information).
-4. Add a **privacy disclaimer** explaining local-only storage in Settings/Help.
-5. If a network client is added, it must be **DEV-only** and behind a **feature flag**.
+4. Use **secure transport** for all network calls (HTTPS only) and include auth tokens properly.
+5. Send **minimum necessary fields** to the backend; avoid over-collection.
+6. Add a **privacy disclaimer** explaining what data is stored locally and what is synced.
+7. Any analytics/telemetry must **exclude PII by default** and require explicit opt-in.
 
 ---
 

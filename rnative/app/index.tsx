@@ -15,7 +15,7 @@ export default function Index() {
   return (
     <>
       <SplashScreen
-        navigateTo="/onboarding/welcome"
+        navigateTo="/intro"
         // Note: Update navigateTo based on user state or deeplinks
         // For example:
         // - First-time users: /onboarding/welcome

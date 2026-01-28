@@ -266,6 +266,9 @@ export const Input = forwardRef<RNTextInput, InputProps>(({
   
   // Auto-determine return key type if not provided
   const returnKeyType = returnKeyTypeProp || (autoFocusNext ? 'next' : 'done');
+
+  const isPasswordField = type === 'password';
+  const devAutofillDisabled = __DEV__ && isPasswordField;
   
   // Handle submit editing (when user presses keyboard return key)
   const handleSubmitEditing = () => {
@@ -307,7 +310,14 @@ export const Input = forwardRef<RNTextInput, InputProps>(({
       disabled={disabled}
       error={error}
       keyboardType={keyboardType}
-      secureTextEntry={secureTextEntry || type === 'password'}
+      secureTextEntry={secureTextEntry || isPasswordField}
+      // TODO: Re-enable password AutoFill before launch by removing the dev-only override below.
+      // iOS often ignores "none" for password fields; "oneTimeCode" reliably disables the strong-password overlay.
+      textContentType={
+        isPasswordField ? (devAutofillDisabled ? 'oneTimeCode' : 'password') : undefined
+      }
+      autoComplete={isPasswordField ? (devAutofillDisabled ? 'off' : 'password') : undefined}
+      importantForAutofill={devAutofillDisabled ? 'no' : 'auto'}
       autoCapitalize={autoCapitalize}
       autoCorrect={autoCorrect}
       maxLength={maxLength}

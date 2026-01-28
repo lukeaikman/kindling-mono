@@ -15,6 +15,8 @@ export default function RootLayout() {
     <PaperProvider theme={kindlingTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="intro" />
+        <Stack.Screen name="auth" />
       </Stack>
     </PaperProvider>
   );

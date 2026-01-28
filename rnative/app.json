@@ -33,7 +33,8 @@
         {
           "faceIDPermission": "Allow Kindling to use Face ID for secure authentication."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

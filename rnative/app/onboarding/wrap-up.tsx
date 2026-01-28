@@ -40,7 +40,7 @@ export default function OnboardingWrapUpScreen() {
 
   const handleFinish = () => {
     console.log('✅ Onboarding completed');
-    router.push('/order-of-things');
+    router.push('/auth/secure-account');
   };
   
   const handleBack = () => {
