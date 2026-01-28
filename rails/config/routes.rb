@@ -22,6 +22,9 @@ Rails.application.routes.draw do
       post "auth/register/validate-email", to: "auth#validate_email"
       post "auth/login", to: "auth#login"
       post "auth/logout", to: "auth#logout"
+      get "auth/session/validate", to: "auth#session_validate"
+      post "auth/session/refresh", to: "auth#session_refresh"
+      get "auth/user/profile", to: "auth#profile"
     end
   end
 

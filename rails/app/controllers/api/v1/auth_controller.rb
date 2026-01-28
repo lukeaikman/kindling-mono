@@ -125,6 +125,63 @@ module Api
         render json: { success: true }, status: :ok
       end
 
+      def session_validate
+        token = bearer_token
+        session = ApiSession.find_by_access_token(token)
+
+        if session.nil? || session.revoked? || session.access_expired?
+          return render_error(:unauthorized, "invalid_token", "Access token is invalid or expired")
+        end
+
+        user = session.user
+        render json: {
+          valid: true,
+          user_id: user.id,
+          profile: {
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email_address,
+            phone: user.phone
+          },
+          access_expires_at: session.access_expires_at
+        }, status: :ok
+      end
+
+      def session_refresh
+        token = bearer_token
+        session = ApiSession.find_by_refresh_token(token)
+
+        return render_error(:unauthorized, "invalid_token", "Refresh token is invalid or expired") if session.nil?
+        return render_error(:forbidden, "revoked_session", "Session has been revoked") if session.revoked?
+        return render_error(:unauthorized, "invalid_token", "Refresh token is invalid or expired") if session.refresh_expired?
+
+        new_session, access_token, refresh_token = ApiSession.rotate_for(session)
+
+        render json: {
+          access_token: access_token,
+          access_expires_at: new_session.access_expires_at,
+          refresh_token: refresh_token,
+          refresh_expires_at: new_session.refresh_expires_at
+        }, status: :ok
+      end
+
+      def profile
+        token = bearer_token
+        session = ApiSession.find_by_access_token(token)
+
+        if session.nil? || session.revoked? || session.access_expired?
+          return render_error(:unauthorized, "invalid_token", "Access token is invalid or expired")
+        end
+
+        user = session.user
+        render json: {
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email_address,
+          phone: user.phone
+        }, status: :ok
+      end
+
       private
 
       def render_error(status, code, message, details: nil)

@@ -1,10 +1,10 @@
 module Api
   class BaseController < ActionController::API
-    # Include authentication for API (will use token-based in future)
-    include Authentication
-    
-    # Skip CSRF for API requests
-    # API authentication will use tokens instead of sessions
+    # API controllers use token auth (no cookie sessions).
+
+    def self.allow_unauthenticated_access(**_options)
+      # No-op placeholder for API controllers.
+    end
   end
 end
 

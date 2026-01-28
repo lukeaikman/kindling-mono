@@ -218,6 +218,93 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
     body = response.parsed_body
     assert_equal "invalid_token", body["code"]
   end
+
+  test "session_validate returns profile for valid access token" do
+    user = User.create!(
+      email_address: "session@example.com",
+      password: "SunsetDrive2026",
+      first_name: "Alex",
+      last_name: "Hall"
+    )
+    session, access_token, = ApiSession.issue_for(user: user, device_id: "device-1")
+
+    get "/api/v1/auth/session/validate", headers: { "Authorization" => "Bearer #{access_token}" }
+
+    assert_response :success
+    body = response.parsed_body
+    assert_equal true, body["valid"]
+    assert_equal user.id, body["user_id"]
+    assert_equal session.access_expires_at.as_json, body["access_expires_at"]
+  end
+
+  test "session_validate returns 401 for invalid access token" do
+    get "/api/v1/auth/session/validate", headers: { "Authorization" => "Bearer invalid" }
+
+    assert_response :unauthorized
+    body = response.parsed_body
+    assert_equal "invalid_token", body["code"]
+  end
+
+  test "session_refresh rotates tokens" do
+    user = User.create!(
+      email_address: "refresh@example.com",
+      password: "SunsetDrive2026",
+      first_name: "Alex",
+      last_name: "Hall"
+    )
+    session, _, refresh_token = ApiSession.issue_for(user: user, device_id: "device-1")
+
+    post "/api/v1/auth/session/refresh", headers: { "Authorization" => "Bearer #{refresh_token}" }
+
+    assert_response :success
+    body = response.parsed_body
+    assert body["access_token"].present?
+    assert body["refresh_token"].present?
+    assert session.reload.revoked?
+  end
+
+  test "session_refresh returns 401 for expired refresh token" do
+    user = User.create!(
+      email_address: "refresh-expired@example.com",
+      password: "SunsetDrive2026",
+      first_name: "Alex",
+      last_name: "Hall"
+    )
+    session, _, refresh_token = ApiSession.issue_for(user: user, device_id: "device-1")
+    session.update_columns(refresh_expires_at: 1.minute.ago)
+
+    post "/api/v1/auth/session/refresh", headers: { "Authorization" => "Bearer #{refresh_token}" }
+
+    assert_response :unauthorized
+    body = response.parsed_body
+    assert_equal "invalid_token", body["code"]
+  end
+
+  test "profile returns user data for valid access token" do
+    user = User.create!(
+      email_address: "profile@example.com",
+      password: "SunsetDrive2026",
+      first_name: "Alex",
+      last_name: "Hall"
+    )
+    _, access_token, = ApiSession.issue_for(user: user, device_id: "device-1")
+
+    get "/api/v1/auth/user/profile", headers: { "Authorization" => "Bearer #{access_token}" }
+
+    assert_response :success
+    body = response.parsed_body
+    assert_equal "Alex", body["first_name"]
+    assert_equal "Hall", body["last_name"]
+    assert_equal "profile@example.com", body["email"]
+  end
+
+  test "profile returns 401 for invalid access token" do
+    get "/api/v1/auth/user/profile", headers: { "Authorization" => "Bearer invalid" }
+
+    assert_response :unauthorized
+    body = response.parsed_body
+    assert_equal "invalid_token", body["code"]
+  end
 end
 require "test_helper"
 
