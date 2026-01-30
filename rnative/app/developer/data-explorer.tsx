@@ -55,26 +55,25 @@ export default function DataExplorerScreen() {
   const [selectedPropertyFromTrust, setSelectedPropertyFromTrust] = useState<any>(null); // For viewing property from trust
   const [personRoleFilter, setPersonRoleFilter] = useState<string>('all');
   const [showCopiedSnackbar, setShowCopiedSnackbar] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   // Get relationship edges from storage
   const [relationshipEdges, setRelationshipEdges] = useState<any[]>([]);
-  const [rawRelationshipData, setRawRelationshipData] = useState<any>(null);
   
-  React.useEffect(() => {
-    const loadRelationships = async () => {
-      const key = `kindling:${ownerId}:${STORAGE_KEYS.RELATIONSHIP_DATA}`;
-      const edges = await storage.load(key, []);
-      setRawRelationshipData(edges);
-      if (Array.isArray(edges)) {
-        setRelationshipEdges(edges);
-      } else if (edges && typeof edges === 'object' && 'edges' in edges) {
-        setRelationshipEdges((edges as any).edges || []);
-      } else {
-        setRelationshipEdges([]);
-      }
-    };
-    loadRelationships();
+  const loadRelationships = useCallback(async () => {
+    const edges = await storage.load(`kindling:${ownerId}:${STORAGE_KEYS.RELATIONSHIP_DATA}`, []);
+    if (Array.isArray(edges)) {
+      setRelationshipEdges(edges);
+    } else if (edges && typeof edges === 'object' && 'edges' in edges) {
+      setRelationshipEdges((edges as any).edges || []);
+    } else {
+      setRelationshipEdges([]);
+    }
   }, [ownerId]);
+
+  React.useEffect(() => {
+    loadRelationships();
+  }, [ownerId, refreshKey, loadRelationships]);
   
   // Get will data
   const willData = willActions.getWillData();
@@ -264,19 +263,6 @@ export default function DataExplorerScreen() {
   const renderInterfaceList = () => (
     <ScrollView style={styles.content} contentContainerStyle={styles.interfaceListContainer}>
       <Text style={styles.helpText}>Tap on an interface to view its data instances</Text>
-      <View style={styles.debugCard}>
-        <Text style={styles.debugTitle}>Debug: Relationship Edges</Text>
-        <Text style={styles.debugLabel}>Owner ID</Text>
-        <Text style={styles.debugValue}>{ownerId}</Text>
-        <Text style={styles.debugLabel}>Storage Key</Text>
-        <Text style={styles.debugValue}>
-          {`kindling:${ownerId}:${STORAGE_KEYS.RELATIONSHIP_DATA}`}
-        </Text>
-        <Text style={styles.debugLabel}>Raw Storage Value</Text>
-        <Text style={styles.debugValue}>
-          {rawRelationshipData ? JSON.stringify(rawRelationshipData, null, 2) : 'null'}
-        </Text>
-      </View>
       <View style={styles.interfaceList}>
         {interfaces.map((interfaceDef) => {
           const data = interfaceDef.getData();
@@ -638,6 +624,17 @@ export default function DataExplorerScreen() {
           )}
         </View>
       </View>
+
+      {/* Owner ID */}
+      <View style={styles.ownerIdRow}>
+        <Text style={styles.ownerIdText}>Owner ID: {ownerId}</Text>
+        <IconButton
+          icon="refresh"
+          size={16}
+          iconColor={`${KindlingColors.navy}99`}
+          onPress={() => setRefreshKey(prev => prev + 1)}
+        />
+      </View>
       
       {/* Subtitle showing count */}
       {selectedInterface && !selectedInstance && !selectedPropertyFromTrust && (
@@ -694,6 +691,21 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
+  },
+  ownerIdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.sm,
+    backgroundColor: KindlingColors.background,
+    borderBottomWidth: 0.5,
+    borderBottomColor: KindlingColors.cream,
+  },
+  ownerIdText: {
+    fontSize: Typography.fontSize.xs,
+    color: `${KindlingColors.navy}99`,
   },
   subtitle: {
     paddingHorizontal: Spacing.lg,
@@ -838,32 +850,6 @@ const styles = StyleSheet.create({
     backgroundColor: `${KindlingColors.muted}80`,
     padding: Spacing.sm,
     borderRadius: 4,
-  },
-  debugCard: {
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
-    padding: Spacing.md,
-    backgroundColor: `${KindlingColors.cream}80`,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: KindlingColors.border,
-  },
-  debugTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-    marginBottom: Spacing.sm,
-  },
-  debugLabel: {
-    fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.semibold,
-    color: `${KindlingColors.navy}99`,
-    marginTop: Spacing.xs,
-  },
-  debugValue: {
-    fontSize: Typography.fontSize.xs,
-    color: KindlingColors.navy,
-    fontFamily: 'monospace',
   },
   snackbar: {
     backgroundColor: KindlingColors.green,

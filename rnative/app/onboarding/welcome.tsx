@@ -104,7 +104,7 @@ export default function OnboardingWelcomeScreen() {
   /**
    * Handle form submission
    */
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!isValid) return;
     
     // Create or update user as Person with 'will-maker' role
@@ -120,7 +120,7 @@ export default function OnboardingWelcomeScreen() {
       console.log('✅ Updated existing will-maker:', existingUser.id);
     } else {
       // Create new user as Person
-      const userId = personActions.addPerson({
+      const userId = await personActions.addPerson({
         firstName,
         lastName,
         email: '',

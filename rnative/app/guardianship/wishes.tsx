@@ -140,7 +140,7 @@ export default function GuardianWishesScreen() {
   };
   
   // Add or update guardian
-  const handleAddGuardian = () => {
+  const handleAddGuardian = async () => {
     if (editingGuardianId) {
       handleUpdateGuardian();
       return;
@@ -155,7 +155,7 @@ export default function GuardianWishesScreen() {
     
     if (!personId) {
       // Create new person
-      personId = personActions.addPerson({
+      personId = await personActions.addPerson({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,

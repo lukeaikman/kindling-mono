@@ -70,8 +70,8 @@ export default function DeveloperDashboard() {
     setStorageData(data);
   };
   
-  const handleSeedAllData = () => {
-    seedAllData(personActions, bequeathalActions);
+  const handleSeedAllData = async () => {
+    await seedAllData(personActions, bequeathalActions);
     setRefreshKey(prev => prev + 1);
     console.log('✅ All data seeded');
   };

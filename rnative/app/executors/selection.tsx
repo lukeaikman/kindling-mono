@@ -234,11 +234,11 @@ export default function ExecutorSelectionScreen() {
   /**
    * Handle adding a new executor
    */
-  const handleAddExecutor = () => {
+  const handleAddExecutor = async () => {
     if (!validateForm()) return;
     
     // Create new person with executor role
-    const personId = personActions.addPerson({
+    const personId = await personActions.addPerson({
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,

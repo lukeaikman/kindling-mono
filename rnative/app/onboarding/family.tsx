@@ -32,6 +32,8 @@ import { Select } from '../../src/components/ui/Select';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { Tooltip } from '../../src/components/ui/Tooltip';
 import { useAppState } from '../../src/hooks/useAppState';
+import { storage } from '../../src/services/storage';
+import { STORAGE_KEYS } from '../../src/constants';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
 import { RelationshipType, PersonRelationshipType } from '../../src/types';
@@ -115,7 +117,7 @@ interface CoGuardianFormData {
  * OnboardingFamilyScreen component
  */
 export default function OnboardingFamilyScreen() {
-  const { personActions, willActions, relationshipActions } = useAppState();
+  const { personActions, willActions, relationshipActions, ownerId } = useAppState();
   
   // Double tap functionality for dev dashboard (on header)
   const lastTapRef = useRef<number>(0);
@@ -441,7 +443,7 @@ export default function OnboardingFamilyScreen() {
     lastTapRef.current = now;
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!isValid) return;
     
     const currentUser = willActions.getUser();
@@ -455,15 +457,23 @@ export default function OnboardingFamilyScreen() {
     
     console.log('Saving family data...');
     
-    // Save spouse/partner
+    const pendingRelationships: Array<{
+      aId: string;
+      bId: string;
+      type: RelationshipType;
+      opts?: { phase?: 'active'; qualifiers?: Record<string, boolean> };
+    }> = [];
+    const createdPersonIds: string[] = [];
+
+    // Save spouse/partner first, then queue relationship edge
     let actualSpouseId: string | undefined;
     if (hasPartner(relationshipStatus) && spouseFirstName && spouseLastName) {
-      const spouseRelationship: PersonRelationshipType = 
+      const spouseRelationship: PersonRelationshipType =
         relationshipStatus === 'married' || relationshipStatus === 'civil-partnership'
           ? 'spouse'
           : 'partner';
-      
-      const spouseId = personActions.addPerson({
+
+      const spouseId = await personActions.addPerson({
         firstName: spouseFirstName,
         lastName: spouseLastName,
         email: '',
@@ -472,34 +482,33 @@ export default function OnboardingFamilyScreen() {
         roles: ['family-member', 'beneficiary'],
         createdInOnboarding: true,
       });
-      
-      const relType = spouseRelationship === 'spouse' ? RelationshipType.SPOUSE : RelationshipType.PARTNER;
-      console.log(`🔗 Creating edge between ${currentUser.firstName} ${currentUser.lastName} and ${spouseFirstName} ${spouseLastName}`, {
-        aId: currentUser.id,
-        bId: spouseId,
-        type: relType,
-        phase: 'active',
-      });
-      relationshipActions.addRelationship(currentUser.id, spouseId, relType, { phase: 'active' });
-      
-      actualSpouseId = spouseId; // Keep spouseId for children
-      console.log('Created spouse/partner:', spouseId);
+
+      if (spouseId) {
+        createdPersonIds.push(spouseId);
+        const relType = spouseRelationship === 'spouse' ? RelationshipType.SPOUSE : RelationshipType.PARTNER;
+        pendingRelationships.push({
+          aId: currentUser.id,
+          bId: spouseId,
+          type: relType,
+          opts: { phase: 'active' },
+        });
+        actualSpouseId = spouseId; // Keep spouseId for children
+        console.log('Created spouse/partner:', spouseId);
+      }
     }
-    
-    // Save children
+
+    // Save children first, then queue relationship edges
     if (hasChildren === 'yes' && children.length > 0) {
-      // Get actual guardian IDs (replace placeholders)
       const actualUserId = currentUser.id;
-      
-      children.forEach((child, index) => {
-        // Determine qualifiers from relationship type
+      let childIndex = 0;
+      for (const child of children) {
+        childIndex += 1;
         const qualifiers: Record<string, boolean> = {};
         if (child.relationship === 'biological-child') qualifiers.biological = true;
         if (child.relationship === 'adopted-child') qualifiers.adoptive = true;
         if (child.relationship === 'stepchild') qualifiers.step = true;
         if (child.relationship === 'foster-child') qualifiers.foster = true;
-        
-        // Replace placeholder guardian IDs with actual IDs
+
         const actualGuardianIds = child.guardianIds
           .map(id => {
             if (id === 'user-placeholder') return actualUserId;
@@ -507,8 +516,8 @@ export default function OnboardingFamilyScreen() {
             return id;
           })
           .filter(Boolean) as string[];
-        
-        const childId = personActions.addPerson({
+
+        const childId = await personActions.addPerson({
           firstName: child.firstName,
           lastName: child.lastName,
           email: '',
@@ -523,19 +532,39 @@ export default function OnboardingFamilyScreen() {
           guardianIds: actualGuardianIds,
           createdInOnboarding: true,
         });
-        
-        console.log(`🔗 Creating edge between ${currentUser.firstName} ${currentUser.lastName} and ${child.firstName} ${child.lastName}`, {
-          aId: currentUser.id,
-          bId: childId,
-          type: RelationshipType.PARENT_OF,
-          qualifiers,
-        });
-        relationshipActions.addRelationship(currentUser.id, childId, RelationshipType.PARENT_OF, {
-          qualifiers,
-        });
-        
-        console.log(`Created child ${index + 1}:`, childId, 'with guardians:', actualGuardianIds);
+
+        if (childId) {
+          createdPersonIds.push(childId);
+          pendingRelationships.push({
+            aId: currentUser.id,
+            bId: childId,
+            type: RelationshipType.PARENT_OF,
+            opts: { qualifiers },
+          });
+          console.log(`Created child ${childIndex}:`, childId, 'with guardians:', actualGuardianIds);
+        }
+      }
+    }
+
+    // Confirm people exist in storage before writing relationships
+    const peopleStorageKey = `kindling:${ownerId}:${STORAGE_KEYS.PERSON_DATA}`;
+    const storedPeople = await storage.load(peopleStorageKey, []);
+    const storedIds = new Set((storedPeople || []).map((person: any) => person.id));
+    const relationshipIds = Array.from(
+      new Set(pendingRelationships.flatMap(rel => [rel.aId, rel.bId]))
+    );
+    const missingIds = relationshipIds.filter(id => !storedIds.has(id));
+    if (missingIds.length > 0) {
+      console.error('❌ Relationship write blocked: missing people in storage', {
+        missingIds,
+        createdPersonIds,
       });
+      return;
+    }
+
+    // Write relationship edges only after people have been created
+    for (const { aId, bId, type, opts } of pendingRelationships) {
+      await relationshipActions.addRelationship(aId, bId, type, opts);
     }
     
     console.log('Family data saved successfully');

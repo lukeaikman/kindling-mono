@@ -766,7 +766,7 @@ export interface WillActions {
  * Actions for managing people
  */
 export interface PersonActions {
-  addPerson: (person: Omit<Person, 'id' | 'createdAt' | 'updatedAt'>) => string;
+  addPerson: (person: Omit<Person, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
   updatePerson: (id: string, updates: Partial<Person>) => void;
   removePerson: (id: string) => void;
   getPeople: () => Person[];
@@ -785,8 +785,8 @@ export interface PersonActions {
   updateExecutorStatus: (personId: string, status: Person['executorStatus']) => void;
   sendExecutorInvitations: () => void;
   getPersonData: () => Person[];
-  addBeneficiary: (beneficiaryData: { name: string; relationship: string }) => string;
-  addExecutor: (executorData: any) => string;
+  addBeneficiary: (beneficiaryData: { name: string; relationship: string }) => Promise<string>;
+  addExecutor: (executorData: any) => Promise<string>;
   clearOnboardingFamilyMembers: () => void;
   // Guardian management (current reality tracking)
   assignGuardian: (childId: string, guardianId: string) => void;
@@ -812,7 +812,7 @@ export interface ExecutorActions {
  * Actions for managing beneficiaries
  */
 export interface BeneficiaryActions {
-  addBeneficiary: (beneficiaryData: { name: string; relationship: string }) => string;
+  addBeneficiary: (beneficiaryData: { name: string; relationship: string }) => Promise<string>;
   removeBeneficiary: (id: string) => void;
   updateBeneficiary: (id: string, updates: { name?: string; relationship?: string }) => void;
   getBeneficiaries: () => any[];
@@ -1072,7 +1072,7 @@ export interface RelationshipActions {
       endedAt?: Date;
       metadata?: Record<string, unknown>;
     }
-  ) => string; // returns edgeId
+  ) => Promise<string>; // returns edgeId
 
   updateRelationship: (
     edgeId: string,

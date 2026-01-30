@@ -36,7 +36,7 @@
  * ```
  */
 
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import {
   WillData, BequeathalData, Bequest,
   WillActions, PersonActions, BeneficiaryActions, BusinessActions, BequeathalActions, TrustActions, BequestActions,
@@ -53,9 +53,6 @@ import {
 import { generateUUID, getPersonFullName, getPersonRelationshipDisplay } from '../utils/helpers';
 import { storage } from '../services/storage';
 
-let migrationLogEmitted = false;
-let migrationCompleteLogEmitted = false;
-
 /**
  * Load initial state from AsyncStorage
  * This is async, so we'll use a pattern with state initialization and useEffect
@@ -67,29 +64,16 @@ const useAsyncStorageState = <T>(
 ): [T, React.Dispatch<React.SetStateAction<T>>] => {
   const [state, setState] = useState<T>(initialValue);
   const [isInitialized, setIsInitialized] = useState(false);
-  const modifiedRef = useRef(false);
-  const loadIdRef = useRef(0);
-
-  const setStateWithTracking = useCallback((value: React.SetStateAction<T>) => {
-    modifiedRef.current = true;
-    setState(value);
-  }, []);
 
   // Load from storage on mount and when key changes
   useEffect(() => {
     let isMounted = true;
     setIsInitialized(false);
-    modifiedRef.current = false;
-    setState(initialValue);
-    const loadId = ++loadIdRef.current;
 
     const loadFromStorage = async () => {
       const loaded = await storage.load(storageKey, initialValue, dateFields);
       if (!isMounted) return;
-      if (loadId !== loadIdRef.current) return;
-      if (!modifiedRef.current) {
-        setState(loaded);
-      }
+      setState(loaded);
       setIsInitialized(true);
     };
     loadFromStorage();
@@ -105,7 +89,24 @@ const useAsyncStorageState = <T>(
     }
   }, [state, isInitialized, storageKey]);
 
-  return [state, setStateWithTracking];
+  return [state, setState];
+};
+
+/**
+ * Synchronously update state and resolve the new value.
+ * This is useful when you need to sequence writes in a predictable order.
+ */
+const updateStateAsync = <T>(
+  setState: React.Dispatch<React.SetStateAction<T>>,
+  updater: (prev: T) => T
+): Promise<T> => {
+  return new Promise((resolve) => {
+    setState((prev) => {
+      const next = updater(prev);
+      resolve(next);
+      return next;
+    });
+  });
 };
 
 /**
@@ -149,10 +150,6 @@ export const useAppState = () => {
     getInitialPersonData(),
     []
   );
-  const personDataRef = useRef<Person[]>(getInitialPersonData());
-  useEffect(() => {
-    personDataRef.current = personData;
-  }, [personData]);
 
   const [businessData, setBusinessData] = useAsyncStorageState<Business[]>(
     getScopedKey(STORAGE_KEYS.BUSINESS_DATA),
@@ -206,10 +203,8 @@ export const useAppState = () => {
     const currentUserId = willData.userId;
     if (!currentUserId) return;
     if (migrationCompletedRef.current) return;
-    if (!migrationLogEmitted) {
-      console.log('🔄 Migrating to multi-user + bequest architecture...');
-      migrationLogEmitted = true;
-    }
+    
+    console.log('🔄 Migrating to multi-user + bequest architecture...');
     
     // 1. Add userId to Trusts
     const trustsMigrated = trustData.every((t: any) => t.userId);
@@ -361,10 +356,7 @@ export const useAppState = () => {
     }
     
     migrationCompletedRef.current = true;
-    if (!migrationCompleteLogEmitted) {
-      console.log('✅ Multi-user + bequest migration complete');
-      migrationCompleteLogEmitted = true;
-    }
+    console.log('✅ Multi-user + bequest migration complete');
   }, [willData, trustData, businessData, bequeathalData, bequestData, estateRemainderState]);
 
   // =============================================================================
@@ -610,7 +602,7 @@ export const useAppState = () => {
   // =============================================================================
 
   const personActions: PersonActions = {
-    addPerson: (personData) => {
+    addPerson: async (personData) => {
       // Generate UUID - crypto.randomUUID() not available in React Native
       const generateId = () => {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -627,7 +619,8 @@ export const useAppState = () => {
         updatedAt: new Date()
       };
 
-      setPersonData(prev => [...prev, newPerson]);
+      const nextPeople = await updateStateAsync(setPersonData, prev => [...prev, newPerson]);
+      await storage.save(getScopedKey(STORAGE_KEYS.PERSON_DATA), nextPeople);
 
       console.log('✅ Person added:', newPerson.id, newPerson.firstName, newPerson.lastName);
       
@@ -670,7 +663,7 @@ export const useAppState = () => {
     getPeople: () => personData,
 
     getPersonById: (id) => {
-      return personDataRef.current.find(person => person.id === id);
+      return personData.find(person => person.id === id);
     },
 
     getPersonByName: (firstName, lastName?) => {
@@ -757,7 +750,7 @@ export const useAppState = () => {
     getPersonData: () => personData,
 
     // Legacy compatibility methods
-    addBeneficiary: (beneficiaryData) => {
+    addBeneficiary: async (beneficiaryData) => {
       // Parse name into first and last name
       const nameParts = beneficiaryData.name.trim().split(' ');
       const firstName = nameParts[0] || '';
@@ -811,7 +804,7 @@ export const useAppState = () => {
       console.log('🧹 Cleared all onboarding-created family members and their relationships');
     },
 
-    addExecutor: (executorData: any) => {
+    addExecutor: async (executorData: any) => {
       return personActions.addPerson(executorData);
     },
 
@@ -873,7 +866,7 @@ export const useAppState = () => {
   // =============================================================================
 
   const beneficiaryActions: BeneficiaryActions = {
-    addBeneficiary: (beneficiaryData) => {
+    addBeneficiary: async (beneficiaryData) => {
       return personActions.addBeneficiary(beneficiaryData);
     },
 
@@ -1336,7 +1329,7 @@ export const useAppState = () => {
   });
 
   const relationshipActions: RelationshipActions = {
-    addRelationship: (aId, bId, type, opts) => {
+    addRelationship: async (aId, bId, type, opts) => {
       const key = uniquenessKey(aId, bId, type);
       const existing = edgeIndex[key];
       
@@ -1344,44 +1337,6 @@ export const useAppState = () => {
       if (existing) {
         console.log('🔗 [REL] Relationship already exists:', { edgeId: existing, aId, bId, type });
         return existing;
-      }
-      
-      const personA = personActions.getPersonById(aId);
-      const personB = personActions.getPersonById(bId);
-      if (!personA || !personB) {
-        console.warn('⚠️ [REL] Person not yet available (likely pending state update)', {
-          aId,
-          bId,
-          type,
-          missingA: !personA,
-          missingB: !personB,
-        });
-        const verifyAfterDelay = (attempt: number) => {
-          const deferredA = personActions.getPersonById(aId);
-          const deferredB = personActions.getPersonById(bId);
-          if (deferredA && deferredB) {
-            console.log('✅ [REL] Persons resolved after delay', {
-              aId,
-              bId,
-              type,
-              attempt,
-            });
-            return;
-          }
-          if (attempt >= 5) {
-            console.error('❌ [REL] Person still missing after delay', {
-              aId,
-              bId,
-              type,
-              missingA: !deferredA,
-              missingB: !deferredB,
-              attempts: attempt,
-            });
-            return;
-          }
-          setTimeout(() => verifyAfterDelay(attempt + 1), 50);
-        };
-        setTimeout(() => verifyAfterDelay(1), 50);
       }
 
       const generateId = () => {
@@ -1407,12 +1362,9 @@ export const useAppState = () => {
         updatedAt: now
       };
 
-      // Update state and persist immediately (avoids missed AsyncStorage saves)
-      setRelationshipData(prev => {
-        const next = [...prev, edge];
-        storage.save(getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA), next);
-        return next;
-      });
+      // Update state
+      const nextEdges = await updateStateAsync(setRelationshipData, prev => [...prev, edge]);
+      await storage.save(getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA), nextEdges);
 
       // Update index
       edgeIndex[key] = edge.id;

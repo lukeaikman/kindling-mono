@@ -58,10 +58,10 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({
     return true;
   }, [firstName, lastName, relationship, requiresCustomRelationship, customRelationship]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!canSubmit) return;
 
-    const personId = personActions.addPerson({
+    const personId = await personActions.addPerson({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
