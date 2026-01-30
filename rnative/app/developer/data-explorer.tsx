@@ -47,7 +47,7 @@ interface InterfaceDefinition {
  * Sophisticated data viewer with drill-down navigation
  */
 export default function DataExplorerScreen() {
-  const { personActions, willActions, bequeathalActions, businessActions, relationshipActions, beneficiaryGroupActions, estateRemainderActions, trustActions, bequestActions } = useAppState();
+  const { personActions, willActions, bequeathalActions, businessActions, relationshipActions, beneficiaryGroupActions, estateRemainderActions, trustActions, bequestActions, ownerId } = useAppState();
   
   // Navigation state
   const [selectedInterface, setSelectedInterface] = useState<string | null>(null);
@@ -58,10 +58,13 @@ export default function DataExplorerScreen() {
   
   // Get relationship edges from storage
   const [relationshipEdges, setRelationshipEdges] = useState<any[]>([]);
+  const [rawRelationshipData, setRawRelationshipData] = useState<any>(null);
   
   React.useEffect(() => {
     const loadRelationships = async () => {
-      const edges = await storage.load(STORAGE_KEYS.RELATIONSHIP_DATA, []);
+      const key = `kindling:${ownerId}:${STORAGE_KEYS.RELATIONSHIP_DATA}`;
+      const edges = await storage.load(key, []);
+      setRawRelationshipData(edges);
       if (Array.isArray(edges)) {
         setRelationshipEdges(edges);
       } else if (edges && typeof edges === 'object' && 'edges' in edges) {
@@ -71,7 +74,7 @@ export default function DataExplorerScreen() {
       }
     };
     loadRelationships();
-  }, []);
+  }, [ownerId]);
   
   // Get will data
   const willData = willActions.getWillData();
@@ -261,6 +264,19 @@ export default function DataExplorerScreen() {
   const renderInterfaceList = () => (
     <ScrollView style={styles.content} contentContainerStyle={styles.interfaceListContainer}>
       <Text style={styles.helpText}>Tap on an interface to view its data instances</Text>
+      <View style={styles.debugCard}>
+        <Text style={styles.debugTitle}>Debug: Relationship Edges</Text>
+        <Text style={styles.debugLabel}>Owner ID</Text>
+        <Text style={styles.debugValue}>{ownerId}</Text>
+        <Text style={styles.debugLabel}>Storage Key</Text>
+        <Text style={styles.debugValue}>
+          {`kindling:${ownerId}:${STORAGE_KEYS.RELATIONSHIP_DATA}`}
+        </Text>
+        <Text style={styles.debugLabel}>Raw Storage Value</Text>
+        <Text style={styles.debugValue}>
+          {rawRelationshipData ? JSON.stringify(rawRelationshipData, null, 2) : 'null'}
+        </Text>
+      </View>
       <View style={styles.interfaceList}>
         {interfaces.map((interfaceDef) => {
           const data = interfaceDef.getData();
@@ -822,6 +838,32 @@ const styles = StyleSheet.create({
     backgroundColor: `${KindlingColors.muted}80`,
     padding: Spacing.sm,
     borderRadius: 4,
+  },
+  debugCard: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+    backgroundColor: `${KindlingColors.cream}80`,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: KindlingColors.border,
+  },
+  debugTitle: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+    marginBottom: Spacing.sm,
+  },
+  debugLabel: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    color: `${KindlingColors.navy}99`,
+    marginTop: Spacing.xs,
+  },
+  debugValue: {
+    fontSize: Typography.fontSize.xs,
+    color: KindlingColors.navy,
+    fontFamily: 'monospace',
   },
   snackbar: {
     backgroundColor: KindlingColors.green,

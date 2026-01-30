@@ -8,6 +8,7 @@ import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { useAuth } from '../../src/hooks/useAuth';
+import { useNetworkState } from '../../src/hooks/useNetworkState';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
 
@@ -15,6 +16,8 @@ const emailRegex = /\S+@\S+\.\S+/;
 
 export default function RegisterScreen() {
   const { register, validateEmail } = useAuth();
+  const { isConnected, isInternetReachable } = useNetworkState();
+  const isOffline = !isConnected || !isInternetReachable;
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -53,6 +56,11 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     setErrorMessage(null);
+
+    if (isOffline) {
+      setErrorMessage('Please connect to the internet to create your account.');
+      return;
+    }
 
     if (!firstName.trim() || !lastName.trim()) {
       setErrorMessage('Please enter your first and last name.');
@@ -180,6 +188,12 @@ export default function RegisterScreen() {
             </Text>
           </View>
 
+          {isOffline ? (
+            <Text style={styles.offlineText}>
+              You&apos;re offline. Please connect to the internet to create your account.
+            </Text>
+          ) : null}
+
           {/* TODO: Social Login (Phase 5)
               Add Apple and Google sign-in buttons here when backend OAuth is implemented. */}
         </ScrollView>
@@ -234,5 +248,10 @@ const styles = StyleSheet.create({
   errorText: {
     color: KindlingColors.destructive,
     marginTop: Spacing.xs,
+  },
+  offlineText: {
+    marginTop: Spacing.md,
+    textAlign: 'center',
+    color: KindlingColors.brown,
   },
 });

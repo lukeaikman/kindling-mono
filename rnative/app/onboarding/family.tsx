@@ -474,6 +474,12 @@ export default function OnboardingFamilyScreen() {
       });
       
       const relType = spouseRelationship === 'spouse' ? RelationshipType.SPOUSE : RelationshipType.PARTNER;
+      console.log(`🔗 Creating edge between ${currentUser.firstName} ${currentUser.lastName} and ${spouseFirstName} ${spouseLastName}`, {
+        aId: currentUser.id,
+        bId: spouseId,
+        type: relType,
+        phase: 'active',
+      });
       relationshipActions.addRelationship(currentUser.id, spouseId, relType, { phase: 'active' });
       
       actualSpouseId = spouseId; // Keep spouseId for children
@@ -518,6 +524,12 @@ export default function OnboardingFamilyScreen() {
           createdInOnboarding: true,
         });
         
+        console.log(`🔗 Creating edge between ${currentUser.firstName} ${currentUser.lastName} and ${child.firstName} ${child.lastName}`, {
+          aId: currentUser.id,
+          bId: childId,
+          type: RelationshipType.PARENT_OF,
+          qualifiers,
+        });
         relationshipActions.addRelationship(currentUser.id, childId, RelationshipType.PARENT_OF, {
           qualifiers,
         });

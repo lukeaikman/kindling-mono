@@ -21,6 +21,7 @@ import { SplashScreen } from '../../src/components/splash';
 import { useAppState } from '../../src/hooks/useAppState';
 import { useAuth } from '../../src/hooks/useAuth';
 import { seedAllData } from '../../src/utils/seedData';
+import { copyToClipboard } from '../../src/utils/clipboardHelpers';
 import { storage } from '../../src/services/storage';
 import { STORAGE_KEYS } from '../../src/constants';
 import { KindlingColors } from '../../src/styles/theme';
@@ -32,11 +33,12 @@ import { Spacing, Typography } from '../../src/styles/constants';
  * Provides tools for development and debugging
  */
 export default function DeveloperDashboard() {
-  const { personActions, bequeathalActions, willActions, purgeAllData } = useAppState();
+  const { personActions, bequeathalActions, willActions, purgeAllData, ownerId } = useAppState();
   const { logout } = useAuth();
   const [storageData, setStorageData] = useState<Record<string, any>>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [showSplash, setShowSplash] = useState(false);
+  const [showStorageKeys, setShowStorageKeys] = useState(false);
   
   // Navigation dropdown states
   const [onboardingScreen, setOnboardingScreen] = useState('/onboarding/welcome');
@@ -52,10 +54,11 @@ export default function DeveloperDashboard() {
   
   const loadStorageData = async () => {
     const data: Record<string, any> = {};
-    
-    // Load all data stores
-    const keys = Object.values(STORAGE_KEYS);
-    for (const key of keys) {
+
+    const allKeys = await storage.getAllKeys();
+    const scopedKeys = allKeys.filter((key) => key.startsWith('kindling:') && key.includes(':kindling-'));
+
+    for (const key of scopedKeys) {
       try {
         const value = await storage.load(key, null);
         data[key] = value;
@@ -63,7 +66,7 @@ export default function DeveloperDashboard() {
         data[key] = null;
       }
     }
-    
+
     setStorageData(data);
   };
   
@@ -86,6 +89,13 @@ export default function DeveloperDashboard() {
   const handleLogout = async () => {
     await logout();
     router.replace('/auth/login');
+  };
+
+  const handleCopy = async (data: any) => {
+    const success = await copyToClipboard(data);
+    if (success) {
+      console.log('📋 Copied to clipboard');
+    }
   };
   
   // Show splash screen when triggered
@@ -183,12 +193,85 @@ export default function DeveloperDashboard() {
             >
               Explore Data (3-Level Drill-Down)
             </Button>
+            <Button
+              variant="outline"
+              onPress={() => setShowStorageKeys(prev => !prev)}
+            >
+              {showStorageKeys ? 'Hide Storage Keys' : 'View Storage Keys'}
+            </Button>
           </View>
           <View style={styles.explorerInfo}>
             <Text style={styles.explorerInfoText}>
               Browse interfaces → instances → properties with role filtering and copy functionality
             </Text>
           </View>
+
+          {showStorageKeys && (
+            <View style={styles.storageKeysSection}>
+              <View style={styles.storageHeaderRow}>
+                <View>
+                  <Text style={styles.storageSectionTitle}>Active User</Text>
+                  <Text style={styles.ownerIdText}>{ownerId}</Text>
+                </View>
+                <IconButton
+                  icon="content-copy"
+                  size={18}
+                  iconColor={KindlingColors.green}
+                  onPress={() => {
+                    const activeKeys = Object.entries(storageData)
+                      .filter(([key]) => key.startsWith(`kindling:${ownerId}:`))
+                      .reduce<Record<string, any>>((acc, [key, value]) => {
+                        acc[key] = value;
+                        return acc;
+                      }, {});
+                    handleCopy(activeKeys);
+                  }}
+                />
+              </View>
+              <ScrollView horizontal={false} style={styles.dataViewer}>
+                {Object.entries(storageData)
+                  .filter(([key]) => key.startsWith(`kindling:${ownerId}:`))
+                  .map(([key, value]) => (
+                    <View key={key} style={styles.dataItem}>
+                      <Text style={styles.dataKey}>{key}</Text>
+                      <Text style={styles.dataValue} numberOfLines={5}>
+                        {value ? JSON.stringify(value, null, 2) : 'null'}
+                      </Text>
+                    </View>
+                  ))}
+              </ScrollView>
+
+              <View style={styles.storageHeaderRow}>
+                <Text style={styles.storageSectionTitle}>Other Users</Text>
+                <IconButton
+                  icon="content-copy"
+                  size={18}
+                  iconColor={KindlingColors.green}
+                  onPress={() => {
+                    const otherKeys = Object.entries(storageData)
+                      .filter(([key]) => !key.startsWith(`kindling:${ownerId}:`))
+                      .reduce<Record<string, any>>((acc, [key, value]) => {
+                        acc[key] = value;
+                        return acc;
+                      }, {});
+                    handleCopy(otherKeys);
+                  }}
+                />
+              </View>
+              <ScrollView horizontal={false} style={styles.dataViewer}>
+                {Object.entries(storageData)
+                  .filter(([key]) => !key.startsWith(`kindling:${ownerId}:`))
+                  .map(([key, value]) => (
+                    <View key={key} style={styles.dataItem}>
+                      <Text style={styles.dataKey}>{key}</Text>
+                      <Text style={styles.dataValue} numberOfLines={5}>
+                        {value ? JSON.stringify(value, null, 2) : 'null'}
+                      </Text>
+                    </View>
+                  ))}
+              </ScrollView>
+            </View>
+          )}
         </Card>
         
         {/* Navigation Card - Dropdown + Arrow Pattern */}
@@ -360,20 +443,6 @@ export default function DeveloperDashboard() {
           </View>
         </Card>
         
-        {/* Data Viewer Card */}
-        <Card title="AsyncStorage Data" style={styles.card}>
-          <ScrollView horizontal={false} style={styles.dataViewer}>
-            {Object.entries(storageData).map(([key, value]) => (
-              <View key={key} style={styles.dataItem}>
-                <Text style={styles.dataKey}>{key.replace('kindling-', '')}:</Text>
-                <Text style={styles.dataValue} numberOfLines={5}>
-                  {value ? JSON.stringify(value, null, 2) : 'null'}
-                </Text>
-              </View>
-            ))}
-          </ScrollView>
-        </Card>
-        
         {/* Stats Card */}
         <Card title="Statistics" style={styles.card}>
           <View style={styles.statsGrid}>
@@ -477,6 +546,29 @@ const styles = StyleSheet.create({
   dataViewer: {
     maxHeight: 300,
     marginTop: Spacing.md,
+  },
+  ownerIdText: {
+    marginTop: Spacing.md,
+    color: KindlingColors.mutedForeground,
+    fontSize: Typography.fontSize.xs,
+  },
+  storageKeysSection: {
+    marginTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: `${KindlingColors.border}4d`,
+    paddingTop: Spacing.md,
+  },
+  storageSectionTitle: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+    marginTop: Spacing.sm,
+  },
+  storageHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.sm,
   },
   dataItem: {
     marginBottom: Spacing.md,

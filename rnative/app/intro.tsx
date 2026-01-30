@@ -1,8 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Button } from '../src/components/ui/Button';
 import { KindlingLogo } from '../src/components/ui/KindlingLogo';
@@ -14,13 +14,33 @@ import { Spacing, Typography } from '../src/styles/constants';
  * Routes users to start onboarding or login.
  */
 export default function IntroScreen() {
+  const lastTapRef = useRef<number>(0);
+  const tapCountRef = useRef(0);
+
+  const handleLogoPress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 400) {
+      tapCountRef.current += 1;
+    } else {
+      tapCountRef.current = 1;
+    }
+    lastTapRef.current = now;
+
+    if (tapCountRef.current >= 3) {
+      tapCountRef.current = 0;
+      router.push('/developer/dashboard');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
 
       <View style={styles.content}>
         <View style={styles.logoBlock}>
-          <KindlingLogo size="lg" variant="dark" showText />
+          <TouchableOpacity onPress={handleLogoPress} activeOpacity={0.8}>
+            <KindlingLogo size="lg" variant="dark" showText />
+          </TouchableOpacity>
           <Text style={styles.tagline}>Protect today. Build tomorrow.</Text>
         </View>
 

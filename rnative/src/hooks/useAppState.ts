@@ -36,7 +36,7 @@
  * ```
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   WillData, BequeathalData, Bequest,
   WillActions, PersonActions, BeneficiaryActions, BusinessActions, BequeathalActions, TrustActions, BequestActions,
@@ -50,8 +50,11 @@ import {
   getInitialBusinessData, getInitialBequeathalData, getInitialTrustData,
   STORAGE_KEYS
 } from '../constants';
-import { getPersonFullName, getPersonRelationshipDisplay } from '../utils/helpers';
+import { generateUUID, getPersonFullName, getPersonRelationshipDisplay } from '../utils/helpers';
 import { storage } from '../services/storage';
+
+let migrationLogEmitted = false;
+let migrationCompleteLogEmitted = false;
 
 /**
  * Load initial state from AsyncStorage
@@ -64,25 +67,45 @@ const useAsyncStorageState = <T>(
 ): [T, React.Dispatch<React.SetStateAction<T>>] => {
   const [state, setState] = useState<T>(initialValue);
   const [isInitialized, setIsInitialized] = useState(false);
+  const modifiedRef = useRef(false);
+  const loadIdRef = useRef(0);
 
-  // Load from storage on mount
+  const setStateWithTracking = useCallback((value: React.SetStateAction<T>) => {
+    modifiedRef.current = true;
+    setState(value);
+  }, []);
+
+  // Load from storage on mount and when key changes
   useEffect(() => {
+    let isMounted = true;
+    setIsInitialized(false);
+    modifiedRef.current = false;
+    setState(initialValue);
+    const loadId = ++loadIdRef.current;
+
     const loadFromStorage = async () => {
       const loaded = await storage.load(storageKey, initialValue, dateFields);
-      setState(loaded);
+      if (!isMounted) return;
+      if (loadId !== loadIdRef.current) return;
+      if (!modifiedRef.current) {
+        setState(loaded);
+      }
       setIsInitialized(true);
     };
     loadFromStorage();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [storageKey]);
 
   // Save to storage whenever state changes (but only after initialization)
   useEffect(() => {
     if (isInitialized) {
       storage.save(storageKey, state);
     }
-  }, [state, isInitialized]);
+  }, [state, isInitialized, storageKey]);
 
-  return [state, setState];
+  return [state, setStateWithTracking];
 };
 
 /**
@@ -103,57 +126,72 @@ const getInitialEstateRemainderState = (userId: string = ''): EstateRemainderSta
  * Main useAppState hook
  */
 export const useAppState = () => {
+  const initialOwnerId = useMemo(() => generateUUID(), []);
+  const [ownerId, setOwnerId] = useAsyncStorageState<string>(
+    STORAGE_KEYS.ACTIVE_OWNER_ID,
+    initialOwnerId,
+    []
+  );
+  const getScopedKey = useMemo(
+    () => (key: string) => `kindling:${ownerId}:${key}`,
+    [ownerId]
+  );
+
   // Initialize states with AsyncStorage persistence
   const [willData, setWillData] = useAsyncStorageState<WillData>(
-    STORAGE_KEYS.WILL_DATA,
+    getScopedKey(STORAGE_KEYS.WILL_DATA),
     getInitialWillData(),
     ['createdAt', 'updatedAt']
   );
 
   const [personData, setPersonData] = useAsyncStorageState<Person[]>(
-    STORAGE_KEYS.PERSON_DATA,
+    getScopedKey(STORAGE_KEYS.PERSON_DATA),
     getInitialPersonData(),
     []
   );
+  const personDataRef = useRef<Person[]>(getInitialPersonData());
+  useEffect(() => {
+    personDataRef.current = personData;
+  }, [personData]);
 
   const [businessData, setBusinessData] = useAsyncStorageState<Business[]>(
-    STORAGE_KEYS.BUSINESS_DATA,
+    getScopedKey(STORAGE_KEYS.BUSINESS_DATA),
     getInitialBusinessData(),
     []
   );
 
   const [bequeathalData, setBequeathalData] = useAsyncStorageState<BequeathalData>(
-    STORAGE_KEYS.BEQUEATHAL_DATA,
+    getScopedKey(STORAGE_KEYS.BEQUEATHAL_DATA),
     getInitialBequeathalData(),
     ['lastUpdated']
   );
 
   const [trustData, setTrustData] = useAsyncStorageState<Trust[]>(
-    STORAGE_KEYS.TRUST_DATA,
+    getScopedKey(STORAGE_KEYS.TRUST_DATA),
     getInitialTrustData(),
     []
   );
 
   const [beneficiaryGroupData, setBeneficiaryGroupData] = useAsyncStorageState<BeneficiaryGroup[]>(
-    STORAGE_KEYS.BENEFICIARY_GROUP_DATA,
+    getScopedKey(STORAGE_KEYS.BENEFICIARY_GROUP_DATA),
     [],
     []
   );
 
   const [estateRemainderState, setEstateRemainderState] = useAsyncStorageState<EstateRemainderState>(
-    STORAGE_KEYS.ESTATE_REMAINDER_DATA,
+    getScopedKey(STORAGE_KEYS.ESTATE_REMAINDER_DATA),
     getInitialEstateRemainderState(''), // Empty userId at init, populated on first use
     ['lastUpdated']
   );
 
   const [relationshipData, setRelationshipData] = useAsyncStorageState<RelationshipEdge[]>(
-    STORAGE_KEYS.RELATIONSHIP_DATA,
+    getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA),
     [],
     []
   );
 
   const [bequestData, setBequestData] = useAsyncStorageState<Bequest[]>(
-    STORAGE_KEYS.BEQUEST_DATA,
+    getScopedKey(STORAGE_KEYS.BEQUEST_DATA),
     [],
     []
   );
@@ -168,8 +206,10 @@ export const useAppState = () => {
     const currentUserId = willData.userId;
     if (!currentUserId) return;
     if (migrationCompletedRef.current) return;
-    
-    console.log('🔄 Migrating to multi-user + bequest architecture...');
+    if (!migrationLogEmitted) {
+      console.log('🔄 Migrating to multi-user + bequest architecture...');
+      migrationLogEmitted = true;
+    }
     
     // 1. Add userId to Trusts
     const trustsMigrated = trustData.every((t: any) => t.userId);
@@ -321,7 +361,10 @@ export const useAppState = () => {
     }
     
     migrationCompletedRef.current = true;
-    console.log('✅ Multi-user + bequest migration complete');
+    if (!migrationCompleteLogEmitted) {
+      console.log('✅ Multi-user + bequest migration complete');
+      migrationCompleteLogEmitted = true;
+    }
   }, [willData, trustData, businessData, bequeathalData, bequestData, estateRemainderState]);
 
   // =============================================================================
@@ -627,7 +670,7 @@ export const useAppState = () => {
     getPeople: () => personData,
 
     getPersonById: (id) => {
-      return personData.find(person => person.id === id);
+      return personDataRef.current.find(person => person.id === id);
     },
 
     getPersonByName: (firstName, lastName?) => {
@@ -1302,6 +1345,44 @@ export const useAppState = () => {
         console.log('🔗 [REL] Relationship already exists:', { edgeId: existing, aId, bId, type });
         return existing;
       }
+      
+      const personA = personActions.getPersonById(aId);
+      const personB = personActions.getPersonById(bId);
+      if (!personA || !personB) {
+        console.warn('⚠️ [REL] Person not yet available (likely pending state update)', {
+          aId,
+          bId,
+          type,
+          missingA: !personA,
+          missingB: !personB,
+        });
+        const verifyAfterDelay = (attempt: number) => {
+          const deferredA = personActions.getPersonById(aId);
+          const deferredB = personActions.getPersonById(bId);
+          if (deferredA && deferredB) {
+            console.log('✅ [REL] Persons resolved after delay', {
+              aId,
+              bId,
+              type,
+              attempt,
+            });
+            return;
+          }
+          if (attempt >= 5) {
+            console.error('❌ [REL] Person still missing after delay', {
+              aId,
+              bId,
+              type,
+              missingA: !deferredA,
+              missingB: !deferredB,
+              attempts: attempt,
+            });
+            return;
+          }
+          setTimeout(() => verifyAfterDelay(attempt + 1), 50);
+        };
+        setTimeout(() => verifyAfterDelay(1), 50);
+      }
 
       const generateId = () => {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -1326,8 +1407,12 @@ export const useAppState = () => {
         updatedAt: now
       };
 
-      // Update state
-      setRelationshipData(prev => [...prev, edge]);
+      // Update state and persist immediately (avoids missed AsyncStorage saves)
+      setRelationshipData(prev => {
+        const next = [...prev, edge];
+        storage.save(getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA), next);
+        return next;
+      });
 
       // Update index
       edgeIndex[key] = edge.id;
@@ -1709,7 +1794,7 @@ export const useAppState = () => {
         lastUpdated: new Date()
       };
       setEstateRemainderState(initialState);
-      await storage.remove(STORAGE_KEYS.ESTATE_REMAINDER_DATA);
+      await storage.remove(getScopedKey(STORAGE_KEYS.ESTATE_REMAINDER_DATA));
     }
   };
 
@@ -1746,6 +1831,8 @@ export const useAppState = () => {
   // =============================================================================
 
   return {
+    ownerId,
+    setOwnerId,
     willActions,
     personActions,
     beneficiaryActions,

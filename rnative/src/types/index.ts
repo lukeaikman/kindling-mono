@@ -176,6 +176,7 @@ export type ExecutorRole = 'primary' | 'secondary' | 'tertiary' | 'quaternary' |
  */
 export interface Person {
   id: string;
+  serverId?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -184,6 +185,7 @@ export interface Person {
   roles: PersonRole[];
   dateOfBirth?: string;
   address?: AddressData;
+  isDraft?: boolean;
   isDependent?: boolean;
   isUnder18?: boolean;
   // Care-related fields

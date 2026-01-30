@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { Button } from '../../src/components/ui/Button';
@@ -9,6 +9,7 @@ import { Input } from '../../src/components/ui/Input';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { useAppState } from '../../src/hooks/useAppState';
 import { useAuth } from '../../src/hooks/useAuth';
+import { useNetworkState } from '../../src/hooks/useNetworkState';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
 
@@ -17,6 +18,10 @@ const emailRegex = /\S+@\S+\.\S+/;
 export default function SecureAccountScreen() {
   const { willActions } = useAppState();
   const { register, validateEmail } = useAuth();
+  const { isConnected, isInternetReachable } = useNetworkState();
+  const isOffline = !isConnected || !isInternetReachable;
+  const lastTapRef = useRef<number>(0);
+  const tapCountRef = useRef(0);
   const user = willActions.getUser();
   const firstName = user?.firstName || '';
   const lastName = user?.lastName || '';
@@ -57,6 +62,11 @@ export default function SecureAccountScreen() {
 
   const handleSecureAccount = async () => {
     setErrorMessage(null);
+
+    if (isOffline) {
+      setErrorMessage('You can keep drafting offline. Please connect to the internet to create your account.');
+      return;
+    }
 
     if (!firstName || !lastName) {
       setErrorMessage('We could not find your details. Please restart onboarding.');
@@ -99,6 +109,21 @@ export default function SecureAccountScreen() {
     }
   };
 
+  const handleLogoPress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 400) {
+      tapCountRef.current += 1;
+    } else {
+      tapCountRef.current = 1;
+    }
+    lastTapRef.current = now;
+
+    if (tapCountRef.current >= 3) {
+      tapCountRef.current = 0;
+      router.push('/developer/dashboard');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -110,7 +135,9 @@ export default function SecureAccountScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.logoBlock}>
-            <KindlingLogo size="md" variant="dark" showText />
+            <TouchableOpacity onPress={handleLogoPress} activeOpacity={0.8}>
+              <KindlingLogo size="md" variant="dark" showText />
+            </TouchableOpacity>
             <Text style={styles.title}>Secure your will</Text>
             <Text style={styles.subtitle}>
               You&apos;ve made great progress{firstName ? `, ${firstName}` : ''}. Let&apos;s secure your information.
@@ -169,6 +196,12 @@ export default function SecureAccountScreen() {
             </Button>
           </View>
 
+          {isOffline ? (
+            <Text style={styles.offlineText}>
+              You&apos;re offline. Your draft is saved locally on this device.
+            </Text>
+          ) : null}
+
           {/* TODO: Social Login (Phase 5)
               Add Apple and Google sign-in buttons here when backend OAuth is implemented. */}
         </ScrollView>
@@ -218,5 +251,10 @@ const styles = StyleSheet.create({
   errorText: {
     color: KindlingColors.destructive,
     marginTop: Spacing.xs,
+  },
+  offlineText: {
+    marginTop: Spacing.md,
+    textAlign: 'center',
+    color: KindlingColors.brown,
   },
 });
