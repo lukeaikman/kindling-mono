@@ -8,11 +8,11 @@
  * - Purging all data
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
@@ -47,12 +47,7 @@ export default function DeveloperDashboard() {
   const [bequeathalScreen, setBequeathalScreen] = useState('/bequeathal/intro');
   const [dashboardScreen, setDashboardScreen] = useState('/order-of-things');
   
-  // Load storage data for display
-  useEffect(() => {
-    loadStorageData();
-  }, [refreshKey]);
-  
-  const loadStorageData = async () => {
+  const loadStorageData = useCallback(async () => {
     const data: Record<string, any> = {};
 
     const allKeys = await storage.getAllKeys();
@@ -68,7 +63,19 @@ export default function DeveloperDashboard() {
     }
 
     setStorageData(data);
-  };
+  }, []);
+
+  // Load storage data for display
+  useEffect(() => {
+    loadStorageData();
+  }, [refreshKey, loadStorageData]);
+
+  // Reload storage data when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadStorageData();
+    }, [loadStorageData])
+  );
   
   const handleSeedAllData = async () => {
     await seedAllData(personActions, bequeathalActions);
