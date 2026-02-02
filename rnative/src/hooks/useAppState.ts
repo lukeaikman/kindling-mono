@@ -1825,9 +1825,20 @@ export const useAppState = () => {
     console.log('🗑️ PURGING ALL DATA - Development Action');
     
     try {
-      // Clear all AsyncStorage
+      const allKeys = await storage.getAllKeys();
+      const legacyOwnerKey = 'kindling-active-owner-id';
+      const keysToRemove = allKeys.filter(
+        (key) => key.startsWith('kindling:') || key === STORAGE_KEYS.ACTIVE_WILLMAKER_ID || key === legacyOwnerKey
+      );
+      for (const key of keysToRemove) {
+        await storage.remove(key);
+      }
+
+      // Clear all remaining AsyncStorage entries (failsafe)
       await storage.clearAll();
       
+      setActiveWillMakerId('');
+
       // Reset all state to initial values
       setWillData(getInitialWillData());
       setPersonData(getInitialPersonData());

@@ -8,12 +8,13 @@
  * - Purging all data
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Accordion } from '../../src/components/ui/Accordion';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { Select } from '../../src/components/ui/Select';
@@ -33,7 +34,7 @@ import { Spacing, Typography } from '../../src/styles/constants';
  * Provides tools for development and debugging
  */
 export default function DeveloperDashboard() {
-  const { personActions, bequeathalActions, willActions, purgeAllData, activeWillMakerId } = useAppState();
+  const { personActions, bequeathalActions, willActions, purgeAllData, activeWillMakerId, setActiveWillMakerId } = useAppState();
   const { logout } = useAuth();
   const [storageData, setStorageData] = useState<Record<string, any>>({});
   const [refreshKey, setRefreshKey] = useState(0);
@@ -64,6 +65,43 @@ export default function DeveloperDashboard() {
 
     setStorageData(data);
   }, []);
+
+  const otherUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    Object.keys(storageData).forEach((key) => {
+      if (!key.startsWith('kindling:')) return;
+      const parts = key.split(':');
+      if (parts.length < 3) return;
+      const ownerId = parts[1];
+      if (ownerId && ownerId !== activeWillMakerId) {
+        ids.add(ownerId);
+      }
+    });
+    return Array.from(ids);
+  }, [storageData, activeWillMakerId]);
+
+  const getOwnerLabel = useCallback(
+    (ownerId: string) => {
+      const people = storageData[`kindling:${ownerId}:${STORAGE_KEYS.PERSON_DATA}`] as any[] | undefined;
+      if (Array.isArray(people)) {
+        const willMaker = people.find((person) => person.roles?.includes('will-maker'));
+        if (willMaker) {
+          const firstName = willMaker.firstName || '';
+          const lastName = willMaker.lastName || '';
+          const name = `${firstName} ${lastName}`.trim();
+          if (name) return name;
+        }
+      }
+      return ownerId;
+    },
+    [storageData]
+  );
+
+  const getKeysForOwner = useCallback(
+    (ownerId: string) =>
+      Object.entries(storageData).filter(([key]) => key.startsWith(`kindling:${ownerId}:`)),
+    [storageData]
+  );
 
   // Load storage data for display
   useEffect(() => {
@@ -266,16 +304,33 @@ export default function DeveloperDashboard() {
                 />
               </View>
               <ScrollView horizontal={false} style={styles.dataViewer}>
-                {Object.entries(storageData)
-                  .filter(([key]) => !key.startsWith(`kindling:${activeWillMakerId}:`))
-                  .map(([key, value]) => (
-                    <View key={key} style={styles.dataItem}>
-                      <Text style={styles.dataKey}>{key}</Text>
-                      <Text style={styles.dataValue} numberOfLines={5}>
-                        {value ? JSON.stringify(value, null, 2) : 'null'}
-                      </Text>
-                    </View>
-                  ))}
+                {otherUserIds.length === 0 ? (
+                  <Text style={styles.emptyStorageText}>No other user scopes found.</Text>
+                ) : (
+                  otherUserIds.map((ownerId) => (
+                    <Accordion key={ownerId} title={getOwnerLabel(ownerId)} icon="account-group">
+                      <View style={styles.otherUserHeader}>
+                        <Button
+                          variant="outline"
+                          onPress={() => {
+                            setActiveWillMakerId(ownerId);
+                            setRefreshKey(prev => prev + 1);
+                          }}
+                        >
+                          Load Namespace
+                        </Button>
+                      </View>
+                      {getKeysForOwner(ownerId).map(([key, value]) => (
+                        <View key={key} style={styles.dataItem}>
+                          <Text style={styles.dataKey}>{key}</Text>
+                          <Text style={styles.dataValue} numberOfLines={5}>
+                            {value ? JSON.stringify(value, null, 2) : 'null'}
+                          </Text>
+                        </View>
+                      ))}
+                    </Accordion>
+                  ))
+                )}
               </ScrollView>
             </View>
           )}
@@ -553,6 +608,15 @@ const styles = StyleSheet.create({
   dataViewer: {
     maxHeight: 300,
     marginTop: Spacing.md,
+  },
+  emptyStorageText: {
+    color: KindlingColors.mutedForeground,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+  },
+  otherUserHeader: {
+    paddingHorizontal: Spacing.sm,
+    paddingTop: Spacing.sm,
   },
   ownerIdText: {
     marginTop: Spacing.md,

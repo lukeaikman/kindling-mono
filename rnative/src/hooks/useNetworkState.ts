@@ -7,8 +7,9 @@
  * @module hooks/useNetworkState
  */
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import { useNetworkContext, NetworkState } from '../context/NetworkContext';
 
 /**
  * Network state interface
@@ -33,31 +34,7 @@ export interface NetworkState {
  * }
  * ```
  */
-export const useNetworkState = (): NetworkState => {
-  const [networkState, setNetworkState] = useState<NetworkState>({
-    isConnected: true, // Assume connected initially
-    isInternetReachable: true,
-    type: 'unknown',
-  });
-
-  useEffect(() => {
-    // Subscribe to network state updates
-    const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
-      setNetworkState({
-        isConnected: state.isConnected ?? false,
-        // Some platforms report null while reachability is being determined.
-        // Treat null as reachable to avoid "stuck offline" UI.
-        isInternetReachable: state.isInternetReachable ?? true,
-        type: state.type,
-      });
-    });
-
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
-  }, []);
-
-  return networkState;
-};
+export const useNetworkState = (): NetworkState => useNetworkContext();
 
 /**
  * Hook to listen for network state changes

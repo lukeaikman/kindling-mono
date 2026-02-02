@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { Button } from '../../src/components/ui/Button';
@@ -27,6 +27,8 @@ export default function RegisterScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
   const [emailChecking, setEmailChecking] = useState(false);
+  const lastTapRef = useRef<number>(0);
+  const tapCountRef = useRef(0);
 
   const formDisabled = isOffline || submitting;
   const emailValid = useMemo(() => emailRegex.test(email), [email]);
@@ -104,6 +106,21 @@ export default function RegisterScreen() {
     }
   };
 
+  const handleHeaderPress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 400) {
+      tapCountRef.current += 1;
+    } else {
+      tapCountRef.current = 1;
+    }
+    lastTapRef.current = now;
+
+    if (tapCountRef.current >= 3) {
+      tapCountRef.current = 0;
+      router.push('/developer/dashboard');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -114,11 +131,13 @@ export default function RegisterScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.logoBlock}>
-            <KindlingLogo size="md" variant="dark" showText />
-            <Text style={styles.title}>Create your account</Text>
-            <Text style={styles.subtitle}>Start building your will in minutes.</Text>
-          </View>
+          <TouchableOpacity onPress={handleHeaderPress} activeOpacity={0.8}>
+            <View style={styles.logoBlock}>
+              <KindlingLogo size="md" variant="dark" showText />
+              <Text style={styles.title}>Create your account</Text>
+              <Text style={styles.subtitle}>Start building your will in minutes.</Text>
+            </View>
+          </TouchableOpacity>
 
           <View style={[styles.form, formDisabled && styles.formDisabled]}>
             {isOffline ? (

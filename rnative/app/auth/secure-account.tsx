@@ -3,7 +3,8 @@ import { router } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text } from 'react-native-paper';
+// import NetInfo from '@react-native-community/netinfo';
+import { IconButton, Text } from 'react-native-paper';
 import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
@@ -19,7 +20,8 @@ export default function SecureAccountScreen() {
   const { willActions } = useAppState();
   const { register, validateEmail } = useAuth();
   const { isConnected, isInternetReachable } = useNetworkState();
-  const isOffline = !isConnected || !isInternetReachable;
+  const [manualOnline, setManualOnline] = useState(false);
+  const isOffline = !manualOnline && (!isConnected || !isInternetReachable);
   const lastTapRef = useRef<number>(0);
   const tapCountRef = useRef(0);
   const user = willActions.getUser();
@@ -38,6 +40,12 @@ export default function SecureAccountScreen() {
   const emailValid = useMemo(() => emailRegex.test(email), [email]);
   const passwordValid = useMemo(() => password.length >= 8, [password]);
   const passwordsMatch = useMemo(() => confirmPassword.length > 0 && password === confirmPassword, [password, confirmPassword]);
+
+  useEffect(() => {
+    if (!isConnected || !isInternetReachable) {
+      setManualOnline(false);
+    }
+  }, [isConnected, isInternetReachable]);
 
   useEffect(() => {
     if (isOffline || !emailValid) {
@@ -125,6 +133,19 @@ export default function SecureAccountScreen() {
     }
   };
 
+  const handleRefreshConnectivity = async () => {
+    // const state = await NetInfo.fetch();
+    // if (state.isConnected && state.isInternetReachable !== false) {
+    //   setManualOnline(true);
+    // }
+    try {
+      const response = await fetch('https://www.google.com', { method: 'HEAD' });
+      setManualOnline(response.ok);
+    } catch (error) {
+      setManualOnline(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -148,7 +169,16 @@ export default function SecureAccountScreen() {
           <View style={[styles.form, formDisabled && styles.formDisabled]}>
             {isOffline ? (
               <View style={styles.offlineBanner}>
-                <Text style={styles.offlineTitle}>You&apos;re offline</Text>
+                <View style={styles.offlineHeader}>
+                  <Text style={styles.offlineTitle}>You&apos;re offline</Text>
+                  <IconButton
+                    icon="refresh"
+                    size={18}
+                    iconColor={KindlingColors.destructive}
+                    style={styles.offlineRefresh}
+                    onPress={handleRefreshConnectivity}
+                  />
+                </View>
                 <Text style={styles.offlineMessage}>
                   Your draft is saved locally. Connect to the internet to create your account.
                 </Text>
@@ -268,11 +298,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(210, 62, 62, 0.3)',
   },
+  offlineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   offlineTitle: {
     color: KindlingColors.destructive,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     textAlign: 'center',
+  },
+  offlineRefresh: {
+    margin: 0,
   },
   offlineMessage: {
     marginTop: Spacing.xs,

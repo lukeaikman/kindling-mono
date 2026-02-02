@@ -100,7 +100,8 @@ export default function DataExplorerScreen() {
         if (personRoleFilter === 'all') return allPeople;
         return allPeople.filter(person => person.roles.includes(personRoleFilter as any));
       },
-      getDisplayName: (person) => `${person.firstName} ${person.lastName} (${person.roles.join(', ')})`,
+      getDisplayName: (person) =>
+        `${person.firstName} ${person.lastName} (${person.roles.join(', ')})${person.email ? ` · ${person.email}` : ''}`,
       getKey: (person) => person.id,
     },
     {
@@ -385,9 +386,7 @@ export default function DataExplorerScreen() {
   const renderPropertiesView = () => {
     // If viewing a property from a trust, show property details
     if (selectedPropertyFromTrust) {
-      const properties = Object.entries(selectedPropertyFromTrust).filter(
-        ([key, value]) => value !== null && value !== undefined && value !== ''
-      );
+      const properties = Object.entries(selectedPropertyFromTrust);
       
       return (
         <ScrollView 
@@ -420,9 +419,7 @@ export default function DataExplorerScreen() {
         (asset as any).trustId === selectedInstance.id
       );
       
-      const properties = Object.entries(selectedInstance).filter(
-        ([key, value]) => value !== null && value !== undefined && value !== ''
-      );
+      const properties = Object.entries(selectedInstance);
       
       return (
         <ScrollView 
@@ -496,9 +493,7 @@ export default function DataExplorerScreen() {
     // Standard properties view for other entities
     if (!selectedInstance) return null;
     
-    const properties = Object.entries(selectedInstance).filter(
-      ([key, value]) => value !== null && value !== undefined && value !== ''
-    );
+    const properties = Object.entries(selectedInstance);
     
     return (
       <ScrollView 

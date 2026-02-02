@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { Button } from '../../src/components/ui/Button';
@@ -19,6 +19,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const lastTapRef = useRef<number>(0);
+  const tapCountRef = useRef(0);
 
   const emailError = useMemo(() => email.length > 0 && !emailRegex.test(email), [email]);
   const passwordError = useMemo(() => password.length > 0 && password.length < 8, [password]);
@@ -51,6 +53,21 @@ export default function LoginScreen() {
     Alert.alert('Coming soon', 'Password reset will be available in a later phase.');
   };
 
+  const handleHeaderPress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 400) {
+      tapCountRef.current += 1;
+    } else {
+      tapCountRef.current = 1;
+    }
+    lastTapRef.current = now;
+
+    if (tapCountRef.current >= 3) {
+      tapCountRef.current = 0;
+      router.push('/developer/dashboard');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -61,11 +78,13 @@ export default function LoginScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.logoBlock}>
-            <KindlingLogo size="md" variant="dark" showText />
-            <Text style={styles.title}>Welcome back</Text>
-            <Text style={styles.subtitle}>Sign in to continue building your will.</Text>
-          </View>
+          <TouchableOpacity onPress={handleHeaderPress} activeOpacity={0.8}>
+            <View style={styles.logoBlock}>
+              <KindlingLogo size="md" variant="dark" showText />
+              <Text style={styles.title}>Welcome back</Text>
+              <Text style={styles.subtitle}>Sign in to continue building your will.</Text>
+            </View>
+          </TouchableOpacity>
 
           <View style={styles.form}>
             <Input

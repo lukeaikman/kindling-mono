@@ -13,7 +13,6 @@ import { WillData, BequeathalData, Person, Business, Trust } from '../types';
  */
 export const STORAGE_KEYS = {
   ACTIVE_WILLMAKER_ID: 'kindling-active-willmaker-id',
-  USER_SCOPE_MAP: 'kindling-user-scope-map',
   WILL_DATA: 'kindling-will-data',
   PERSON_DATA: 'kindling-person-data',
   BUSINESS_DATA: 'kindling-business-data',

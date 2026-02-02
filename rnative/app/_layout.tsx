@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { kindlingTheme } from '../src/styles/theme';
+import { NetworkProvider } from '../src/context/NetworkContext';
 
 /**
  * Root layout component for Expo Router
@@ -13,11 +14,13 @@ import { kindlingTheme } from '../src/styles/theme';
 export default function RootLayout() {
   return (
     <PaperProvider theme={kindlingTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="intro" />
-        <Stack.Screen name="auth" />
-      </Stack>
+      <NetworkProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="intro" />
+          <Stack.Screen name="auth" />
+        </Stack>
+      </NetworkProvider>
     </PaperProvider>
   );
 }

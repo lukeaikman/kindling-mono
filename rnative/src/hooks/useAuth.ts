@@ -58,7 +58,7 @@ const clearAuthState = async () => {
 };
 
 export const useAuth = () => {
-  const { personActions, willActions, setActiveWillMakerId, clearInMemoryState } = useAppState();
+  const { personActions, willActions, activeWillMakerId, setActiveWillMakerId, clearInMemoryState } = useAppState();
   const [state, setState] = useState<AuthState>({
     status: 'idle',
     accessToken: null,
@@ -89,47 +89,103 @@ export const useAuth = () => {
     loadAuthState();
   }, []);
 
-  const syncServerIdentity = useCallback(async (serverUserId: string) => {
+  const writeLocalIdentity = useCallback(
+    async (scopeId: string, serverUserId: string, email?: string | null) => {
+      const serverId = String(serverUserId);
+      const nextEmail = email ?? '';
+
+      console.log('[writeLocalIdentity] === DEBUG START ===');
+      console.log('[writeLocalIdentity] User email:', nextEmail);
+      console.log('[writeLocalIdentity] User serverId:', serverId);
+      console.log('[writeLocalIdentity] Scope ID:', scopeId);
+
+      const peopleKey = `kindling:${scopeId}:${STORAGE_KEYS.PERSON_DATA}`;
+      console.log('[writeLocalIdentity] Storage key:', peopleKey);
+      
+      const people = await storage.load<any[]>(peopleKey, []);
+      console.log('[writeLocalIdentity] Loaded people from storage:', JSON.stringify(people, null, 2));
+      
+      if (!Array.isArray(people) || people.length === 0) {
+        console.log('[writeLocalIdentity] No people found in storage to update');
+        console.log('[writeLocalIdentity] === DEBUG END ===');
+        return;
+      }
+
+      // Find the will-maker directly by role - they own this namespace
+      const willMaker = people.find((p) => p.roles?.includes('will-maker'));
+      if (!willMaker) {
+        console.log('[writeLocalIdentity] No will-maker found in people array');
+        console.log('[writeLocalIdentity] === DEBUG END ===');
+        return;
+      }
+
+      console.log('[writeLocalIdentity] Found will-maker:', willMaker.id);
+
+      // Update in-memory state
+      console.log('[writeLocalIdentity] Updating in-memory state via personActions.updatePerson...');
+      personActions.updatePerson(willMaker.id, {
+        serverId,
+        ...(nextEmail ? { email: nextEmail } : {}),
+      });
+      console.log('[writeLocalIdentity] personActions.updatePerson completed');
+
+      // Update storage
+      const updated = people.map((person) =>
+        person.roles?.includes('will-maker')
+          ? { ...person, serverId, ...(nextEmail ? { email: nextEmail } : {}) }
+          : person
+      );
+      console.log('[writeLocalIdentity] Trying to write updated people to storage...');
+      console.log('[writeLocalIdentity] Updated data:', JSON.stringify(updated, null, 2));
+      
+      const writeResult = await storage.save(peopleKey, updated);
+      console.log('[writeLocalIdentity] Result of storage.save:', writeResult);
+      
+      // Verify write by re-reading
+      const verifyRead = await storage.load<any[]>(peopleKey, []);
+      console.log('[writeLocalIdentity] Verification read after write:', JSON.stringify(verifyRead, null, 2));
+      console.log('[writeLocalIdentity] === DEBUG END ===');
+    },
+    [personActions]
+  );
+
+  const syncServerIdentity = useCallback(async (serverUserId: string, email?: string | null) => {
     const serverId = String(serverUserId);
-    const scopeMap = await storage.load<Record<string, string>>(STORAGE_KEYS.USER_SCOPE_MAP, {});
-    let willMakerId = scopeMap[serverId];
 
-    if (!willMakerId) {
-      const currentWillMaker = willActions.getUser() || personActions.getPeopleByRole('will-maker')[0];
-      if (currentWillMaker) {
-        willMakerId = currentWillMaker.id;
-        scopeMap[serverId] = willMakerId;
-        await storage.save(STORAGE_KEYS.USER_SCOPE_MAP, scopeMap);
-      }
+    // If we already have an active will-maker scope, use it directly
+    if (activeWillMakerId) {
+      await writeLocalIdentity(activeWillMakerId, serverId, email);
+      return;
     }
 
-    if (willMakerId) {
-      setActiveWillMakerId(willMakerId);
-
-      const currentWillMaker = personActions.getPersonById(willMakerId);
-      if (currentWillMaker) {
-        if (currentWillMaker.serverId && currentWillMaker.serverId !== serverId) {
-          throw new Error('Server ID mismatch. Contact support.');
-        }
-        if (!currentWillMaker.serverId) {
-          personActions.updatePerson(willMakerId, { serverId });
-        }
-      } else {
-        const peopleKey = `kindling:${willMakerId}:${STORAGE_KEYS.PERSON_DATA}`;
-        const people = await storage.load<any[]>(peopleKey, []);
-        const updated = people.map((person) => {
-          if (person.id !== willMakerId) return person;
-          if (person.serverId && person.serverId !== serverId) {
-            throw new Error('Server ID mismatch. Contact support.');
-          }
-          return { ...person, serverId };
-        });
-        if (updated.length > 0) {
-          await storage.save(peopleKey, updated);
-        }
-      }
+    // Try to find will-maker from in-memory state
+    const currentWillMaker = willActions.getUser() || personActions.getPeopleByRole('will-maker')[0];
+    if (currentWillMaker) {
+      await writeLocalIdentity(currentWillMaker.id, serverId, email);
+      setActiveWillMakerId(currentWillMaker.id);
+      return;
     }
-  }, [personActions, setActiveWillMakerId, storage, willActions]);
+
+    // Fallback: search storage for a matching serverId (for returning users)
+    const keys = await storage.getAllKeys();
+    const personKeySuffix = `:${STORAGE_KEYS.PERSON_DATA}`;
+    const personKeys = keys.filter(
+      (key) => key.startsWith('kindling:') && key.endsWith(personKeySuffix)
+    );
+
+    for (const key of personKeys) {
+      const parts = key.split(':');
+      if (parts.length < 3) continue;
+      const scopeId = parts[1];
+      const people = await storage.load<any[]>(key, []);
+      const matchingPerson = people.find((person) => String(person.serverId) === serverId);
+      if (!matchingPerson) continue;
+
+      setActiveWillMakerId(scopeId);
+      await writeLocalIdentity(scopeId, serverId, email);
+      return;
+    }
+  }, [activeWillMakerId, personActions, setActiveWillMakerId, willActions, writeLocalIdentity]);
 
   const login = useCallback(async (email: string, password: string) => {
     setState((prev) => ({ ...prev, status: 'loading', error: null }));
@@ -143,7 +199,7 @@ export const useAuth = () => {
 
     await saveAuthState(response.access_token, response.refresh_token, response.user);
     if (response.user?.id != null) {
-      await syncServerIdentity(String(response.user.id));
+      await syncServerIdentity(String(response.user.id), response.user.email);
     }
 
     setState({
@@ -155,7 +211,7 @@ export const useAuth = () => {
     });
 
     return response;
-  }, []);
+  }, [syncServerIdentity]);
 
   const register = useCallback(
     async (payload: { email: string; password: string; first_name: string; last_name: string; phone?: string | null }) => {
@@ -167,6 +223,8 @@ export const useAuth = () => {
         device_name: getDeviceName(),
       });
 
+      console.log('[Auth] Register response user_id:', response.user_id);
+
       await saveAuthState(response.access_token, response.refresh_token, {
         id: response.user_id,
         first_name: response.first_name || payload.first_name,
@@ -174,8 +232,13 @@ export const useAuth = () => {
         email: response.email || payload.email,
         phone: payload.phone ?? null,
       });
-      if (response.user_id != null) {
-        await syncServerIdentity(String(response.user_id));
+
+      if (response.user_id != null && activeWillMakerId) {
+        // We have an active scope - write directly to it
+        await writeLocalIdentity(activeWillMakerId, String(response.user_id), response.email || payload.email);
+      } else if (response.user_id != null) {
+        // No active scope - let syncServerIdentity find or create one
+        await syncServerIdentity(String(response.user_id), response.email || payload.email);
       }
 
       setState((prev) => ({
@@ -194,7 +257,7 @@ export const useAuth = () => {
 
       return response;
     },
-    []
+    [activeWillMakerId, writeLocalIdentity, syncServerIdentity]
   );
 
   const validateEmail = useCallback(async (email: string) => {
@@ -219,7 +282,7 @@ export const useAuth = () => {
       userProfile: null,
       error: null,
     });
-  }, [state.accessToken]);
+  }, [state.accessToken, clearInMemoryState]);
 
   const setError = useCallback((message: string | null) => {
     setState((prev) => ({ ...prev, error: message }));
