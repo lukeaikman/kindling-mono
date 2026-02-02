@@ -35,7 +35,7 @@ import { Spacing, Typography } from '../../src/styles/constants';
  */
 export default function DeveloperDashboard() {
   const { personActions, bequeathalActions, willActions, purgeAllData, activeWillMakerId, setActiveWillMakerId } = useAppState();
-  const { logout } = useAuth();
+  const { logout, status } = useAuth();
   const [storageData, setStorageData] = useState<Record<string, any>>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [showSplash, setShowSplash] = useState(false);
@@ -195,10 +195,13 @@ export default function DeveloperDashboard() {
 
             <Button
               variant="outline"
-              onPress={handleLogout}
+              onPress={status === 'authenticated' ? handleLogout : () => router.push('/auth/login')}
             >
-              Logout
+              {status === 'authenticated' ? 'Logout' : 'Login'}
             </Button>
+            <Text style={styles.authStatusText}>
+              Status: {status === 'authenticated' ? 'User Logged In' : 'No Logged In User'}
+            </Text>
           </View>
         </Card>
         
@@ -564,6 +567,12 @@ const styles = StyleSheet.create({
   buttonGroup: {
     gap: Spacing.sm,
     marginTop: Spacing.md,
+  },
+  authStatusText: {
+    color: KindlingColors.mutedForeground,
+    fontSize: Typography.fontSize.xs,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
   },
   explorerInfo: {
     marginTop: Spacing.md,

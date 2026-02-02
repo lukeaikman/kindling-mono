@@ -94,40 +94,24 @@ export const useAuth = () => {
       const serverId = String(serverUserId);
       const nextEmail = email ?? '';
 
-      console.log('[writeLocalIdentity] === DEBUG START ===');
-      console.log('[writeLocalIdentity] User email:', nextEmail);
-      console.log('[writeLocalIdentity] User serverId:', serverId);
-      console.log('[writeLocalIdentity] Scope ID:', scopeId);
-
       const peopleKey = `kindling:${scopeId}:${STORAGE_KEYS.PERSON_DATA}`;
-      console.log('[writeLocalIdentity] Storage key:', peopleKey);
-      
       const people = await storage.load<any[]>(peopleKey, []);
-      console.log('[writeLocalIdentity] Loaded people from storage:', JSON.stringify(people, null, 2));
       
       if (!Array.isArray(people) || people.length === 0) {
-        console.log('[writeLocalIdentity] No people found in storage to update');
-        console.log('[writeLocalIdentity] === DEBUG END ===');
         return;
       }
 
       // Find the will-maker directly by role - they own this namespace
       const willMaker = people.find((p) => p.roles?.includes('will-maker'));
       if (!willMaker) {
-        console.log('[writeLocalIdentity] No will-maker found in people array');
-        console.log('[writeLocalIdentity] === DEBUG END ===');
         return;
       }
 
-      console.log('[writeLocalIdentity] Found will-maker:', willMaker.id);
-
       // Update in-memory state
-      console.log('[writeLocalIdentity] Updating in-memory state via personActions.updatePerson...');
       personActions.updatePerson(willMaker.id, {
         serverId,
         ...(nextEmail ? { email: nextEmail } : {}),
       });
-      console.log('[writeLocalIdentity] personActions.updatePerson completed');
 
       // Update storage
       const updated = people.map((person) =>
@@ -135,16 +119,8 @@ export const useAuth = () => {
           ? { ...person, serverId, ...(nextEmail ? { email: nextEmail } : {}) }
           : person
       );
-      console.log('[writeLocalIdentity] Trying to write updated people to storage...');
-      console.log('[writeLocalIdentity] Updated data:', JSON.stringify(updated, null, 2));
       
-      const writeResult = await storage.save(peopleKey, updated);
-      console.log('[writeLocalIdentity] Result of storage.save:', writeResult);
-      
-      // Verify write by re-reading
-      const verifyRead = await storage.load<any[]>(peopleKey, []);
-      console.log('[writeLocalIdentity] Verification read after write:', JSON.stringify(verifyRead, null, 2));
-      console.log('[writeLocalIdentity] === DEBUG END ===');
+      await storage.save(peopleKey, updated);
     },
     [personActions]
   );
@@ -222,8 +198,6 @@ export const useAuth = () => {
         device_id: deviceId,
         device_name: getDeviceName(),
       });
-
-      console.log('[Auth] Register response user_id:', response.user_id);
 
       await saveAuthState(response.access_token, response.refresh_token, {
         id: response.user_id,
