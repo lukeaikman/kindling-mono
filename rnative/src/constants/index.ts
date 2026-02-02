@@ -12,7 +12,8 @@ import { WillData, BequeathalData, Person, Business, Trust } from '../types';
  * Used by the useAppState hook to save/load state
  */
 export const STORAGE_KEYS = {
-  ACTIVE_OWNER_ID: 'kindling-active-owner-id',
+  ACTIVE_WILLMAKER_ID: 'kindling-active-willmaker-id',
+  USER_SCOPE_MAP: 'kindling-user-scope-map',
   WILL_DATA: 'kindling-will-data',
   PERSON_DATA: 'kindling-person-data',
   BUSINESS_DATA: 'kindling-business-data',

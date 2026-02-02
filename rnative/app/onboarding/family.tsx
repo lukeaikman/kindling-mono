@@ -117,7 +117,7 @@ interface CoGuardianFormData {
  * OnboardingFamilyScreen component
  */
 export default function OnboardingFamilyScreen() {
-  const { personActions, willActions, relationshipActions, ownerId } = useAppState();
+  const { personActions, willActions, relationshipActions, activeWillMakerId } = useAppState();
   
   // Double tap functionality for dev dashboard (on header)
   const lastTapRef = useRef<number>(0);
@@ -547,7 +547,7 @@ export default function OnboardingFamilyScreen() {
     }
 
     // Confirm people exist in storage before writing relationships
-    const peopleStorageKey = `kindling:${ownerId}:${STORAGE_KEYS.PERSON_DATA}`;
+    const peopleStorageKey = `kindling:${activeWillMakerId}:${STORAGE_KEYS.PERSON_DATA}`;
     const storedPeople = await storage.load(peopleStorageKey, []);
     const storedIds = new Set((storedPeople || []).map((person: any) => person.id));
     const relationshipIds = Array.from(

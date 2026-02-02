@@ -45,7 +45,9 @@ export const useNetworkState = (): NetworkState => {
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
       setNetworkState({
         isConnected: state.isConnected ?? false,
-        isInternetReachable: state.isInternetReachable ?? false,
+        // Some platforms report null while reachability is being determined.
+        // Treat null as reachable to avoid "stuck offline" UI.
+        isInternetReachable: state.isInternetReachable ?? true,
         type: state.type,
       });
     });

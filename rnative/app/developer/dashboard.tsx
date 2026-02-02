@@ -33,7 +33,7 @@ import { Spacing, Typography } from '../../src/styles/constants';
  * Provides tools for development and debugging
  */
 export default function DeveloperDashboard() {
-  const { personActions, bequeathalActions, willActions, purgeAllData, ownerId } = useAppState();
+  const { personActions, bequeathalActions, willActions, purgeAllData, activeWillMakerId } = useAppState();
   const { logout } = useAuth();
   const [storageData, setStorageData] = useState<Record<string, any>>({});
   const [refreshKey, setRefreshKey] = useState(0);
@@ -218,7 +218,7 @@ export default function DeveloperDashboard() {
               <View style={styles.storageHeaderRow}>
                 <View>
                   <Text style={styles.storageSectionTitle}>Active User</Text>
-                  <Text style={styles.ownerIdText}>{ownerId}</Text>
+                  <Text style={styles.ownerIdText}>{activeWillMakerId}</Text>
                 </View>
                 <IconButton
                   icon="content-copy"
@@ -226,7 +226,7 @@ export default function DeveloperDashboard() {
                   iconColor={KindlingColors.green}
                   onPress={() => {
                     const activeKeys = Object.entries(storageData)
-                      .filter(([key]) => key.startsWith(`kindling:${ownerId}:`))
+                      .filter(([key]) => key.startsWith(`kindling:${activeWillMakerId}:`))
                       .reduce<Record<string, any>>((acc, [key, value]) => {
                         acc[key] = value;
                         return acc;
@@ -237,7 +237,7 @@ export default function DeveloperDashboard() {
               </View>
               <ScrollView horizontal={false} style={styles.dataViewer}>
                 {Object.entries(storageData)
-                  .filter(([key]) => key.startsWith(`kindling:${ownerId}:`))
+                  .filter(([key]) => key.startsWith(`kindling:${activeWillMakerId}:`))
                   .map(([key, value]) => (
                     <View key={key} style={styles.dataItem}>
                       <Text style={styles.dataKey}>{key}</Text>
@@ -256,7 +256,7 @@ export default function DeveloperDashboard() {
                   iconColor={KindlingColors.green}
                   onPress={() => {
                     const otherKeys = Object.entries(storageData)
-                      .filter(([key]) => !key.startsWith(`kindling:${ownerId}:`))
+                      .filter(([key]) => !key.startsWith(`kindling:${activeWillMakerId}:`))
                       .reduce<Record<string, any>>((acc, [key, value]) => {
                         acc[key] = value;
                         return acc;
@@ -267,7 +267,7 @@ export default function DeveloperDashboard() {
               </View>
               <ScrollView horizontal={false} style={styles.dataViewer}>
                 {Object.entries(storageData)
-                  .filter(([key]) => !key.startsWith(`kindling:${ownerId}:`))
+                  .filter(([key]) => !key.startsWith(`kindling:${activeWillMakerId}:`))
                   .map(([key, value]) => (
                     <View key={key} style={styles.dataItem}>
                       <Text style={styles.dataKey}>{key}</Text>

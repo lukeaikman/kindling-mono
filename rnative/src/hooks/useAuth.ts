@@ -5,6 +5,9 @@ import { useCallback, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import * as Device from 'expo-device';
 import { authApi, LoginResponse, RegisterResponse } from '../services/auth';
+import { useAppState } from './useAppState';
+import { storage } from '../services/storage';
+import { STORAGE_KEYS } from '../constants';
 
 const ACCESS_TOKEN_KEY = 'auth_access_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';
@@ -55,6 +58,7 @@ const clearAuthState = async () => {
 };
 
 export const useAuth = () => {
+  const { personActions, willActions, setActiveWillMakerId, clearInMemoryState } = useAppState();
   const [state, setState] = useState<AuthState>({
     status: 'idle',
     accessToken: null,
@@ -85,6 +89,48 @@ export const useAuth = () => {
     loadAuthState();
   }, []);
 
+  const syncServerIdentity = useCallback(async (serverUserId: string) => {
+    const serverId = String(serverUserId);
+    const scopeMap = await storage.load<Record<string, string>>(STORAGE_KEYS.USER_SCOPE_MAP, {});
+    let willMakerId = scopeMap[serverId];
+
+    if (!willMakerId) {
+      const currentWillMaker = willActions.getUser() || personActions.getPeopleByRole('will-maker')[0];
+      if (currentWillMaker) {
+        willMakerId = currentWillMaker.id;
+        scopeMap[serverId] = willMakerId;
+        await storage.save(STORAGE_KEYS.USER_SCOPE_MAP, scopeMap);
+      }
+    }
+
+    if (willMakerId) {
+      setActiveWillMakerId(willMakerId);
+
+      const currentWillMaker = personActions.getPersonById(willMakerId);
+      if (currentWillMaker) {
+        if (currentWillMaker.serverId && currentWillMaker.serverId !== serverId) {
+          throw new Error('Server ID mismatch. Contact support.');
+        }
+        if (!currentWillMaker.serverId) {
+          personActions.updatePerson(willMakerId, { serverId });
+        }
+      } else {
+        const peopleKey = `kindling:${willMakerId}:${STORAGE_KEYS.PERSON_DATA}`;
+        const people = await storage.load<any[]>(peopleKey, []);
+        const updated = people.map((person) => {
+          if (person.id !== willMakerId) return person;
+          if (person.serverId && person.serverId !== serverId) {
+            throw new Error('Server ID mismatch. Contact support.');
+          }
+          return { ...person, serverId };
+        });
+        if (updated.length > 0) {
+          await storage.save(peopleKey, updated);
+        }
+      }
+    }
+  }, [personActions, setActiveWillMakerId, storage, willActions]);
+
   const login = useCallback(async (email: string, password: string) => {
     setState((prev) => ({ ...prev, status: 'loading', error: null }));
     const deviceId = await getDeviceId();
@@ -96,6 +142,9 @@ export const useAuth = () => {
     });
 
     await saveAuthState(response.access_token, response.refresh_token, response.user);
+    if (response.user?.id != null) {
+      await syncServerIdentity(String(response.user.id));
+    }
 
     setState({
       status: 'authenticated',
@@ -125,6 +174,9 @@ export const useAuth = () => {
         email: response.email || payload.email,
         phone: payload.phone ?? null,
       });
+      if (response.user_id != null) {
+        await syncServerIdentity(String(response.user_id));
+      }
 
       setState((prev) => ({
         status: 'authenticated',
@@ -159,6 +211,7 @@ export const useAuth = () => {
     }
 
     await clearAuthState();
+    clearInMemoryState();
     setState({
       status: 'unauthenticated',
       accessToken: null,

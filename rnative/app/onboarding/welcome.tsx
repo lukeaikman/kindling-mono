@@ -20,7 +20,7 @@ import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { useAppState } from '../../src/hooks/useAppState';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
-import { calculateAge } from '../../src/utils/helpers';
+import { calculateAge, generateUUID } from '../../src/utils/helpers';
 
 /**
  * OnboardingWelcomeScreen component
@@ -37,7 +37,7 @@ import { calculateAge } from '../../src/utils/helpers';
  * - Loads existing data if user returns to this screen
  */
 export default function OnboardingWelcomeScreen() {
-  const { willActions, personActions } = useAppState();
+  const { willActions, personActions, activeWillMakerId, setActiveWillMakerId } = useAppState();
   
   const [firstName, setFirstName] = useState('');
   const [middleNames, setMiddleNames] = useState('');
@@ -50,6 +50,9 @@ export default function OnboardingWelcomeScreen() {
   
   // Load existing user data on mount
   useEffect(() => {
+    if (!activeWillMakerId) {
+      setActiveWillMakerId(generateUUID());
+    }
     const user = willActions.getUser();
     if (user) {
       setFirstName(user.firstName || '');

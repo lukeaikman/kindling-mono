@@ -15,7 +15,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton, Snackbar } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '../../src/components/ui/Button';
 import { BackButton } from '../../src/components/ui/BackButton';
@@ -47,7 +47,7 @@ interface InterfaceDefinition {
  * Sophisticated data viewer with drill-down navigation
  */
 export default function DataExplorerScreen() {
-  const { personActions, willActions, bequeathalActions, businessActions, relationshipActions, beneficiaryGroupActions, estateRemainderActions, trustActions, bequestActions, ownerId } = useAppState();
+  const { personActions, willActions, bequeathalActions, businessActions, relationshipActions, beneficiaryGroupActions, estateRemainderActions, trustActions, bequestActions, activeWillMakerId } = useAppState();
   
   // Navigation state
   const [selectedInterface, setSelectedInterface] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export default function DataExplorerScreen() {
   const [relationshipEdges, setRelationshipEdges] = useState<any[]>([]);
   
   const loadRelationships = useCallback(async () => {
-    const edges = await storage.load(`kindling:${ownerId}:${STORAGE_KEYS.RELATIONSHIP_DATA}`, []);
+    const edges = await storage.load(`kindling:${activeWillMakerId}:${STORAGE_KEYS.RELATIONSHIP_DATA}`, []);
     if (Array.isArray(edges)) {
       setRelationshipEdges(edges);
     } else if (edges && typeof edges === 'object' && 'edges' in edges) {
@@ -69,11 +69,17 @@ export default function DataExplorerScreen() {
     } else {
       setRelationshipEdges([]);
     }
-  }, [ownerId]);
+  }, [activeWillMakerId]);
 
   React.useEffect(() => {
     loadRelationships();
-  }, [ownerId, refreshKey, loadRelationships]);
+  }, [activeWillMakerId, refreshKey, loadRelationships]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadRelationships();
+    }, [loadRelationships])
+  );
   
   // Get will data
   const willData = willActions.getWillData();
@@ -627,7 +633,7 @@ export default function DataExplorerScreen() {
 
       {/* Owner ID */}
       <View style={styles.ownerIdRow}>
-        <Text style={styles.ownerIdText}>Owner ID: {ownerId}</Text>
+        <Text style={styles.ownerIdText}>Owner ID: {activeWillMakerId}</Text>
         <IconButton
           icon="refresh"
           size={16}

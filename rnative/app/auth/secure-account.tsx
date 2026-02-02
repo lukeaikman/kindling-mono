@@ -34,12 +34,13 @@ export default function SecureAccountScreen() {
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
   const [emailChecking, setEmailChecking] = useState(false);
 
+  const formDisabled = isOffline || submitting;
   const emailValid = useMemo(() => emailRegex.test(email), [email]);
   const passwordValid = useMemo(() => password.length >= 8, [password]);
   const passwordsMatch = useMemo(() => confirmPassword.length > 0 && password === confirmPassword, [password, confirmPassword]);
 
   useEffect(() => {
-    if (!emailValid) {
+    if (isOffline || !emailValid) {
       setEmailAvailable(null);
       setEmailChecking(false);
       return;
@@ -58,7 +59,7 @@ export default function SecureAccountScreen() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [email, emailValid, validateEmail]);
+  }, [email, emailValid, isOffline, validateEmail]);
 
   const handleSecureAccount = async () => {
     setErrorMessage(null);
@@ -144,7 +145,15 @@ export default function SecureAccountScreen() {
             </Text>
           </View>
 
-          <View style={styles.form}>
+          <View style={[styles.form, formDisabled && styles.formDisabled]}>
+            {isOffline ? (
+              <View style={styles.offlineBanner}>
+                <Text style={styles.offlineTitle}>You&apos;re offline</Text>
+                <Text style={styles.offlineMessage}>
+                  Your draft is saved locally. Connect to the internet to create your account.
+                </Text>
+              </View>
+            ) : null}
             <Input
               label="Email"
               value={email}
@@ -163,6 +172,7 @@ export default function SecureAccountScreen() {
                   ? 'Email already registered'
                   : undefined
               }
+              disabled={formDisabled}
             />
             {emailChecking ? <Text style={styles.helperText}>Checking email availability...</Text> : null}
             <Input
@@ -175,6 +185,7 @@ export default function SecureAccountScreen() {
               autoCorrect={false}
               error={password.length > 0 && !passwordValid}
               errorMessage={!passwordValid && password.length > 0 ? 'Password must be at least 8 characters' : undefined}
+              disabled={formDisabled}
             />
             <Input
               label="Confirm password"
@@ -186,21 +197,16 @@ export default function SecureAccountScreen() {
               autoCorrect={false}
               error={confirmPassword.length > 0 && !passwordsMatch}
               errorMessage={confirmPassword.length > 0 && !passwordsMatch ? 'Passwords do not match' : undefined}
+              disabled={formDisabled}
             />
             {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
           </View>
 
           <View style={styles.actions}>
-            <Button variant="primary" onPress={handleSecureAccount} disabled={submitting} loading={submitting}>
+            <Button variant="primary" onPress={handleSecureAccount} disabled={formDisabled} loading={submitting}>
               Create Account & Continue
             </Button>
           </View>
-
-          {isOffline ? (
-            <Text style={styles.offlineText}>
-              You&apos;re offline. Your draft is saved locally on this device.
-            </Text>
-          ) : null}
 
           {/* TODO: Social Login (Phase 5)
               Add Apple and Google sign-in buttons here when backend OAuth is implemented. */}
@@ -241,6 +247,9 @@ const styles = StyleSheet.create({
   form: {
     gap: Spacing.sm,
   },
+  formDisabled: {
+    opacity: 0.6,
+  },
   helperText: {
     color: KindlingColors.brown,
     fontSize: Typography.fontSize.xs,
@@ -252,9 +261,23 @@ const styles = StyleSheet.create({
     color: KindlingColors.destructive,
     marginTop: Spacing.xs,
   },
-  offlineText: {
-    marginTop: Spacing.md,
+  offlineBanner: {
+    padding: Spacing.md,
+    borderRadius: 12,
+    backgroundColor: 'rgba(210, 62, 62, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(210, 62, 62, 0.3)',
+  },
+  offlineTitle: {
+    color: KindlingColors.destructive,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
     textAlign: 'center',
+  },
+  offlineMessage: {
+    marginTop: Spacing.xs,
     color: KindlingColors.brown,
+    fontSize: Typography.fontSize.sm,
+    textAlign: 'center',
   },
 });

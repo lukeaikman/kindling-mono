@@ -36,7 +36,7 @@
  * ```
  */
 
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   WillData, BequeathalData, Bequest,
   WillActions, PersonActions, BeneficiaryActions, BusinessActions, BequeathalActions, TrustActions, BequestActions,
@@ -62,18 +62,57 @@ const useAsyncStorageState = <T>(
   initialValue: T,
   dateFields: string[] = []
 ): [T, React.Dispatch<React.SetStateAction<T>>] => {
-  const [state, setState] = useState<T>(initialValue);
+  const [state, setStateInternal] = useState<T>(initialValue);
   const [isInitialized, setIsInitialized] = useState(false);
+  const prevKeyRef = useRef<string | undefined>(undefined);
+  const stateVersionRef = useRef(0);
+
+  const setState: React.Dispatch<React.SetStateAction<T>> = useCallback((value) => {
+    stateVersionRef.current += 1;
+    setStateInternal(value);
+  }, []);
 
   // Load from storage on mount and when key changes
   useEffect(() => {
     let isMounted = true;
     setIsInitialized(false);
 
+    if (!storageKey) {
+      prevKeyRef.current = storageKey;
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const prevKey = prevKeyRef.current;
+    prevKeyRef.current = storageKey;
+
+    const loadVersion = stateVersionRef.current;
+    if (prevKey === undefined) {
+      const loadFromStorage = async () => {
+        const loaded = await storage.load(storageKey, initialValue, dateFields);
+        if (!isMounted) return;
+        if (stateVersionRef.current !== loadVersion) {
+          setIsInitialized(true);
+          return;
+        }
+        setStateInternal(loaded);
+        setIsInitialized(true);
+      };
+      loadFromStorage();
+      return () => {
+        isMounted = false;
+      };
+    }
+
     const loadFromStorage = async () => {
       const loaded = await storage.load(storageKey, initialValue, dateFields);
       if (!isMounted) return;
-      setState(loaded);
+      if (stateVersionRef.current !== loadVersion) {
+        setIsInitialized(true);
+        return;
+      }
+      setStateInternal(loaded);
       setIsInitialized(true);
     };
     loadFromStorage();
@@ -84,7 +123,7 @@ const useAsyncStorageState = <T>(
 
   // Save to storage whenever state changes (but only after initialization)
   useEffect(() => {
-    if (isInitialized) {
+    if (isInitialized && storageKey) {
       storage.save(storageKey, state);
     }
   }, [state, isInitialized, storageKey]);
@@ -127,16 +166,26 @@ const getInitialEstateRemainderState = (userId: string = ''): EstateRemainderSta
  * Main useAppState hook
  */
 export const useAppState = () => {
-  const initialOwnerId = useMemo(() => generateUUID(), []);
-  const [ownerId, setOwnerId] = useAsyncStorageState<string>(
-    STORAGE_KEYS.ACTIVE_OWNER_ID,
-    initialOwnerId,
+  const [activeWillMakerId, setActiveWillMakerId] = useAsyncStorageState<string>(
+    STORAGE_KEYS.ACTIVE_WILLMAKER_ID,
+    '',
     []
   );
   const getScopedKey = useMemo(
-    () => (key: string) => `kindling:${ownerId}:${key}`,
-    [ownerId]
+    () => (key: string) => (activeWillMakerId ? `kindling:${activeWillMakerId}:${key}` : ''),
+    [activeWillMakerId]
   );
+
+  useEffect(() => {
+    const migrateLegacyOwnerId = async () => {
+      const legacyKey = 'kindling-active-owner-id';
+      const legacyId = await storage.load(legacyKey, '');
+      if (legacyId && !activeWillMakerId) {
+        setActiveWillMakerId(legacyId);
+      }
+    };
+    migrateLegacyOwnerId();
+  }, [activeWillMakerId, setActiveWillMakerId]);
 
   // Initialize states with AsyncStorage persistence
   const [willData, setWillData] = useAsyncStorageState<WillData>(
@@ -611,16 +660,31 @@ export const useAppState = () => {
           return v.toString(16);
         });
       };
-      
+      const isWillMaker = personData.roles?.includes('will-maker');
+      const resolvedId = isWillMaker && activeWillMakerId ? activeWillMakerId : generateId();
+
       const newPerson: Person = {
         ...personData,
-        id: generateId(),
+        id: resolvedId,
         createdAt: new Date(),
         updatedAt: new Date()
       };
 
+      if (isWillMaker && resolvedId !== activeWillMakerId) {
+        setActiveWillMakerId(resolvedId);
+      }
+      if (isWillMaker && resolvedId && willData.userId !== resolvedId) {
+        setWillData(prev => ({ ...prev, userId: resolvedId, updatedAt: new Date() }));
+      }
+
       const nextPeople = await updateStateAsync(setPersonData, prev => [...prev, newPerson]);
-      await storage.save(getScopedKey(STORAGE_KEYS.PERSON_DATA), nextPeople);
+      const ownerIdForStorage = activeWillMakerId || (isWillMaker ? resolvedId : '');
+      const personStorageKey = ownerIdForStorage
+        ? `kindling:${ownerIdForStorage}:${STORAGE_KEYS.PERSON_DATA}`
+        : '';
+      if (personStorageKey) {
+        await storage.save(personStorageKey, nextPeople);
+      }
 
       console.log('✅ Person added:', newPerson.id, newPerson.firstName, newPerson.lastName);
       
@@ -1364,7 +1428,10 @@ export const useAppState = () => {
 
       // Update state
       const nextEdges = await updateStateAsync(setRelationshipData, prev => [...prev, edge]);
-      await storage.save(getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA), nextEdges);
+      const relationshipKey = getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA);
+      if (relationshipKey) {
+        await storage.save(relationshipKey, nextEdges);
+      }
 
       // Update index
       edgeIndex[key] = edge.id;
@@ -1782,9 +1849,22 @@ export const useAppState = () => {
   // Return all actions
   // =============================================================================
 
+  const clearInMemoryState = () => {
+    setActiveWillMakerId('');
+    setWillData(getInitialWillData());
+    setPersonData(getInitialPersonData());
+    setBusinessData(getInitialBusinessData());
+    setBequeathalData(getInitialBequeathalData());
+    setTrustData(getInitialTrustData());
+    setBequestData([]);
+    setBeneficiaryGroupData([]);
+    setEstateRemainderState(getInitialEstateRemainderState(''));
+    setRelationshipData([]);
+  };
+
   return {
-    ownerId,
-    setOwnerId,
+    activeWillMakerId,
+    setActiveWillMakerId,
     willActions,
     personActions,
     beneficiaryActions,
@@ -1795,7 +1875,8 @@ export const useAppState = () => {
     bequestActions,
     relationshipActions,
     estateRemainderActions,
-    purgeAllData
+    purgeAllData,
+    clearInMemoryState
   };
 };
 
