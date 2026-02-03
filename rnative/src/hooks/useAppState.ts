@@ -1873,9 +1873,93 @@ export const useAppState = () => {
     setRelationshipData([]);
   };
 
+  /**
+   * Explicitly load a user's namespace by scopeId.
+   * This is the primary way to switch to a different user's data after login.
+   * Unlike setActiveWillMakerId alone, this explicitly loads all scoped data
+   * from storage into React state, avoiding reliance on React's re-render cascade.
+   */
+  const loadUserNamespace = async (scopeId: string): Promise<boolean> => {
+    if (!scopeId) {
+      return false;
+    }
+
+    const scopePrefix = `kindling:${scopeId}:`;
+
+    // Load all scoped data from storage in parallel
+    const [
+      loadedPersonData,
+      loadedWillData,
+      loadedBusinessData,
+      loadedBequeathalData,
+      loadedTrustData,
+      loadedBeneficiaryGroupData,
+      loadedEstateRemainderData,
+      loadedRelationshipData,
+      loadedBequestData,
+    ] = await Promise.all([
+      storage.load<Person[]>(`${scopePrefix}${STORAGE_KEYS.PERSON_DATA}`, getInitialPersonData()),
+      storage.load<WillData>(`${scopePrefix}${STORAGE_KEYS.WILL_DATA}`, getInitialWillData(), ['createdAt', 'updatedAt']),
+      storage.load<Business[]>(`${scopePrefix}${STORAGE_KEYS.BUSINESS_DATA}`, getInitialBusinessData()),
+      storage.load<BequeathalData>(`${scopePrefix}${STORAGE_KEYS.BEQUEATHAL_DATA}`, getInitialBequeathalData()),
+      storage.load<Trust[]>(`${scopePrefix}${STORAGE_KEYS.TRUST_DATA}`, getInitialTrustData()),
+      storage.load<BeneficiaryGroup[]>(`${scopePrefix}${STORAGE_KEYS.BENEFICIARY_GROUP_DATA}`, []),
+      storage.load<EstateRemainderState>(`${scopePrefix}${STORAGE_KEYS.ESTATE_REMAINDER_DATA}`, getInitialEstateRemainderState(scopeId)),
+      storage.load<Relationship[]>(`${scopePrefix}${STORAGE_KEYS.RELATIONSHIP_DATA}`, []),
+      storage.load<Bequest[]>(`${scopePrefix}${STORAGE_KEYS.BEQUEST_DATA}`, []),
+    ]);
+
+    // Check if this scope has valid data (at least has people)
+    if (!Array.isArray(loadedPersonData) || loadedPersonData.length === 0) {
+      return false;
+    }
+
+    // Set all state explicitly
+    setActiveWillMakerId(scopeId);
+    setPersonData(loadedPersonData);
+    setWillData(loadedWillData);
+    setBusinessData(loadedBusinessData);
+    setBequeathalData(loadedBequeathalData);
+    setTrustData(loadedTrustData);
+    setBeneficiaryGroupData(loadedBeneficiaryGroupData);
+    setEstateRemainderState(loadedEstateRemainderData);
+    setRelationshipData(loadedRelationshipData);
+    setBequestData(loadedBequestData);
+
+    return true;
+  };
+
+  /**
+   * Find a user's scope by their server ID.
+   * Searches all stored namespaces for a person with matching serverId.
+   * Returns the scopeId if found, null otherwise.
+   */
+  const findScopeByServerId = async (serverId: string): Promise<string | null> => {
+    const keys = await storage.getAllKeys();
+    const personKeySuffix = `:${STORAGE_KEYS.PERSON_DATA}`;
+    const personKeys = keys.filter(
+      (key) => key.startsWith('kindling:') && key.endsWith(personKeySuffix)
+    );
+
+    for (const key of personKeys) {
+      const parts = key.split(':');
+      if (parts.length < 3) continue;
+      const scopeId = parts[1];
+      const people = await storage.load<Person[]>(key, []);
+      const matchingPerson = people.find((person) => String(person.serverId) === serverId);
+      if (matchingPerson) {
+        return scopeId;
+      }
+    }
+
+    return null;
+  };
+
   return {
     activeWillMakerId,
     setActiveWillMakerId,
+    loadUserNamespace,
+    findScopeByServerId,
     willActions,
     personActions,
     beneficiaryActions,

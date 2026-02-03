@@ -58,7 +58,7 @@ const clearAuthState = async () => {
 };
 
 export const useAuth = () => {
-  const { personActions, willActions, activeWillMakerId, setActiveWillMakerId, clearInMemoryState } = useAppState();
+  const { personActions, activeWillMakerId, loadUserNamespace, findScopeByServerId, clearInMemoryState } = useAppState();
   const [state, setState] = useState<AuthState>({
     status: 'idle',
     accessToken: null,
@@ -125,43 +125,48 @@ export const useAuth = () => {
     [personActions]
   );
 
+  /**
+   * Sync server identity after login/register.
+   * 
+   * Flow:
+   * 1. If we have an active scope, update the will-maker's serverId in that scope
+   * 2. Otherwise, search storage for a scope with matching serverId and load it
+   * 3. After finding/confirming the scope, update the will-maker's identity
+   */
   const syncServerIdentity = useCallback(async (serverUserId: string, email?: string | null) => {
     const serverId = String(serverUserId);
 
-    // If we already have an active will-maker scope, use it directly
+    // Case 1: We already have an active scope - update identity in current scope
     if (activeWillMakerId) {
       await writeLocalIdentity(activeWillMakerId, serverId, email);
-      return;
+      return activeWillMakerId;
     }
 
-    // Try to find will-maker from in-memory state
-    const currentWillMaker = willActions.getUser() || personActions.getPeopleByRole('will-maker')[0];
-    if (currentWillMaker) {
-      await writeLocalIdentity(currentWillMaker.id, serverId, email);
-      setActiveWillMakerId(currentWillMaker.id);
-      return;
+    // Case 2: Check in-memory state for a will-maker
+    const currentWillMaker = personActions.getPeopleByRole('will-maker')[0];
+    if (currentWillMaker?.id) {
+      // Load this namespace explicitly and update identity
+      const loaded = await loadUserNamespace(currentWillMaker.id);
+      if (loaded) {
+        await writeLocalIdentity(currentWillMaker.id, serverId, email);
+        return currentWillMaker.id;
+      }
     }
 
-    // Fallback: search storage for a matching serverId (for returning users)
-    const keys = await storage.getAllKeys();
-    const personKeySuffix = `:${STORAGE_KEYS.PERSON_DATA}`;
-    const personKeys = keys.filter(
-      (key) => key.startsWith('kindling:') && key.endsWith(personKeySuffix)
-    );
-
-    for (const key of personKeys) {
-      const parts = key.split(':');
-      if (parts.length < 3) continue;
-      const scopeId = parts[1];
-      const people = await storage.load<any[]>(key, []);
-      const matchingPerson = people.find((person) => String(person.serverId) === serverId);
-      if (!matchingPerson) continue;
-
-      setActiveWillMakerId(scopeId);
-      await writeLocalIdentity(scopeId, serverId, email);
-      return;
+    // Case 3: Search storage for a scope with matching serverId (returning user)
+    const scopeId = await findScopeByServerId(serverId);
+    if (scopeId) {
+      // Found existing data for this user - load it
+      const loaded = await loadUserNamespace(scopeId);
+      if (loaded) {
+        await writeLocalIdentity(scopeId, serverId, email);
+        return scopeId;
+      }
     }
-  }, [activeWillMakerId, personActions, setActiveWillMakerId, willActions, writeLocalIdentity]);
+
+    // No existing data found for this user
+    return null;
+  }, [activeWillMakerId, personActions, loadUserNamespace, findScopeByServerId, writeLocalIdentity]);
 
   const login = useCallback(async (email: string, password: string) => {
     setState((prev) => ({ ...prev, status: 'loading', error: null }));
@@ -207,11 +212,7 @@ export const useAuth = () => {
         phone: payload.phone ?? null,
       });
 
-      if (response.user_id != null && activeWillMakerId) {
-        // We have an active scope - write directly to it
-        await writeLocalIdentity(activeWillMakerId, String(response.user_id), response.email || payload.email);
-      } else if (response.user_id != null) {
-        // No active scope - let syncServerIdentity find or create one
+      if (response.user_id != null) {
         await syncServerIdentity(String(response.user_id), response.email || payload.email);
       }
 
@@ -231,7 +232,7 @@ export const useAuth = () => {
 
       return response;
     },
-    [activeWillMakerId, writeLocalIdentity, syncServerIdentity]
+    [syncServerIdentity]
   );
 
   const validateEmail = useCallback(async (email: string) => {
