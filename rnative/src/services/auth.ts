@@ -182,11 +182,11 @@ export const authApi = {
       accessToken
     ),
 
-  refreshSession: (accessToken: string) =>
+  refreshSession: (refreshToken: string) =>
     requestJson<RefreshSessionResponse>(
       '/auth/session/refresh',
       { method: 'POST' },
-      accessToken
+      refreshToken
     ),
 
   getProfile: (accessToken: string) =>

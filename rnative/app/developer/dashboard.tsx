@@ -20,7 +20,7 @@ import { Card } from '../../src/components/ui/Card';
 import { Select } from '../../src/components/ui/Select';
 import { SplashScreen } from '../../src/components/splash';
 import { useAppState } from '../../src/hooks/useAppState';
-import { useAuth } from '../../src/hooks/useAuth';
+import { useAuth, clearAllAuthData } from '../../src/hooks/useAuth';
 import { seedAllData } from '../../src/utils/seedData';
 import { copyToClipboard } from '../../src/utils/clipboardHelpers';
 import { storage } from '../../src/services/storage';
@@ -184,6 +184,16 @@ export default function DeveloperDashboard() {
               onPress={handlePurgeAllData}
             >
               Purge All Data
+            </Button>
+
+            <Button
+              variant="destructive"
+              onPress={async () => {
+                await clearAllAuthData();
+                setRefreshKey(prev => prev + 1);
+              }}
+            >
+              Clear Auth (Keychain)
             </Button>
             
             <Button

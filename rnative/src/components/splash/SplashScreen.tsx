@@ -19,23 +19,20 @@ import {
   View,
   StyleSheet,
   Animated,
-  Dimensions,
   Image,
-  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useFonts } from 'expo-font';
 
-import { Button } from '../ui/Button';
+import NetInfo from '@react-native-community/netinfo';
+import { getBiometricEnabled, setBiometricEnabled, validateSession, handleFreshInstallCleanup } from '../../hooks/useAuth';
 
 // ============================================================================
 // CONFIGURATION CONSTANTS
 // All timing values in milliseconds - adjust these to tweak animation feel
 // ============================================================================
-
-/** Toggle biometric flow on/off for development */
-const ENABLE_BIOMETRIC_FLOW = false;
 
 /** Duration for background color change + logo crossfade */
 const TRANSITION_1_DURATION = 800;
@@ -55,12 +52,6 @@ const DELAY_AFTER_TRANSITION_1 = 300;
 /** Duration for unlock icon fade in */
 const UNLOCK_ICON_FADE_DURATION = 400;
 
-/** Duration for moving logo to bottom on auth failure */
-const MOVE_TO_BOTTOM_DURATION = 600;
-
-/** Duration for buttons fade in */
-const BUTTONS_FADE_DURATION = 400;
-
 /** Delay before navigating after successful animation */
 const NAVIGATION_DELAY = 500;
 
@@ -75,7 +66,6 @@ const BRAND_CREAM = '#EAE6E5';
 // LAYOUT CONSTANTS
 // ============================================================================
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // The KIND logo needs to be centered. Since both PNGs are the same dimension
 // with transparent padding where "LING" would be, we need to calculate the offset.
@@ -88,7 +78,15 @@ const LOGO_CENTER_OFFSET = 40; // pixels to move right to center
 // ============================================================================
 
 type BiometricResult = 'pending' | 'success' | 'failed';
-type AnimationPhase = 'initial' | 'transition1' | 'transition2' | 'complete' | 'auth_failed';
+type AnimationPhase = 'initial' | 'transition1' | 'transition2' | 'complete';
+
+type AppInitResult = {
+  destination: '/intro' | '/order-of-things' | '/auth/login';
+  loginParams?: { welcomeBack?: string; firstName?: string; offline?: string };
+  requiresBiometric: boolean;
+  scopeId: string | null;
+  isOffline: boolean;
+};
 
 interface SplashScreenProps {
   /** Override the default navigation destination */
@@ -122,7 +120,7 @@ interface SplashScreenProps {
  * ```
  */
 export const SplashScreen: React.FC<SplashScreenProps> = ({
-  navigateTo = '/onboarding/welcome',
+  navigateTo = '/intro',
   navigationParams,
   onComplete,
 }) => {
@@ -136,6 +134,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const [biometricResult, setBiometricResult] = useState<BiometricResult>('pending');
   const [showUnlockIcon, setShowUnlockIcon] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
+  const [initResult, setInitResult] = useState<AppInitResult | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Animated values
   const backgroundColorAnim = useRef(new Animated.Value(0)).current;
@@ -145,7 +145,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const taglineOpacity = useRef(new Animated.Value(0)).current;
   const unlockIconOpacity = useRef(new Animated.Value(0)).current;
   const contentPositionY = useRef(new Animated.Value(0)).current;
-  const buttonsOpacity = useRef(new Animated.Value(0)).current;
 
   // Interpolate background color
   const backgroundColor = backgroundColorAnim.interpolate({
@@ -157,16 +156,107 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   // NAVIGATION
   // ============================================================================
 
+  const initializeApp = useCallback(async (): Promise<AppInitResult> => {
+    // Clear stale Keychain data if this is a fresh install
+    await handleFreshInstallCleanup();
+    
+    const session = await validateSession();
+
+    // New user - no tokens stored
+    if (session.status === 'invalid' && session.reason === 'no_tokens') {
+      // Check if offline - can't register/login without network
+      const netState = await NetInfo.fetch();
+      if (!netState.isConnected) {
+        return {
+          destination: '/auth/login',
+          loginParams: { offline: 'true' },
+          requiresBiometric: false,
+          scopeId: null,
+          isOffline: true,
+        };
+      }
+      return { destination: '/intro', requiresBiometric: false, scopeId: null, isOffline: false };
+    }
+
+    // Session expired or refresh failed - need manual login
+    if (session.status === 'invalid') {
+      return {
+        destination: '/auth/login',
+        loginParams: {
+          welcomeBack: 'true',
+          firstName: '',
+        },
+        requiresBiometric: false,
+        scopeId: null,
+        isOffline: false,
+      };
+    }
+
+    // Offline with no active user (no scopeId) - can't do anything without network
+    const scopeId = session.scopeId;
+    const isOffline = session.status === 'offline';
+
+    if (!scopeId) {
+      if (isOffline) {
+        // Offline with no active user - show login with offline warning
+        return {
+          destination: '/auth/login',
+          loginParams: { offline: 'true' },
+          requiresBiometric: false,
+          scopeId: null,
+          isOffline: true,
+        };
+      }
+      // Online but no scopeId (edge case) - start fresh
+      return { destination: '/intro', requiresBiometric: false, scopeId: null, isOffline: false };
+    }
+
+    // Returning user with valid/offline session and scopeId
+    const biometricEnabled = await getBiometricEnabled(scopeId);
+    if (biometricEnabled) {
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!isEnrolled) {
+        await setBiometricEnabled(scopeId, false);
+        return { destination: '/order-of-things', requiresBiometric: false, scopeId, isOffline };
+      }
+      return { destination: '/order-of-things', requiresBiometric: true, scopeId, isOffline };
+    }
+
+    return { destination: '/order-of-things', requiresBiometric: false, scopeId, isOffline };
+  }, []);
+
   const handleNavigation = useCallback(() => {
+    if (initResult) {
+      if (initResult.destination === '/auth/login' && initResult.loginParams) {
+        router.replace({
+          pathname: '/auth/login',
+          params: initResult.loginParams,
+        });
+        return;
+      }
+
+      if (initResult.destination === '/order-of-things' && initResult.isOffline) {
+        router.replace({
+          pathname: '/order-of-things',
+          params: { offline: 'true' },
+        });
+        return;
+      }
+
+      router.replace(initResult.destination);
+      return;
+    }
+
     if (onComplete) {
       onComplete();
-    } else {
-      router.replace({
-        pathname: navigateTo,
-        params: navigationParams,
-      } as any);
+      return;
     }
-  }, [navigateTo, navigationParams, onComplete]);
+
+    router.replace({
+      pathname: navigateTo,
+      params: navigationParams,
+    } as any);
+  }, [initResult, navigateTo, navigationParams, onComplete]);
 
   // ============================================================================
   // BIOMETRIC AUTHENTICATION
@@ -199,11 +289,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       setBiometricResult('failed');
     }
   }, []);
-
-  const retryBiometric = useCallback(() => {
-    setBiometricResult('pending');
-    triggerBiometric();
-  }, [triggerBiometric]);
 
   // ============================================================================
   // ANIMATION SEQUENCES
@@ -276,23 +361,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
     });
   }, [unlockIconOpacity, handleNavigation]);
 
-  const showAuthFailedUI = useCallback(() => {
-    setPhase('auth_failed');
-    
-    // Move logo + tagline to bottom
-    Animated.timing(contentPositionY, {
-      toValue: SCREEN_HEIGHT * 0.3, // Move down
-      duration: MOVE_TO_BOTTOM_DURATION,
-      useNativeDriver: true,
-    }).start(() => {
-      // Fade in buttons
-      Animated.timing(buttonsOpacity, {
-        toValue: 1,
-        duration: BUTTONS_FADE_DURATION,
-        useNativeDriver: true,
-      }).start();
-    });
-  }, [contentPositionY, buttonsOpacity]);
 
   // ============================================================================
   // EFFECTS
@@ -302,37 +370,47 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   useEffect(() => {
     if (!fontsLoaded) return;
 
-    // Small delay to ensure seamless handoff from native splash
-    const startTimer = setTimeout(() => {
+    let mounted = true;
+
+    const init = async () => {
       runTransition1();
 
-      // If biometric flow is enabled, trigger it immediately
-      if (ENABLE_BIOMETRIC_FLOW) {
+      const result = await initializeApp();
+      if (!mounted) return;
+
+      setInitResult(result);
+      if (result.requiresBiometric) {
         triggerBiometric();
       }
-    }, 100);
+      setIsLoading(false);
+    };
 
-    return () => clearTimeout(startTimer);
-  }, [fontsLoaded, runTransition1, triggerBiometric]);
+    const startTimer = setTimeout(init, 100);
+
+    return () => {
+      mounted = false;
+      clearTimeout(startTimer);
+    };
+  }, [fontsLoaded, runTransition1, initializeApp, triggerBiometric]);
 
   // Handle post-animation logic based on biometric result
   useEffect(() => {
     if (!animationComplete) return;
 
-    if (!ENABLE_BIOMETRIC_FLOW) {
-      // No biometric flow - just navigate
+    if (isLoading || !initResult) return;
+
+    if (!initResult.requiresBiometric) {
       setTimeout(handleNavigation, NAVIGATION_DELAY);
       return;
     }
 
-    // Biometric flow
     if (biometricResult === 'success') {
       showUnlockSuccess();
     } else if (biometricResult === 'failed') {
-      showAuthFailedUI();
+      // Biometric cancelled/failed - go to intro where user can login or start fresh
+      router.replace('/intro');
     }
-    // If still pending, wait for biometric to resolve
-  }, [animationComplete, biometricResult, handleNavigation, showUnlockSuccess, showAuthFailedUI]);
+  }, [animationComplete, biometricResult, handleNavigation, initResult, isLoading, showUnlockSuccess]);
 
   // ============================================================================
   // RENDER
@@ -395,25 +473,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         </Animated.Text>
       </Animated.View>
 
-      {/* Auth Failed Buttons */}
-      {phase === 'auth_failed' && (
-        <Animated.View style={[styles.buttonsContainer, { opacity: buttonsOpacity }]}>
-          <Button
-            variant="primary"
-            onPress={retryBiometric}
-            style={styles.button}
-          >
-            {Platform.OS === 'ios' ? 'Retry Face ID' : 'Retry Biometric'}
-          </Button>
-          <Button
-            variant="outline"
-            onPress={handleNavigation}
-            style={styles.button}
-          >
-            Login With Form
-          </Button>
-        </Animated.View>
+      {animationComplete && isLoading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color={BRAND_CREAM} />
+        </View>
       )}
+
     </Animated.View>
   );
 };
@@ -429,6 +494,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   contentContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingContainer: {
+    position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -463,17 +533,6 @@ const styles = StyleSheet.create({
     color: BRAND_CREAM,
     marginTop: 20,
     textAlign: 'center',
-  },
-  buttonsContainer: {
-    position: 'absolute',
-    top: SCREEN_HEIGHT * 0.35,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 32,
-    gap: 16,
-  },
-  button: {
-    width: '100%',
   },
 });
 

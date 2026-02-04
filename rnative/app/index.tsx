@@ -16,11 +16,6 @@ export default function Index() {
     <>
       <SplashScreen
         navigateTo="/intro"
-        // Note: Update navigateTo based on user state or deeplinks
-        // For example:
-        // - First-time users: /onboarding/welcome
-        // - Returning users: /dashboard or wherever appropriate
-        // - Deeplinks: pass navigationParams
       />
       <StatusBar style="light" />
     </>

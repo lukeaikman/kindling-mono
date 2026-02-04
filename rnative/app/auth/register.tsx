@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text } from 'react-native-paper';
+import { IconButton, Text } from 'react-native-paper';
 import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
@@ -17,7 +17,8 @@ const emailRegex = /\S+@\S+\.\S+/;
 export default function RegisterScreen() {
   const { register, validateEmail } = useAuth();
   const { isConnected, isInternetReachable } = useNetworkState();
-  const isOffline = !isConnected || !isInternetReachable;
+  const [manualOnline, setManualOnline] = useState(false);
+  const isOffline = !manualOnline && (!isConnected || !isInternetReachable);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -56,6 +57,21 @@ export default function RegisterScreen() {
 
     return () => clearTimeout(timer);
   }, [email, emailValid, isOffline, validateEmail]);
+
+  useEffect(() => {
+    if (!isConnected || !isInternetReachable) {
+      setManualOnline(false);
+    }
+  }, [isConnected, isInternetReachable]);
+
+  const handleRefreshConnectivity = async () => {
+    try {
+      const response = await fetch('https://www.google.com', { method: 'HEAD' });
+      setManualOnline(response.ok);
+    } catch {
+      setManualOnline(false);
+    }
+  };
 
   const handleRegister = async () => {
     setErrorMessage(null);
@@ -142,7 +158,16 @@ export default function RegisterScreen() {
           <View style={[styles.form, formDisabled && styles.formDisabled]}>
             {isOffline ? (
               <View style={styles.offlineBanner}>
-                <Text style={styles.offlineTitle}>You&apos;re offline</Text>
+                <View style={styles.offlineHeader}>
+                  <Text style={styles.offlineTitle}>You&apos;re offline</Text>
+                  <IconButton
+                    icon="refresh"
+                    size={18}
+                    iconColor={KindlingColors.destructive}
+                    style={styles.offlineRefresh}
+                    onPress={handleRefreshConnectivity}
+                  />
+                </View>
                 <Text style={styles.offlineMessage}>
                   Please connect to the internet to create your account.
                 </Text>
@@ -286,11 +311,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(210, 62, 62, 0.3)',
   },
+  offlineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   offlineTitle: {
     color: KindlingColors.destructive,
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
-    textAlign: 'center',
+  },
+  offlineRefresh: {
+    margin: 0,
   },
   offlineMessage: {
     marginTop: Spacing.xs,

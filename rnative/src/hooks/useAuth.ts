@@ -4,6 +4,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import * as Device from 'expo-device';
+import * as LocalAuthentication from 'expo-local-authentication';
+import NetInfo from '@react-native-community/netinfo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi, LoginResponse, RegisterResponse } from '../services/auth';
 import { useAppState } from './useAppState';
 import { storage } from '../services/storage';
@@ -13,6 +16,8 @@ const ACCESS_TOKEN_KEY = 'auth_access_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';
 const DEVICE_ID_KEY = 'auth_device_id';
 const USER_PROFILE_KEY = 'auth_user_profile';
+const SCOPE_ID_KEY = 'auth_scope_id';
+const BIOMETRIC_ENABLED_KEY = 'auth_biometric_enabled';
 
 type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -43,11 +48,19 @@ const getDeviceName = () => {
   return Device.deviceName || Device.modelName || 'Unknown device';
 };
 
-const saveAuthState = async (accessToken: string, refreshToken: string, profile?: AuthState['userProfile']) => {
+const saveAuthState = async (
+  accessToken: string,
+  refreshToken: string,
+  profile?: AuthState['userProfile'],
+  scopeId?: string
+) => {
   await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken);
   await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
   if (profile) {
     await SecureStore.setItemAsync(USER_PROFILE_KEY, JSON.stringify(profile));
+  }
+  if (scopeId) {
+    await SecureStore.setItemAsync(SCOPE_ID_KEY, scopeId);
   }
 };
 
@@ -55,6 +68,125 @@ const clearAuthState = async () => {
   await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
   await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
   await SecureStore.deleteItemAsync(USER_PROFILE_KEY);
+  await SecureStore.deleteItemAsync(SCOPE_ID_KEY);
+};
+
+/**
+ * Clear all auth data from SecureStore (for testing/dev purposes)
+ * This clears tokens, profile, and scopeId - essentially a full auth reset
+ */
+export const clearAllAuthData = async () => {
+  await clearAuthState();
+  console.log('✅ Auth data cleared from SecureStore');
+};
+
+const HAS_LAUNCHED_KEY = 'kindling_has_launched';
+
+/**
+ * Detect fresh install and clear stale Keychain data.
+ * 
+ * iOS Keychain (SecureStore) persists across app uninstall/reinstall.
+ * AsyncStorage does NOT persist. We use this difference to detect reinstalls.
+ * 
+ * If AsyncStorage flag is missing but Keychain has auth data = stale data from
+ * a previous install. Clear it to ensure fresh start.
+ */
+export const handleFreshInstallCleanup = async (): Promise<boolean> => {
+  const hasLaunchedBefore = await AsyncStorage.getItem(HAS_LAUNCHED_KEY);
+  
+  if (!hasLaunchedBefore) {
+    // First launch after install - check for stale Keychain data
+    const staleToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+    
+    if (staleToken) {
+      // Stale data from previous install - clear it
+      console.log('🧹 Fresh install detected - clearing stale Keychain data');
+      await clearAuthState();
+    }
+    
+    // Mark as launched
+    await AsyncStorage.setItem(HAS_LAUNCHED_KEY, 'true');
+    return true; // Was fresh install
+  }
+  
+  return false; // Not a fresh install
+};
+
+const getBiometricKey = (scopeId: string) => `${BIOMETRIC_ENABLED_KEY}_${scopeId}`;
+
+export const getBiometricEnabled = async (scopeId: string): Promise<boolean> => {
+  const value = await SecureStore.getItemAsync(getBiometricKey(scopeId));
+  return value === 'true';
+};
+
+export const setBiometricEnabled = async (scopeId: string, enabled: boolean): Promise<void> => {
+  await SecureStore.setItemAsync(getBiometricKey(scopeId), enabled ? 'true' : 'false');
+};
+
+type SessionProfile = AuthState['userProfile'];
+
+type SessionValidationResult =
+  | { status: 'valid'; profile: SessionProfile; scopeId: string }
+  | { status: 'invalid'; reason: 'no_tokens' | 'expired' | 'refresh_failed' }
+  | { status: 'offline'; profile: SessionProfile; scopeId: string | null };
+
+export const validateSession = async (): Promise<SessionValidationResult> => {
+  const [accessToken, refreshToken, cachedProfileStr, scopeId] = await Promise.all([
+    SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
+    SecureStore.getItemAsync(REFRESH_TOKEN_KEY),
+    SecureStore.getItemAsync(USER_PROFILE_KEY),
+    SecureStore.getItemAsync(SCOPE_ID_KEY),
+  ]);
+
+  if (!accessToken || !refreshToken) {
+    return { status: 'invalid', reason: 'no_tokens' };
+  }
+
+  let profile: SessionProfile = null;
+  if (cachedProfileStr) {
+    try {
+      profile = JSON.parse(cachedProfileStr);
+    } catch {
+      profile = null;
+    }
+  }
+
+  const netState = await NetInfo.fetch();
+  if (!netState.isConnected) {
+    return { status: 'offline', profile, scopeId };
+  }
+
+  try {
+    const validation = await authApi.validateSession(accessToken);
+    if (validation.valid) {
+      const validatedProfile = { id: validation.user_id, ...validation.profile };
+      await SecureStore.setItemAsync(USER_PROFILE_KEY, JSON.stringify(validatedProfile));
+      return { status: 'valid', profile: validatedProfile, scopeId: scopeId ?? '' };
+    }
+
+    return { status: 'invalid', reason: 'expired' };
+  } catch (error: any) {
+    if (typeof error?.status !== 'number') {
+      return { status: 'offline', profile, scopeId };
+    }
+
+    if (error.status === 401) {
+      try {
+        const refreshed = await authApi.refreshSession(refreshToken);
+        await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, refreshed.access_token);
+        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshed.refresh_token);
+
+        const newProfile = await authApi.getProfile(refreshed.access_token);
+        await SecureStore.setItemAsync(USER_PROFILE_KEY, JSON.stringify(newProfile));
+
+        return { status: 'valid', profile: newProfile, scopeId: scopeId ?? '' };
+      } catch {
+        return { status: 'invalid', reason: 'refresh_failed' };
+      }
+    }
+
+    return { status: 'offline', profile, scopeId };
+  }
 };
 
 export const useAuth = () => {
@@ -180,7 +312,10 @@ export const useAuth = () => {
 
     await saveAuthState(response.access_token, response.refresh_token, response.user);
     if (response.user?.id != null) {
-      await syncServerIdentity(String(response.user.id), response.user.email);
+      const scopeId = await syncServerIdentity(String(response.user.id), response.user.email);
+      if (scopeId) {
+        await SecureStore.setItemAsync(SCOPE_ID_KEY, scopeId);
+      }
     }
 
     setState({
@@ -213,7 +348,24 @@ export const useAuth = () => {
       });
 
       if (response.user_id != null) {
-        await syncServerIdentity(String(response.user_id), response.email || payload.email);
+        const scopeId = await syncServerIdentity(String(response.user_id), response.email || payload.email);
+        if (scopeId) {
+          await SecureStore.setItemAsync(SCOPE_ID_KEY, scopeId);
+
+          const hasHardware = await LocalAuthentication.hasHardwareAsync();
+          const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+          if (hasHardware && isEnrolled) {
+            const result = await LocalAuthentication.authenticateAsync({
+              promptMessage: 'Open Kindling Instantly',
+              disableDeviceFallback: false,
+            });
+
+            if (result.success) {
+              await setBiometricEnabled(scopeId, true);
+            }
+          }
+        }
       }
 
       setState((prev) => ({
