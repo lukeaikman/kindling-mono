@@ -7,8 +7,12 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { KindlingColors } from '../../styles/theme';
+
+// Import logo images
+const iconBlue = require('../../../assets/icon-blue.png');
+const iconWhite = require('../../../assets/icon-white.png');
 
 /**
  * KindlingLogo component props
@@ -21,6 +25,8 @@ export interface KindlingLogoProps {
   
   /**
    * Color variant
+   * - 'dark': Blue icon for light backgrounds
+   * - 'light': White icon for dark backgrounds
    */
   variant?: 'dark' | 'light';
   
@@ -45,20 +51,15 @@ export const KindlingLogo: React.FC<KindlingLogoProps> = ({
 }) => {
   const logoSize = size === 'sm' ? 32 : size === 'lg' ? 64 : 48;
   const textColor = variant === 'dark' ? KindlingColors.navy : KindlingColors.cream;
+  const logoSource = variant === 'dark' ? iconBlue : iconWhite;
   
   return (
     <View style={styles.container}>
-      {/* Logo placeholder - replace with actual logo/SVG */}
-      <View
-        style={[
-          styles.logoCircle,
-          { width: logoSize, height: logoSize, borderColor: textColor },
-        ]}
-      >
-        <Text style={[styles.logoText, { color: textColor, fontSize: logoSize * 0.4 }]}>
-          K
-        </Text>
-      </View>
+      <Image
+        source={logoSource}
+        style={{ width: logoSize, height: logoSize }}
+        resizeMode="contain"
+      />
       
       {showText && (
         <Text style={[styles.brandText, { color: textColor }]}>
@@ -74,15 +75,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  logoCircle: {
-    borderWidth: 2,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoText: {
-    fontWeight: '700',
   },
   brandText: {
     fontSize: 20,
