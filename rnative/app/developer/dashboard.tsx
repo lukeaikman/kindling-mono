@@ -504,6 +504,7 @@ export default function DeveloperDashboard() {
                     value={dashboardScreen}
                     options={[
                       { label: 'Order of Things', value: '/order-of-things' },
+                      { label: 'Will Dashboard (New)', value: '/will-dashboard' },
                     ]}
                     onChange={setDashboardScreen}
                   />
