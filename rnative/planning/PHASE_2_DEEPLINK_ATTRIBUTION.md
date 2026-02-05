@@ -91,573 +91,181 @@ ELSE:
 
 ---
 
-## Implementation Plan (Phase 2a)
+## Implementation (Phase 2a) - COMPLETED
 
-### Step 1: Configure Deep Linking
+### What Was Built
 
-**File**: `app.json`
+Phase 2a has been fully implemented with the following components:
 
-```json
-{
-  "expo": {
-    "scheme": "kindling",
-    "ios": {
-      "associatedDomains": ["applinks:kindling.app"]
-    },
-    "android": {
-      "intentFilters": [{
-        "action": "VIEW",
-        "autoVerify": true,
-        "data": [{
-          "scheme": "https",
-          "host": "kindling.app",
-          "pathPrefix": "/app"
-        }]
-      }]
-    }
-  }
-}
+| Component | File | Purpose |
+|-----------|------|---------|
+| Deep link config | `app.json` | URL scheme + associated domains |
+| Deep link handler | `app/open.tsx` | Route handler for `kindling://open?...` |
+| Attribution service | `src/services/attribution.ts` | Capture, store, retrieve attribution |
+| Video intro screen | `app/video-intro.tsx` | Video playback with skip/background handling |
+| Risk questionnaire | `app/risk-questionnaire.tsx` | Placeholder questionnaire screen |
+| Auth integration | `src/hooks/useAuth.ts` | Send attribution with registration |
+| Developer tools | `app/developer/dashboard.tsx` | "Clear Attribution" button for testing |
+
+### Video Asset Convention
+
+Videos are stored locally in `assets/videos/` with naming convention:
+
+```
+intro-v1.mp4  →  show_video=1
+intro-v2.mp4  →  show_video=2
+intro-v3.mp4  →  show_video=3
 ```
 
-### Step 2: Create Attribution Service (AppsFlyer-Ready)
+### Key Implementation Details
 
-**File**: `src/services/attribution.ts`
-
-The key is to abstract the attribution capture so AppsFlyer can be dropped in later.
+**Parameter Parsing**: Invalid values (negative, non-numeric) default to `1`:
 
 ```typescript
-import * as Linking from 'expo-linking';
-import * as SecureStore from 'expo-secure-store';
-
-const ATTRIBUTION_KEY = 'kindling_attribution';
-const ONBOARDING_STATE_KEY = 'kindling_onboarding_state';
-
-export interface AttributionData {
-  source?: string;
-  campaign?: string;
-  location_id?: string;
-  show_video: number;
-  show_risk_questionnaire: number;
-  first_show: 'video' | 'risk_questionnaire';
-  captured_at: string;
-  is_organic: boolean;
-  raw_url?: string;
-}
-
-export interface OnboardingState {
-  video_completed: boolean;
-  video_version?: number;
-  questionnaire_completed: boolean;
-  questionnaire_version?: number;
-}
-
-// Defaults for organic installs
-const ORGANIC_DEFAULTS: Pick<AttributionData, 'show_video' | 'show_risk_questionnaire' | 'first_show' | 'is_organic'> = {
-  show_video: 1,
-  show_risk_questionnaire: 0,
-  first_show: 'video',
-  is_organic: true,
-};
-
-/**
- * Initialize attribution on first app open.
- * 
- * Phase 2a: Uses expo-linking for direct deep links only.
- * Phase 2b: Will be replaced with AppsFlyer SDK for deferred deep links.
- */
-export const initializeAttribution = async (): Promise<AttributionData> => {
-  // Check for existing attribution (already captured)
-  const existing = await getStoredAttribution();
-  if (existing) return existing;
-  
-  // Try to get initial URL (direct deep link)
-  const initialUrl = await Linking.getInitialURL();
-  
-  let attribution: AttributionData;
-  
-  if (initialUrl) {
-    // Parse deep link params
-    const parsed = Linking.parse(initialUrl);
-    const params = (parsed.queryParams || {}) as Record<string, string>;
-    
-    attribution = {
-      source: params.source,
-      campaign: params.campaign,
-      location_id: params.location_id,
-      show_video: parseIntParam(params.show_video, ORGANIC_DEFAULTS.show_video),
-      show_risk_questionnaire: parseIntParam(params.show_risk_questionnaire, ORGANIC_DEFAULTS.show_risk_questionnaire),
-      first_show: parseFirstShow(params.first_show),
-      captured_at: new Date().toISOString(),
-      is_organic: false,
-      raw_url: initialUrl,
-    };
-  } else {
-    // Organic install - use defaults
-    attribution = {
-      ...ORGANIC_DEFAULTS,
-      captured_at: new Date().toISOString(),
-    };
-  }
-  
-  // Store attribution
-  await SecureStore.setItemAsync(ATTRIBUTION_KEY, JSON.stringify(attribution));
-  
-  // Initialize onboarding state
-  const onboardingState: OnboardingState = {
-    video_completed: false,
-    video_version: attribution.show_video > 0 ? attribution.show_video : undefined,
-    questionnaire_completed: false,
-    questionnaire_version: attribution.show_risk_questionnaire > 0 ? attribution.show_risk_questionnaire : undefined,
-  };
-  await SecureStore.setItemAsync(ONBOARDING_STATE_KEY, JSON.stringify(onboardingState));
-  
-  return attribution;
-};
-
 function parseIntParam(value: string | undefined, defaultValue: number): number {
   if (!value) return defaultValue;
   const parsed = parseInt(value, 10);
-  return isNaN(parsed) ? defaultValue : parsed;
+  // Invalid values (NaN, negative) default to 1
+  if (isNaN(parsed) || parsed < 0) return 1;
+  return parsed;
 }
-
-function parseFirstShow(value: string | undefined): 'video' | 'risk_questionnaire' {
-  if (value === 'risk_questionnaire') return 'risk_questionnaire';
-  return 'video';
-}
-
-/**
- * Get stored attribution data.
- */
-export const getStoredAttribution = async (): Promise<AttributionData | null> => {
-  try {
-    const stored = await SecureStore.getItemAsync(ATTRIBUTION_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-};
-
-/**
- * Get onboarding state (video/questionnaire progress)
- */
-export const getOnboardingState = async (): Promise<OnboardingState | null> => {
-  try {
-    const stored = await SecureStore.getItemAsync(ONBOARDING_STATE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-};
-
-/**
- * Update onboarding state
- */
-export const updateOnboardingState = async (updates: Partial<OnboardingState>): Promise<void> => {
-  const current = await getOnboardingState();
-  const updated = { ...current, ...updates };
-  await SecureStore.setItemAsync(ONBOARDING_STATE_KEY, JSON.stringify(updated));
-};
-
-/**
- * Determine next destination based on attribution and onboarding state.
- */
-export const getNextOnboardingDestination = async (): Promise<
-  '/video-intro' | '/risk-questionnaire' | '/intro'
-> => {
-  const attribution = await getStoredAttribution();
-  const state = await getOnboardingState();
-  
-  if (!attribution || !state) {
-    return '/intro';
-  }
-  
-  const needsVideo = attribution.show_video > 0 && !state.video_completed;
-  const needsQuestionnaire = attribution.show_risk_questionnaire > 0 && !state.questionnaire_completed;
-  
-  if (needsVideo && needsQuestionnaire) {
-    return attribution.first_show === 'video' ? '/video-intro' : '/risk-questionnaire';
-  }
-  
-  if (needsVideo) return '/video-intro';
-  if (needsQuestionnaire) return '/risk-questionnaire';
-  
-  return '/intro';
-};
-
-/**
- * Track registration event.
- * 
- * Phase 2a: No-op (just logs)
- * Phase 2b: Will call AppsFlyer.logEvent()
- */
-export const trackRegistration = (userId: string) => {
-  console.log(`[Attribution] Registration tracked for user: ${userId}`);
-  // TODO Phase 2b: appsFlyer.logEvent('af_complete_registration', { ... })
-};
-
-/**
- * Clear onboarding state after registration.
- */
-export const clearOnboardingState = async (): Promise<void> => {
-  await SecureStore.deleteItemAsync(ONBOARDING_STATE_KEY);
-  // Keep attribution data - don't delete ATTRIBUTION_KEY
-};
-
-/**
- * Get attribution data formatted for API request.
- */
-export const getAttributionForApi = async (): Promise<{
-  source?: string;
-  campaign?: string;
-  location_id?: string;
-  is_organic: boolean;
-} | null> => {
-  const attribution = await getStoredAttribution();
-  if (!attribution) return null;
-  
-  return {
-    source: attribution.source,
-    campaign: attribution.campaign,
-    location_id: attribution.location_id,
-    is_organic: attribution.is_organic,
-  };
-};
 ```
 
-### Step 3: Update SplashScreen
-
-**File**: `src/components/splash/SplashScreen.tsx`
-
-Update `initializeApp`:
+**First-Touch Attribution**: Existing attribution is never overwritten:
 
 ```typescript
-import { initializeAttribution, getNextOnboardingDestination } from '../../services/attribution';
-
-type AppInitResult = {
-  destination: '/intro' | '/video-intro' | '/risk-questionnaire' | '/order-of-things' | '/auth/login';
-  loginParams?: { welcomeBack?: string; firstName?: string; offline?: string };
-  requiresBiometric: boolean;
-  scopeId: string | null;
-  isOffline: boolean;
-};
-
-const initializeApp = useCallback(async (): Promise<AppInitResult> => {
-  await handleFreshInstallCleanup();
-  
-  const session = await validateSession();
-  
-  // New user - initialize attribution and determine flow
-  if (session.status === 'invalid' && session.reason === 'no_tokens') {
-    const netState = await NetInfo.fetch();
-    if (!netState.isConnected) {
-      return {
-        destination: '/auth/login',
-        loginParams: { offline: 'true' },
-        requiresBiometric: false,
-        scopeId: null,
-        isOffline: true,
-      };
-    }
-    
-    // Initialize attribution (captures deep link params if present)
-    await initializeAttribution();
-    
-    // Determine starting screen
-    const destination = await getNextOnboardingDestination();
-    
-    return { 
-      destination, 
-      requiresBiometric: false, 
-      scopeId: null, 
-      isOffline: false,
-    };
-  }
-  
-  // ... rest of existing returning user logic unchanged
-}, []);
-```
-
-### Step 4: Create Video Intro Screen
-
-**File**: `app/video-intro.tsx`
-
-```typescript
-import { router } from 'expo-router';
-import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, AppState, AppStateStatus } from 'react-native';
-import { Text } from 'react-native-paper';
-import { Video, ResizeMode } from 'expo-av';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../src/components/ui/Button';
-import { KindlingColors } from '../src/styles/theme';
-import { Spacing } from '../src/styles/constants';
-import { 
-  getStoredAttribution, 
-  updateOnboardingState, 
-  getNextOnboardingDestination 
-} from '../src/services/attribution';
-
-// Video URLs by version - replace with actual CDN URLs
-const VIDEO_URLS: Record<number, string> = {
-  1: 'https://cdn.kindling.app/videos/intro-v1.mp4',
-  // Add more versions as needed
-};
-
-export default function VideoIntroScreen() {
-  const [videoVersion, setVideoVersion] = useState<number>(1);
-  const [videoError, setVideoError] = useState(false);
-  const videoRef = useRef<Video>(null);
-  const appState = useRef(AppState.currentState);
-
-  useEffect(() => {
-    getStoredAttribution().then(attr => {
-      if (attr?.show_video) setVideoVersion(attr.show_video);
-    });
-    
-    // Handle app backgrounding - skip to next on return (per spec)
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    return () => subscription.remove();
-  }, []);
-
-  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-    if (nextAppState.match(/inactive|background/)) {
-      // Pause video when app goes to background
-      videoRef.current?.pauseAsync();
-    } else if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-      // Rewind 5 seconds for context, then autoplay
-      const status = await videoRef.current?.getStatusAsync();
-      if (status?.isLoaded) {
-        const newPosition = Math.max(0, (status.positionMillis || 0) - 5000);
-        await videoRef.current?.setPositionAsync(newPosition);
-        await videoRef.current?.playAsync();
-      }
-    }
-    appState.current = nextAppState;
-  };
-
-  const navigateToNext = async () => {
-    await updateOnboardingState({ video_completed: true });
-    const next = await getNextOnboardingDestination();
-    router.replace(next);
-  };
-
-  const handleVideoComplete = () => navigateToNext();
-  const handleSkip = () => navigateToNext();
-  const handleVideoError = () => {
-    setVideoError(true);
-    navigateToNext();
-  };
-
-  const videoUrl = VIDEO_URLS[videoVersion] || VIDEO_URLS[1];
-
-  return (
-    <View style={styles.container}>
-      {!videoError ? (
-        <Video
-          ref={videoRef}
-          source={{ uri: videoUrl }}
-          style={styles.video}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
-          onPlaybackStatusUpdate={(status) => {
-            if (status.isLoaded && status.didJustFinish) {
-              handleVideoComplete();
-            }
-          }}
-          onError={handleVideoError}
-        />
-      ) : (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Video unavailable</Text>
-        </View>
-      )}
-      
-      <SafeAreaView style={styles.skipContainer} edges={['bottom']}>
-        <Button variant="outline" onPress={handleSkip} style={styles.skipButton}>
-          Skip
-        </Button>
-      </SafeAreaView>
-    </View>
-  );
+const existing = await SecureStore.getItemAsync(ATTRIBUTION_KEY);
+if (existing) {
+  // Already have attribution - use it, don't overwrite
+  return;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: KindlingColors.navy,
-  },
-  video: {
-    flex: 1,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    color: KindlingColors.cream,
-  },
-  skipContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: Spacing.lg,
-  },
-  skipButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderColor: 'rgba(255,255,255,0.4)',
-  },
-});
 ```
 
-### Step 5: Create Risk Questionnaire Screen
+**Loading State**: During deep link processing, users see a brief loading spinner (navy background with cream `ActivityIndicator`) while attribution is stored and routing is determined.
 
-**File**: `app/risk-questionnaire.tsx`
+**Debug Logging**: Comprehensive logging in `app/open.tsx` for troubleshooting:
 
-```typescript
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../src/components/ui/Button';
-import { KindlingLogo } from '../src/components/ui/KindlingLogo';
-import { KindlingColors } from '../src/styles/theme';
-import { Spacing, Typography } from '../src/styles/constants';
-import { 
-  getStoredAttribution, 
-  updateOnboardingState, 
-  getNextOnboardingDestination 
-} from '../src/services/attribution';
-
-export default function RiskQuestionnaireScreen() {
-  const [questionnaireVersion, setQuestionnaireVersion] = useState<number>(1);
-
-  useEffect(() => {
-    getStoredAttribution().then(attr => {
-      if (attr?.show_risk_questionnaire) {
-        setQuestionnaireVersion(attr.show_risk_questionnaire);
-      }
-    });
-  }, []);
-
-  const handleComplete = async () => {
-    await updateOnboardingState({ questionnaire_completed: true });
-    const next = await getNextOnboardingDestination();
-    router.replace(next);
-  };
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <KindlingLogo size="md" variant="dark" showText />
-          <Text style={styles.title}>Evaluate Your Estate Risk</Text>
-          <Text style={styles.subtitle}>
-            Answer a few questions to understand your current estate planning situation.
-          </Text>
-        </View>
-        
-        {/* TODO: Implement actual questionnaire based on version */}
-        <View style={styles.questionnaire}>
-          <Text style={styles.placeholderText}>
-            Questionnaire v{questionnaireVersion}
-          </Text>
-          <Text style={styles.placeholderSubtext}>
-            Content to be implemented before launch.
-          </Text>
-        </View>
-        
-        <View style={styles.actions}>
-          <Button variant="primary" onPress={handleComplete}>
-            Continue
-          </Button>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: KindlingColors.cream,
-  },
-  content: {
-    flexGrow: 1,
-    padding: Spacing.lg,
-  },
-  header: {
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xl,
-  },
-  title: {
-    fontSize: Typography.fontSize.xxl,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-    textAlign: 'center',
-  },
-  questionnaire: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
-  placeholderText: {
-    fontSize: Typography.fontSize.lg,
-    color: KindlingColors.navy,
-    textAlign: 'center',
-  },
-  placeholderSubtext: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-  },
-  actions: {
-    gap: Spacing.md,
-  },
-});
+```
+=== DEBUGGING DEEP LINK PARSER ===
+Received params: { "show_video": "1", "source": "test" }
+...
+=== ROUTING DECISION ===
+Routing to: /video-intro
 ```
 
-### Step 6: Update useAuth to Store Attribution
+---
 
-**File**: `src/hooks/useAuth.ts`
+## Testing Setup (IMPORTANT)
 
-```typescript
-import { getAttributionForApi, trackRegistration, clearOnboardingState } from '../services/attribution';
+### Why Native Build is Required
 
-const register = useCallback(async (payload: RegisterData): Promise<RegisterResponse> => {
-  // ... existing code ...
-  
-  // Get attribution data for API
-  const attribution = await getAttributionForApi();
-  
-  const response = await authApi.register({
-    ...payload,
-    attribution: attribution || undefined,
-  });
-  
-  // Track registration (no-op in Phase 2a, AppsFlyer in Phase 2b)
-  if (response.user_id) {
-    trackRegistration(String(response.user_id));
-  }
-  
-  // Clear onboarding state
-  await clearOnboardingState();
-  
-  // ... rest of existing code
-}, []);
+Custom URL schemes (`kindling://`) only work with **native builds**, NOT Expo Go:
+
+| Build Type | URL Schemes | Use Case |
+|------------|-------------|----------|
+| Expo Go | ❌ Not supported | Development without deep links |
+| Native Build | ✅ Works | Deep link testing |
+
+### Building for Simulator Testing
+
+**Step 1: Generate native project and build**
+
+```bash
+cd native-app
+npx expo run:ios -d
 ```
 
-### Step 7: Backend API Changes
+This will:
+1. Run `npx expo prebuild` (generates `ios/` folder)
+2. Install CocoaPods dependencies
+3. Show a device selector
+
+**Step 2: Select a simulator**
+
+When prompted, select an iOS Simulator (e.g., "iPhone 16 Pro (18.5)"):
+
+```
+? Select a device › 
+❯   iPhone 16 Pro (18.5)
+    iPhone 16 Pro Max (18.5)
+    ...
+```
+
+**Step 3: If code signing error occurs**
+
+If you see `CommandError: No code signing certificates are available`:
+
+1. Open **Xcode**
+2. Open `native-app/ios/nativeapp.xcworkspace`
+3. Select the project in the navigator
+4. Go to **Signing & Capabilities**
+5. Check **"Automatically manage signing"**
+6. Select your **Apple ID** as the Team
+7. Click the **Play button** (▶) to build and run
+
+### Running Tests
+
+**Prerequisites**:
+1. Native app built and running on simulator
+2. Metro bundler running (either from `npx expo run:ios` or `npx expo start`)
+
+**Between tests**: Clear attribution state via Developer Dashboard → "Clear Attribution (Deep Links)"
+
+**Test Commands**:
+
+```bash
+# Test 1: Organic (no deep link) - open app normally
+# Expected: Goes to /video-intro (default show_video=1)
+
+# Test 2: Skip video and questionnaire
+npx uri-scheme open "kindling://open?show_video=0&show_risk_questionnaire=0" --ios
+# Expected: Goes straight to /intro
+
+# Test 3: Video with attribution
+npx uri-scheme open "kindling://open?source=test_campaign&show_video=1" --ios
+# Expected: Goes to /video-intro, console shows attribution
+
+# Test 4: Questionnaire only
+npx uri-scheme open "kindling://open?show_video=0&show_risk_questionnaire=1" --ios
+# Expected: Goes to /risk-questionnaire
+
+# Test 5: Both, video first (default)
+npx uri-scheme open "kindling://open?show_video=1&show_risk_questionnaire=1" --ios
+# Expected: /video-intro → /risk-questionnaire → /intro
+
+# Test 6: Both, questionnaire first
+npx uri-scheme open "kindling://open?show_video=1&show_risk_questionnaire=1&first_show=risk_questionnaire" --ios
+# Expected: /risk-questionnaire → /video-intro → /intro
+
+# Test 7: QR code simulation
+npx uri-scheme open "kindling://open?source=qr_attorney&location_id=office123&show_video=1" --ios
+# Expected: Goes to /video-intro, console shows source and location_id
+
+# Test 8: Invalid parameters
+npx uri-scheme open "kindling://open?show_video=abc&show_risk_questionnaire=-5" --ios
+# Expected: Invalid values default to 1, both screens shown
+```
+
+### Where to Find Logs
+
+| Log Type | Location |
+|----------|----------|
+| JavaScript `console.log` | Metro terminal (Expo dev server) |
+| Native iOS logs | Xcode console (noisy, can ignore) |
+
+### Troubleshooting
+
+**"Unmatched Route" error**: The `/open` route handler is missing or not bundled. Reload the app (Cmd+R in simulator).
+
+**All deep links go to /intro**: Attribution already exists from previous test. Clear via Developer Dashboard.
+
+**Deep link command fails**: Ensure app is built as native build, not running in Expo Go.
+
+---
+
+## Backend API Changes (Reference)
+
+See `planning/PHASE_2A_BACKEND_SPEC.md` for full specification.
 
 **Endpoint**: `POST /api/v1/auth/register`
 
@@ -673,50 +281,11 @@ Add to request schema:
 }
 ```
 
-Store in User table:
-```sql
-ALTER TABLE users ADD COLUMN attribution_source VARCHAR(100);
-ALTER TABLE users ADD COLUMN attribution_campaign VARCHAR(100);
-ALTER TABLE users ADD COLUMN attribution_location_id VARCHAR(100);
-ALTER TABLE users ADD COLUMN attribution_is_organic BOOLEAN DEFAULT true;
-ALTER TABLE users ADD COLUMN attribution_captured_at TIMESTAMP;
-
--- Index for attribution queries (e.g., "how many users from Facebook?")
-CREATE INDEX idx_users_attribution_source ON users(attribution_source);
-```
+**Note**: The native app currently logs attribution data with a TODO comment. Backend integration pending.
 
 ---
 
-## Testing Plan (Phase 2a)
-
-### What We CAN Test Now (Direct Deep Links)
-
-Direct deep links work when the app is already installed. Test with simulator:
-
-```bash
-# Video only (organic default)
-npx uri-scheme open "kindling://open" --ios
-
-# Skip video and questionnaire - straight to intro
-npx uri-scheme open "kindling://open?show_video=0&show_risk_questionnaire=0" --ios
-
-# Video with source attribution
-npx uri-scheme open "kindling://open?source=test&show_video=1" --ios
-
-# Questionnaire only
-npx uri-scheme open "kindling://open?show_video=0&show_risk_questionnaire=1" --ios
-
-# Both, video first
-npx uri-scheme open "kindling://open?show_video=1&show_risk_questionnaire=1&first_show=video" --ios
-
-# Both, questionnaire first
-npx uri-scheme open "kindling://open?show_video=1&show_risk_questionnaire=1&first_show=risk_questionnaire" --ios
-
-# QR code simulation
-npx uri-scheme open "kindling://open?source=qr_attorney&location_id=office123&show_video=1" --ios
-```
-
-### What We CANNOT Test Now (Deferred Deep Links)
+## What We CANNOT Test Now (Deferred Deep Links)
 
 The following requires AppsFlyer (Phase 2b):
 - Ad click → App Store → Install → App opens with preserved params
@@ -778,24 +347,33 @@ When implementing AppsFlyer integration, ensure:
 
 ---
 
-## File Structure
+## File Structure (Phase 2a)
 
 ```
 native-app/
 ├── app/
-│   ├── video-intro.tsx           ← NEW
-│   ├── risk-questionnaire.tsx    ← NEW
-│   └── ... (existing)
+│   ├── open.tsx                   ← Deep link route handler
+│   ├── video-intro.tsx            ← Video playback screen
+│   ├── risk-questionnaire.tsx     ← Questionnaire placeholder
+│   └── developer/
+│       └── dashboard.tsx          ← Added "Clear Attribution" button
 ├── src/
 │   ├── services/
-│   │   └── attribution.ts        ← NEW (AppsFlyer-ready)
+│   │   ├── attribution.ts         ← Attribution capture/storage
+│   │   └── auth.ts                ← Added attribution to RegisterRequest
 │   ├── hooks/
-│   │   └── useAuth.ts            ← MODIFY (store attribution)
+│   │   └── useAuth.ts             ← Send attribution with registration
 │   └── components/
 │       └── splash/
-│           └── SplashScreen.tsx  ← MODIFY (init attribution)
-├── app.json                       ← MODIFY (deeplink scheme)
-└── package.json                   ← ADD expo-av
+│           └── SplashScreen.tsx   ← Init attribution for organic installs
+├── assets/
+│   └── videos/
+│       └── intro-v1.mp4           ← Local video asset (naming convention)
+├── planning/
+│   └── PHASE_2A_BACKEND_SPEC.md   ← Backend requirements doc
+├── app.json                        ← scheme + associatedDomains + intentFilters
+├── package.json                    ← expo-av dependency
+└── ios/                            ← Generated by `npx expo prebuild` (gitignored, native build artifact)
 ```
 
 ---
@@ -803,7 +381,7 @@ native-app/
 ## Dependencies
 
 ### Phase 2a (Now)
-- `expo-av` - Video playback
+- `expo-av` - Video playback (install with `npm install expo-av --legacy-peer-deps` if peer dependency conflicts occur)
 - `expo-linking` - Already installed
 
 ### Phase 2b (Later)
@@ -811,35 +389,42 @@ native-app/
 
 ---
 
-## Acceptance Criteria (Phase 2a)
+## Acceptance Criteria (Phase 2a) - ✅ COMPLETED
 
 ### Deep Linking
-- [ ] `kindling://` scheme configured
-- [ ] Direct deep links parse params correctly
-- [ ] Missing params default to organic behavior
+- [x] `kindling://` scheme configured
+- [x] Direct deep links parse params correctly
+- [x] Missing params default to organic behavior
+- [x] Invalid params (negative, non-numeric) default to 1
 
 ### Video Flow
-- [ ] Video screen shown when `show_video > 0`
-- [ ] Skip button works
-- [ ] Video completion navigates to next step
-- [ ] Video error falls back to next step
-- [ ] App backgrounding skips to next step
+- [x] Video screen shown when `show_video > 0`
+- [x] Skip button works
+- [x] Video completion navigates to next step
+- [x] Video error logged and falls back to next step
+- [x] App backgrounding pauses video, foreground rewinds 5s and autoplays
 
 ### Questionnaire Flow  
-- [ ] Questionnaire screen shown when `show_risk_questionnaire > 0`
-- [ ] Completion navigates to next step
+- [x] Questionnaire screen shown when `show_risk_questionnaire > 0`
+- [x] Completion navigates to next step
+- [x] Uses `KindlingLogo variant="light"` for light-screen consistency
 
 ### Attribution Storage
-- [ ] Attribution captured from URL params
-- [ ] Attribution stored locally
-- [ ] Attribution sent with registration API
-- [ ] Organic defaults applied when no deep link
+- [x] Attribution captured from URL params
+- [x] Attribution stored locally (SecureStore)
+- [x] Attribution sent with registration API (with console.log placeholder)
+- [x] Organic defaults applied when no deep link
+- [x] First-touch policy enforced (existing attribution not overwritten)
 
 ### Flow Logic
-- [ ] Organic install → video → intro
-- [ ] Deep link with 0,0 → intro (skip video/questionnaire)
-- [ ] Both with first_show=video → video → questionnaire → intro
-- [ ] Both with first_show=risk_questionnaire → questionnaire → video → intro
+- [x] Organic install → video → intro
+- [x] Deep link with 0,0 → intro (skip video/questionnaire)
+- [x] Both with first_show=video → video → questionnaire → intro
+- [x] Both with first_show=risk_questionnaire → questionnaire → video → intro
+
+### Developer Tools
+- [x] "Clear Attribution (Deep Links)" button in developer dashboard
+- [x] Debug logging in deep link parser
 
 ---
 
@@ -848,7 +433,15 @@ native-app/
 | Decision | Rationale |
 |----------|-----------|
 | Split into Phase 2a/2b | Don't need deferred deep links until ad campaigns |
-| Use expo-linking for Phase 2a | Works in Expo Go, simple, already installed |
+| Use expo-linking for Phase 2a | Simple, already installed |
+| Create `/open` route handler | expo-router intercepts URL paths; dedicated handler gives control |
+| Local video assets | Simpler than CDN for dev/testing; naming convention `intro-v{version}.mp4` |
 | Architecture ready for AppsFlyer | Easy drop-in when needed |
 | Organic = video, no questionnaire | Video provides value; questionnaire only for campaigns |
-| Store attribution on Person (local) + User (server) | No new data structures |
+| Invalid params default to 1 | Show something rather than nothing; fail-safe behavior |
+| First-touch attribution | Never overwrite existing attribution to preserve original source |
+| Store attribution in SecureStore | Encrypted, persists across sessions |
+| "Clear Attribution" dev button | Essential for testing multiple deep link scenarios |
+| Debug logging in open.tsx | Critical for troubleshooting deep link flow |
+| Native build required | Custom URL schemes don't work in Expo Go |
+| Video rewind on foreground | 5-second rewind for context after app backgrounding |

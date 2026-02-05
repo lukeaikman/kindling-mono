@@ -16,7 +16,6 @@
     "ios": {
       "supportsTablet": true,
       "associatedDomains": [
-        "applinks:kindling.app",
         "applinks:kindling.app"
       ],
       "bundleIdentifier": "com.lukeaikman.native-app"
