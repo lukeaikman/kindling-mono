@@ -8,6 +8,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi, LoginResponse, RegisterResponse } from '../services/auth';
+import { getAttributionForApi, trackRegistration, clearOnboardingState } from '../services/attribution';
 import { useAppState } from './useAppState';
 import { storage } from '../services/storage';
 import { STORAGE_KEYS } from '../constants';
@@ -333,10 +334,21 @@ export const useAuth = () => {
     async (payload: { email: string; password: string; first_name: string; last_name: string; phone?: string | null }) => {
       setState((prev) => ({ ...prev, status: 'loading', error: null }));
       const deviceId = await getDeviceId();
+      
+      // Get attribution data for API
+      const attribution = await getAttributionForApi();
+      
+      // TODO: Backend integration - attribution will be sent to server when API is ready
+      // For now, log what would be sent
+      if (attribution) {
+        console.log('[useAuth] Attribution data for registration:', JSON.stringify(attribution, null, 2));
+      }
+      
       const response: RegisterResponse = await authApi.register({
         ...payload,
         device_id: deviceId,
         device_name: getDeviceName(),
+        attribution: attribution || undefined,
       });
 
       await saveAuthState(response.access_token, response.refresh_token, {
@@ -367,6 +379,12 @@ export const useAuth = () => {
           }
         }
       }
+
+      // Track registration event and clear onboarding state
+      if (response.user_id) {
+        trackRegistration(String(response.user_id));
+      }
+      await clearOnboardingState();
 
       setState((prev) => ({
         status: 'authenticated',

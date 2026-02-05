@@ -21,6 +21,7 @@ import { Select } from '../../src/components/ui/Select';
 import { SplashScreen } from '../../src/components/splash';
 import { useAppState } from '../../src/hooks/useAppState';
 import { useAuth, clearAllAuthData } from '../../src/hooks/useAuth';
+import * as SecureStore from 'expo-secure-store';
 import { seedAllData } from '../../src/utils/seedData';
 import { copyToClipboard } from '../../src/utils/clipboardHelpers';
 import { storage } from '../../src/services/storage';
@@ -194,6 +195,18 @@ export default function DeveloperDashboard() {
               }}
             >
               Clear Auth (Keychain)
+            </Button>
+
+            <Button
+              variant="destructive"
+              onPress={async () => {
+                await SecureStore.deleteItemAsync('kindling_attribution');
+                await SecureStore.deleteItemAsync('kindling_onboarding_state');
+                console.log('✅ Attribution and onboarding state cleared');
+                setRefreshKey(prev => prev + 1);
+              }}
+            >
+              Clear Attribution (Deep Links)
             </Button>
             
             <Button

@@ -28,6 +28,7 @@ import { useFonts } from 'expo-font';
 
 import NetInfo from '@react-native-community/netinfo';
 import { getBiometricEnabled, setBiometricEnabled, validateSession, handleFreshInstallCleanup } from '../../hooks/useAuth';
+import { initializeAttribution, getNextOnboardingDestination } from '../../services/attribution';
 
 // ============================================================================
 // CONFIGURATION CONSTANTS
@@ -81,7 +82,7 @@ type BiometricResult = 'pending' | 'success' | 'failed';
 type AnimationPhase = 'initial' | 'transition1' | 'transition2' | 'complete';
 
 type AppInitResult = {
-  destination: '/intro' | '/order-of-things' | '/auth/login';
+  destination: '/intro' | '/video-intro' | '/risk-questionnaire' | '/order-of-things' | '/auth/login';
   loginParams?: { welcomeBack?: string; firstName?: string; offline?: string };
   requiresBiometric: boolean;
   scopeId: string | null;
@@ -175,7 +176,11 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           isOffline: true,
         };
       }
-      return { destination: '/intro', requiresBiometric: false, scopeId: null, isOffline: false };
+      // Initialize attribution (captures deep link params if present)
+      await initializeAttribution();
+      // Determine starting screen based on attribution
+      const destination = await getNextOnboardingDestination();
+      return { destination, requiresBiometric: false, scopeId: null, isOffline: false };
     }
 
     // Session expired or refresh failed - need manual login
@@ -208,7 +213,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         };
       }
       // Online but no scopeId (edge case) - start fresh
-      return { destination: '/intro', requiresBiometric: false, scopeId: null, isOffline: false };
+      await initializeAttribution();
+      const destination = await getNextOnboardingDestination();
+      return { destination, requiresBiometric: false, scopeId: null, isOffline: false };
     }
 
     // Returning user with valid/offline session and scopeId

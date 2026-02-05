@@ -82,8 +82,17 @@ native-app/
 │   ├── services/         # API and data services
 │   └── styles/           # Theme and style constants
 ├── assets/               # Images, fonts, and other static files
+│   └── videos/          # Video assets for intro screens
 └── mock-api/            # JSON Server mock API (planned)
 ```
+
+## Video Assets
+
+Intro videos are stored in `assets/videos/` with naming convention:
+- `intro-v1.mp4` - Version 1 intro video
+- `intro-v2.mp4` - Version 2 intro video (if created)
+
+The version number corresponds to the `show_video` parameter from deep links.
 
 ## Development Workflow
 

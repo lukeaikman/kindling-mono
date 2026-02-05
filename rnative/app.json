@@ -3,6 +3,7 @@
     "name": "native-app",
     "slug": "native-app",
     "version": "1.0.0",
+    "scheme": "kindling",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,7 +14,12 @@
       "backgroundColor": "#EAE6E5"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "associatedDomains": [
+        "applinks:kindling.app",
+        "applinks:kindling.app"
+      ],
+      "bundleIdentifier": "com.lukeaikman.native-app"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +27,24 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kindling.app",
+              "pathPrefix": "/app"
+            }
+          ]
+        }
+      ],
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -34,6 +34,12 @@ export type RegisterRequest = {
   phone?: string | null;
   device_id: string;
   device_name?: string | null;
+  attribution?: {
+    source?: string;
+    campaign?: string;
+    location_id?: string;
+    is_organic: boolean;
+  };
 };
 
 export type RegisterResponse = {
