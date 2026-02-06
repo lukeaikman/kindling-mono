@@ -54,7 +54,7 @@ Replace the current 9-item checklist dashboard with a calm, momentum-driven 3-st
 ### Stage 1: Your People
 
 **Title:** "Your People"  
-**Subline:** "Add partner, children, guardians · 3 mins"
+**Subline:** "Family, guardians, executors & friends · 3 mins"
 
 **What lives underneath (not shown on dashboard):**
 - Executors
@@ -400,6 +400,222 @@ describe('getNextRoute', () => {
 
 ---
 
+## Phase 2: Navigation Plumbing — Detailed Spec
+
+### Route Audit Summary
+
+**Total routes in app:** 54 .tsx files  
+**Implemented flows:** Executors, Guardianship, Bequeathal/Assets  
+**Missing flows:** Your People (dedicated), Legal Check, Signing  
+
+---
+
+### Exact Route Mappings
+
+#### Stage 1: "Your People"
+
+| Dashboard Action | Target Route | Status | Notes |
+|------------------|--------------|--------|-------|
+| Card tap | `/executors/intro` | EXISTS | Entry to executors flow |
+| Continue button | `/executors/intro` | EXISTS | First sub-flow in stage |
+
+**Sub-flows within "Your People" (sequential):**
+1. `/executors/intro` → `/executors/selection` → `/executors/invitation` ✅ EXISTS
+2. `/guardianship/intro` → `/guardianship/wishes` ✅ EXISTS  
+3. `/bequeathal/estate-remainder-who` → `/bequeathal/estate-remainder-split` ✅ EXISTS (residue beneficiaries)
+
+**Decision:** No new `/your-people/intro` route needed. Stage 1 uses existing sub-flows in sequence:
+- Executors → Guardianship → Residue Beneficiaries
+
+**Return routes to update:** Each sub-flow currently returns to `/order-of-things`. Must update to return to `/will-dashboard` or next sub-flow.
+
+---
+
+#### Stage 2: "Your Estate"
+
+| Dashboard Action | Target Route | Status | Notes |
+|------------------|--------------|--------|-------|
+| Card tap | `/bequeathal/intro` | EXISTS | Entry to assets flow |
+| Continue button | `/bequeathal/intro` | EXISTS | |
+
+**Sub-flows within "Your Estate":**
+1. `/bequeathal/intro` → `/bequeathal/categories` ✅ EXISTS
+2. Asset type flows (property, bank-accounts, pensions, etc.) ✅ EXISTS
+3. Estate division visualization (future enhancement)
+
+**Return routes to update:** Asset flows return to `/bequeathal/categories`. Final completion should return to `/will-dashboard`.
+
+---
+
+#### Stage 3: "Legal Check"
+
+| Dashboard Action | Target Route | Status | Notes |
+|------------------|--------------|--------|-------|
+| Card tap | `/legal-check/intro` | NEW | Stub route needed |
+| Continue button | `/legal-check/intro` | NEW | |
+
+**Sub-flows within "Legal Check" (to be built):**
+1. `/legal-check/intro` → NEW
+2. `/legal-check/warnings` → NEW (warning flags)
+3. `/legal-check/tax-suggestions` → NEW (tax optimization)
+
+---
+
+#### Stage 4: "Ready to Sign"
+
+| Dashboard Action | Target Route | Status | Notes |
+|------------------|--------------|--------|-------|
+| Card tap (eligible) | `/signing/review` | NEW | |
+| Card tap (not eligible) | Show modal | N/A | Explain why, redirect to next incomplete |
+
+**Sub-flows within "Signing" (to be built):**
+1. `/signing/review` → NEW
+2. `/signing/will-type` → NEW (optional)
+3. `/signing/invite-partner` → NEW (smart invite)
+4. `/signing/sign` → NEW
+5. `/signing/complete` → NEW
+
+---
+
+### Routes to Create
+
+| Route | Purpose | Priority |
+|-------|---------|----------|
+| `/legal-check/intro` | Entry stub for legal check stage | P1 |
+| `/legal-check/warnings` | Warning flags list | P2 |
+| `/legal-check/tax-suggestions` | Tax optimization suggestions | P2 |
+| `/signing/review` | Will review before signing | P2 |
+| `/signing/waiting` | Waiting for acceptances screen | P2 |
+| `/signing/sign` | Signing ceremony | P3 |
+| `/signing/complete` | Success/completion screen | P3 |
+
+---
+
+### Routes to Update (Return Navigation)
+
+These routes currently return to `/order-of-things` and must be updated:
+
+| File | Current Return | New Return |
+|------|----------------|------------|
+| `app/executors/invitation.tsx` | `/order-of-things` | `/will-dashboard` or next sub-flow |
+| `app/executors/professional.tsx` | `/order-of-things` | `/will-dashboard` or next sub-flow |
+| `app/guardianship/wishes.tsx` | `/order-of-things` | `/will-dashboard` or next sub-flow |
+| `app/bequeathal/categories.tsx` | (stays in flow) | `/will-dashboard` on "Done" |
+| `app/auth/secure-account.tsx` | `/order-of-things` | `/will-dashboard` |
+| `app/auth/login.tsx` | `/order-of-things` | `/will-dashboard` |
+
+---
+
+### Orphan Analysis
+
+#### Currently Orphaned Routes
+
+| Route | Status | Recommendation |
+|-------|--------|----------------|
+| `/will-dashboard` | Created but not linked | Wire up as main dashboard |
+| `/order-of-things` | Legacy dashboard | Deprecate after migration |
+| `/video-intro` | Deep link only | Keep (attribution flow) |
+| `/risk-questionnaire` | Deep link only | Keep (attribution flow) |
+
+#### Commented-Out Routes (Never Built)
+
+These are referenced in `order-of-things.tsx` but routes don't exist:
+
+| Planned Route | Replacement |
+|---------------|-------------|
+| `/warning-flags` | `/legal-check/warnings` |
+| `/optimisations` | `/legal-check/tax-suggestions` |
+| `/will-type` | `/signing/will-type` |
+| `/review` | `/signing/review` |
+| `/sign` | `/signing/sign` |
+| `/store` | `/signing/complete` |
+| `/estate-summary` | TBD (maybe keep as separate feature) |
+
+---
+
+### Navigation Flow Diagram
+
+```
+                    ┌─────────────────────┐
+                    │   /will-dashboard   │
+                    └─────────┬───────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              │               │               │
+              ▼               ▼               ▼
+     ┌────────────┐   ┌────────────┐   ┌────────────┐
+     │Your People │   │Your Estate │   │Legal Check │
+     │  Stage 1   │   │  Stage 2   │   │  Stage 3   │
+     └─────┬──────┘   └─────┬──────┘   └─────┬──────┘
+           │                │                │
+     ┌─────┴─────┐    ┌─────┴─────┐    ┌─────┴─────┐
+     │           │    │           │    │           │
+     ▼           ▼    ▼           ▼    ▼           ▼
+ /executors  /guardian  /bequeathal  (asset   /legal-check  /legal-check
+   /intro     /intro      /intro    flows)     /warnings   /tax-suggest
+     │           │          │                      │           │
+     └───────────┴──────────┴──────────────────────┴───────────┘
+                              │
+                              ▼
+                    ┌─────────────────────┐
+                    │  All 3 Complete?    │
+                    └─────────┬───────────┘
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+                    ▼                   ▼
+           ┌──────────────┐    ┌──────────────┐
+           │  Acceptances │    │   Can Sign   │
+           │   Pending    │    │              │
+           └──────┬───────┘    └──────┬───────┘
+                  │                   │
+                  ▼                   ▼
+           /signing/waiting    /signing/review
+                                      │
+                                      ▼
+                               /signing/sign
+                                      │
+                                      ▼
+                              /signing/complete
+```
+
+---
+
+### getNextRoute() Implementation
+
+```typescript
+function getNextRoute(state: StageState): string {
+  // Stage 1: Your People
+  if (state.yourPeople !== 'complete') {
+    // Determine which sub-flow is incomplete
+    if (!state.executorsComplete) return '/executors/intro';
+    if (!state.guardiansComplete) return '/guardianship/intro';
+    if (!state.residueComplete) return '/bequeathal/estate-remainder-who';
+    return '/executors/intro'; // Fallback
+  }
+  
+  // Stage 2: Your Estate
+  if (state.yourEstate !== 'complete') {
+    return '/bequeathal/intro';
+  }
+  
+  // Stage 3: Legal Check
+  if (state.legalCheck !== 'complete') {
+    return '/legal-check/intro';
+  }
+  
+  // All complete - check signing eligibility
+  if (state.canSign) {
+    return '/signing/review';
+  }
+  
+  // Waiting for acceptances
+  return '/signing/waiting';
+}
+```
+
+---
+
 ## Open Questions / Decisions Deferred
 
 1. **Legal Check UI** — Detailed design for warnings and tax suggestions modules (marked as stub)
@@ -411,6 +627,8 @@ describe('getNextRoute', () => {
 4. **Challenge Proof section** — Noted as "hidden, add later"
 
 5. **Existing Tax & Estate Summary button** — Remove from dashboard or relocate?
+
+6. **Sub-flow completion tracking** — How to know executors is complete vs guardianship within Stage 1?
 
 ---
 

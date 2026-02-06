@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { PaperProvider, MD3LightTheme } from 'react-native-paper';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { kindlingTheme } from '../src/styles/theme';
 import { NetworkProvider } from '../src/context/NetworkContext';
 
@@ -13,15 +14,17 @@ import { NetworkProvider } from '../src/context/NetworkContext';
  */
 export default function RootLayout() {
   return (
-    <PaperProvider theme={kindlingTheme}>
-      <NetworkProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="intro" />
-          <Stack.Screen name="auth" />
-        </Stack>
-      </NetworkProvider>
-    </PaperProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PaperProvider theme={kindlingTheme}>
+        <NetworkProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="intro" />
+            <Stack.Screen name="auth" />
+          </Stack>
+        </NetworkProvider>
+      </PaperProvider>
+    </GestureHandlerRootView>
   );
 }
 

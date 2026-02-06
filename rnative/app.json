@@ -38,12 +38,26 @@
               "pathPrefix": "/app"
             }
           ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kindling.app",
+              "pathPrefix": "/app"
+            }
+          ]
         }
       ],
       "permissions": [
         "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
-      ]
+      ],
+      "package": "com.lukeaikman.nativeapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -7,7 +7,7 @@
  * "Three short steps, then done"
  */
 
-import React, { useRef } from 'react';
+import React, { useRef, useCallback, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -19,11 +19,13 @@ import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import BottomSheet from '@gorhom/bottom-sheet';
 import { Button } from '../src/components/ui/Button';
 import { BackButton } from '../src/components/ui/BackButton';
 import { KindlingLogo } from '../src/components/ui/KindlingLogo';
 import { StageCard, StageStatus } from '../src/components/ui/StageCard';
 import { ReadyToSignCard } from '../src/components/ui/ReadyToSignCard';
+import { GlassMenu, MenuItem } from '../src/components/ui/GlassMenu';
 import { KindlingColors } from '../src/styles/theme';
 import { Spacing, Typography } from '../src/styles/constants';
 
@@ -111,9 +113,46 @@ const isStageDisabled = (stageId: string, state: DashboardState): boolean => {
  * WillDashboardScreen component
  */
 export default function WillDashboardScreen() {
-  // Double tap functionality for dev dashboard (on header)
+  // Refs
   const lastTapRef = useRef<number>(0);
+  const menuRef = useRef<BottomSheet>(null);
 
+  // Menu items configuration
+  const menuItems: MenuItem[] = useMemo(
+    () => [
+      {
+        id: 'profile',
+        title: 'My Profile',
+        subtitle: 'Your personal details',
+        icon: 'account-circle-outline',
+        onPress: () => console.log('Profile pressed'),
+      },
+      {
+        id: 'settings',
+        title: 'Account Settings',
+        subtitle: 'Preferences and security',
+        icon: 'cog-outline',
+        onPress: () => console.log('Settings pressed'),
+      },
+      {
+        id: 'about',
+        title: 'About Kindling',
+        subtitle: 'Our story and mission',
+        icon: 'heart-outline',
+        onPress: () => console.log('About pressed'),
+      },
+      {
+        id: 'logout',
+        title: 'Logout',
+        icon: 'logout',
+        onPress: () => console.log('Logout pressed'),
+        destructive: true,
+      },
+    ],
+    []
+  );
+
+  // Double tap functionality for dev dashboard (on header)
   const handleHeaderPress = () => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
@@ -126,9 +165,9 @@ export default function WillDashboardScreen() {
     router.back();
   };
 
-  const handleMenuPress = () => {
-    console.log('Menu pressed');
-  };
+  const handleMenuPress = useCallback(() => {
+    menuRef.current?.expand();
+  }, []);
 
   // Phase 1: All handlers just log to console
   const handleStagePress = (stageId: string) => {
@@ -214,6 +253,9 @@ export default function WillDashboardScreen() {
           Continue
         </Button>
       </View>
+
+      {/* Glass Menu */}
+      <GlassMenu ref={menuRef} items={menuItems} />
     </SafeAreaView>
   );
 }
