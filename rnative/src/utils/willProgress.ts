@@ -169,22 +169,31 @@ export function haveGuardiansAccepted(
 // ---------------------------------------------------------------------------
 
 export function deriveYourPeopleStatus(state: WillProgressState): StageStatus {
+  // "Started" gate: user has begun onboarding or has profile data
   const started =
     hasFullUserDetails(state.willMaker) || hasOnboardingData(state.people);
-  if (!started) return 'Not started';
+  if (!started) {
+    console.log('[willProgress] deriveYourPeopleStatus → Not started (no user details or onboarding data)');
+    return 'Not started';
+  }
 
   const childrenExist = hasChildrenUnder18(state.people);
 
-  const checks: boolean[] = [
-    hasFullUserDetails(state.willMaker),
-    hasOnboardingData(state.people),
-    childrenExist ? areGuardiansNominated(state.people, state.willData) : true,
-    isResidueAllocated(state.estateRemainderState),
-    areExecutorsSelected(state.people),
-    areInvitationsSent(state.people, state.willData),
-  ];
+  // Completion checks: the 4 sub-flows that make up "Your People"
+  // (hasFullUserDetails & hasOnboardingData are onboarding/profile concerns,
+  //  not part of the Guardians → Residue → Executors → Invitations flow)
+  const checkResults = {
+    guardiansNominated: childrenExist ? areGuardiansNominated(state.people, state.willData) : true,
+    residueAllocated: isResidueAllocated(state.estateRemainderState),
+    executorsSelected: areExecutorsSelected(state.people),
+    invitationsSent: areInvitationsSent(state.people, state.willData),
+  };
 
-  return checks.every(Boolean) ? 'Complete' : 'In progress';
+  const allPassed = Object.values(checkResults).every(Boolean);
+  const status: StageStatus = allPassed ? 'Complete' : 'In progress';
+
+  console.log('[willProgress] deriveYourPeopleStatus →', status, checkResults);
+  return status;
 }
 
 // Stubs for future stages
@@ -243,26 +252,31 @@ export function getNextYourPeopleRoute(state: WillProgressState): string {
 
   // 1. Guardians (if applicable)
   if (childrenExist && !areGuardiansNominated(state.people, state.willData)) {
+    console.log('[willProgress] getNextYourPeopleRoute → /guardianship/intro (guardians needed)');
     return '/guardianship/intro';
   }
 
   // 2. Residue allocation
   if (!isResidueAllocated(state.estateRemainderState)) {
+    console.log('[willProgress] getNextYourPeopleRoute → /bequeathal/estate-remainder-who (residue needed)');
     return '/bequeathal/estate-remainder-who';
   }
 
   // 3. Executors selected
   if (!areExecutorsSelected(state.people)) {
+    console.log('[willProgress] getNextYourPeopleRoute → /executors/intro (executors needed)');
     return '/executors/intro';
   }
 
   // 4. Invitations sent
   if (!areInvitationsSent(state.people, state.willData)) {
+    console.log('[willProgress] getNextYourPeopleRoute → /invitations/confirm (invitations needed)');
     return '/invitations/confirm';
   }
 
-  // All complete
-  return '/will-dashboard';
+  // All sub-flows complete — summary view
+  console.log('[willProgress] getNextYourPeopleRoute → /people/summary (all sub-flows complete)');
+  return '/people/summary';
 }
 
 /**
@@ -270,21 +284,29 @@ export function getNextYourPeopleRoute(state: WillProgressState): string {
  * Walks stages in order: Your People → Your Estate → Legal Check.
  */
 export function getNextRoute(state: WillProgressState): string {
-  if (deriveYourPeopleStatus(state) !== 'Complete') {
-    return getNextYourPeopleRoute(state);
+  const peopleStatus = deriveYourPeopleStatus(state);
+  if (peopleStatus !== 'Complete') {
+    const route = getNextYourPeopleRoute(state);
+    console.log('[willProgress] getNextRoute → Your People not complete, route:', route);
+    return route;
   }
 
   // Stage 2 & 3 – future implementation
-  if (deriveYourEstateStatus(state) !== 'Complete') {
+  const estateStatus = deriveYourEstateStatus(state);
+  if (estateStatus !== 'Complete') {
+    console.log('[willProgress] getNextRoute → Your Estate not complete, route: /bequeathal/categories');
     return '/bequeathal/categories'; // placeholder – estate intro
   }
 
-  if (deriveLegalCheckStatus(state) !== 'Complete') {
+  const legalStatus = deriveLegalCheckStatus(state);
+  if (legalStatus !== 'Complete') {
+    console.log('[willProgress] getNextRoute → Legal Check not complete, route: /legal-check');
     return '/legal-check'; // placeholder
   }
 
   // Everything done – go to review / signing
-  return '/will-dashboard';
+  console.log('[willProgress] getNextRoute → all stages complete, route: /review');
+  return '/review';
 }
 
 // ---------------------------------------------------------------------------
@@ -298,10 +320,75 @@ export function getContinueLabel(state: WillProgressState): string {
   if (nextRoute.includes('estate-remainder')) return 'Continue to Residue';
   if (nextRoute.includes('executors')) return 'Continue to Executors';
   if (nextRoute.includes('invitations/confirm')) return 'Review Invitations';
+  if (nextRoute.includes('people/summary')) return 'View Your People';
   if (nextRoute.includes('bequeathal/categories')) return 'Continue to Your Estate';
   if (nextRoute.includes('legal-check')) return 'Continue to Legal Check';
+  if (nextRoute.includes('review')) return 'Review & Sign';
 
   return 'Continue';
+}
+
+// ---------------------------------------------------------------------------
+// People Summary CTA — context-aware button for the summary screen
+// ---------------------------------------------------------------------------
+
+export interface SummaryCTA {
+  label: string;
+  route: string;
+  /** False when Your People is broken (regression) and user needs to fix it first */
+  isForward: boolean;
+}
+
+/**
+ * Determines the CTA for the People Summary screen.
+ *
+ * Three modes:
+ *  1. Your People complete, next stages remain → "Continue to Your Estate"
+ *  2. All stages complete → "Review & Sign"
+ *  3. Regression (an edit broke completeness) → "Continue" back into the broken sub-flow
+ */
+export function getPeopleSummaryCTA(state: WillProgressState): SummaryCTA {
+  const peopleStatus = deriveYourPeopleStatus(state);
+
+  // Regression: user edited something and broke completeness
+  if (peopleStatus !== 'Complete') {
+    const fixRoute = getNextYourPeopleRoute(state);
+    console.log('[willProgress] getPeopleSummaryCTA → regression, fix route:', fixRoute);
+    return {
+      label: 'Continue',
+      route: fixRoute,
+      isForward: false,
+    };
+  }
+
+  // Your People is complete — advance to next stage
+  const estateStatus = deriveYourEstateStatus(state);
+  if (estateStatus !== 'Complete') {
+    console.log('[willProgress] getPeopleSummaryCTA → forward to Your Estate');
+    return {
+      label: 'Continue to Your Estate',
+      route: '/bequeathal/categories',
+      isForward: true,
+    };
+  }
+
+  const legalStatus = deriveLegalCheckStatus(state);
+  if (legalStatus !== 'Complete') {
+    console.log('[willProgress] getPeopleSummaryCTA → forward to Legal Check');
+    return {
+      label: 'Continue to Legal Check',
+      route: '/legal-check',
+      isForward: true,
+    };
+  }
+
+  // Everything done
+  console.log('[willProgress] getPeopleSummaryCTA → all complete, review & sign');
+  return {
+    label: 'Review & Sign',
+    route: '/review',
+    isForward: true,
+  };
 }
 
 // ---------------------------------------------------------------------------

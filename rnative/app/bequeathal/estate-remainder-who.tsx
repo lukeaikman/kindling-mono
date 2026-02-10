@@ -22,7 +22,9 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { IconButton } from 'react-native-paper';
 import { useAppState } from '../../src/hooks/useAppState';
 import { BackButton } from '../../src/components/ui/BackButton';
@@ -164,7 +166,9 @@ export default function EstateRemainderWhoScreen() {
     selectedPeopleIds.length > 0 || selectedGroupIds.length > 0;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
@@ -173,24 +177,23 @@ export default function EstateRemainderWhoScreen() {
             <View style={styles.iconCircle}>
               <IconButton icon="account-group" size={20} iconColor={KindlingColors.navy} style={{margin: 0}} />
             </View>
-            <Text style={styles.title}>The Estate Residue</Text>
+            <Text style={styles.title}>The Residue</Text>
           </View>
         </View>
 
         <View style={styles.explanationContainer}>
           <Text style={styles.explanationText}>
-            In a moment we'll create a complete inventory of your assets and
-            for every asset you can specify a specific person or group who will
-            inherit it.
+            Everything you don't leave to someone specific gets shared here.
           </Text>
           <Text style={styles.explanationText}>
-            Anything left is known as the Residue and can be split as you wish.
+            Choose the people and groups who'll divide it between them — groups
+            like "Grandchildren" automatically include anyone born in the future.
           </Text>
 
           <View style={styles.separator} />
 
           <Text style={styles.questionTitle}>
-            Who will inherit The Residue?
+            Who will share The Residue?
           </Text>
         </View>
       </View>
@@ -403,7 +406,7 @@ export default function EstateRemainderWhoScreen() {
           </Text>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

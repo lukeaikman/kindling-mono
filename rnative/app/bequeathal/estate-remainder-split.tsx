@@ -25,7 +25,9 @@ import {
   StyleSheet,
   Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import { IconButton, Text as PaperText } from 'react-native-paper';
 import { useAppState } from '../../src/hooks/useAppState';
@@ -261,7 +263,9 @@ export default function EstateRemainderSplitScreen() {
   const recipients: SharingRecipient[] = [...recipientsFromPeople, ...recipientsFromGroups];
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
@@ -501,7 +505,7 @@ export default function EstateRemainderSplitScreen() {
         variant="micro"
         onComplete={handleCelebrationComplete}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

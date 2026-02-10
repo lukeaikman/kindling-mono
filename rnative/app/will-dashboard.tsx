@@ -20,21 +20,18 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomSheet from '@gorhom/bottom-sheet';
-import { Button } from '../src/components/ui/Button';
 import { BackButton } from '../src/components/ui/BackButton';
 import { KindlingLogo } from '../src/components/ui/KindlingLogo';
-import { StageCard } from '../src/components/ui/StageCard';
-import { ReadyToSignCard } from '../src/components/ui/ReadyToSignCard';
+import { StageCard, type CardEmphasis } from '../src/components/ui/StageCard';
 import { GlassMenu, MenuItem } from '../src/components/ui/GlassMenu';
 import { KindlingColors } from '../src/styles/theme';
-import { Spacing, Typography } from '../src/styles/constants';
+import { Spacing, Typography, BorderRadius } from '../src/styles/constants';
 import { useAppState } from '../src/hooks/useAppState';
 import {
   deriveYourPeopleStatus,
   deriveYourEstateStatus,
   deriveLegalCheckStatus,
   getNextRoute,
-  getContinueLabel,
   getYourPeopleProgress,
   canSign,
   isWaitingForAcceptances,
@@ -49,27 +46,27 @@ import {
 interface StageConfig {
   id: string;
   title: string;
-  subline: string;
-  route: string; // entry route when tapping the card
+  defaultSubline: string;
+  route: string;
 }
 
 const STAGES: StageConfig[] = [
   {
     id: 'your-people',
     title: 'Your People',
-    subline: 'Add partner, children, guardians \u00b7 3 mins',
-    route: '/guardianship/intro', // default; overridden by getNextRoute for context
+    defaultSubline: 'Partner, children, guardians · 3 mins',
+    route: '/guardianship/intro',
   },
   {
     id: 'your-estate',
     title: 'Your Estate',
-    subline: 'Assets, gifts, and who gets what \u00b7 8 mins',
+    defaultSubline: 'Assets, gifts, and who gets what · 8 mins',
     route: '/bequeathal/categories',
   },
   {
     id: 'legal-check',
     title: 'Legal Check',
-    subline: 'Legal safety and tax efficiency \u00b7 5 mins',
+    defaultSubline: 'Legal safety and tax efficiency · 5 mins',
     route: '/legal-check',
   },
 ];
@@ -94,17 +91,65 @@ function getStageStatus(
   }
 }
 
-function getStageProgress(
+/**
+ * Determine emphasis level for each card.
+ * The first non-complete, non-disabled stage is the "hero".
+ */
+function getStageEmphasis(
   stageId: string,
-  progressState: WillProgressState,
+  status: StageStatus,
+  disabled: boolean,
+): CardEmphasis {
+  if (status === 'Complete') return 'completed';
+  if (disabled) return 'future';
+  // First enabled, non-complete stage is the hero
+  return 'hero';
+}
+
+/**
+ * The pill label. "Up next" for the hero card if it hasn't been started yet.
+ */
+function getStatusLabel(
+  status: StageStatus,
+  emphasis: CardEmphasis,
 ): string | undefined {
+  if (emphasis === 'hero' && status === 'Not started') return 'Up next';
+  return undefined; // use default status text
+}
+
+/**
+ * Dynamic subline — completed stages reflect what was built.
+ */
+function getStageSubline(
+  stageId: string,
+  status: StageStatus,
+  defaultSubline: string,
+  progressState: WillProgressState,
+): string {
+  if (status !== 'Complete') {
+    // Show progress fraction if applicable
+    if (stageId === 'your-people') {
+      const progress = getYourPeopleProgress(progressState);
+      if (progress !== 'Complete') return `${defaultSubline} · ${progress}`;
+    }
+    return defaultSubline;
+  }
+
+  // Build a completion summary
   switch (stageId) {
     case 'your-people': {
-      const progress = getYourPeopleProgress(progressState);
-      return progress === 'Complete' ? undefined : progress;
+      const people = progressState.people;
+      const executorCount = people.filter((p) => p.roles?.includes('executor')).length;
+      const childCount = people.filter((p) => p.isUnder18 === true).length;
+      const parts: string[] = [];
+      if (childCount > 0) parts.push(`${childCount} child${childCount !== 1 ? 'ren' : ''}`);
+      if (executorCount > 0) parts.push(`${executorCount} executor${executorCount !== 1 ? 's' : ''}`);
+      parts.push('invitations sent');
+      return parts.join(', ');
     }
+    // Future stages will get similar treatment
     default:
-      return undefined;
+      return defaultSubline;
   }
 }
 
@@ -124,6 +169,28 @@ function isStageDisabled(
   }
 }
 
+/**
+ * Warm progress sentence for the bottom of the dashboard.
+ * Replaces the locked "Ready to sign" card.
+ */
+function getProgressSentence(progressState: WillProgressState): string {
+  const statuses = [
+    deriveYourPeopleStatus(progressState),
+    deriveYourEstateStatus(progressState),
+    deriveLegalCheckStatus(progressState),
+  ];
+  const completedCount = statuses.filter((s) => s === 'Complete').length;
+
+  if (completedCount === 0) return 'Complete the three sections above to unlock signing.';
+  if (completedCount === 1) return 'One down, two to go.';
+  if (completedCount === 2) return 'Two down, one to go. Nearly there.';
+  if (canSign(progressState)) return "You're ready to sign.";
+  if (isWaitingForAcceptances(progressState)) {
+    return 'All sections complete. Waiting for acceptances before signing.';
+  }
+  return 'All sections complete. Signing will unlock shortly.';
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -132,7 +199,6 @@ export default function WillDashboardScreen() {
   const lastTapRef = useRef<number>(0);
   const menuRef = useRef<BottomSheet>(null);
 
-  // Real state from useAppState
   const { willActions, personActions, estateRemainderActions } = useAppState();
 
   const progressState: WillProgressState = useMemo(() => ({
@@ -142,11 +208,35 @@ export default function WillDashboardScreen() {
     estateRemainderState: estateRemainderActions.getEstateRemainderState(),
   }), [willActions, personActions, estateRemainderActions]);
 
-  // Derived values
-  const continueLabel = useMemo(() => getContinueLabel(progressState), [progressState]);
   const nextRoute = useMemo(() => getNextRoute(progressState), [progressState]);
-  const signingEligible = useMemo(() => canSign(progressState), [progressState]);
-  const waitingAcceptances = useMemo(() => isWaitingForAcceptances(progressState), [progressState]);
+  const progressSentence = useMemo(() => getProgressSentence(progressState), [progressState]);
+  const signingReady = useMemo(() => canSign(progressState), [progressState]);
+
+  // Track which stage gets "hero" — the first non-complete, enabled stage
+  const stageData = useMemo(() => {
+    let heroAssigned = false;
+    return STAGES.map((stage) => {
+      const status = getStageStatus(stage.id, progressState);
+      const disabled = isStageDisabled(stage.id, progressState);
+
+      let emphasis: CardEmphasis;
+      if (status === 'Complete') {
+        emphasis = 'completed';
+      } else if (disabled) {
+        emphasis = 'future';
+      } else if (!heroAssigned) {
+        emphasis = 'hero';
+        heroAssigned = true;
+      } else {
+        emphasis = 'default';
+      }
+
+      const statusLabel = getStatusLabel(status, emphasis);
+      const subline = getStageSubline(stage.id, status, stage.defaultSubline, progressState);
+
+      return { stage, status, disabled, emphasis, statusLabel, subline };
+    });
+  }, [progressState]);
 
   // Menu items (placeholders)
   const menuItems: MenuItem[] = useMemo(
@@ -202,12 +292,10 @@ export default function WillDashboardScreen() {
 
   const handleStagePress = useCallback(
     (stageId: string) => {
-      // For "your-people", use the smart routing to pick the right sub-flow
       if (stageId === 'your-people') {
         router.push(nextRoute as any);
         return;
       }
-      // Other stages use their default route
       const stage = STAGES.find((s) => s.id === stageId);
       if (stage) {
         router.push(stage.route as any);
@@ -216,19 +304,13 @@ export default function WillDashboardScreen() {
     [nextRoute],
   );
 
-  const handleContinue = useCallback(() => {
-    router.push(nextRoute as any);
-  }, [nextRoute]);
-
   const handleSigningPress = useCallback(() => {
-    if (signingEligible) {
-      // TODO: Navigate to signing flow
+    if (signingReady) {
       console.log('Navigate to signing');
     } else {
-      // Navigate to next incomplete stage
       router.push(nextRoute as any);
     }
-  }, [signingEligible, nextRoute]);
+  }, [signingReady, nextRoute]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -263,44 +345,46 @@ export default function WillDashboardScreen() {
 
         {/* Stage Cards */}
         <View style={styles.stagesContainer}>
-          {STAGES.map((stage) => {
-            const status = getStageStatus(stage.id, progressState);
-            const progress = getStageProgress(stage.id, progressState);
-            const disabled = isStageDisabled(stage.id, progressState);
-
-            return (
-              <StageCard
-                key={stage.id}
-                title={stage.title}
-                status={status}
-                subline={progress ? `${stage.subline} \u00b7 ${progress}` : stage.subline}
-                onPress={() => handleStagePress(stage.id)}
-                disabled={disabled}
-                testID={`stage-card-${stage.id}`}
-                style={styles.stageCard}
-              />
-            );
-          })}
+          {stageData.map(({ stage, status, disabled, emphasis, statusLabel, subline }) => (
+            <StageCard
+              key={stage.id}
+              title={stage.title}
+              status={status}
+              statusLabel={statusLabel}
+              subline={subline}
+              emphasis={emphasis}
+              onPress={() => handleStagePress(stage.id)}
+              disabled={disabled}
+              testID={`stage-card-${stage.id}`}
+              style={styles.stageCard}
+            />
+          ))}
         </View>
 
-        {/* Divider spacing */}
-        <View style={styles.divider} />
-
-        {/* Ready to Sign Card */}
-        <ReadyToSignCard
-          eligible={signingEligible}
-          waitingForAcceptances={waitingAcceptances}
+        {/* Warm progress sentence — replaces Ready to Sign card */}
+        <TouchableOpacity
+          style={[
+            styles.progressRow,
+            signingReady && styles.progressRowReady,
+          ]}
           onPress={handleSigningPress}
-          testID="ready-to-sign-card"
-        />
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons
+            name={signingReady ? 'check-circle' : 'flag-checkered'}
+            size={20}
+            color={signingReady ? KindlingColors.green : KindlingColors.mutedForeground}
+          />
+          <Text
+            style={[
+              styles.progressText,
+              signingReady && styles.progressTextReady,
+            ]}
+          >
+            {progressSentence}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
-
-      {/* Footer with Continue button */}
-      <View style={styles.footer}>
-        <Button variant="primary" onPress={handleContinue}>
-          {continueLabel}
-        </Button>
-      </View>
 
       {/* Glass Menu */}
       <GlassMenu ref={menuRef} items={menuItems} />
@@ -357,13 +441,29 @@ const styles = StyleSheet.create({
   stageCard: {
     // Individual card spacing handled by gap
   },
-  divider: {
-    height: Spacing.lg,
+
+  // -- Progress sentence (replaces Ready to Sign) --
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: `${KindlingColors.navy}08`,
   },
-  footer: {
-    padding: Spacing.lg,
-    backgroundColor: KindlingColors.cream,
-    borderTopWidth: 1,
-    borderTopColor: `${KindlingColors.navy}1a`,
+  progressRowReady: {
+    backgroundColor: `${KindlingColors.green}12`,
+  },
+  progressText: {
+    flex: 1,
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.mutedForeground,
+    lineHeight: Typography.fontSize.sm * 1.5,
+  },
+  progressTextReady: {
+    color: KindlingColors.green,
+    fontWeight: Typography.fontWeight.semibold,
   },
 });
