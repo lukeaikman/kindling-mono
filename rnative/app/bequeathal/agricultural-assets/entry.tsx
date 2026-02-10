@@ -13,7 +13,7 @@
  * 
  * Navigation:
  * - Back: Returns to agricultural assets intro
- * - Continue: Proceeds to next category or order-of-things
+ * - Continue: Proceeds to next category or will-dashboard
  * - Company routing: Navigates to Phase 12 entry screen
  */
 

@@ -1,8 +1,8 @@
 /**
  * Will Dashboard Screen
  *
- * Simplified dashboard with three stages and a signing section
- * Replaces the complex checklist with a calm, momentum-driven view
+ * Simplified dashboard with three stages and a signing section.
+ * Replaces the complex checklist with a calm, momentum-driven view.
  *
  * "Three short steps, then done"
  */
@@ -23,101 +23,132 @@ import BottomSheet from '@gorhom/bottom-sheet';
 import { Button } from '../src/components/ui/Button';
 import { BackButton } from '../src/components/ui/BackButton';
 import { KindlingLogo } from '../src/components/ui/KindlingLogo';
-import { StageCard, StageStatus } from '../src/components/ui/StageCard';
+import { StageCard } from '../src/components/ui/StageCard';
 import { ReadyToSignCard } from '../src/components/ui/ReadyToSignCard';
 import { GlassMenu, MenuItem } from '../src/components/ui/GlassMenu';
 import { KindlingColors } from '../src/styles/theme';
 import { Spacing, Typography } from '../src/styles/constants';
+import { useAppState } from '../src/hooks/useAppState';
+import {
+  deriveYourPeopleStatus,
+  deriveYourEstateStatus,
+  deriveLegalCheckStatus,
+  getNextRoute,
+  getContinueLabel,
+  getYourPeopleProgress,
+  canSign,
+  isWaitingForAcceptances,
+  type WillProgressState,
+  type StageStatus,
+} from '../src/utils/willProgress';
 
-/**
- * Stage data configuration
- */
+// ---------------------------------------------------------------------------
+// Stage configuration
+// ---------------------------------------------------------------------------
+
 interface StageConfig {
   id: string;
   title: string;
   subline: string;
+  route: string; // entry route when tapping the card
 }
 
 const STAGES: StageConfig[] = [
   {
     id: 'your-people',
     title: 'Your People',
-    subline: 'Add partner, children, guardians · 3 mins',
+    subline: 'Add partner, children, guardians \u00b7 3 mins',
+    route: '/guardianship/intro', // default; overridden by getNextRoute for context
   },
   {
     id: 'your-estate',
     title: 'Your Estate',
-    subline: 'Assets, gifts, and who gets what · 8 mins',
+    subline: 'Assets, gifts, and who gets what \u00b7 8 mins',
+    route: '/bequeathal/categories',
   },
   {
     id: 'legal-check',
     title: 'Legal Check',
-    subline: 'Legal safety and tax efficiency · 5 mins',
+    subline: 'Legal safety and tax efficiency \u00b7 5 mins',
+    route: '/legal-check',
   },
 ];
 
-/**
- * Mock state for Phase 1 (UI only)
- * This will be replaced with real state derivation in Phase 2
- */
-interface DashboardState {
-  yourPeople: StageStatus;
-  yourEstate: StageStatus;
-  legalCheck: StageStatus;
-  canSign: boolean;
-  waitingForAcceptances: boolean;
-}
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-const mockState: DashboardState = {
-  yourPeople: 'In progress',
-  yourEstate: 'Not started',
-  legalCheck: 'Not started',
-  canSign: false,
-  waitingForAcceptances: false,
-};
-
-/**
- * Get status for a stage by ID
- */
-const getStageStatus = (stageId: string, state: DashboardState): StageStatus => {
+function getStageStatus(
+  stageId: string,
+  progressState: WillProgressState,
+): StageStatus {
   switch (stageId) {
     case 'your-people':
-      return state.yourPeople;
+      return deriveYourPeopleStatus(progressState);
     case 'your-estate':
-      return state.yourEstate;
+      return deriveYourEstateStatus(progressState);
     case 'legal-check':
-      return state.legalCheck;
+      return deriveLegalCheckStatus(progressState);
     default:
       return 'Not started';
   }
-};
+}
 
-/**
- * Check if a stage is disabled (future stages are locked)
- */
-const isStageDisabled = (stageId: string, state: DashboardState): boolean => {
-  // Linear progression: can only access current or completed stages
+function getStageProgress(
+  stageId: string,
+  progressState: WillProgressState,
+): string | undefined {
+  switch (stageId) {
+    case 'your-people': {
+      const progress = getYourPeopleProgress(progressState);
+      return progress === 'Complete' ? undefined : progress;
+    }
+    default:
+      return undefined;
+  }
+}
+
+function isStageDisabled(
+  stageId: string,
+  progressState: WillProgressState,
+): boolean {
   switch (stageId) {
     case 'your-people':
-      return false; // Always accessible
+      return false;
     case 'your-estate':
-      return state.yourPeople !== 'Complete';
+      return deriveYourPeopleStatus(progressState) !== 'Complete';
     case 'legal-check':
-      return state.yourEstate !== 'Complete';
+      return deriveYourEstateStatus(progressState) !== 'Complete';
     default:
       return true;
   }
-};
+}
 
-/**
- * WillDashboardScreen component
- */
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export default function WillDashboardScreen() {
-  // Refs
   const lastTapRef = useRef<number>(0);
   const menuRef = useRef<BottomSheet>(null);
 
-  // Menu items configuration
+  // Real state from useAppState
+  const { willActions, personActions, estateRemainderActions } = useAppState();
+
+  const progressState: WillProgressState = useMemo(() => ({
+    willMaker: willActions.getUser(),
+    people: personActions.getPeople(),
+    willData: willActions.getWillData(),
+    estateRemainderState: estateRemainderActions.getEstateRemainderState(),
+  }), [willActions, personActions, estateRemainderActions]);
+
+  // Derived values
+  const continueLabel = useMemo(() => getContinueLabel(progressState), [progressState]);
+  const nextRoute = useMemo(() => getNextRoute(progressState), [progressState]);
+  const signingEligible = useMemo(() => canSign(progressState), [progressState]);
+  const waitingAcceptances = useMemo(() => isWaitingForAcceptances(progressState), [progressState]);
+
+  // Menu items (placeholders)
   const menuItems: MenuItem[] = useMemo(
     () => [
       {
@@ -149,10 +180,10 @@ export default function WillDashboardScreen() {
         destructive: true,
       },
     ],
-    []
+    [],
   );
 
-  // Double tap functionality for dev dashboard (on header)
+  // Handlers
   const handleHeaderPress = () => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
@@ -169,21 +200,35 @@ export default function WillDashboardScreen() {
     menuRef.current?.expand();
   }, []);
 
-  // Phase 1: All handlers just log to console
-  const handleStagePress = (stageId: string) => {
-    console.log(`Stage pressed: ${stageId}`);
-  };
+  const handleStagePress = useCallback(
+    (stageId: string) => {
+      // For "your-people", use the smart routing to pick the right sub-flow
+      if (stageId === 'your-people') {
+        router.push(nextRoute as any);
+        return;
+      }
+      // Other stages use their default route
+      const stage = STAGES.find((s) => s.id === stageId);
+      if (stage) {
+        router.push(stage.route as any);
+      }
+    },
+    [nextRoute],
+  );
 
-  const handleContinue = () => {
-    console.log('Continue pressed');
-  };
+  const handleContinue = useCallback(() => {
+    router.push(nextRoute as any);
+  }, [nextRoute]);
 
-  const handleSigningPress = () => {
-    console.log('Signing card pressed');
-  };
-
-  // Use mock state for Phase 1
-  const state = mockState;
+  const handleSigningPress = useCallback(() => {
+    if (signingEligible) {
+      // TODO: Navigate to signing flow
+      console.log('Navigate to signing');
+    } else {
+      // Navigate to next incomplete stage
+      router.push(nextRoute as any);
+    }
+  }, [signingEligible, nextRoute]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -218,18 +263,24 @@ export default function WillDashboardScreen() {
 
         {/* Stage Cards */}
         <View style={styles.stagesContainer}>
-          {STAGES.map((stage) => (
-            <StageCard
-              key={stage.id}
-              title={stage.title}
-              status={getStageStatus(stage.id, state)}
-              subline={stage.subline}
-              onPress={() => handleStagePress(stage.id)}
-              disabled={isStageDisabled(stage.id, state)}
-              testID={`stage-card-${stage.id}`}
-              style={styles.stageCard}
-            />
-          ))}
+          {STAGES.map((stage) => {
+            const status = getStageStatus(stage.id, progressState);
+            const progress = getStageProgress(stage.id, progressState);
+            const disabled = isStageDisabled(stage.id, progressState);
+
+            return (
+              <StageCard
+                key={stage.id}
+                title={stage.title}
+                status={status}
+                subline={progress ? `${stage.subline} \u00b7 ${progress}` : stage.subline}
+                onPress={() => handleStagePress(stage.id)}
+                disabled={disabled}
+                testID={`stage-card-${stage.id}`}
+                style={styles.stageCard}
+              />
+            );
+          })}
         </View>
 
         {/* Divider spacing */}
@@ -237,8 +288,8 @@ export default function WillDashboardScreen() {
 
         {/* Ready to Sign Card */}
         <ReadyToSignCard
-          eligible={state.canSign}
-          waitingForAcceptances={state.waitingForAcceptances}
+          eligible={signingEligible}
+          waitingForAcceptances={waitingAcceptances}
           onPress={handleSigningPress}
           testID="ready-to-sign-card"
         />
@@ -246,11 +297,8 @@ export default function WillDashboardScreen() {
 
       {/* Footer with Continue button */}
       <View style={styles.footer}>
-        <Button
-          variant="primary"
-          onPress={handleContinue}
-        >
-          Continue
+        <Button variant="primary" onPress={handleContinue}>
+          {continueLabel}
         </Button>
       </View>
 
@@ -259,6 +307,10 @@ export default function WillDashboardScreen() {
     </SafeAreaView>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   container: {

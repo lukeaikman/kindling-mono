@@ -57,19 +57,19 @@ const CATEGORY_ROUTES: Record<string, { intro: string; entry: string }> = {
  * Get the intro screen route for a category
  */
 export const getCategoryIntroRoute = (categoryId: string): string => {
-  return CATEGORY_ROUTES[categoryId]?.intro || '/order-of-things';
+  return CATEGORY_ROUTES[categoryId]?.intro || '/will-dashboard';
 };
 
 /**
  * Get the entry screen route for a category
  */
 export const getCategoryEntryRoute = (categoryId: string): string => {
-  return CATEGORY_ROUTES[categoryId]?.entry || '/order-of-things';
+  return CATEGORY_ROUTES[categoryId]?.entry || '/will-dashboard';
 };
 
 /**
  * Get the next category in the selected list
- * Returns the intro route for the next category, or '/order-of-things' if no more
+ * Returns the intro route for the next category, or '/will-dashboard' if no more
  */
 export const getNextCategoryRoute = (
   currentCategoryId: string,
@@ -77,9 +77,9 @@ export const getNextCategoryRoute = (
 ): string => {
   const currentIndex = selectedCategories.indexOf(currentCategoryId);
   
-  // If not found or last in list, go to order-of-things
+  // If not found or last in list, go to will-dashboard
   if (currentIndex === -1 || currentIndex === selectedCategories.length - 1) {
-    return '/order-of-things';
+    return '/will-dashboard';
   }
   
   // Get next category intro route
@@ -92,7 +92,7 @@ export const getNextCategoryRoute = (
  */
 export const getFirstCategoryRoute = (selectedCategories: string[]): string => {
   if (selectedCategories.length === 0) {
-    return '/order-of-things';
+    return '/will-dashboard';
   }
   return getCategoryIntroRoute(selectedCategories[0]);
 };

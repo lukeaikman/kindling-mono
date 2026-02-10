@@ -63,7 +63,7 @@ export default function LoginScreen() {
     setSubmitting(true);
     try {
       await login(email.trim(), password);
-      router.replace('/order-of-things');
+      router.replace('/will-dashboard');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Login failed. Please try again.');
     } finally {

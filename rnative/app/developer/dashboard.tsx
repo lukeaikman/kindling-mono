@@ -47,7 +47,7 @@ export default function DeveloperDashboard() {
   const [executorsScreen, setExecutorsScreen] = useState('/executors/intro');
   const [guardianshipScreen, setGuardianshipScreen] = useState('/guardianship/intro');
   const [bequeathalScreen, setBequeathalScreen] = useState('/bequeathal/intro');
-  const [dashboardScreen, setDashboardScreen] = useState('/order-of-things');
+  const [dashboardScreen, setDashboardScreen] = useState('/will-dashboard');
   
   const loadStorageData = useCallback(async () => {
     const data: Record<string, any> = {};
@@ -401,7 +401,7 @@ export default function DeveloperDashboard() {
                     options={[
                       { label: 'Intro', value: '/executors/intro' },
                       { label: 'Selection', value: '/executors/selection' },
-                      { label: 'Invitation', value: '/executors/invitation' },
+                      { label: 'Invitations', value: '/invitations/confirm' },
                       { label: 'Professional', value: '/executors/professional' },
                     ]}
                     onChange={setExecutorsScreen}
@@ -503,8 +503,7 @@ export default function DeveloperDashboard() {
                   <Select
                     value={dashboardScreen}
                     options={[
-                      { label: 'Order of Things', value: '/order-of-things' },
-                      { label: 'Will Dashboard (New)', value: '/will-dashboard' },
+                      { label: 'Will Dashboard', value: '/will-dashboard' },
                     ]}
                     onChange={setDashboardScreen}
                   />

@@ -10,7 +10,7 @@
  * 
  * Navigation:
  * - Back: Returns to assets held through business intro
- * - Continue: Proceeds to next category or order-of-things
+ * - Continue: Proceeds to next category or will-dashboard
  */
 
 import React, { useState, useEffect, useMemo } from 'react';

@@ -43,8 +43,8 @@ export default function ProfessionalExecutorScreen() {
   };
   
   const handleContinue = () => {
-    // Navigate to order of things (or future bequeathal-intro)
-    router.push('/order-of-things');
+    // No celebration here — route straight to unified invitations
+    router.push('/invitations/confirm' as any);
   };
   
   return (
@@ -190,4 +190,3 @@ const styles = StyleSheet.create({
     borderTopColor: KindlingColors.cream,
   },
 });
-

@@ -8,7 +8,7 @@
  * Navigation:
  * - Back: Returns to previous screen (Categories)
  * - Forward: Navigates to assets held through business entry screen
- * - Skip: Navigates to next selected category or order-of-things
+ * - Skip: Navigates to next selected category or will-dashboard
  */
 
 import React, { useState } from 'react';

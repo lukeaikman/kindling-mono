@@ -82,7 +82,7 @@ type BiometricResult = 'pending' | 'success' | 'failed';
 type AnimationPhase = 'initial' | 'transition1' | 'transition2' | 'complete';
 
 type AppInitResult = {
-  destination: '/intro' | '/video-intro' | '/risk-questionnaire' | '/order-of-things' | '/auth/login';
+  destination: '/intro' | '/video-intro' | '/risk-questionnaire' | '/will-dashboard' | '/auth/login';
   loginParams?: { welcomeBack?: string; firstName?: string; offline?: string };
   requiresBiometric: boolean;
   scopeId: string | null;
@@ -224,12 +224,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
       if (!isEnrolled) {
         await setBiometricEnabled(scopeId, false);
-        return { destination: '/order-of-things', requiresBiometric: false, scopeId, isOffline };
+        return { destination: '/will-dashboard', requiresBiometric: false, scopeId, isOffline };
       }
-      return { destination: '/order-of-things', requiresBiometric: true, scopeId, isOffline };
+      return { destination: '/will-dashboard', requiresBiometric: true, scopeId, isOffline };
     }
 
-    return { destination: '/order-of-things', requiresBiometric: false, scopeId, isOffline };
+    return { destination: '/will-dashboard', requiresBiometric: false, scopeId, isOffline };
   }, []);
 
   const handleNavigation = useCallback(() => {
@@ -242,9 +242,9 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         return;
       }
 
-      if (initResult.destination === '/order-of-things' && initResult.isOffline) {
+      if (initResult.destination === '/will-dashboard' && initResult.isOffline) {
         router.replace({
-          pathname: '/order-of-things',
+          pathname: '/will-dashboard',
           params: { offline: 'true' },
         });
         return;

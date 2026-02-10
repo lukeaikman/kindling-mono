@@ -7,7 +7,7 @@
  * 
  * Navigation:
  * - Back: Returns to investments intro
- * - Continue: Proceeds to next category or order-of-things
+ * - Continue: Proceeds to next category or will-dashboard
  */
 
 import React, { useState, useEffect, useRef } from 'react';

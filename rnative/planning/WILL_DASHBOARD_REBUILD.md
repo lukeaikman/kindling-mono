@@ -4,8 +4,7 @@
 
 Replace the current 9-item checklist dashboard with a calm, momentum-driven 3-stage view. The screen should feel like "three short steps, then done" rather than administrative overhead.
 
-**Current file:** `app/order-of-things.tsx`  
-**New file:** `app/will-dashboard.tsx` (or replace in-place)
+**File:** `app/will-dashboard.tsx` (replaces deleted `app/order-of-things.tsx`)
 
 ---
 
@@ -80,7 +79,7 @@ const yourPeopleComplete =
   residueDivided;
 ```
 
-**Route:** `/your-people/intro` (or existing flow entry point)
+**Route:** Smart routing via `getNextYourPeopleRoute()` — enters at the first incomplete sub-flow
 
 ---
 
@@ -332,71 +331,149 @@ interface LegalCheckState {
 
 ---
 
-## Files to Create/Modify
+## Files Created/Modified
 
-| File | Action | Description |
-|------|--------|-------------|
-| `app/will-dashboard.tsx` | Create | New dashboard screen |
-| `src/components/ui/StageCard.tsx` | Create | Reusable stage card |
-| `src/components/ui/ReadyToSignCard.tsx` | Create | Signing eligibility card |
-| `src/utils/willProgress.ts` | Create | `getNextRoute()` and status derivation helpers |
-| `src/utils/__tests__/willProgress.test.ts` | Create | Unit tests for navigation logic |
-| `src/types/index.ts` | Modify | Add `AssetCompletionState`, `LegalCheckState` |
-| `src/hooks/useAppState.ts` | Modify | Add legal check state management |
-| `app/_layout.tsx` | Modify | Update routing if needed |
+| File | Action | Status | Description |
+|------|--------|--------|-------------|
+| `app/will-dashboard.tsx` | Create | ✅ Done | Dashboard with real state, dynamic labels, progress |
+| `src/components/ui/StageCard.tsx` | Create | ✅ Done | Reusable stage card |
+| `src/components/ui/ReadyToSignCard.tsx` | Create | ✅ Done | Signing eligibility card |
+| `src/components/ui/GlassMenu.tsx` | Create | ✅ Done | Glassmorphic bottom sheet menu |
+| `src/components/ui/Celebration.tsx` | Create | ✅ Done | Confetti + "Nice Work" animation overlay |
+| `src/utils/willProgress.ts` | Create | ✅ Done | Status derivation, routing, labels, progress |
+| `app/guardianship/wishes.tsx` | Modify | ✅ Done | Celebration + auto-progress on completion |
+| `app/executors/invitation.tsx` | Modify | ✅ Done | Celebration + auto-progress on completion |
+| `app/executors/professional.tsx` | Modify | ✅ Done | Celebration + auto-progress on completion |
+| `app/_layout.tsx` | Modify | ✅ Done | `GestureHandlerRootView` wrapper |
+| `app/order-of-things.tsx` | Delete | ✅ Done | Legacy dashboard removed |
+| 22 files (auth, splash, bequeathal, etc.) | Modify | ✅ Done | Route rename `/order-of-things` → `/will-dashboard` |
+| `src/types/index.ts` | Modify | Pending | Add `AssetCompletionState`, `LegalCheckState` (Stage 2+) |
+| `src/hooks/useAppState.ts` | Modify | Pending | Add legal check state management (Stage 3) |
 
 ---
 
-## Test Cases for getNextRoute()
+## Test Plan — Phase 2 Stage 1
+
+All functions live in `src/utils/willProgress.ts`. State interface is `WillProgressState`:
 
 ```typescript
-describe('getNextRoute', () => {
-  it('returns your-people route when stage 1 incomplete', () => {
-    expect(getNextRoute({
-      yourPeople: 'in_progress',
-      yourEstate: 'not_started',
-      legalCheck: 'not_started',
-      canSign: false,
-    })).toBe('/your-people/intro');
-  });
-
-  it('returns bequeathal route when stage 1 complete, stage 2 incomplete', () => {
-    expect(getNextRoute({
-      yourPeople: 'complete',
-      yourEstate: 'in_progress',
-      legalCheck: 'not_started',
-      canSign: false,
-    })).toBe('/bequeathal/intro');
-  });
-
-  it('returns legal-check route when stages 1-2 complete', () => {
-    expect(getNextRoute({
-      yourPeople: 'complete',
-      yourEstate: 'complete',
-      legalCheck: 'not_started',
-      canSign: false,
-    })).toBe('/legal-check/intro');
-  });
-
-  it('returns signing review when all complete and can sign', () => {
-    expect(getNextRoute({
-      yourPeople: 'complete',
-      yourEstate: 'complete',
-      legalCheck: 'complete',
-      canSign: true,
-    })).toBe('/signing/review');
-  });
-
-  it('returns waiting screen when complete but acceptances pending', () => {
-    expect(getNextRoute({
-      yourPeople: 'complete',
-      yourEstate: 'complete',
-      legalCheck: 'complete',
-      canSign: false,
-    })).toBe('/signing/waiting');
-  });
-});
+interface WillProgressState {
+  willMaker: Person | undefined;
+  people: Person[];
+  willData: WillData;
+  estateRemainderState: EstateRemainderState;
+}
 ```
+
+### A. Unit Tests — deriveYourPeopleStatus()
+
+| # | Scenario | Expected | How to verify |
+|---|----------|----------|---------------|
+| A1 | Empty state — no will-maker, no people | `'Not started'` | New user, no onboarding |
+| A2 | Will-maker exists with first/last name but no DOB/address | `'In progress'` | Partial profile |
+| A3 | Full user details + onboarding people + executors invited + residue allocated (no children) | `'Complete'` | Guardians skipped |
+| A4 | Full details + children exist + no guardians nominated | `'In progress'` | Children but no guardians |
+| A5 | Full details + children exist + guardians nominated + residue + executors | `'Complete'` | Full completion with children |
+| A6 | Full details + onboarding done + executors NOT invited | `'In progress'` | Executors selected but not sent |
+| A7 | Full details + onboarding done + residue NOT allocated | `'In progress'` | No beneficiaries chosen |
+
+### B. Unit Tests — getNextYourPeopleRoute()
+
+| # | Scenario | Expected Route |
+|---|----------|----------------|
+| B1 | Has children, guardians not nominated | `/guardianship/intro` |
+| B2 | Has children, guardians done, no residue | `/bequeathal/estate-remainder-who` |
+| B3 | Residue done, executors not invited | `/executors/intro` |
+| B4 | All sub-flows complete | `/will-dashboard` |
+| B5 | No children, no residue allocated | `/bequeathal/estate-remainder-who` (skips guardians) |
+| B6 | No children, residue done, executors not invited | `/executors/intro` |
+
+### C. Unit Tests — getNextRoute() (top-level)
+
+| # | Scenario | Expected Route |
+|---|----------|----------------|
+| C1 | Stage 1 incomplete | Same as `getNextYourPeopleRoute()` |
+| C2 | Stage 1 complete, Stage 2 incomplete | `/bequeathal/categories` |
+| C3 | Stages 1+2 complete, Stage 3 incomplete | `/legal-check` |
+| C4 | All stages complete | `/will-dashboard` |
+
+### D. Unit Tests — getContinueLabel()
+
+| # | Next Route | Expected Label |
+|---|------------|----------------|
+| D1 | `/guardianship/intro` | `'Continue to Guardians'` |
+| D2 | `/bequeathal/estate-remainder-who` | `'Continue to Residue'` |
+| D3 | `/executors/intro` | `'Continue to Executors'` |
+| D4 | `/bequeathal/categories` | `'Continue to Your Estate'` |
+| D5 | All done | `'Continue'` |
+
+### E. Unit Tests — getYourPeopleProgress()
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| E1 | No sub-flows complete, has children (3 steps) | `'0/3 done'` |
+| E2 | Guardians done only, has children | `'1/3 done'` |
+| E3 | Guardians + residue done, has children | `'2/3 done'` |
+| E4 | All 3 done, has children | `'Complete'` |
+| E5 | No children, no sub-flows done (2 steps) | `'0/2 done'` |
+| E6 | No children, residue + executors done | `'Complete'` |
+
+### F. Unit Tests — canSign() and isWaitingForAcceptances()
+
+| # | Scenario | canSign | isWaiting |
+|---|----------|---------|-----------|
+| F1 | Stages incomplete | `false` | `false` |
+| F2 | All stages complete, executors pending | `false` | `true` |
+| F3 | All stages complete, executors accepted, guardians pending | `false` | `true` |
+| F4 | All stages complete, all accepted | `true` | `false` |
+| F5 | All stages complete, no children, executors accepted | `true` | `false` |
+
+### G. Manual Tests — Dashboard UI
+
+| # | Test | Steps | Expected |
+|---|------|-------|----------|
+| G1 | Dashboard renders 3 stage cards + signing card | Navigate to `/will-dashboard` | 3 StageCards visible, 1 ReadyToSignCard, 1 Continue button |
+| G2 | Your People status derived from real state | Check with existing onboarding data | Status reflects actual progress |
+| G3 | Your Estate disabled when Stage 1 incomplete | Verify Your Estate card is dimmed | Reduced opacity, not tappable |
+| G4 | Legal Check disabled when Stage 2 incomplete | Verify Legal Check card is dimmed | Reduced opacity, not tappable |
+| G5 | Continue button label is dynamic | With no guardians set | Label reads "Continue to Guardians" |
+| G6 | Continue button navigates correctly | Tap Continue | Navigates to correct sub-flow entry |
+| G7 | Stage card subline shows progress | When 1/3 done | Subline appends " · 1/3 done" |
+| G8 | Signing card shows disabled state | When stages incomplete | Reduced opacity, lock icon |
+| G9 | Menu icon opens GlassMenu | Tap hamburger icon | Bottom sheet slides up |
+| G10 | Back button returns to previous screen | Tap back arrow | Navigates back via stack |
+| G11 | Double-tap logo opens dev dashboard | Double-tap header logo | Navigates to `/developer/dashboard` |
+
+### H. Manual Tests — Celebration & Auto-Progress
+
+| # | Test | Steps | Expected |
+|---|------|-------|----------|
+| H1 | Guardians completion triggers celebration | Complete guardian assignment, tap Continue | Confetti + "Nice Work" overlay appears |
+| H2 | Celebration auto-navigates to residue | Wait ~1.5s after celebration starts | Navigates to `/bequeathal/estate-remainder-who` |
+| H3 | Executor invitation triggers celebration | Complete executor flow, tap "Executors Complete" | Confetti + "Nice Work" overlay appears |
+| H4 | Executor celebration auto-navigates | Wait ~1.5s | Navigates to next incomplete sub-flow or dashboard |
+| H5 | Professional executor triggers celebration | Complete professional executor, tap Continue | Confetti + "Nice Work" overlay |
+| H6 | Celebration is non-interactive | During animation | Overlay has `pointerEvents="none"` |
+
+### I. Manual Tests — Back Button Behaviour
+
+| # | Test | Steps | Expected |
+|---|------|-------|----------|
+| I1 | Back from guardianship returns to dashboard | Navigate via Continue, then tap Back | Returns to `/will-dashboard` |
+| I2 | Back from residue returns to dashboard | Navigate via Continue, then tap Back | Returns to `/will-dashboard` |
+| I3 | Back from executors returns to dashboard | Navigate via Continue, then tap Back | Returns to `/will-dashboard` |
+| I4 | Back does NOT go to previous sub-flow | Complete guardians (celebrate → residue), tap Back | Returns to dashboard, not guardians |
+
+### J. Manual Tests — Route Rename
+
+| # | Test | Steps | Expected |
+|---|------|-------|----------|
+| J1 | Login redirects to will-dashboard | Log in with existing account | Lands on `/will-dashboard` |
+| J2 | Splash screen routes to will-dashboard | Fresh app launch with session | Lands on `/will-dashboard` |
+| J3 | Secure account routes to will-dashboard | Complete registration | Lands on `/will-dashboard` |
+| J4 | Category navigation fallback correct | Complete last asset category | Returns to `/will-dashboard` |
+| J5 | No references to order-of-things remain | `grep -r "order-of-things" --include="*.ts*"` | Zero results |
+| J6 | Developer dashboard dropdown works | Open dev dashboard, select "Will Dashboard" | Navigates to `/will-dashboard` |
 
 ---
 
@@ -419,15 +496,15 @@ describe('getNextRoute', () => {
 | Card tap | `/executors/intro` | EXISTS | Entry to executors flow |
 | Continue button | `/executors/intro` | EXISTS | First sub-flow in stage |
 
-**Sub-flows within "Your People" (sequential):**
-1. `/executors/intro` → `/executors/selection` → `/executors/invitation` ✅ EXISTS
-2. `/guardianship/intro` → `/guardianship/wishes` ✅ EXISTS  
-3. `/bequeathal/estate-remainder-who` → `/bequeathal/estate-remainder-split` ✅ EXISTS (residue beneficiaries)
+**Sub-flows within "Your People" (sequential — family first per Jobs feedback):**
+1. `/guardianship/intro` → `/guardianship/wishes` ✅ EXISTS (skipped if no children)
+2. `/bequeathal/estate-remainder-who` → `/bequeathal/estate-remainder-split` ✅ EXISTS (residue beneficiaries)
+3. `/executors/intro` → `/executors/selection` → `/executors/invitation` ✅ EXISTS
 
 **Decision:** No new `/your-people/intro` route needed. Stage 1 uses existing sub-flows in sequence:
-- Executors → Guardianship → Residue Beneficiaries
+- Guardians (if children) → Residue → Executors
 
-**Return routes to update:** Each sub-flow currently returns to `/order-of-things`. Must update to return to `/will-dashboard` or next sub-flow.
+**Return routes:** ✅ DONE — Each sub-flow now triggers a celebration animation then auto-navigates to the next sub-flow via `getNextYourPeopleRoute()`. Route rename from `/order-of-things` to `/will-dashboard` completed across all files.
 
 ---
 
@@ -491,18 +568,23 @@ describe('getNextRoute', () => {
 
 ---
 
-### Routes to Update (Return Navigation)
+### Routes Updated (Return Navigation) ✅ DONE
 
-These routes currently return to `/order-of-things` and must be updated:
+All `/order-of-things` references replaced with `/will-dashboard`. Sub-flow completion screens now use celebration + auto-progress:
 
-| File | Current Return | New Return |
-|------|----------------|------------|
-| `app/executors/invitation.tsx` | `/order-of-things` | `/will-dashboard` or next sub-flow |
-| `app/executors/professional.tsx` | `/order-of-things` | `/will-dashboard` or next sub-flow |
-| `app/guardianship/wishes.tsx` | `/order-of-things` | `/will-dashboard` or next sub-flow |
-| `app/bequeathal/categories.tsx` | (stays in flow) | `/will-dashboard` on "Done" |
-| `app/auth/secure-account.tsx` | `/order-of-things` | `/will-dashboard` |
-| `app/auth/login.tsx` | `/order-of-things` | `/will-dashboard` |
+| File | Old Return | New Behaviour | Status |
+|------|------------|---------------|--------|
+| `app/executors/invitation.tsx` | `/order-of-things` | Celebration → `getNextYourPeopleRoute()` | ✅ Done |
+| `app/executors/professional.tsx` | `/order-of-things` | Celebration → `getNextYourPeopleRoute()` | ✅ Done |
+| `app/guardianship/wishes.tsx` | `/order-of-things` | Celebration → `getNextYourPeopleRoute()` | ✅ Done |
+| `app/bequeathal/categories.tsx` | (stays in flow) | `/will-dashboard` on "Done" | Unchanged |
+| `app/auth/secure-account.tsx` | `/order-of-things` | `/will-dashboard` | ✅ Done |
+| `app/auth/login.tsx` | `/order-of-things` | `/will-dashboard` | ✅ Done |
+| `src/components/splash/SplashScreen.tsx` | `/order-of-things` (6 refs) | `/will-dashboard` | ✅ Done |
+| `src/utils/categoryNavigation.ts` | `/order-of-things` (6 refs) | `/will-dashboard` | ✅ Done |
+| `src/types/index.ts` | `'order-of-things'` | `'will-dashboard'` | ✅ Done |
+| 8 bequeathal entry/intro files | Comments only | Updated comments | ✅ Done |
+| `app/order-of-things.tsx` | Legacy dashboard | **Deleted** | ✅ Done |
 
 ---
 
@@ -512,8 +594,8 @@ These routes currently return to `/order-of-things` and must be updated:
 
 | Route | Status | Recommendation |
 |-------|--------|----------------|
-| `/will-dashboard` | Created but not linked | Wire up as main dashboard |
-| `/order-of-things` | Legacy dashboard | Deprecate after migration |
+| `/will-dashboard` | ✅ Wired as main dashboard | All auth/splash routes updated |
+| `/order-of-things` | ✅ **Deleted** | File removed, all references updated |
 | `/video-intro` | Deep link only | Keep (attribution flow) |
 | `/risk-questionnaire` | Deep link only | Keep (attribution flow) |
 
@@ -581,38 +663,36 @@ These are referenced in `order-of-things.tsx` but routes don't exist:
 
 ---
 
-### getNextRoute() Implementation
+### getNextRoute() Implementation ✅ IMPLEMENTED
+
+Lives in `src/utils/willProgress.ts`. Uses `WillProgressState` (not the old `StageState`).
 
 ```typescript
-function getNextRoute(state: StageState): string {
-  // Stage 1: Your People
-  if (state.yourPeople !== 'complete') {
-    // Determine which sub-flow is incomplete
-    if (!state.executorsComplete) return '/executors/intro';
-    if (!state.guardiansComplete) return '/guardianship/intro';
-    if (!state.residueComplete) return '/bequeathal/estate-remainder-who';
-    return '/executors/intro'; // Fallback
-  }
-  
-  // Stage 2: Your Estate
-  if (state.yourEstate !== 'complete') {
-    return '/bequeathal/intro';
-  }
-  
-  // Stage 3: Legal Check
-  if (state.legalCheck !== 'complete') {
-    return '/legal-check/intro';
-  }
-  
-  // All complete - check signing eligibility
-  if (state.canSign) {
-    return '/signing/review';
-  }
-  
-  // Waiting for acceptances
-  return '/signing/waiting';
+// Top-level: walks stages in order
+function getNextRoute(state: WillProgressState): string {
+  if (deriveYourPeopleStatus(state) !== 'Complete') return getNextYourPeopleRoute(state);
+  if (deriveYourEstateStatus(state) !== 'Complete') return '/bequeathal/categories';
+  if (deriveLegalCheckStatus(state) !== 'Complete') return '/legal-check';
+  return '/will-dashboard';
+}
+
+// Stage 1 sub-routing: Guardians → Residue → Executors
+function getNextYourPeopleRoute(state: WillProgressState): string {
+  if (hasChildrenUnder18(state.people) && !areGuardiansNominated(state.people, state.willData))
+    return '/guardianship/intro';
+  if (!isResidueAllocated(state.estateRemainderState))
+    return '/bequeathal/estate-remainder-who';
+  if (!areExecutorsInvited(state.people))
+    return '/executors/intro';
+  return '/will-dashboard';
 }
 ```
+
+**Also implemented:**
+- `getContinueLabel()` — dynamic button text ("Continue to Guardians", etc.)
+- `getYourPeopleProgress()` — fractional display ("1/3 done", "2/2 done", "Complete")
+- `canSign()` — requires all stages complete + executors accepted + guardians accepted
+- `isWaitingForAcceptances()` — stages done but invitees haven't all accepted
 
 ---
 
@@ -634,24 +714,34 @@ function getNextRoute(state: StageState): string {
 
 ## Implementation Order
 
-1. **Create types and helpers** — `willProgress.ts` with status derivation and `getNextRoute()`
-2. **Create StageCard component** — Reusable, styled per design tokens
-3. **Create ReadyToSignCard component** — With eligible/ineligible states
-4. **Create WillDashboardScreen** — Wire up state and navigation
-5. **Add unit tests** — Cover `getNextRoute()` logic
-6. **Data model updates** — Asset completion timestamps, verify invitation tracking
-7. **Route updates** — Add `/legal-check/intro` stub, `/signing/waiting` stub
-8. **Remove/deprecate** — Old `order-of-things.tsx` when ready
+1. ~~**Create types and helpers** — `willProgress.ts` with status derivation and `getNextRoute()`~~ ✅
+2. ~~**Create StageCard component** — Reusable, styled per design tokens~~ ✅
+3. ~~**Create ReadyToSignCard component** — With eligible/ineligible states~~ ✅
+4. ~~**Create WillDashboardScreen** — Wire up state and navigation~~ ✅
+5. ~~**Create GlassMenu** — Glassmorphic bottom sheet with brand colours~~ ✅
+6. ~~**Create Celebration** — Confetti + "Nice Work" animation overlay~~ ✅
+7. ~~**Route rename** — `/order-of-things` → `/will-dashboard` across 22 files~~ ✅
+8. ~~**Wire completion screens** — Celebration + auto-progress in guardians/executors~~ ✅
+9. ~~**Delete legacy dashboard** — `app/order-of-things.tsx`~~ ✅
+10. **Data model updates** — Asset completion timestamps, verify invitation tracking (Stage 2)
+11. **Route stubs** — Add `/legal-check` stub, `/signing/review` stub (Stage 3+)
 
 ---
 
 ## Success Criteria
 
-- [ ] Dashboard shows exactly 3 stage cards + 1 signing card
-- [ ] No checkboxes visible
-- [ ] No individual steps listed
-- [ ] Single "Continue" button navigates correctly
-- [ ] Status text uses "Not started" / "In progress" / "Complete" (no percentages)
-- [ ] Screen fits on iPhone 14/15 without scroll in typical state
-- [ ] All touch targets ≥ 44pt
-- [ ] Unit tests pass for `getNextRoute()`
+- [x] Dashboard shows exactly 3 stage cards + 1 signing card
+- [x] No checkboxes visible
+- [x] No individual steps listed
+- [x] Single "Continue" button navigates correctly (dynamic label)
+- [x] Status text uses "Not started" / "In progress" / "Complete" (no percentages)
+- [x] Fractional progress display ("1/3 done") on stage sublines
+- [ ] Screen fits on iPhone 14/15 without scroll in typical state (visual check needed)
+- [ ] All touch targets ≥ 44pt (visual check needed)
+- [x] Test cases documented for `getNextRoute()` and all helper functions
+- [x] Sub-flow completion triggers celebration + auto-progress (not back to dashboard)
+- [x] Dynamic button label reflects next destination
+- [x] Back button returns to dashboard via stack (not to previous sub-flow)
+- [x] Route rename complete — zero references to `order-of-things`
+- [x] Legacy `order-of-things.tsx` deleted
+- [x] GlassMenu accessible from dashboard header

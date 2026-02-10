@@ -110,7 +110,7 @@ export default function SecureAccountScreen() {
         first_name: firstName,
         last_name: lastName,
       });
-      router.replace('/order-of-things');
+      router.replace('/will-dashboard');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Registration failed. Please try again.');
     } finally {

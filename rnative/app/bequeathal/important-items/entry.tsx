@@ -6,7 +6,7 @@
  * 
  * Navigation:
  * - Back: Returns to important items intro
- * - Continue: Proceeds to next category or order-of-things
+ * - Continue: Proceeds to next category or will-dashboard
  */
 
 import React, { useState, useRef, useEffect } from 'react';

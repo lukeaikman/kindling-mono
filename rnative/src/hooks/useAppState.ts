@@ -811,6 +811,28 @@ export const useAppState = () => {
       });
     },
 
+    sendGuardianInvitations: () => {
+      const wd = willActions.getWillData();
+      const guardianship = wd.guardianship || {};
+      const guardianIds = new Set<string>();
+
+      Object.values(guardianship).forEach(assignments => {
+        assignments.forEach(a => guardianIds.add(a.guardian));
+      });
+
+      guardianIds.forEach(id => {
+        const person = personActions.getPersonById(id);
+        if (person && !person.guardianDetails?.invitedAt) {
+          personActions.updatePerson(id, {
+            guardianDetails: {
+              ...person.guardianDetails,
+              invitedAt: new Date(),
+            },
+          });
+        }
+      });
+    },
+
     getPersonData: () => personData,
 
     // Legacy compatibility methods

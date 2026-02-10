@@ -17,7 +17,7 @@
  * - Back: Write guardianData → willData.guardianship, go back
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconButton } from 'react-native-paper';
@@ -30,16 +30,35 @@ import { BackButton } from '../../src/components/ui/BackButton';
 import { Input } from '../../src/components/ui/Input';
 import { Select } from '../../src/components/ui/Select';
 import { Dialog } from '../../src/components/ui/Dialog';
+import { Celebration } from '../../src/components/ui/Celebration';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
 import { getDisplayRoleLabel, getDropdownRoleLabel, getAvailableLevels } from '../../src/utils/executorHelpers';
+import { getNextYourPeopleRoute, type WillProgressState } from '../../src/utils/willProgress';
 import type { Person } from '../../src/types';
 
 type GuardianAssignment = { guardian: string; level: number };
 
 export default function GuardianWishesScreen() {
-  const { personActions, willActions } = useAppState();
-  
+  const { personActions, willActions, estateRemainderActions } = useAppState();
+
+  // Celebration state
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  // Build progress state for smart routing after celebration
+  const progressState: WillProgressState = useMemo(() => ({
+    willMaker: willActions.getUser(),
+    people: personActions.getPeople(),
+    willData: willActions.getWillData(),
+    estateRemainderState: estateRemainderActions.getEstateRemainderState(),
+  }), [willActions, personActions, estateRemainderActions]);
+
+  const handleCelebrationComplete = useCallback(() => {
+    setShowCelebration(false);
+    const next = getNextYourPeopleRoute(progressState);
+    router.push(next as any);
+  }, [progressState]);
+
   // Get dependents
   const dependents = personActions.getPeopleInCare();
   const sortedDependents = [...dependents].sort((a, b) => a.firstName.localeCompare(b.firstName));
@@ -374,11 +393,11 @@ export default function GuardianWishesScreen() {
     router.back();
   };
   
-  // Handle continue
+  // Handle continue – save, celebrate, then auto-progress to next sub-flow
   const handleContinue = () => {
     if (!allChildrenHaveGuardians) return;
     saveToWillData();
-    router.push('/order-of-things');
+    setShowCelebration(true);
   };
   
   // Get contact options
@@ -809,6 +828,13 @@ export default function GuardianWishesScreen() {
           </Button>
         </View>
       </Dialog>
+
+      {/* Micro celebration – brief checkmark + haptic after completing guardians */}
+      <Celebration
+        visible={showCelebration}
+        variant="micro"
+        onComplete={handleCelebrationComplete}
+      />
     </SafeAreaView>
   );
 }

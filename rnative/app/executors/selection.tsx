@@ -379,7 +379,7 @@ export default function ExecutorSelectionScreen() {
       setShowConfirmDialog(true);
     } else {
       // 3+ executors, proceed directly
-      router.push('/executors/invitation');
+      router.push('/invitations/confirm');
     }
   };
   
@@ -388,7 +388,7 @@ export default function ExecutorSelectionScreen() {
    */
   const handleConfirmProceed = useCallback(() => {
     setShowConfirmDialog(false);
-    router.push('/executors/invitation');
+    router.push('/invitations/confirm');
   }, []);
   
   /**

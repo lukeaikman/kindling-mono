@@ -15,7 +15,7 @@
  * @module app/bequeathal/estate-remainder-split
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,8 +34,10 @@ import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { Input } from '../../src/components/ui/Input';
 import { Slider } from '../../src/components/ui/Slider';
+import { Celebration } from '../../src/components/ui/Celebration';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
+import { getNextYourPeopleRoute, type WillProgressState } from '../../src/utils/willProgress';
 import type { Person } from '../../src/types';
 
 interface SharingRecipient {
@@ -53,6 +55,22 @@ export default function EstateRemainderSplitScreen() {
     estateRemainderActions,
     willActions,
   } = useAppState();
+
+  // Celebration state
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  const progressState: WillProgressState = useMemo(() => ({
+    willMaker: willActions.getUser(),
+    people: personActions.getPeople(),
+    willData: willActions.getWillData(),
+    estateRemainderState: estateRemainderActions.getEstateRemainderState(),
+  }), [willActions, personActions, estateRemainderActions]);
+
+  const handleCelebrationComplete = useCallback(() => {
+    setShowCelebration(false);
+    const next = getNextYourPeopleRoute(progressState);
+    router.push(next as any);
+  }, [progressState]);
 
   // Local state for manual input tracking
   const [manualEntries, setManualEntries] = useState<Record<string, string>>(
@@ -213,8 +231,8 @@ export default function EstateRemainderSplitScreen() {
   };
 
   const handleNext = () => {
-    // Navigate to bequeathal categories
-    router.push('/bequeathal/categories');
+    // Celebrate completion of residue allocation, then auto-progress
+    setShowCelebration(true);
   };
 
   // Build recipients array
@@ -476,6 +494,13 @@ export default function EstateRemainderSplitScreen() {
           </Text>
         )}
       </View>
+
+      {/* Micro celebration – brief checkmark + haptic after completing residue */}
+      <Celebration
+        visible={showCelebration}
+        variant="micro"
+        onComplete={handleCelebrationComplete}
+      />
     </View>
   );
 }

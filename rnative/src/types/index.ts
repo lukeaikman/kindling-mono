@@ -74,7 +74,7 @@ export type Screen =
   | 'onboarding-family'
   | 'onboarding-extended-family'
   | 'onboarding-wrap-up'
-  | 'order-of-things';
+  | 'will-dashboard';
 
 /**
  * Address data structure for UK and international addresses
@@ -199,6 +199,8 @@ export interface Person {
     isFirstChoice?: boolean;
     isSecondChoice?: boolean;
     hasAccepted?: boolean;
+    invitedAt?: Date;
+    respondedAt?: Date;
   };
   // Executor-specific fields
   executorRole?: ExecutorRole;
@@ -784,6 +786,7 @@ export interface PersonActions {
   hasRole: (personId: string, role: PersonRole) => boolean;
   updateExecutorStatus: (personId: string, status: Person['executorStatus']) => void;
   sendExecutorInvitations: () => void;
+  sendGuardianInvitations: () => void;
   getPersonData: () => Person[];
   addBeneficiary: (beneficiaryData: { name: string; relationship: string }) => Promise<string>;
   addExecutor: (executorData: any) => Promise<string>;
