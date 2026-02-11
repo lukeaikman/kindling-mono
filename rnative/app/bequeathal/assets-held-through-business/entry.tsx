@@ -1,29 +1,23 @@
 /**
- * Assets Held Through Business Entry Screen
- * 
- * Two-step flow for adding business-owned assets:
- * Step 1: Select business (from Private Company Shares or add new)
- * Step 2: Add assets to selected business
- * 
- * Features ultra-clean relational model - stores only businessId,
- * looks up business name/ownership from Business record.
- * 
+ * Single-asset entry form. Supports add (new) and edit (?id=xxx).
+ *
  * Navigation:
- * - Back: Returns to assets held through business intro
- * - Continue: Proceeds to next category or will-dashboard
+ * - Back → /bequeathal/assets-held-through-business/summary
+ * - Save → /bequeathal/assets-held-through-business/summary
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Select, Input, CurrencyInput, SearchableSelect } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
 import type { AssetsHeldThroughBusinessAsset } from '../../../src/types';
+
+const SUMMARY_ROUTE = '/bequeathal/assets-held-through-business/summary';
 
 interface AssetForm {
   assetType: string;
@@ -37,6 +31,10 @@ interface NewBusinessForm {
 
 export default function AssetsHeldThroughBusinessEntryScreen() {
   const { bequeathalActions, businessActions } = useAppState();
+  const params = useLocalSearchParams();
+  const editingAssetId = params.id as string | undefined;
+  const loadedIdRef = useRef<string | null>(null);
+
   const [selectedBusinessId, setSelectedBusinessId] = useState<string>('');
   const [selectedBusinessName, setSelectedBusinessName] = useState<string>('');
   const [showNewBusinessForm, setShowNewBusinessForm] = useState(false);
@@ -92,26 +90,38 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
     },
   ];
 
-  // Load existing assets
-  const existingAssets = bequeathalActions.getAssetsByType('assets-held-through-business') as AssetsHeldThroughBusinessAsset[];
+  // Load existing asset when editing
+  useEffect(() => {
+    if (!editingAssetId) {
+      loadedIdRef.current = null;
+      return;
+    }
 
-  // Group assets by business
-  const assetsByBusiness = useMemo(() => {
-    const grouped = new Map<string, AssetsHeldThroughBusinessAsset[]>();
-    
-    existingAssets.forEach(asset => {
-      if (!grouped.has(asset.businessId)) {
-        grouped.set(asset.businessId, []);
-      }
-      grouped.get(asset.businessId)!.push(asset);
+    if (loadedIdRef.current === editingAssetId) return;
+
+    const allAssets = bequeathalActions.getAllAssets();
+    if (allAssets.length === 0) return;
+
+    const asset = bequeathalActions.getAssetById(editingAssetId);
+    if (!asset || asset.type !== 'assets-held-through-business') {
+      router.push(SUMMARY_ROUTE as any);
+      return;
+    }
+
+    const businessAsset = asset as AssetsHeldThroughBusinessAsset;
+    loadedIdRef.current = editingAssetId;
+
+    // Pre-select the business from the asset
+    setSelectedBusinessId(businessAsset.businessId);
+    setSelectedBusinessName(businessAsset.businessName || '');
+
+    setFormData({
+      assetType: businessAsset.assetType || '',
+      assetDescription: businessAsset.assetDescription || '',
+      estimatedValue: businessAsset.estimatedValue || 0,
     });
-    
-    return grouped;
-  }, [existingAssets]);
-
-  // Calculate totals
-  const grandTotal = existingAssets.reduce((sum, asset) => sum + (asset.estimatedValue ?? 0), 0);
-  const businessCount = assetsByBusiness.size;
+    setValueNotSure((businessAsset.estimatedValue || 0) === 0);
+  }, [editingAssetId, bequeathalActions]);
 
   const handleBusinessSelect = (businessId: string) => {
     if (businessId === '__ADD_NEW__') {
@@ -131,7 +141,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
 
   const handleCreateNewBusiness = () => {
     if (!newBusinessForm.name.trim()) return;
-    
+
     const newBusinessId = businessActions.addBusiness({
       name: newBusinessForm.name,
       businessType: '',
@@ -144,7 +154,12 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
     setNewBusinessForm({ name: '' });
   };
 
-  const handleAddAsset = () => {
+  const handleChangeBusiness = () => {
+    setSelectedBusinessId('');
+    setSelectedBusinessName('');
+  };
+
+  const handleSave = () => {
     // Validation
     if (!selectedBusinessId || !formData.assetType || !formData.assetDescription.trim()) return;
 
@@ -160,53 +175,24 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
     const assetData = {
       title: `${businessName} - ${formData.assetDescription || assetTypeLabel}`,
       businessId: selectedBusinessId,
+      businessName,
       assetType: formData.assetType,
       assetDescription: formData.assetDescription || undefined,
       estimatedValue,
       netValue: estimatedValue,
     };
 
-    bequeathalActions.addAsset('assets-held-through-business', assetData);
+    if (editingAssetId) {
+      bequeathalActions.updateAsset(editingAssetId, assetData);
+    } else {
+      bequeathalActions.addAsset('assets-held-through-business', assetData);
+    }
 
-    // Reset asset form only
-    setFormData({
-      assetType: '',
-      assetDescription: '',
-      estimatedValue: 0,
-    });
-    setValueNotSure(false);
-  };
-
-  const handleRemoveAsset = (id: string) => {
-    bequeathalActions.removeAsset(id);
-  };
-
-  const handleAddForAnotherBusiness = () => {
-    setSelectedBusinessId('');
-    setSelectedBusinessName('');
-    setFormData({
-      assetType: '',
-      assetDescription: '',
-      estimatedValue: 0,
-    });
-    setValueNotSure(false);
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const handleBack = () => {
-    router.back();
-  };
-
-  const handleContinue = () => {
-    const selectedCategories = bequeathalActions.getSelectedCategories();
-    const nextRoute = getNextCategoryRoute('assets-held-through-business', selectedCategories);
-    router.push(nextRoute);
-  };
-
-  const getBusinessDetails = (businessId: string) => {
-    const business = businessActions.getBusinessById(businessId);
-    return {
-      name: business?.name || 'Unknown Business (deleted)',
-    };
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const canSubmit = selectedBusinessId && formData.assetType && formData.assetDescription.trim();
@@ -224,7 +210,9 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
       <View style={styles.header}>
         <BackButton onPress={handleBack} />
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Enter Business Assets</Text>
+          <Text style={styles.headerTitle}>
+            {editingAssetId ? 'Edit Business Asset' : 'Add Business Asset'}
+          </Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -257,7 +245,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
           {showNewBusinessForm && (
             <View style={styles.formCard}>
               <Text style={styles.formTitle}>Add New Business</Text>
-              
+
               <Input
                 label="Business Name *"
                 placeholder="e.g., Smith Trading Ltd"
@@ -297,7 +285,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
                   <View style={styles.selectedBusinessInfo}>
                     <Text style={styles.selectedBusinessName}>{selectedBusinessName}</Text>
                   </View>
-                  <TouchableOpacity onPress={handleAddForAnotherBusiness}>
+                  <TouchableOpacity onPress={handleChangeBusiness}>
                     <Text style={styles.changeBusinessText}>Change</Text>
                   </TouchableOpacity>
                 </View>
@@ -305,8 +293,10 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
 
               {/* Asset Entry Form */}
               <View style={styles.formCard}>
-                <Text style={styles.formTitle}>Add Asset</Text>
-                
+                <Text style={styles.formTitle}>
+                  {editingAssetId ? 'Update the details below.' : 'Add an asset held through a business.'}
+                </Text>
+
                 <Select
                   label="Asset Type *"
                   placeholder="Select asset type..."
@@ -361,120 +351,15 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
                 </View>
 
                 <Button
-                  onPress={handleAddAsset}
+                  onPress={handleSave}
                   variant="primary"
                   disabled={!canSubmit}
                 >
-                  {`Add Asset to ${selectedBusinessName}`}
+                  {editingAssetId ? 'Save changes' : 'Add this asset'}
                 </Button>
               </View>
-
-              {/* Assets for Selected Business */}
-              {assetsByBusiness.has(selectedBusinessId) && assetsByBusiness.get(selectedBusinessId)!.length > 0 && (
-                <View style={styles.assetsSection}>
-                  <Text style={styles.assetsTitle}>
-                    Assets ({assetsByBusiness.get(selectedBusinessId)!.length})
-                  </Text>
-
-                  <View style={styles.assetsList}>
-                    {assetsByBusiness.get(selectedBusinessId)!.map((asset) => {
-                      const assetTypeLabel = assetTypeOptions.find(opt => opt.value === asset.assetType)?.label || asset.assetType;
-                      
-                      return (
-                        <View key={asset.id} style={styles.assetCard}>
-                          <View style={styles.assetInfo}>
-                            <Text style={styles.assetType}>{assetTypeLabel}</Text>
-                            {asset.assetDescription && (
-                              <Text style={styles.assetDescription}>{asset.assetDescription}</Text>
-                            )}
-                            {(asset.estimatedValue ?? 0) > 0 && (
-                              <Text style={styles.assetValue}>
-                                £{(asset.estimatedValue ?? 0).toLocaleString()}
-                              </Text>
-                            )}
-                          </View>
-                          
-                          <TouchableOpacity
-                            onPress={() => handleRemoveAsset(asset.id)}
-                            style={styles.deleteButton}
-                          >
-                            <IconButton icon="delete" size={20} iconColor={KindlingColors.destructive} />
-                          </TouchableOpacity>
-                        </View>
-                      );
-                    })}
-
-                    {/* Business Subtotal */}
-                    <View style={styles.subtotalSection}>
-                      <Text style={styles.subtotalText}>
-                        {selectedBusinessName} Total: <Text style={styles.subtotalValue}>
-                          £{assetsByBusiness.get(selectedBusinessId)!.reduce((sum, a) => sum + (a.estimatedValue ?? 0), 0).toLocaleString()}
-                        </Text>
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              )}
             </>
           )}
-
-          {/* All Businesses Summary (if multiple businesses have assets) */}
-          {businessCount > 0 && (
-            <View style={styles.allBusinessesSection}>
-              <Text style={styles.allBusinessesTitle}>All Business Assets</Text>
-
-              {Array.from(assetsByBusiness.entries()).map(([businessId, assets]) => {
-                const { name } = getBusinessDetails(businessId);
-                const subtotal = assets.reduce((sum, a) => sum + (a.estimatedValue ?? 0), 0);
-
-                return (
-                  <View key={businessId} style={styles.businessGroup}>
-                    <Text style={styles.businessGroupName}>
-                      {name}
-                    </Text>
-                    {assets.map((asset) => {
-                      const assetTypeLabel = assetTypeOptions.find(opt => opt.value === asset.assetType)?.label || asset.assetType;
-                      return (
-                        <Text key={asset.id} style={styles.businessGroupAsset}>
-                          • {assetTypeLabel}{asset.assetDescription ? ` - ${asset.assetDescription}` : ''}: £{(asset.estimatedValue ?? 0).toLocaleString()}
-                        </Text>
-                      );
-                    })}
-                    <Text style={styles.businessGroupSubtotal}>
-                      Subtotal: £{subtotal.toLocaleString()}
-                    </Text>
-                  </View>
-                );
-              })}
-
-              {/* Grand Total */}
-              <View style={styles.grandTotalSection}>
-                <Text style={styles.grandTotalText}>
-                  Total Business Assets: <Text style={styles.grandTotalValue}>£{grandTotal.toLocaleString()}</Text>
-                </Text>
-                <Text style={styles.grandTotalSubtext}>
-                  Across {businessCount} {businessCount === 1 ? 'business' : 'businesses'}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Action Buttons */}
-          <View style={styles.actionsSection}>
-            {selectedBusinessId && (
-              <TouchableOpacity
-                onPress={handleAddForAnotherBusiness}
-                style={styles.addAnotherBusinessButton}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.addAnotherBusinessText}>Add For Another Business</Text>
-              </TouchableOpacity>
-            )}
-
-            <Button onPress={handleContinue} variant="primary" style={styles.continueButton}>
-              Continue
-            </Button>
-          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -534,7 +419,6 @@ const styles = StyleSheet.create({
     backgroundColor: KindlingColors.background,
     borderBottomWidth: 1,
     borderBottomColor: `${KindlingColors.border}1a`,
-    zIndex: 10,
   },
   headerCenter: {
     flex: 1,
@@ -551,7 +435,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    zIndex: 10,
   },
   contentContainer: {
     paddingVertical: Spacing.lg,
@@ -664,151 +547,5 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.navy,
     marginLeft: Spacing.sm,
-  },
-  assetsSection: {
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  assetsTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-    marginBottom: Spacing.sm,
-  },
-  assetsList: {
-    gap: Spacing.sm,
-  },
-  assetCard: {
-    backgroundColor: KindlingColors.background,
-    borderRadius: 8,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: KindlingColors.cream,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  assetInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  assetType: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  assetDescription: {
-    fontSize: Typography.fontSize.sm,
-    color: `${KindlingColors.navy}99`,
-  },
-  assetValue: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
-    color: KindlingColors.navy,
-    backgroundColor: `${KindlingColors.cream}80`,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  deleteButton: {
-    marginLeft: Spacing.sm,
-  },
-  subtotalSection: {
-    marginTop: Spacing.sm,
-    padding: Spacing.sm,
-    backgroundColor: `${KindlingColors.cream}66`,
-    borderRadius: 6,
-  },
-  subtotalText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.navy,
-    textAlign: 'center',
-  },
-  subtotalValue: {
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  allBusinessesSection: {
-    backgroundColor: `${KindlingColors.cream}4D`,
-    borderRadius: 12,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: KindlingColors.beige,
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  allBusinessesTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-    marginBottom: Spacing.xs,
-  },
-  businessGroup: {
-    gap: Spacing.xs,
-    paddingBottom: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: `${KindlingColors.cream}80`,
-    marginBottom: Spacing.sm,
-  },
-  businessGroupName: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-    marginBottom: 4,
-  },
-  businessGroupAsset: {
-    fontSize: Typography.fontSize.sm,
-    color: `${KindlingColors.navy}CC`,
-    paddingLeft: Spacing.sm,
-    lineHeight: 20,
-  },
-  businessGroupSubtotal: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
-    color: KindlingColors.navy,
-    marginTop: 4,
-  },
-  grandTotalSection: {
-    padding: Spacing.md,
-    backgroundColor: `${KindlingColors.navy}0D`,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: `${KindlingColors.navy}26`,
-  },
-  grandTotalText: {
-    fontSize: Typography.fontSize.md,
-    color: KindlingColors.navy,
-    textAlign: 'center',
-  },
-  grandTotalValue: {
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  grandTotalSubtext: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-  },
-  actionsSection: {
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  addAnotherBusinessButton: {
-    backgroundColor: KindlingColors.background,
-    borderWidth: 2,
-    borderColor: KindlingColors.green,
-    borderRadius: 8,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addAnotherBusinessText: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.green,
-  },
-  continueButton: {
-    marginTop: 0,
   },
 });

@@ -74,7 +74,7 @@ export const getInitialBequeathalData = (): BequeathalData => ({
   'agricultural-assets': [],
   'crypto-currency': [],
   other: [],
-  selectedCategories: new Set(),
+  categoryStatus: {},
   totalEstimatedValue: 0,
   totalNetValue: 0,
   lastUpdated: new Date()

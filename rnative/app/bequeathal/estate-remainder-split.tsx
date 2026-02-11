@@ -56,6 +56,7 @@ export default function EstateRemainderSplitScreen() {
     beneficiaryGroupActions,
     estateRemainderActions,
     willActions,
+    bequeathalActions,
   } = useAppState();
 
   // Celebration state
@@ -66,7 +67,8 @@ export default function EstateRemainderSplitScreen() {
     people: personActions.getPeople(),
     willData: willActions.getWillData(),
     estateRemainderState: estateRemainderActions.getEstateRemainderState(),
-  }), [willActions, personActions, estateRemainderActions]);
+    bequeathalData: bequeathalActions.getBequeathalData(),
+  }), [willActions, personActions, estateRemainderActions, bequeathalActions]);
 
   const handleCelebrationComplete = useCallback(() => {
     setShowCelebration(false);

@@ -336,7 +336,9 @@ export interface BequeathalData {
   'agricultural-assets': Asset[];
   'crypto-currency': Asset[];
   other: Asset[];
-  selectedCategories: Set<string>;
+  // A category is "selected" if it has an entry here.
+  // completedAt: null = selected but not complete. ISO string = complete.
+  categoryStatus: Record<string, { completedAt: string | null }>;
   totalEstimatedValue: number;
   totalNetValue: number;
   lastUpdated: Date;
@@ -827,17 +829,32 @@ export interface BeneficiaryActions {
  * Actions for managing assets (bequeathals)
  */
 export interface BequeathalActions {
+  // Asset CRUD — unchanged
   addAsset: (type: AssetType, assetData: Omit<Asset, 'id' | 'type' | 'createdAt' | 'updatedAt'>) => string;
   updateAsset: (id: string, updates: Partial<Asset>) => void;
   removeAsset: (id: string) => void;
-  deleteAsset?: (id: string) => void; // @deprecated - use removeAsset instead
   getAssets: () => Asset[];
   getAssetById: (id: string) => Asset | undefined;
   getAssetsByType: (type: AssetType) => Asset[];
   getAllAssets: () => Asset[];
+
+  // Category lifecycle — NEW (replaces setSelectedCategories / toggleCategory / deleteAsset)
+  selectCategory: (categoryId: string) => void;
+  deselectCategory: (categoryId: string) => void;
+  markCategoryComplete: (categoryId: string) => void;
+  markCategoryIncomplete: (categoryId: string) => void;
+  markAllCategoriesComplete: () => void;
+
+  // Category queries
   getSelectedCategories: () => string[];
-  setSelectedCategories: (categories: string[]) => void;
-  toggleCategory: (category: string) => void;
+  isCategorySelected: (categoryId: string) => boolean;
+  isCategoryComplete: (categoryId: string) => boolean;
+  areAllCategoriesComplete: () => boolean;
+  getAssetCountByType: (type: string) => number;
+  getTotalAssetCount: () => number;
+
+  // Raw data access
+  getBequeathalData: () => BequeathalData;
 }
 
 /**

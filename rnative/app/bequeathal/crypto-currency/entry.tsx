@@ -1,25 +1,25 @@
 /**
  * Cryptocurrency Entry Screen
- * 
- * Form for adding and managing cryptocurrency accounts/wallets.
- * Simplified account-based model: one entry per platform/wallet.
- * 
+ *
+ * Single-asset entry form. Supports add (new) and edit (?id=xxx).
+ *
  * Navigation:
- * - Back: Returns to cryptocurrency intro
- * - Continue: Proceeds to next category or will-dashboard
+ * - Back: Category Summary (/bequeathal/crypto-currency/summary)
+ * - Save: Category Summary (/bequeathal/crypto-currency/summary)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Select, Input, CurrencyInput } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
 import type { CryptoCurrencyAsset } from '../../../src/types';
+
+const SUMMARY_ROUTE = '/bequeathal/crypto-currency/summary';
 
 interface CryptoForm {
   platform: string;
@@ -30,8 +30,10 @@ interface CryptoForm {
 
 export default function CryptoCurrencyEntryScreen() {
   const { bequeathalActions } = useAppState();
-  const [showForm, setShowForm] = useState(true);
-  const [showHoldingsList, setShowHoldingsList] = useState(true);
+  const params = useLocalSearchParams();
+  const editingAssetId = params.id as string | undefined;
+  const loadedIdRef = useRef<string | null>(null);
+
   const [formData, setFormData] = useState<CryptoForm>({
     platform: '',
     accountUsername: '',
@@ -62,21 +64,37 @@ export default function CryptoCurrencyEntryScreen() {
     { label: 'Other', value: 'Other' },
   ];
 
-  // Load existing holdings
-  const cryptoHoldings = bequeathalActions.getAssetsByType('crypto-currency') as CryptoCurrencyAsset[];
-  const totalValue = cryptoHoldings.reduce((sum, holding) => sum + (holding.estimatedValue || 0), 0);
-  const unknownValueCount = cryptoHoldings.filter(h => (h.estimatedValue || 0) === 0).length;
-
-  // Hide form after first holding if none existed initially
+  // Load existing asset when editing
   useEffect(() => {
-    if (cryptoHoldings.length === 0) {
-      setShowForm(true);
-    } else if (cryptoHoldings.length > 0) {
-      setShowForm(false);
+    if (!editingAssetId) {
+      loadedIdRef.current = null;
+      return;
     }
-  }, []);
 
-  const handleAddHolding = () => {
+    if (loadedIdRef.current === editingAssetId) return;
+
+    const allAssets = bequeathalActions.getAllAssets();
+    if (allAssets.length === 0) return;
+
+    const asset = bequeathalActions.getAssetById(editingAssetId);
+    if (!asset || asset.type !== 'crypto-currency') {
+      router.push(SUMMARY_ROUTE as any);
+      return;
+    }
+
+    const holding = asset as CryptoCurrencyAsset;
+    loadedIdRef.current = editingAssetId;
+
+    setFormData({
+      platform: holding.platform || '',
+      accountUsername: holding.accountUsername || '',
+      estimatedValue: holding.estimatedValue || 0,
+      notes: (holding as any).notes || '',
+    });
+    setBalanceNotSure((holding.estimatedValue || 0) === 0);
+  }, [editingAssetId, bequeathalActions]);
+
+  const handleSave = () => {
     // Validation
     if (!formData.platform) return;
 
@@ -84,7 +102,7 @@ export default function CryptoCurrencyEntryScreen() {
     const estimatedValue = Math.round(balanceNotSure ? 0 : formData.estimatedValue);
 
     const holdingData = {
-      title: formData.accountUsername 
+      title: formData.accountUsername
         ? `${formData.platform} - ${formData.accountUsername}`
         : formData.platform,
       platform: formData.platform,
@@ -94,31 +112,17 @@ export default function CryptoCurrencyEntryScreen() {
       netValue: estimatedValue,
     };
 
-    bequeathalActions.addAsset('crypto-currency', holdingData);
+    if (editingAssetId) {
+      bequeathalActions.updateAsset(editingAssetId, holdingData);
+    } else {
+      bequeathalActions.addAsset('crypto-currency', holdingData);
+    }
 
-    // Reset form
-    setFormData({
-      platform: '',
-      accountUsername: '',
-      estimatedValue: 0,
-      notes: '',
-    });
-    setBalanceNotSure(false);
-    setShowForm(false);
-  };
-
-  const handleRemoveHolding = (id: string) => {
-    bequeathalActions.removeAsset(id);
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const handleBack = () => {
-    router.back();
-  };
-
-  const handleContinue = () => {
-    const selectedCategories = bequeathalActions.getSelectedCategories();
-    const nextRoute = getNextCategoryRoute('crypto-currency', selectedCategories);
-    router.push(nextRoute);
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const canSubmit = formData.platform;
@@ -136,7 +140,9 @@ export default function CryptoCurrencyEntryScreen() {
       <View style={styles.header}>
         <BackButton onPress={handleBack} />
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Enter Crypto Accounts</Text>
+          <Text style={styles.headerTitle}>
+            {editingAssetId ? 'Edit Crypto Account' : 'Add Crypto Account'}
+          </Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -148,160 +154,85 @@ export default function CryptoCurrencyEntryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          {/* Add Holding Form */}
-          {showForm && (
-            <View style={styles.formCard}>
-              <Text style={styles.formTitle}>Add Crypto Account</Text>
-              
-              <Select
-                label="Platform or Wallet *"
-                placeholder="Select wallet or exchange..."
-                value={formData.platform}
-                options={platformOptions}
-                onChange={(value) => setFormData(prev => ({ ...prev, platform: value }))}
-              />
+          <View style={styles.formCard}>
+            <Text style={styles.formTitle}>
+              {editingAssetId ? 'Update the details below.' : 'Add a crypto account or wallet.'}
+            </Text>
 
-              <Input
-                label="Account Username/ID"
-                placeholder="e.g., john@email.com, Account ID"
-                value={formData.accountUsername}
-                onChangeText={(value) => setFormData(prev => ({ ...prev, accountUsername: value }))}
-              />
+            <Select
+              label="Platform or Wallet *"
+              placeholder="Select wallet or exchange..."
+              value={formData.platform}
+              options={platformOptions}
+              onChange={(value) => setFormData(prev => ({ ...prev, platform: value }))}
+            />
 
-              <View style={styles.balanceSection}>
-                <View style={balanceNotSure && styles.disabledInputContainer}>
-                  <CurrencyInput
-                    label="Estimated Value"
-                    placeholder="0"
-                    value={balanceNotSure ? 0 : formData.estimatedValue}
-                    onValueChange={(value) => {
-                      setFormData(prev => ({ ...prev, estimatedValue: value }));
-                      setBalanceNotSure(false);
-                    }}
-                    disabled={balanceNotSure}
-                  />
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    const newValue = !balanceNotSure;
-                    setBalanceNotSure(newValue);
-                    if (newValue) {
-                      setFormData(prev => ({ ...prev, estimatedValue: 0 }));
-                    }
+            <Input
+              label="Account Username/ID"
+              placeholder="e.g., john@email.com, Account ID"
+              value={formData.accountUsername}
+              onChangeText={(value) => setFormData(prev => ({ ...prev, accountUsername: value }))}
+            />
+
+            <View style={styles.balanceSection}>
+              <View style={balanceNotSure && styles.disabledInputContainer}>
+                <CurrencyInput
+                  label="Estimated Value"
+                  placeholder="0"
+                  value={balanceNotSure ? 0 : formData.estimatedValue}
+                  onValueChange={(value) => {
+                    setFormData(prev => ({ ...prev, estimatedValue: value }));
+                    setBalanceNotSure(false);
                   }}
-                  style={styles.checkboxRow}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.checkboxCircle, balanceNotSure && styles.checkboxCircleSelected]}>
-                    {balanceNotSure && (
-                      <IconButton
-                        icon="check"
-                        size={16}
-                        iconColor={KindlingColors.background}
-                        style={styles.checkIcon}
-                      />
-                    )}
-                  </View>
-                  <Text style={styles.checkboxLabel}>Unsure of balance</Text>
-                </TouchableOpacity>
+                  disabled={balanceNotSure}
+                />
               </View>
-
-              <Text style={styles.valueNote}>
-                Cryptocurrency values fluctuate - this is just for estate planning estimates
-              </Text>
-
-              <Input
-                label="Notes"
-                placeholder="Any other important details about this holding..."
-                value={formData.notes}
-                onChangeText={(value) => setFormData(prev => ({ ...prev, notes: value }))}
-                multiline
-                numberOfLines={3}
-              />
-
-              <Button
-                onPress={handleAddHolding}
-                variant="primary"
-                disabled={!canSubmit}
-              >
-                Add Holding
-              </Button>
-            </View>
-          )}
-
-          {/* Existing Holdings List */}
-          {cryptoHoldings.length > 0 && (
-            <View style={styles.holdingsSection}>
-              <View style={styles.holdingsHeader}>
-                <Text style={styles.holdingsTitle}>
-                  Your Cryptocurrency ({cryptoHoldings.length})
-                </Text>
-                <TouchableOpacity onPress={() => setShowHoldingsList(!showHoldingsList)}>
-                  <IconButton
-                    icon={showHoldingsList ? 'eye-off' : 'eye'}
-                    size={20}
-                    iconColor={KindlingColors.brown}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {showHoldingsList && (
-                <View style={styles.holdingsList}>
-                  {cryptoHoldings.map((holding) => (
-                    <View key={holding.id} style={styles.holdingCard}>
-                      <View style={styles.holdingInfo}>
-                        <Text style={styles.holdingPlatform}>{holding.platform}</Text>
-                        {holding.accountUsername && (
-                          <Text style={styles.holdingAccount}>{holding.accountUsername}</Text>
-                        )}
-                        {holding.notes && (
-                          <Text style={styles.holdingNotes} numberOfLines={1}>{holding.notes}</Text>
-                        )}
-                        <Text style={styles.holdingValue}>
-                          {(holding.estimatedValue || 0) === 0 ? 'Value not known' : `£${(holding.estimatedValue || 0).toLocaleString()}`}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => handleRemoveHolding(holding.id)}
-                        style={styles.deleteButton}
-                      >
-                        <IconButton icon="delete" size={20} iconColor={KindlingColors.destructive} />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-
-                  {/* Total Summary */}
-                  <View style={styles.totalSection}>
-                    <Text style={styles.totalText}>
-                      Crypto Total: <Text style={styles.totalValue}>£{totalValue.toLocaleString()}</Text>
-                    </Text>
-                    {unknownValueCount > 0 && (
-                      <Text style={styles.unknownValueText}>
-                        (+ {unknownValueCount} unknown {unknownValueCount === 1 ? 'balance' : 'balances'})
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Action Buttons - at bottom of content */}
-          {cryptoHoldings.length > 0 && (
-            <>
               <TouchableOpacity
-                onPress={() => setShowForm(true)}
-                style={styles.addAnotherButton}
+                onPress={() => {
+                  const newValue = !balanceNotSure;
+                  setBalanceNotSure(newValue);
+                  if (newValue) {
+                    setFormData(prev => ({ ...prev, estimatedValue: 0 }));
+                  }
+                }}
+                style={styles.checkboxRow}
                 activeOpacity={0.7}
               >
-                <Text style={styles.addAnotherText}>Add Another Holding</Text>
+                <View style={[styles.checkboxCircle, balanceNotSure && styles.checkboxCircleSelected]}>
+                  {balanceNotSure && (
+                    <IconButton
+                      icon="check"
+                      size={16}
+                      iconColor={KindlingColors.background}
+                      style={styles.checkIcon}
+                    />
+                  )}
+                </View>
+                <Text style={styles.checkboxLabel}>Unsure of balance</Text>
               </TouchableOpacity>
+            </View>
 
-              <Button onPress={handleContinue} variant="primary" style={styles.continueButton}>
-                Continue
-              </Button>
-            </>
-          )}
+            <Text style={styles.valueNote}>
+              Cryptocurrency values fluctuate - this is just for estate planning estimates
+            </Text>
+
+            <Input
+              label="Notes"
+              placeholder="Any other important details about this holding..."
+              value={formData.notes}
+              onChangeText={(value) => setFormData(prev => ({ ...prev, notes: value }))}
+              multiline
+              numberOfLines={3}
+            />
+
+            <Button
+              onPress={handleSave}
+              variant="primary"
+              disabled={!canSubmit}
+            >
+              {editingAssetId ? 'Save changes' : 'Add this holding'}
+            </Button>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -361,7 +292,6 @@ const styles = StyleSheet.create({
     backgroundColor: KindlingColors.background,
     borderBottomWidth: 1,
     borderBottomColor: `${KindlingColors.border}1a`,
-    zIndex: 10,
   },
   headerCenter: {
     flex: 1,
@@ -378,7 +308,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    zIndex: 10,
   },
   contentContainer: {
     paddingVertical: Spacing.lg,
@@ -444,103 +373,4 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginTop: -Spacing.xs,
   },
-  holdingsSection: {
-    gap: Spacing.md,
-  },
-  holdingsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
-  },
-  holdingsTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  holdingsList: {
-    gap: Spacing.sm,
-  },
-  holdingCard: {
-    backgroundColor: KindlingColors.background,
-    borderRadius: 8,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: KindlingColors.cream,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  holdingInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  holdingPlatform: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  holdingAccount: {
-    fontSize: Typography.fontSize.sm,
-    color: `${KindlingColors.navy}99`,
-  },
-  holdingNotes: {
-    fontSize: Typography.fontSize.xs,
-    color: `${KindlingColors.navy}80`,
-  },
-  holdingValue: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
-    color: KindlingColors.navy,
-    backgroundColor: `${KindlingColors.cream}80`,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  deleteButton: {
-    marginLeft: Spacing.sm,
-  },
-  totalSection: {
-    marginTop: Spacing.md,
-    padding: Spacing.md,
-    backgroundColor: `${KindlingColors.cream}66`,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: KindlingColors.beige,
-  },
-  totalText: {
-    fontSize: Typography.fontSize.md,
-    color: KindlingColors.navy,
-    textAlign: 'center',
-  },
-  totalValue: {
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  unknownValueText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-  },
-  addAnotherButton: {
-    backgroundColor: KindlingColors.background,
-    borderWidth: 2,
-    borderColor: KindlingColors.green,
-    borderRadius: 8,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.xl,
-  },
-  addAnotherText: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.green,
-  },
-  continueButton: {
-    marginTop: Spacing.sm,
-  },
 });
-

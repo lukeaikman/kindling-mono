@@ -113,18 +113,25 @@ export default function BequeathalCategoriesScreen() {
   };
 
   const handleBack = () => {
-    // Save selections before going back
-    bequeathalActions.setSelectedCategories(selectedCategories);
+    // Legacy: sync local state to new categoryStatus model
+    for (const cat of selectedCategories) {
+      if (!bequeathalActions.isCategorySelected(cat)) {
+        bequeathalActions.selectCategory(cat);
+      }
+    }
     router.back();
   };
 
   const handleContinue = () => {
-    // Save selections before continuing
-    bequeathalActions.setSelectedCategories(selectedCategories);
+    // Legacy: sync local state to new categoryStatus model
+    for (const cat of selectedCategories) {
+      if (!bequeathalActions.isCategorySelected(cat)) {
+        bequeathalActions.selectCategory(cat);
+      }
+    }
     
-    // Navigate to first selected category intro screen
-    const nextRoute = getFirstCategoryRoute(selectedCategories);
-    router.push(nextRoute);
+    // Navigate to estate dashboard instead of first category
+    router.push('/estate-dashboard' as any);
   };
 
   const renderCategoryCard = (category: CategoryItem) => {

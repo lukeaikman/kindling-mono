@@ -1,19 +1,17 @@
 /**
  * Estate Dashboard Screen
  *
- * The central hub for the "Your Estate" section, replacing the linear
- * category → intro → entry pipeline with a hub-and-spoke model.
+ * The central hub for the "Your Estate" section. Hub-and-spoke model:
+ * users navigate into categories from here and always return here.
  *
  * Two visual modes:
  *   Mode A (Selection) — no assets yet: warm category picker
  *   Mode B (Balance Sheet) — assets exist: net wealth hero + category cards
  *
- * Phase 1: Static UI prototype with hardcoded dummy data and a dev toggle.
- *
  * @module screens/estate-dashboard
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -26,71 +24,44 @@ import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+
 import { BackButton, Button } from '../src/components/ui';
 import { EstateCategoryCard } from '../src/components/ui/EstateCategoryCard';
+import { useAppState } from '../src/hooks/useAppState';
+import {
+  CATEGORY_META,
+  sortByCanonicalOrder,
+  getCategoryRoute,
+} from '../src/utils/categoryNavigation';
+import {
+  getEstateNetValue,
+  getEstateGrossValue,
+  getEstateTrustValue,
+  isIHTReady,
+  formatShortCurrency,
+} from '../src/utils/willProgress';
+import type { WillProgressState } from '../src/utils/willProgress';
+import type { BequeathalData } from '../src/types';
 import { KindlingColors } from '../src/styles/theme';
 import { Spacing, Typography, BorderRadius, Shadows } from '../src/styles/constants';
-
-// ---------------------------------------------------------------------------
-// Canonical category metadata — merged and ordered
-// ---------------------------------------------------------------------------
-
-interface CategoryMeta {
-  id: string;
-  label: string;
-  icon: string;
-  description: string;
-}
-
-const CATEGORIES: CategoryMeta[] = [
-  { id: 'property', label: 'Property', icon: 'home', description: 'Houses, flats, land, and other real estate' },
-  { id: 'bank-accounts', label: 'Bank Accounts', icon: 'piggy-bank', description: 'Current accounts, savings, ISAs' },
-  { id: 'pensions', label: 'Pensions', icon: 'shield', description: 'Workplace and private pensions' },
-  { id: 'investment', label: 'Investments', icon: 'trending-up', description: 'Stocks, shares, bonds, funds' },
-  { id: 'life-insurance', label: 'Life Insurance', icon: 'shield-account', description: 'Life insurance policies and payouts' },
-  { id: 'private-company-shares', label: 'Private Company Shares', icon: 'office-building', description: 'Shares in private companies' },
-  { id: 'assets-held-through-business', label: 'Assets Held Through Business', icon: 'domain', description: 'Assets owned by your business' },
-  { id: 'important-items', label: 'Important Items', icon: 'diamond', description: 'Jewellery, art, collectibles, heirlooms' },
-  { id: 'crypto-currency', label: 'Cryptocurrency', icon: 'bitcoin', description: 'Bitcoin, Ethereum, and other crypto' },
-  { id: 'agricultural-assets', label: 'Agricultural Assets', icon: 'nature', description: 'Farmland, livestock, equipment' },
-];
-
-// ---------------------------------------------------------------------------
-// Dummy data — Phase 1 only (hardcoded constants)
-// ---------------------------------------------------------------------------
-
-interface DummyCategoryState {
-  id: string;
-  assetCount: number;
-  netValue: number;
-  isComplete: boolean;
-}
-
-const DUMMY_SELECTED: DummyCategoryState[] = [
-  { id: 'property', assetCount: 2, netValue: 550000, isComplete: true },
-  { id: 'bank-accounts', assetCount: 0, netValue: 0, isComplete: false },
-  { id: 'investment', assetCount: 1, netValue: 200000, isComplete: false },
-  { id: 'pensions', assetCount: 1, netValue: 185000, isComplete: false },
-];
-
-const DUMMY_NET = 982000;
-const DUMMY_GROSS = 1247000;
-const DUMMY_TRUST = 150000;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Format number as short GBP: £550k, £1.2m, etc. */
+/** Format number as full GBP: £550,000 */
 const formatCurrency = (value: number): string => {
   return `£${value.toLocaleString('en-GB')}`;
 };
 
 /** Warm progress sentence for Mode B */
-const getProgressSentence = (selected: DummyCategoryState[]): string => {
-  const completeCount = selected.filter((c) => c.isComplete).length;
-  if (completeCount === 0) return 'Select your first category to get started.';
-  if (completeCount === selected.length) return 'Your whole estate, mapped out.';
+const getProgressSentence = (
+  selectedCount: number,
+  completeCount: number,
+): string => {
+  if (selectedCount === 0) return 'Select your first category to get started.';
+  if (completeCount === selectedCount) return 'Your whole estate, mapped out.';
   return 'Your estate is taking shape.';
 };
 
@@ -115,7 +86,7 @@ const SelectionMode: React.FC<ModeAProps> = ({ selectedIds, onToggle }) => (
 
     {/* Category selection cards */}
     <View style={styles.categoryList}>
-      {CATEGORIES.map((cat) => {
+      {CATEGORY_META.map((cat) => {
         const isSelected = selectedIds.has(cat.id);
         return (
           <TouchableOpacity
@@ -157,48 +128,68 @@ const SelectionMode: React.FC<ModeAProps> = ({ selectedIds, onToggle }) => (
 // Mode B — Balance Sheet Mode
 // ---------------------------------------------------------------------------
 
+interface CategoryCardData {
+  id: string;
+  label: string;
+  icon: string;
+  assetCount: number;
+  netValue: number;
+  isComplete: boolean;
+}
+
 interface ModeBProps {
-  selected: DummyCategoryState[];
-  onCardPress: (id: string) => void;
+  cards: CategoryCardData[];
+  netValue: number;
+  grossValue: number;
+  trustValue: number;
+  ihtReady: boolean;
+  onCardPress: (id: string, assetCount: number) => void;
   onDeselect: (id: string) => void;
   onAddSomethingElse: () => void;
-  onAllAssetsAdded: () => void;
 }
 
 const BalanceSheetMode: React.FC<ModeBProps> = ({
-  selected,
+  cards,
+  netValue,
+  grossValue,
+  trustValue,
+  ihtReady,
   onCardPress,
   onDeselect,
   onAddSomethingElse,
-  onAllAssetsAdded,
 }) => {
-  const progressSentence = getProgressSentence(selected);
+  const completeCount = cards.filter((c) => c.isComplete).length;
+  const progressSentence = getProgressSentence(cards.length, completeCount);
 
   return (
     <View style={styles.modeBContainer}>
       {/* Hero net wealth section */}
       <View style={styles.heroCard}>
-        <Text style={styles.heroAmount}>{formatCurrency(DUMMY_NET)}</Text>
+        <Text style={styles.heroAmount}>{formatCurrency(netValue)}</Text>
         <Text style={styles.heroLabel}>Net Estate Value</Text>
 
         <View style={styles.heroBreakdown}>
           <View style={styles.heroBreakdownRow}>
             <Text style={styles.heroBreakdownLabel}>What You Own</Text>
-            <Text style={styles.heroBreakdownValue}>{formatCurrency(DUMMY_GROSS)}</Text>
+            <Text style={styles.heroBreakdownValue}>{formatCurrency(grossValue)}</Text>
           </View>
-          <View style={styles.heroBreakdownRow}>
-            <Text style={styles.heroBreakdownLabel}>In Trust</Text>
-            <Text style={styles.heroBreakdownValue}>{formatCurrency(DUMMY_TRUST)}</Text>
-          </View>
+          {trustValue > 0 && (
+            <View style={styles.heroBreakdownRow}>
+              <Text style={styles.heroBreakdownLabel}>In Trust</Text>
+              <Text style={styles.heroBreakdownValue}>{formatCurrency(trustValue)}</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.ihtRow}>
           <MaterialCommunityIcons
-            name="clock-outline"
+            name={ihtReady ? 'calculator' : 'clock-outline'}
             size={14}
             color={KindlingColors.mutedForeground}
           />
-          <Text style={styles.ihtText}>IHT: Pending asset entry</Text>
+          <Text style={styles.ihtText}>
+            {ihtReady ? 'IHT estimate available' : 'IHT: Pending asset entry'}
+          </Text>
         </View>
       </View>
 
@@ -211,22 +202,18 @@ const BalanceSheetMode: React.FC<ModeBProps> = ({
 
       {/* Selected category cards */}
       <View style={styles.categoryCards}>
-        {selected.map((cat) => {
-          const meta = CATEGORIES.find((c) => c.id === cat.id);
-          if (!meta) return null;
-          return (
-            <EstateCategoryCard
-              key={cat.id}
-              icon={meta.icon}
-              title={meta.label}
-              assetCount={cat.assetCount}
-              netValue={cat.netValue}
-              isComplete={cat.isComplete}
-              onPress={() => onCardPress(cat.id)}
-              onDeselect={cat.assetCount === 0 ? () => onDeselect(cat.id) : undefined}
-            />
-          );
-        })}
+        {cards.map((cat) => (
+          <EstateCategoryCard
+            key={cat.id}
+            icon={cat.icon}
+            title={cat.label}
+            assetCount={cat.assetCount}
+            netValue={cat.netValue}
+            isComplete={cat.isComplete}
+            onPress={() => onCardPress(cat.id, cat.assetCount)}
+            onDeselect={cat.assetCount === 0 ? () => onDeselect(cat.id) : undefined}
+          />
+        ))}
       </View>
 
       {/* Add something else */}
@@ -261,50 +248,184 @@ const BalanceSheetMode: React.FC<ModeBProps> = ({
 // ---------------------------------------------------------------------------
 
 export default function EstateDashboardScreen() {
-  // Phase 1: dev toggle between Mode A and Mode B
-  const [isBalanceSheet, setIsBalanceSheet] = useState(false);
+  const { bequeathalActions, willActions, personActions, estateRemainderActions } = useAppState();
 
-  // Mode A: local selection state (purely for prototype interactivity)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    new Set(DUMMY_SELECTED.map((c) => c.id)),
+  // Build progress state for willProgress helpers
+  const bd: BequeathalData = bequeathalActions.getBequeathalData();
+  const progressState: WillProgressState = useMemo(
+    () => ({
+      willMaker: willActions.getUser(),
+      people: personActions.getPeople(),
+      willData: willActions.getWillData(),
+      estateRemainderState: estateRemainderActions.getEstateRemainderState(),
+      bequeathalData: bd,
+    }),
+    [willActions, personActions, estateRemainderActions, bd],
   );
 
-  const handleToggleCategory = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
+  // Derive real values
+  const totalAssetCount = bequeathalActions.getTotalAssetCount();
+  const isBalanceSheet = totalAssetCount > 0;
+  const selectedCategories = sortByCanonicalOrder(bequeathalActions.getSelectedCategories());
+  const selectedSet = useMemo(() => new Set(selectedCategories), [selectedCategories]);
+
+  // Real calculated values for Mode B
+  const netValue = useMemo(() => getEstateNetValue(progressState), [progressState]);
+  const grossValue = useMemo(() => getEstateGrossValue(progressState), [progressState]);
+  const trustValue = useMemo(() => getEstateTrustValue(progressState), [progressState]);
+  const ihtReady = useMemo(() => isIHTReady(progressState), [progressState]);
+
+  // Build category card data for Mode B
+  const categoryCards: CategoryCardData[] = useMemo(() => {
+    return selectedCategories.map((catId) => {
+      const meta = CATEGORY_META.find((c) => c.id === catId);
+      const assetCount = bequeathalActions.getAssetCountByType(catId);
+      const assets = bequeathalActions.getAssetsByType(catId as any);
+
+      // Compute per-category net value
+      let catNet = 0;
+      for (const asset of assets) {
+        if (asset.heldInTrust === 'yes') continue;
+        const val = asset.estimatedValue || 0;
+        if (asset.type === 'property') {
+          const mortgage = (asset as any).mortgage?.outstandingAmount || 0;
+          catNet += val - mortgage;
+        } else {
+          catNet += val;
+        }
       }
-      return next;
+
+      return {
+        id: catId,
+        label: meta?.label || catId,
+        icon: meta?.icon || 'folder',
+        assetCount,
+        netValue: catNet,
+        isComplete: bequeathalActions.isCategoryComplete(catId),
+      };
     });
-  };
+  }, [selectedCategories, bequeathalActions]);
 
-  const handleBack = () => {
-    router.back();
-  };
+  // ---- Bottom sheet for "Add something else" ----
+  const bottomSheetRef = useRef<BottomSheet>(null);
 
-  const handleCardPress = (id: string) => {
-    Alert.alert('Navigate', `Would navigate to ${id} summary or intro`);
-  };
+  // Unselected categories for the tray
+  const unselectedCategories = useMemo(
+    () => CATEGORY_META.filter((c) => !selectedSet.has(c.id)),
+    [selectedSet],
+  );
 
-  const handleDeselect = (id: string) => {
-    Alert.alert('Deselect', `Would deselect ${id}`);
-  };
+  // ---- Handlers ----
+  const handleBack = useCallback(() => {
+    router.push('/will-dashboard' as any);
+  }, []);
 
-  const handleAddSomethingElse = () => {
-    Alert.alert('Add Category', 'Would open bottom sheet with unselected categories');
-  };
+  const handleToggleCategory = useCallback(
+    (id: string) => {
+      if (bequeathalActions.isCategorySelected(id)) {
+        bequeathalActions.deselectCategory(id);
+      } else {
+        bequeathalActions.selectCategory(id);
+      }
+    },
+    [bequeathalActions],
+  );
 
-  const handleAllAssetsAdded = () => {
-    Alert.alert('All Assets Added', 'Would check completion and route to Will Dashboard');
-  };
+  const handleCardPress = useCallback(
+    (id: string, assetCount: number) => {
+      const route = getCategoryRoute(id, assetCount);
+      router.push(route as any);
+    },
+    [],
+  );
 
-  const handleModeAGetStarted = () => {
-    Alert.alert('Get Started', 'Would navigate to the first selected category intro screen');
-  };
+  const handleDeselect = useCallback(
+    (id: string) => {
+      bequeathalActions.deselectCategory(id);
+    },
+    [bequeathalActions],
+  );
 
+  const handleAddSomethingElse = useCallback(() => {
+    bottomSheetRef.current?.expand();
+  }, []);
+
+  const handleSelectFromTray = useCallback(
+    (id: string) => {
+      bequeathalActions.selectCategory(id);
+      bottomSheetRef.current?.close();
+    },
+    [bequeathalActions],
+  );
+
+  const handleAllAssetsAdded = useCallback(() => {
+    if (bequeathalActions.areAllCategoriesComplete()) {
+      // All complete — route to Will Dashboard
+      router.push('/will-dashboard' as any);
+      return;
+    }
+
+    // Find incomplete categories
+    const incomplete = selectedCategories.filter(
+      (cat) => !bequeathalActions.isCategoryComplete(cat),
+    );
+    const zeroAsset = incomplete.filter(
+      (cat) => bequeathalActions.getAssetCountByType(cat) === 0,
+    );
+    const hasAssetsNotMarked = incomplete.filter(
+      (cat) => bequeathalActions.getAssetCountByType(cat) > 0,
+    );
+
+    // Build a human-readable message
+    const getNames = (cats: string[]) =>
+      cats
+        .map((c) => CATEGORY_META.find((m) => m.id === c)?.label || c)
+        .join(', ');
+
+    if (zeroAsset.length > 0) {
+      const names = getNames(zeroAsset);
+      Alert.alert(
+        'Some categories are empty',
+        `${names} ${zeroAsset.length === 1 ? 'has' : 'have'} no assets yet. Mark ${zeroAsset.length === 1 ? 'it' : 'them'} complete anyway, or go back and add some?`,
+        [
+          { text: 'Go back', style: 'cancel' },
+          {
+            text: 'Mark complete anyway',
+            onPress: () => {
+              bequeathalActions.markAllCategoriesComplete();
+              router.push('/will-dashboard' as any);
+            },
+          },
+        ],
+      );
+    } else if (hasAssetsNotMarked.length > 0) {
+      Alert.alert(
+        'Almost there',
+        'Shall we mark all asset categories as complete?',
+        [
+          { text: 'Not yet', style: 'cancel' },
+          {
+            text: "Yes, that's everything",
+            onPress: () => {
+              bequeathalActions.markAllCategoriesComplete();
+              router.push('/will-dashboard' as any);
+            },
+          },
+        ],
+      );
+    }
+  }, [selectedCategories, bequeathalActions]);
+
+  const handleModeAGetStarted = useCallback(() => {
+    // Navigate to the first selected category's intro
+    if (selectedCategories.length > 0) {
+      const firstCat = selectedCategories[0];
+      const route = getCategoryRoute(firstCat, 0); // 0 assets in mode A
+      router.push(route as any);
+    }
+  }, [selectedCategories]);
+
+  // ---- Render ----
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
@@ -340,15 +461,18 @@ export default function EstateDashboardScreen() {
       >
         {isBalanceSheet ? (
           <BalanceSheetMode
-            selected={DUMMY_SELECTED}
+            cards={categoryCards}
+            netValue={netValue}
+            grossValue={grossValue}
+            trustValue={trustValue}
+            ihtReady={ihtReady}
             onCardPress={handleCardPress}
             onDeselect={handleDeselect}
             onAddSomethingElse={handleAddSomethingElse}
-            onAllAssetsAdded={handleAllAssetsAdded}
           />
         ) : (
           <SelectionMode
-            selectedIds={selectedIds}
+            selectedIds={selectedSet}
             onToggle={handleToggleCategory}
           />
         )}
@@ -361,7 +485,7 @@ export default function EstateDashboardScreen() {
             All assets added
           </Button>
         </View>
-      ) : selectedIds.size > 0 ? (
+      ) : selectedSet.size > 0 ? (
         <View style={styles.footer}>
           <Button onPress={handleModeAGetStarted} variant="primary">
             Let's get started
@@ -369,23 +493,58 @@ export default function EstateDashboardScreen() {
         </View>
       ) : null}
 
-      {/* DEV toggle: switch between Mode A and Mode B */}
-      {__DEV__ && (
-        <TouchableOpacity
-          style={styles.devToggle}
-          onPress={() => setIsBalanceSheet((prev) => !prev)}
-          activeOpacity={0.8}
-        >
-          <MaterialCommunityIcons
-            name={isBalanceSheet ? 'view-list' : 'chart-bar'}
-            size={20}
-            color={KindlingColors.background}
-          />
-          <Text style={styles.devToggleText}>
-            {isBalanceSheet ? 'A' : 'B'}
+      {/* Bottom Sheet — "Add something else" tray */}
+      <BottomSheet
+        ref={bottomSheetRef}
+        index={-1}
+        snapPoints={['50%', '75%']}
+        enablePanDownToClose
+        backdropComponent={(props) => (
+          <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
+        )}
+        backgroundStyle={styles.bottomSheetBg}
+        handleIndicatorStyle={styles.bottomSheetHandle}
+      >
+        <BottomSheetView style={styles.bottomSheetContent}>
+          <Text style={styles.bottomSheetTitle}>Add a category</Text>
+          <Text style={styles.bottomSheetSubtitle}>
+            Select a category to add to your estate
           </Text>
-        </TouchableOpacity>
-      )}
+          {unselectedCategories.length === 0 ? (
+            <Text style={styles.bottomSheetEmpty}>
+              All categories are already selected.
+            </Text>
+          ) : (
+            <View style={styles.bottomSheetList}>
+              {unselectedCategories.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={styles.bottomSheetItem}
+                  onPress={() => handleSelectFromTray(cat.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.bottomSheetItemIcon}>
+                    <MaterialCommunityIcons
+                      name={cat.icon as any}
+                      size={20}
+                      color={KindlingColors.navy}
+                    />
+                  </View>
+                  <View style={styles.bottomSheetItemText}>
+                    <Text style={styles.bottomSheetItemTitle}>{cat.label}</Text>
+                    <Text style={styles.bottomSheetItemDesc}>{cat.description}</Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="plus-circle-outline"
+                    size={22}
+                    color={KindlingColors.green}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </BottomSheetView>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -450,7 +609,6 @@ const styles = StyleSheet.create({
     backgroundColor: KindlingColors.background,
     borderBottomWidth: 1,
     borderBottomColor: `${KindlingColors.border}1a`,
-    zIndex: 10,
   },
   headerCenter: {
     flex: 1,
@@ -479,7 +637,6 @@ const styles = StyleSheet.create({
   // -- Scroll --
   scrollView: {
     flex: 1,
-    zIndex: 10,
   },
   contentContainer: {
     paddingVertical: Spacing.lg,
@@ -491,7 +648,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    zIndex: 10,
     backgroundColor: KindlingColors.background,
     borderTopWidth: 1,
     borderTopColor: `${KindlingColors.border}1a`,
@@ -524,7 +680,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
 
-  // Selection card — warm style matching categories.tsx
+  // Selection card
   selectionCard: {
     backgroundColor: KindlingColors.background,
     borderRadius: BorderRadius.lg,
@@ -702,25 +858,72 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================================
-  // DEV toggle
+  // Bottom Sheet — "Add something else" tray
   // ==========================================================================
-  devToggle: {
-    position: 'absolute',
-    bottom: 100,
-    right: Spacing.lg,
+  bottomSheetBg: {
+    backgroundColor: KindlingColors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  bottomSheetHandle: {
+    backgroundColor: KindlingColors.green,
+    width: 40,
+  },
+  bottomSheetContent: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xl,
+  },
+  bottomSheetTitle: {
+    fontSize: Typography.fontSize.xl,
+    fontWeight: Typography.fontWeight.bold,
+    color: KindlingColors.navy,
+    marginBottom: Spacing.xs,
+  },
+  bottomSheetSubtitle: {
+    fontSize: Typography.fontSize.md,
+    color: KindlingColors.brown,
+    marginBottom: Spacing.lg,
+  },
+  bottomSheetEmpty: {
+    fontSize: Typography.fontSize.md,
+    color: KindlingColors.brown,
+    textAlign: 'center',
+    paddingVertical: Spacing.xl,
+  },
+  bottomSheetList: {
+    gap: Spacing.sm,
+  },
+  bottomSheetItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    backgroundColor: KindlingColors.navy,
+    paddingVertical: Spacing.sm + 4,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    ...Shadows.medium,
-    zIndex: 100,
+    backgroundColor: `${KindlingColors.cream}40`,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: `${KindlingColors.beige}33`,
   },
-  devToggleText: {
+  bottomSheetItemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: `${KindlingColors.navy}10`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  bottomSheetItemText: {
+    flex: 1,
+  },
+  bottomSheetItemTitle: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+  },
+  bottomSheetItemDesc: {
     fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.bold,
-    color: KindlingColors.background,
+    color: KindlingColors.brown,
   },
 });

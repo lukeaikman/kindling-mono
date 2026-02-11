@@ -34,6 +34,7 @@ import {
   getNextRoute,
   getNextYourPeopleRoute,
   getYourPeopleProgress,
+  getEstateSubline,
   canSign,
   isWaitingForAcceptances,
   type WillProgressState,
@@ -62,7 +63,7 @@ const STAGES: StageConfig[] = [
     id: 'your-estate',
     title: 'Your Estate',
     defaultSubline: 'Assets, gifts, and who gets what · 8 mins',
-    route: '/bequeathal/categories',
+    route: '/estate-dashboard',
   },
   {
     id: 'legal-check',
@@ -127,6 +128,11 @@ function getStageSubline(
   defaultSubline: string,
   progressState: WillProgressState,
 ): string {
+  // Estate stage has its own dynamic subline function
+  if (stageId === 'your-estate') {
+    return getEstateSubline(progressState);
+  }
+
   if (status !== 'Complete') {
     // Show progress fraction if applicable
     if (stageId === 'your-people') {
@@ -148,7 +154,6 @@ function getStageSubline(
       parts.push('invitations sent');
       return parts.join(', ');
     }
-    // Future stages will get similar treatment
     default:
       return defaultSubline;
   }
@@ -200,14 +205,15 @@ export default function WillDashboardScreen() {
   const lastTapRef = useRef<number>(0);
   const menuRef = useRef<BottomSheet>(null);
 
-  const { willActions, personActions, estateRemainderActions } = useAppState();
+  const { willActions, personActions, estateRemainderActions, bequeathalActions } = useAppState();
 
   const progressState: WillProgressState = useMemo(() => ({
     willMaker: willActions.getUser(),
     people: personActions.getPeople(),
     willData: willActions.getWillData(),
     estateRemainderState: estateRemainderActions.getEstateRemainderState(),
-  }), [willActions, personActions, estateRemainderActions]);
+    bequeathalData: bequeathalActions.getBequeathalData(),
+  }), [willActions, personActions, estateRemainderActions, bequeathalActions]);
 
   const nextRoute = useMemo(() => getNextRoute(progressState), [progressState]);
   const progressSentence = useMemo(() => getProgressSentence(progressState), [progressState]);
@@ -298,6 +304,11 @@ export default function WillDashboardScreen() {
         // or the next incomplete sub-flow when not
         const peopleRoute = getNextYourPeopleRoute(progressState);
         router.push(peopleRoute as any);
+        return;
+      }
+      if (stageId === 'your-estate') {
+        // Always go to estate dashboard, even when complete
+        router.push('/estate-dashboard' as any);
         return;
       }
       const stage = STAGES.find((s) => s.id === stageId);

@@ -13,18 +13,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Button, BackButton, InformationCard } from '../../../src/components/ui';
-import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
 
 export default function LifeInsuranceIntroScreen() {
-  const { bequeathalActions } = useAppState();
-
   const handleSkip = () => {
-    const selectedCategories = bequeathalActions.getSelectedCategories();
-    const nextRoute = getNextCategoryRoute('life-insurance', selectedCategories);
-    router.push(nextRoute);
+    router.push('/estate-dashboard' as any);
   };
 
   const handleLearnMore = () => {

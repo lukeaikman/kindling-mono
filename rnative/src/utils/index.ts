@@ -52,6 +52,11 @@ export {
 export {
   getCategoryIntroRoute,
   getCategoryEntryRoute,
-  getNextCategoryRoute,
-  getFirstCategoryRoute,
+  getCategorySummaryRoute,
+  getCategoryRoute,
+  sortByCanonicalOrder,
+  CANONICAL_CATEGORY_ORDER,
+  CATEGORY_META,
+  getCategoryLabel,
+  getCategoryIcon,
 } from './categoryNavigation';

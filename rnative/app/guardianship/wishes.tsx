@@ -40,7 +40,7 @@ import type { Person } from '../../src/types';
 type GuardianAssignment = { guardian: string; level: number };
 
 export default function GuardianWishesScreen() {
-  const { personActions, willActions, estateRemainderActions } = useAppState();
+  const { personActions, willActions, estateRemainderActions, bequeathalActions } = useAppState();
 
   // Celebration state
   const [showCelebration, setShowCelebration] = useState(false);
@@ -51,7 +51,8 @@ export default function GuardianWishesScreen() {
     people: personActions.getPeople(),
     willData: willActions.getWillData(),
     estateRemainderState: estateRemainderActions.getEstateRemainderState(),
-  }), [willActions, personActions, estateRemainderActions]);
+    bequeathalData: bequeathalActions.getBequeathalData(),
+  }), [willActions, personActions, estateRemainderActions, bequeathalActions]);
 
   const handleCelebrationComplete = useCallback(() => {
     setShowCelebration(false);

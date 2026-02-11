@@ -709,27 +709,35 @@ Categories are always displayed in this order throughout the app:
 
 Phases ordered for fastest end-to-end testability: prototype first, then data + navigation + summaries together for a functional skeleton, then animation polish, then toast, then form improvements, then cleanup.
 
-### Phase 1: Static UI Prototype
+### Phase 1: Static UI Prototype — COMPLETED
 
 **Goal:** Build the Estate Dashboard screen with hardcoded dummy data. No state wiring, no navigation plumbing. Iterate the visual design before committing to implementation.
 
-**Deliverables:**
+**Status:** Design signed off after user review. All acceptance criteria met.
+
+**What was delivered:**
 1. `app/estate-dashboard.tsx` — static Estate Dashboard with dummy data:
-   - **Mode A** view: "Let's map out what you own" with warm category selection cards
+   - **Mode A** view: "Let's map out what you own" with warm category selection cards (interactive checkboxes)
    - **Mode B** view: Hero net wealth section (hardcoded £982,000), "What You Own" / "In Trust" breakdown, selected category cards, "Add something else" button, progress sentence, "All assets added" button
-   - Toggle between modes via a dev flag for design review
+   - `__DEV__`-only floating toggle to switch between Mode A and Mode B for design review
+   - Header icon: `treasure-chest` (changed from original `fire` wireframe during review)
+   - Mode A: "Let's get started" footer button appears when at least one category is selected
+   - Mode B: `flag-checkered` icon on progress sentence (replaced `fire`)
+   - All navigation handlers are stubs (show alerts) — to be wired in Phase 2
 2. `src/components/ui/EstateCategoryCard.tsx` — reusable category card component:
    - Props: icon, title, assetCount, netValue, isComplete, hasAssets, onPress, onDeselect
    - Three visual states: no assets / has assets / complete
    - Chevron on right for selected categories
-   - Checkbox for deselection (only when no assets)
-3. Morphic background, design tokens, consistent header pattern
-4. Dummy data defined as constants in the file (easy to swap later)
+   - `close-circle` icon at top-right for deselection (only when no assets and `onDeselect` provided) — changed from checkbox during review for cleaner UX
+3. Exported in `src/components/ui/index.ts`
+4. Added to `app/developer/dashboard.tsx` quick nav dropdown (Estate Dashboard + People Summary)
+5. Morphic background blobs, design tokens, consistent header pattern
+6. Dummy data defined as constants in the file (`DUMMY_NET`, `DUMMY_GROSS`, `DUMMY_TRUST`, `DUMMY_SELECTED`)
 
-**Acceptance criteria:**
+**Acceptance criteria — all met:**
 - Both modes render with all visual elements
 - Cards show correct states (complete pill, in-progress value, not-started pill)
-- Layout matches wireframe
+- Layout matches wireframe (with approved deviations noted above)
 - Scrollable on small devices, fits on iPhone 14/15
 - Looks and feels like the rest of the app (People Summary, Will Dashboard)
 

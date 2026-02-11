@@ -15,15 +15,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { Button, BackButton, InformationCard } from '../../../src/components/ui';
-import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
 // @ts-ignore - WebView may not be installed yet
 import { WebView } from 'react-native-webview';
 
 export default function PensionsIntroScreen() {
-  const { bequeathalActions } = useAppState();
   const [videoLoading, setVideoLoading] = useState(true);
 
   const handleBack = () => {
@@ -35,9 +32,7 @@ export default function PensionsIntroScreen() {
   };
 
   const handleSkip = () => {
-    const selectedCategories = bequeathalActions.getSelectedCategories();
-    const nextRoute = getNextCategoryRoute('pensions', selectedCategories);
-    router.push(nextRoute);
+    router.push('/estate-dashboard' as any);
   };
 
   const handleLearnMore = () => {

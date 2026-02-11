@@ -1,28 +1,28 @@
 /**
  * Pensions Entry Screen
- * 
- * Form for adding and managing pension accounts.
- * Simplified for will creation + visualization (value first, executor details later).
+ *
+ * Single-asset entry form. Supports add (new) and edit (?id=xxx).
  * Conditional value field based on pension type (annual vs total).
- * 
+ *
  * Navigation:
- * - Back: Returns to pensions intro
- * - Continue: Proceeds to next category or will-dashboard
+ * - Back: Category Summary (/bequeathal/pensions/summary)
+ * - Save: Category Summary (/bequeathal/pensions/summary)
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Select, Input, CurrencyInput, RadioGroup } from '../../../src/components/ui';
 import { AddPersonDialog, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
-import { validatePercentageAllocation, getBeneficiaryDisplayName } from '../../../src/utils/beneficiaryHelpers';
+import { validatePercentageAllocation } from '../../../src/utils/beneficiaryHelpers';
 import type { PensionAsset, PensionType, BeneficiaryAssignment } from '../../../src/types';
+
+const SUMMARY_ROUTE = '/bequeathal/pensions/summary';
 
 interface PensionForm {
   provider: string;
@@ -34,8 +34,10 @@ interface PensionForm {
 
 export default function PensionsEntryScreen() {
   const { bequeathalActions, personActions, beneficiaryGroupActions, willActions } = useAppState();
-  const [showForm, setShowForm] = useState(true);
-  const [showPensionsList, setShowPensionsList] = useState(true);
+  const params = useLocalSearchParams();
+  const editingAssetId = params.id as string | undefined;
+  const loadedIdRef = useRef<string | null>(null);
+
   const [formData, setFormData] = useState<PensionForm>({
     provider: '',
     pensionType: '',
@@ -44,7 +46,6 @@ export default function PensionsEntryScreen() {
     beneficiaries: [],
   });
   const [balanceNotSure, setBalanceNotSure] = useState(false);
-  const [editingPensionId, setEditingPensionId] = useState<string | null>(null);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
@@ -69,19 +70,36 @@ export default function PensionsEntryScreen() {
     { label: 'Not Sure', value: 'not-sure' },
   ];
 
-  // Load existing pensions
-  const pensions = bequeathalActions.getAssetsByType('pensions') as PensionAsset[];
-  const totalValue = pensions.reduce((sum, pension) => sum + (pension.estimatedValue || 0), 0);
-  const unknownValueCount = pensions.filter(p => (p.estimatedValue || 0) === 0).length;
-
-  // Hide form after first pension
+  // Load existing asset when editing
   useEffect(() => {
-    if (pensions.length === 0) {
-      setShowForm(true);
-    } else if (pensions.length > 0) {
-      setShowForm(false);
+    if (!editingAssetId) {
+      loadedIdRef.current = null;
+      return;
     }
-  }, []);
+
+    if (loadedIdRef.current === editingAssetId) return;
+
+    const allAssets = bequeathalActions.getAllAssets();
+    if (allAssets.length === 0) return;
+
+    const asset = bequeathalActions.getAssetById(editingAssetId);
+    if (!asset || asset.type !== 'pensions') {
+      router.push(SUMMARY_ROUTE as any);
+      return;
+    }
+
+    const pension = asset as PensionAsset;
+    loadedIdRef.current = editingAssetId;
+
+    setFormData({
+      provider: pension.provider,
+      pensionType: pension.pensionType,
+      estimatedValue: pension.estimatedValue || 0,
+      beneficiaryNominated: pension.beneficiaryNominated || 'not-sure',
+      beneficiaries: pension.beneficiaryAssignments?.beneficiaries || [],
+    });
+    setBalanceNotSure((pension.estimatedValue || 0) === 0);
+  }, [editingAssetId, bequeathalActions]);
 
   // Determine value field label based on pension type
   const getValueLabel = (): string => {
@@ -91,10 +109,10 @@ export default function PensionsEntryScreen() {
     return 'Total Value';
   };
 
-  const handleAddPension = () => {
+  const handleSave = () => {
     // Validation
     if (!formData.provider.trim() || !formData.pensionType || !formData.beneficiaryNominated) return;
-    
+
     // If beneficiary nominated = yes, must have beneficiaries with valid percentages
     if (formData.beneficiaryNominated === 'yes') {
       if (formData.beneficiaries.length === 0) return;
@@ -124,88 +142,24 @@ export default function PensionsEntryScreen() {
       netValue: estimatedValue,
     };
 
-    if (editingPensionId) {
-      bequeathalActions.updateAsset(editingPensionId, pensionData);
-      setEditingPensionId(null);
+    if (editingAssetId) {
+      bequeathalActions.updateAsset(editingAssetId, pensionData);
     } else {
       bequeathalActions.addAsset('pensions', pensionData);
     }
 
-    // Reset form
-    setFormData({
-      provider: '',
-      pensionType: '',
-      estimatedValue: 0,
-      beneficiaryNominated: '',
-      beneficiaries: [],
-    });
-    setBalanceNotSure(false);
-    setShowForm(false);
-  };
-
-  const handleEditPension = (pensionId: string) => {
-    const pension = bequeathalActions.getAssetById(pensionId) as PensionAsset;
-    if (!pension) return;
-
-    setFormData({
-      provider: pension.provider,
-      pensionType: pension.pensionType,
-      estimatedValue: pension.estimatedValue || 0,
-      beneficiaryNominated: pension.beneficiaryNominated || 'not-sure',
-      beneficiaries: pension.beneficiaryAssignments?.beneficiaries || [],
-    });
-    setEditingPensionId(pensionId);
-    setShowForm(true);
-  };
-
-  const handleCancelEdit = () => {
-    setFormData({
-      provider: '',
-      pensionType: '',
-      estimatedValue: 0,
-      beneficiaryNominated: '',
-      beneficiaries: [],
-    });
-    setBalanceNotSure(false);
-    setEditingPensionId(null);
-    setShowForm(false);
-  };
-
-  const handleRemovePension = (id: string) => {
-    bequeathalActions.removeAsset(id);
-    if (editingPensionId === id) {
-      handleCancelEdit();
-    }
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const handleBack = () => {
-    router.back();
+    router.push(SUMMARY_ROUTE as any);
   };
 
-  const handleContinue = () => {
-    const selectedCategories = bequeathalActions.getSelectedCategories();
-    const nextRoute = getNextCategoryRoute('pensions', selectedCategories);
-    router.push(nextRoute);
-  };
-
-  const canSubmit = formData.provider.trim() && 
-    formData.pensionType && 
+  const canSubmit = formData.provider.trim() &&
+    formData.pensionType &&
     formData.beneficiaryNominated &&
-    (formData.beneficiaryNominated !== 'yes' || 
+    (formData.beneficiaryNominated !== 'yes' ||
      (formData.beneficiaries.length > 0 && validatePercentageAllocation({ beneficiaries: formData.beneficiaries })));
-
-  // Get display label for pension type
-  const getPensionTypeLabel = (type: string): string => {
-    const option = pensionTypeOptions.find(opt => opt.value === type);
-    return option?.label.split(' (')[0] || type; // Get short name without description
-  };
-
-  // Get beneficiary nominated display text
-  const getBeneficiaryNominatedText = (status?: string): string => {
-    if (status === 'yes') return 'Yes (bypasses estate)';
-    if (status === 'no') return 'No (goes to estate)';
-    return 'Not Sure';
-  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -220,7 +174,9 @@ export default function PensionsEntryScreen() {
       <View style={styles.header}>
         <BackButton onPress={handleBack} />
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Enter Pensions</Text>
+          <Text style={styles.headerTitle}>
+            {editingAssetId ? 'Edit Pension' : 'Add Pension'}
+          </Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -232,243 +188,107 @@ export default function PensionsEntryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          {/* Add Pension Form */}
-          {showForm && (
-            <View style={styles.formCard}>
-              <Text style={styles.formTitle}>
-                {editingPensionId ? 'Edit Pension' : 'Add Pension'}
-              </Text>
-              
-              <Input
-                label="Provider *"
-                placeholder="e.g., Scottish Widows, Aviva"
-                value={formData.provider}
-                onChangeText={(value) => setFormData(prev => ({ ...prev, provider: value }))}
-              />
+          <View style={styles.formCard}>
+            <Text style={styles.formTitle}>
+              {editingAssetId ? 'Update the details below.' : 'Add a pension.'}
+            </Text>
 
-              <Select
-                label="Pension Type *"
-                placeholder="Select pension type..."
-                value={formData.pensionType}
-                options={pensionTypeOptions}
-                onChange={(value) => setFormData(prev => ({ ...prev, pensionType: value as PensionType }))}
-              />
+            <Input
+              label="Provider *"
+              placeholder="e.g., Scottish Widows, Aviva"
+              value={formData.provider}
+              onChangeText={(value) => setFormData(prev => ({ ...prev, provider: value }))}
+            />
 
-              {/* Conditional Value Field */}
-              {formData.pensionType && (
-                <View style={styles.balanceSection}>
-                  <View style={balanceNotSure && styles.disabledInputContainer}>
-                    <CurrencyInput
-                      label={getValueLabel()}
-                      placeholder="0"
-                      value={balanceNotSure ? 0 : formData.estimatedValue}
-                      onValueChange={(value) => {
-                        setFormData(prev => ({ ...prev, estimatedValue: value }));
-                        setBalanceNotSure(false);
-                      }}
-                      disabled={balanceNotSure}
-                    />
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => {
-                      const newValue = !balanceNotSure;
-                      setBalanceNotSure(newValue);
-                      if (newValue) {
-                        setFormData(prev => ({ ...prev, estimatedValue: 0 }));
-                      }
+            <Select
+              label="Pension Type *"
+              placeholder="Select pension type..."
+              value={formData.pensionType}
+              options={pensionTypeOptions}
+              onChange={(value) => setFormData(prev => ({ ...prev, pensionType: value as PensionType }))}
+            />
+
+            {/* Conditional Value Field */}
+            {formData.pensionType && (
+              <View style={styles.balanceSection}>
+                <View style={balanceNotSure && styles.disabledInputContainer}>
+                  <CurrencyInput
+                    label={getValueLabel()}
+                    placeholder="0"
+                    value={balanceNotSure ? 0 : formData.estimatedValue}
+                    onValueChange={(value) => {
+                      setFormData(prev => ({ ...prev, estimatedValue: value }));
+                      setBalanceNotSure(false);
                     }}
-                    style={styles.checkboxRow}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.checkboxCircle, balanceNotSure && styles.checkboxCircleSelected]}>
-                      {balanceNotSure && (
-                        <IconButton
-                          icon="check"
-                          size={16}
-                          iconColor={KindlingColors.background}
-                          style={styles.checkIcon}
-                        />
-                      )}
-                    </View>
-                    <Text style={styles.checkboxLabel}>Unsure of value</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              <RadioGroup
-                label="Has Beneficiary Been Nominated? *"
-                value={formData.beneficiaryNominated}
-                onChange={(value) => {
-                  const newValue = value as typeof formData.beneficiaryNominated;
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    beneficiaryNominated: newValue,
-                    // Clear beneficiaries if changing from Yes to No/Not Sure
-                    beneficiaries: newValue === 'yes' ? prev.beneficiaries : []
-                  }));
-                }}
-                options={beneficiaryNominatedOptions}
-              />
-
-              {/* Conditional: Show beneficiary percentages if "Yes" selected */}
-              {formData.beneficiaryNominated === 'yes' && (
-                <BeneficiaryWithPercentages
-                  allocationMode="percentage"
-                  value={formData.beneficiaries}
-                  onChange={(beneficiaries) => setFormData(prev => ({ ...prev, beneficiaries }))}
-                  personActions={personActions}
-                  beneficiaryGroupActions={beneficiaryGroupActions}
-                  excludePersonIds={excludePersonIds}
-                  label="Who are the beneficiaries?"
-                  onAddNewPerson={(onCreated) => {
-                    addPersonSelectionRef.current = onCreated || null;
-                    setShowAddPersonDialog(true);
-                  }}
-                  onAddNewGroup={() => setShowGroupDrawer(true)}
-                />
-              )}
-
-              <View style={styles.formActions}>
-                <Button
-                  onPress={handleAddPension}
-                  variant="primary"
-                  disabled={!canSubmit}
-                  style={styles.submitButton}
-                >
-                  {editingPensionId ? 'Update Pension' : 'Add Pension'}
-                </Button>
-                
-                {editingPensionId && (
-                  <Button
-                    onPress={handleCancelEdit}
-                    variant="outline"
-                    style={styles.cancelButton}
-                  >
-                    Cancel
-                  </Button>
-                )}
-              </View>
-            </View>
-          )}
-
-          {/* Existing Pensions List */}
-          {pensions.length > 0 && (
-            <View style={styles.pensionsSection}>
-              <View style={styles.pensionsHeader}>
-                <Text style={styles.pensionsTitle}>
-                  Your Pensions ({pensions.length})
-                </Text>
-                <TouchableOpacity onPress={() => setShowPensionsList(!showPensionsList)}>
-                  <IconButton
-                    icon={showPensionsList ? 'eye-off' : 'eye'}
-                    size={20}
-                    iconColor={KindlingColors.brown}
+                    disabled={balanceNotSure}
                   />
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    const newValue = !balanceNotSure;
+                    setBalanceNotSure(newValue);
+                    if (newValue) {
+                      setFormData(prev => ({ ...prev, estimatedValue: 0 }));
+                    }
+                  }}
+                  style={styles.checkboxRow}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkboxCircle, balanceNotSure && styles.checkboxCircleSelected]}>
+                    {balanceNotSure && (
+                      <IconButton
+                        icon="check"
+                        size={16}
+                        iconColor={KindlingColors.background}
+                        style={styles.checkIcon}
+                      />
+                    )}
+                  </View>
+                  <Text style={styles.checkboxLabel}>Unsure of value</Text>
                 </TouchableOpacity>
               </View>
+            )}
 
-              {showPensionsList && (
-                <View style={styles.pensionsList}>
-                  {pensions.map((pension) => {
-                    const typeLabel = getPensionTypeLabel(pension.pensionType);
-                    const valueDisplay = pension.pensionType === 'defined-benefit'
-                      ? `£${(pension.estimatedValue || 0).toLocaleString()}/year`
-                      : `£${(pension.estimatedValue || 0).toLocaleString()}`;
-                    
-                    return (
-                      <View key={pension.id} style={styles.pensionCard}>
-                        <View style={styles.pensionInfo}>
-                          <Text style={styles.pensionProvider}>{pension.provider}</Text>
-                          <Text style={styles.pensionType}>{typeLabel}</Text>
-                          <Text style={styles.beneficiaryStatus}>
-                            Beneficiary: {getBeneficiaryNominatedText(pension.beneficiaryNominated)}
-                          </Text>
-                          
-                          {/* Show beneficiary breakdown if nominated = yes AND has beneficiaries */}
-                          {pension.beneficiaryNominated === 'yes' && pension.beneficiaryAssignments?.beneficiaries && pension.beneficiaryAssignments.beneficiaries.length > 0 && (
-                            <View style={styles.beneficiariesRow}>
-                              <Text style={styles.beneficiaryLabel}>For: </Text>
-                              <View style={styles.beneficiariesList}>
-                                {pension.beneficiaryAssignments.beneficiaries.map((b, idx) => {
-                                  const displayName = getBeneficiaryDisplayName(
-                                    b,
-                                    personActions,
-                                    beneficiaryGroupActions
-                                  );
-                                  const percentage = b.percentage || 0;
-                                  const percentageValue = pension.estimatedValue 
-                                    ? `£${Math.round((pension.estimatedValue * percentage) / 100).toLocaleString()}`
-                                    : '';
-                                  
-                                  return (
-                                    <Text key={idx} style={styles.beneficiaryText}>
-                                      {displayName} {percentage}% {percentageValue && `(${percentageValue})`}
-                                      {idx < pension.beneficiaryAssignments!.beneficiaries.length - 1 && ', '}
-                                    </Text>
-                                  );
-                                })}
-                              </View>
-                            </View>
-                          )}
-                          
-                          <Text style={styles.pensionValue}>
-                            {(pension.estimatedValue || 0) === 0 ? 'Value not known' : valueDisplay}
-                          </Text>
-                        </View>
-                        
-                        <View style={styles.pensionActions}>
-                          <TouchableOpacity
-                            onPress={() => handleEditPension(pension.id)}
-                            style={styles.actionButton}
-                          >
-                            <IconButton icon="pencil" size={18} iconColor={KindlingColors.navy} />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => handleRemovePension(pension.id)}
-                            style={styles.actionButton}
-                          >
-                            <IconButton icon="delete" size={18} iconColor={KindlingColors.destructive} />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    );
-                  })}
+            <RadioGroup
+              label="Has Beneficiary Been Nominated? *"
+              value={formData.beneficiaryNominated}
+              onChange={(value) => {
+                const newValue = value as typeof formData.beneficiaryNominated;
+                setFormData(prev => ({
+                  ...prev,
+                  beneficiaryNominated: newValue,
+                  beneficiaries: newValue === 'yes' ? prev.beneficiaries : []
+                }));
+              }}
+              options={beneficiaryNominatedOptions}
+            />
 
-                  {/* Total Summary */}
-                  <View style={styles.totalSection}>
-                    <Text style={styles.totalText}>
-                      Pensions Total: <Text style={styles.totalValue}>£{totalValue.toLocaleString()}</Text>
-                    </Text>
-                    {unknownValueCount > 0 && (
-                      <Text style={styles.unknownValueText}>
-                        (+ {unknownValueCount} unknown {unknownValueCount === 1 ? 'value' : 'values'})
-                      </Text>
-                    )}
-                    <Text style={styles.totalNote}>
-                      Note: Total includes all pension values. Pensions with nominated beneficiaries may bypass your estate.
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
+            {/* Conditional: Show beneficiary percentages if "Yes" selected */}
+            {formData.beneficiaryNominated === 'yes' && (
+              <BeneficiaryWithPercentages
+                allocationMode="percentage"
+                value={formData.beneficiaries}
+                onChange={(beneficiaries) => setFormData(prev => ({ ...prev, beneficiaries }))}
+                personActions={personActions}
+                beneficiaryGroupActions={beneficiaryGroupActions}
+                excludePersonIds={excludePersonIds}
+                label="Who are the beneficiaries?"
+                onAddNewPerson={(onCreated) => {
+                  addPersonSelectionRef.current = onCreated || null;
+                  setShowAddPersonDialog(true);
+                }}
+                onAddNewGroup={() => setShowGroupDrawer(true)}
+              />
+            )}
 
-          {/* Action Buttons - at bottom of content */}
-          {pensions.length > 0 && (
-            <>
-              <TouchableOpacity
-                onPress={() => setShowForm(true)}
-                style={styles.addAnotherButton}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.addAnotherText}>Add Another Pension</Text>
-              </TouchableOpacity>
-
-              <Button onPress={handleContinue} variant="primary" style={styles.continueButton}>
-                Continue
-              </Button>
-            </>
-          )}
+            <Button
+              onPress={handleSave}
+              variant="primary"
+              disabled={!canSubmit}
+            >
+              {editingAssetId ? 'Save changes' : 'Add this pension'}
+            </Button>
+          </View>
         </View>
       </ScrollView>
 
@@ -568,7 +388,6 @@ const styles = StyleSheet.create({
     backgroundColor: KindlingColors.background,
     borderBottomWidth: 1,
     borderBottomColor: `${KindlingColors.border}1a`,
-    zIndex: 10,
   },
   headerCenter: {
     flex: 1,
@@ -585,7 +404,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    zIndex: 10,
   },
   contentContainer: {
     paddingVertical: Spacing.lg,
@@ -644,151 +462,5 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: KindlingColors.navy,
     marginLeft: Spacing.sm,
-  },
-  formActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  submitButton: {
-    flex: 1,
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  pensionsSection: {
-    gap: Spacing.md,
-  },
-  pensionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
-  },
-  pensionsTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  pensionsList: {
-    gap: Spacing.sm,
-  },
-  pensionCard: {
-    backgroundColor: KindlingColors.background,
-    borderRadius: 8,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: KindlingColors.cream,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  pensionInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  pensionProvider: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  pensionType: {
-    fontSize: Typography.fontSize.sm,
-    color: `${KindlingColors.navy}99`,
-  },
-  beneficiaryStatus: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-  },
-  pensionValue: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
-    color: KindlingColors.navy,
-    backgroundColor: `${KindlingColors.cream}80`,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  pensionActions: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    marginLeft: Spacing.sm,
-  },
-  actionButton: {
-    padding: 0,
-  },
-  totalSection: {
-    marginTop: Spacing.md,
-    padding: Spacing.md,
-    backgroundColor: `${KindlingColors.cream}66`,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: KindlingColors.beige,
-  },
-  totalText: {
-    fontSize: Typography.fontSize.md,
-    color: KindlingColors.navy,
-    textAlign: 'center',
-  },
-  totalValue: {
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  unknownValueText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-  },
-  totalNote: {
-    fontSize: Typography.fontSize.xs,
-    color: KindlingColors.brown,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-    fontStyle: 'italic',
-  },
-  addAnotherButton: {
-    backgroundColor: KindlingColors.background,
-    borderWidth: 2,
-    borderColor: KindlingColors.green,
-    borderRadius: 8,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.xl,
-  },
-  addAnotherText: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.green,
-  },
-  continueButton: {
-    marginTop: Spacing.sm,
-  },
-  beneficiariesRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-    marginTop: 2,
-  },
-  beneficiaryLabel: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-  },
-  beneficiariesList: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  beneficiaryText: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
-    color: KindlingColors.navy,
-  },
-  dialogText: {
-    fontSize: Typography.fontSize.md,
-    color: KindlingColors.brown,
-    marginBottom: Spacing.md,
-    lineHeight: 22,
   },
 });

@@ -24,7 +24,7 @@
  *   6. No children, no residue → '/bequeathal/estate-remainder-who' (skip guardians)
  */
 
-import { Person, WillData, EstateRemainderState } from '../types';
+import { Person, WillData, EstateRemainderState, BequeathalData, Asset } from '../types';
 import type { StageStatus } from '../components/ui/StageCard';
 
 export type { StageStatus };
@@ -35,6 +35,7 @@ export interface WillProgressState {
   people: Person[];
   willData: WillData;
   estateRemainderState: EstateRemainderState;
+  bequeathalData: BequeathalData;
 }
 
 // ---------------------------------------------------------------------------
@@ -196,11 +197,159 @@ export function deriveYourPeopleStatus(state: WillProgressState): StageStatus {
   return status;
 }
 
-// Stubs for future stages
-export function deriveYourEstateStatus(_state: WillProgressState): StageStatus {
-  return 'Not started';
+// ---------------------------------------------------------------------------
+// Your Estate — status derivation & helpers
+// ---------------------------------------------------------------------------
+
+/** Out-of-scope categories excluded from calculations */
+const OUT_OF_SCOPE_TYPES = new Set(['debts-credit', 'other']);
+
+export function deriveYourEstateStatus(state: WillProgressState): StageStatus {
+  const categoryStatus = state.bequeathalData?.categoryStatus || {};
+  const selectedCategories = Object.keys(categoryStatus);
+
+  // No categories selected = not started
+  if (selectedCategories.length === 0) {
+    return 'Not started';
+  }
+
+  // Check if all selected categories are marked complete
+  const allComplete = selectedCategories.every(cat => {
+    const entry = categoryStatus[cat];
+    return entry?.completedAt !== null && entry?.completedAt !== undefined;
+  });
+
+  if (allComplete) {
+    return 'Complete';
+  }
+
+  // Categories selected but not all complete = in progress
+  return 'In progress';
 }
 
+/**
+ * Net estate value: sum of estimatedValue for non-trust assets across
+ * selected categories, minus mortgage outstanding amounts for properties.
+ */
+export function getEstateNetValue(state: WillProgressState): number {
+  const bd = state.bequeathalData;
+  if (!bd) return 0;
+
+  const selected = Object.keys(bd.categoryStatus || {});
+  let total = 0;
+
+  for (const cat of selected) {
+    if (OUT_OF_SCOPE_TYPES.has(cat)) continue;
+    const assets = (bd[cat as keyof BequeathalData] as Asset[] | undefined) || [];
+    for (const asset of assets) {
+      if (asset.heldInTrust === 'yes') continue;
+
+      const value = asset.estimatedValue || 0;
+      if (asset.type === 'property') {
+        const mortgage = (asset as any).mortgage?.outstandingAmount || 0;
+        total += value - mortgage;
+      } else {
+        total += value;
+      }
+    }
+  }
+
+  return total;
+}
+
+/**
+ * Gross value: sum of estimatedValue for non-trust assets (no deductions).
+ */
+export function getEstateGrossValue(state: WillProgressState): number {
+  const bd = state.bequeathalData;
+  if (!bd) return 0;
+
+  const selected = Object.keys(bd.categoryStatus || {});
+  let total = 0;
+
+  for (const cat of selected) {
+    if (OUT_OF_SCOPE_TYPES.has(cat)) continue;
+    const assets = (bd[cat as keyof BequeathalData] as Asset[] | undefined) || [];
+    for (const asset of assets) {
+      if (asset.heldInTrust === 'yes') continue;
+      total += asset.estimatedValue || 0;
+    }
+  }
+
+  return total;
+}
+
+/**
+ * Trust value: sum of estimatedValue for assets where heldInTrust === 'yes'.
+ */
+export function getEstateTrustValue(state: WillProgressState): number {
+  const bd = state.bequeathalData;
+  if (!bd) return 0;
+
+  const selected = Object.keys(bd.categoryStatus || {});
+  let total = 0;
+
+  for (const cat of selected) {
+    if (OUT_OF_SCOPE_TYPES.has(cat)) continue;
+    const assets = (bd[cat as keyof BequeathalData] as Asset[] | undefined) || [];
+    for (const asset of assets) {
+      if (asset.heldInTrust === 'yes') {
+        total += asset.estimatedValue || 0;
+      }
+    }
+  }
+
+  return total;
+}
+
+/** Total asset count across all selected categories. */
+export function getTotalAssetCount(state: WillProgressState): number {
+  const bd = state.bequeathalData;
+  if (!bd) return 0;
+
+  const selected = Object.keys(bd.categoryStatus || {});
+  return selected.reduce((sum, cat) => {
+    const arr = bd[cat as keyof BequeathalData];
+    return sum + (Array.isArray(arr) ? arr.length : 0);
+  }, 0);
+}
+
+/** Format a number as a short GBP string: £550k, £1.2m, etc. */
+export function formatShortCurrency(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
+  return String(value);
+}
+
+/** Dynamic subline for the "Your Estate" card on the Will Dashboard. */
+export function getEstateSubline(state: WillProgressState): string {
+  const status = deriveYourEstateStatus(state);
+
+  if (status === 'Not started') {
+    return 'Assets, gifts, and who gets what · 8 mins';
+  }
+
+  if (status === 'Complete') {
+    const netValue = getEstateNetValue(state);
+    const catCount = Object.keys(state.bequeathalData?.categoryStatus || {}).length;
+    return `${catCount} categories · £${formatShortCurrency(netValue)} net estate`;
+  }
+
+  // In progress
+  const totalAssets = getTotalAssetCount(state);
+  const netValue = getEstateNetValue(state);
+  if (totalAssets === 0) {
+    return 'Categories selected · no assets yet';
+  }
+  return `${totalAssets} asset${totalAssets !== 1 ? 's' : ''} added · £${formatShortCurrency(netValue)} net`;
+}
+
+/** IHT can only be estimated once all selected categories are complete. */
+export function isIHTReady(state: WillProgressState): boolean {
+  return deriveYourEstateStatus(state) === 'Complete';
+}
+
+// Stub for future Legal Check stage
 export function deriveLegalCheckStatus(_state: WillProgressState): StageStatus {
   return 'Not started';
 }
@@ -294,8 +443,8 @@ export function getNextRoute(state: WillProgressState): string {
   // Stage 2 & 3 – future implementation
   const estateStatus = deriveYourEstateStatus(state);
   if (estateStatus !== 'Complete') {
-    console.log('[willProgress] getNextRoute → Your Estate not complete, route: /bequeathal/categories');
-    return '/bequeathal/categories'; // placeholder – estate intro
+    console.log('[willProgress] getNextRoute → Your Estate not complete, route: /estate-dashboard');
+    return '/estate-dashboard';
   }
 
   const legalStatus = deriveLegalCheckStatus(state);
@@ -321,7 +470,7 @@ export function getContinueLabel(state: WillProgressState): string {
   if (nextRoute.includes('executors')) return 'Continue to Executors';
   if (nextRoute.includes('invitations/confirm')) return 'Review Invitations';
   if (nextRoute.includes('people/summary')) return 'View Your People';
-  if (nextRoute.includes('bequeathal/categories')) return 'Continue to Your Estate';
+  if (nextRoute.includes('estate-dashboard')) return 'Continue to Your Estate';
   if (nextRoute.includes('legal-check')) return 'Continue to Legal Check';
   if (nextRoute.includes('review')) return 'Review & Sign';
 
@@ -367,7 +516,7 @@ export function getPeopleSummaryCTA(state: WillProgressState): SummaryCTA {
     console.log('[willProgress] getPeopleSummaryCTA → forward to Your Estate');
     return {
       label: 'Continue to Your Estate',
-      route: '/bequeathal/categories',
+      route: '/estate-dashboard',
       isForward: true,
     };
   }

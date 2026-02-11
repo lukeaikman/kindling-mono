@@ -30,7 +30,7 @@ export default function BequeathalIntroScreen() {
   const [videoLoading, setVideoLoading] = useState(true);
 
   const handleNext = () => {
-    router.push('/bequeathal/categories');
+    router.push('/estate-dashboard' as any);
   };
 
   const handleBack = () => {

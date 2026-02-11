@@ -1,33 +1,20 @@
 /**
- * Agricultural Assets Entry Screen
- * 
- * Complex form with conditional fields for APR (Agricultural Property Relief) 
- * and BPR (Business Property Relief) qualification.
- * 
- * Features:
- * - Routing decision: Company ownership → Phase 12 (Assets Held Through Business)
- * - Conditional APR section (100% IHT relief on qualifying agricultural property)
- * - Conditional BPR section (100% IHT relief on agricultural equipment/livery)
- * - Asset-type specific questions (farm worker cottage, woodland, stud farm)
- * - Debt tracking with net value calculation
- * 
- * Navigation:
- * - Back: Returns to agricultural assets intro
- * - Continue: Proceeds to next category or will-dashboard
- * - Company routing: Navigates to Phase 12 entry screen
+ * Single-asset entry form. Supports add (new) and edit (?id=xxx).
+ * Navigation: Back → /bequeathal/agricultural-assets/summary, Save → /bequeathal/agricultural-assets/summary
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Select, Input, CurrencyInput, RadioGroup, SearchableSelect } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
 import type { AgriculturalAsset } from '../../../src/types';
+
+const SUMMARY_ROUTE = '/bequeathal/agricultural-assets/summary';
 
 interface AssetForm {
   aprOwnershipStructure: string;
@@ -50,8 +37,11 @@ interface AssetForm {
 
 export default function AgriculturalAssetsEntryScreen() {
   const { bequeathalActions } = useAppState();
+  const params = useLocalSearchParams();
+  const editingAssetId = params.id as string | undefined;
+  const loadedIdRef = useRef<string | null>(null);
+
   const [showCompanyWarning, setShowCompanyWarning] = useState(false);
-  const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
   const [formData, setFormData] = useState<AssetForm>({
     aprOwnershipStructure: '',
     assetType: 'agricultural-land',
@@ -72,7 +62,7 @@ export default function AgriculturalAssetsEntryScreen() {
   });
   const [valueNotSure, setValueNotSure] = useState(false);
 
-  // Asset type options (grouped - Jobs's improvement)
+  // Asset type options (grouped)
   const assetTypeOptions = [
     { label: 'Agricultural Land', value: 'agricultural-land' },
     { label: 'Farm Buildings', value: 'farm-buildings' },
@@ -146,11 +136,49 @@ export default function AgriculturalAssetsEntryScreen() {
     { label: 'Yes - Has debts/encumbrances', value: 'yes' },
   ];
 
-  // Load existing assets
-  const existingAssets = bequeathalActions.getAssetsByType('agricultural-assets') as AgriculturalAsset[];
-  const totalValue = existingAssets.reduce((sum, asset) => sum + (asset.estimatedValue ?? 0), 0);
+  // Load existing asset when editing
+  useEffect(() => {
+    if (!editingAssetId) {
+      loadedIdRef.current = null;
+      return;
+    }
 
-  // APR qualification logic (from web prototype lines 139-166)
+    if (loadedIdRef.current === editingAssetId) return;
+
+    const allAssets = bequeathalActions.getAllAssets();
+    if (allAssets.length === 0) return;
+
+    const asset = bequeathalActions.getAssetById(editingAssetId);
+    if (!asset || asset.type !== 'agricultural-assets') {
+      router.push(SUMMARY_ROUTE as any);
+      return;
+    }
+
+    const agAsset = asset as AgriculturalAsset;
+    loadedIdRef.current = editingAssetId;
+
+    setFormData({
+      aprOwnershipStructure: agAsset.aprOwnershipStructure || '',
+      assetType: agAsset.assetType || 'agricultural-land',
+      assetDescription: agAsset.assetDescription || '',
+      farmWorkerOccupied: agAsset.farmWorkerOccupied || '',
+      woodlandPurpose: agAsset.woodlandPurpose || '',
+      studFarmActivity: agAsset.studFarmActivity || '',
+      otherAssetTypeDetail: agAsset.otherAssetTypeDetail || '',
+      hasDebtsEncumbrances: agAsset.hasDebtsEncumbrances || '',
+      debtAmount: agAsset.debtAmount || 0,
+      debtDescription: agAsset.debtDescription || '',
+      estimatedValue: agAsset.estimatedValue || 0,
+      aprOwnershipDuration: agAsset.aprOwnershipDuration || '',
+      aprTrustType: agAsset.aprTrustType || '',
+      bprActiveTrading: agAsset.bprActiveTrading || '',
+      bprOwnershipDuration: agAsset.bprOwnershipDuration || '',
+      notes: agAsset.notes || '',
+    });
+    setValueNotSure((agAsset.estimatedValue || 0) === 0);
+  }, [editingAssetId, bequeathalActions]);
+
+  // APR qualification logic
   const qualifiesForApr = (assetType: string, context: { 
     farmWorkerOccupied?: string; 
     woodlandPurpose?: string; 
@@ -178,7 +206,7 @@ export default function AgriculturalAssetsEntryScreen() {
     return false;
   };
 
-  // BPR qualification logic (from web prototype lines 175-177)
+  // BPR qualification logic
   const shouldShowBprSection = (assetType: string, studFarmActivity: string) => {
     return assetType === 'agricultural-equipment' ||
            (assetType === 'stud-farm' && studFarmActivity === 'livery');
@@ -202,12 +230,10 @@ export default function AgriculturalAssetsEntryScreen() {
   };
 
   const handleRouteToBusinessAssets = () => {
-    // Navigate to Phase 12 with context
-    // TODO: Pass assetDescription if entered
     router.push('/bequeathal/assets-held-through-business/entry');
   };
 
-  const handleAddAsset = () => {
+  const handleSave = () => {
     // Validation
     if (!formData.aprOwnershipStructure || !formData.assetType || !formData.assetDescription.trim()) return;
 
@@ -250,76 +276,11 @@ export default function AgriculturalAssetsEntryScreen() {
       bequeathalActions.addAsset('agricultural-assets', assetData);
     }
 
-    // Reset form
-    resetForm();
-  };
-
-  const resetForm = () => {
-    setFormData({
-      aprOwnershipStructure: '',
-      assetType: 'agricultural-land',
-      assetDescription: '',
-      farmWorkerOccupied: '',
-      woodlandPurpose: '',
-      studFarmActivity: '',
-      otherAssetTypeDetail: '',
-      hasDebtsEncumbrances: '',
-      debtAmount: 0,
-      debtDescription: '',
-      estimatedValue: 0,
-      aprOwnershipDuration: '',
-      aprTrustType: '',
-      bprActiveTrading: '',
-      bprOwnershipDuration: '',
-      notes: '',
-    });
-    setValueNotSure(false);
-    setEditingAssetId(null);
-    setShowCompanyWarning(false);
-  };
-
-  const handleEditAsset = (asset: AgriculturalAsset) => {
-    setEditingAssetId(asset.id);
-    setFormData({
-      aprOwnershipStructure: asset.aprOwnershipStructure || '',
-      assetType: asset.assetType,
-      assetDescription: asset.assetDescription || '',
-      farmWorkerOccupied: asset.farmWorkerOccupied || '',
-      woodlandPurpose: asset.woodlandPurpose || '',
-      studFarmActivity: asset.studFarmActivity || '',
-      otherAssetTypeDetail: asset.otherAssetTypeDetail || '',
-      hasDebtsEncumbrances: asset.hasDebtsEncumbrances || '',
-      debtAmount: asset.debtAmount || 0,
-      debtDescription: asset.debtDescription || '',
-      estimatedValue: asset.estimatedValue || 0,
-      aprOwnershipDuration: asset.aprOwnershipDuration || '',
-      aprTrustType: asset.aprTrustType || '',
-      bprActiveTrading: asset.bprActiveTrading || '',
-      bprOwnershipDuration: asset.bprOwnershipDuration || '',
-      notes: asset.notes || '',
-    });
-    setValueNotSure((asset.estimatedValue || 0) === 0);
-  };
-
-  const handleRemoveAsset = (id: string) => {
-    bequeathalActions.removeAsset(id);
-    if (editingAssetId === id) {
-      resetForm();
-    }
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const handleBack = () => {
-    router.back();
-  };
-
-  const handleContinue = () => {
-    const selectedCategories = bequeathalActions.getSelectedCategories();
-    const nextRoute = getNextCategoryRoute('agricultural-assets', selectedCategories);
-    router.push(nextRoute);
-  };
-
-  const getAssetTypeLabel = (assetType: string) => {
-    return assetTypeOptions.find(opt => opt.value === assetType)?.label || assetType;
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const canSubmit = formData.aprOwnershipStructure && 
@@ -347,7 +308,7 @@ export default function AgriculturalAssetsEntryScreen() {
         <BackButton onPress={handleBack} />
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>
-            {editingAssetId ? 'Update Asset' : 'Enter Agricultural Assets'}
+            {editingAssetId ? 'Edit Agricultural Asset' : 'Add Agricultural Asset'}
           </Text>
         </View>
         <View style={styles.headerRight} />
@@ -360,70 +321,11 @@ export default function AgriculturalAssetsEntryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          {/* Existing Assets List */}
-          {existingAssets.length > 0 && (
-            <View style={styles.assetsSection}>
-              <Text style={styles.assetsTitle}>
-                Your Agricultural Assets ({existingAssets.length})
-              </Text>
-
-              <View style={styles.assetsList}>
-                {existingAssets.map((asset) => {
-                  const isEditing = editingAssetId === asset.id;
-                  return (
-                    <TouchableOpacity
-                      key={asset.id}
-                      onPress={() => handleEditAsset(asset)}
-                      style={[styles.assetCard, isEditing && styles.assetCardEditing]}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.assetInfo}>
-                        <Text style={styles.assetDescription}>
-                          {asset.assetDescription || getAssetTypeLabel(asset.assetType)}
-                        </Text>
-                        <Text style={styles.assetType}>
-                          {getAssetTypeLabel(asset.assetType)}
-                        </Text>
-                        {isEditing && (
-                          <View style={styles.editingBadge}>
-                            <Text style={styles.editingText}>Editing</Text>
-                          </View>
-                        )}
-                      </View>
-                      
-                      <View style={styles.assetActions}>
-                        <Text style={styles.assetValue}>
-                          {(asset.estimatedValue ?? 0) === 0 ? 'Value not known' : `£${(asset.estimatedValue ?? 0).toLocaleString()}`}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            handleRemoveAsset(asset.id);
-                          }}
-                          style={styles.deleteButton}
-                        >
-                          <IconButton icon="delete" size={20} iconColor={KindlingColors.destructive} />
-                        </TouchableOpacity>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
           {/* Add/Edit Form */}
           <View style={styles.formCard}>
-            <View style={styles.formHeader}>
-              <Text style={styles.formTitle}>
-                {editingAssetId ? 'Update Agricultural Asset' : 'Add Agricultural Asset'}
-              </Text>
-              {editingAssetId && (
-                <TouchableOpacity onPress={resetForm}>
-                  <IconButton icon="refresh" size={20} iconColor={KindlingColors.brown} />
-                </TouchableOpacity>
-              )}
-            </View>
+            <Text style={styles.formTitle}>
+              {editingAssetId ? 'Update the details below.' : 'Add an agricultural asset.'}
+            </Text>
 
             {/* SECTION 0: Ownership Routing (FIRST) */}
             <RadioGroup
@@ -668,30 +570,16 @@ export default function AgriculturalAssetsEntryScreen() {
                 {/* Form Actions */}
                 <View style={styles.formActions}>
                   <Button
-                    onPress={handleAddAsset}
+                    onPress={handleSave}
                     variant="primary"
                     disabled={!canSubmit}
                   >
-                    {editingAssetId ? 'Save Changes' : 'Add Asset'}
+                    {editingAssetId ? 'Save changes' : 'Add this asset'}
                   </Button>
                 </View>
               </>
             )}
           </View>
-
-          {/* Total */}
-          {totalValue > 0 && (
-            <View style={styles.totalSection}>
-              <Text style={styles.totalText}>
-                Total Agricultural Assets: <Text style={styles.totalValue}>£{totalValue.toLocaleString()}</Text>
-              </Text>
-            </View>
-          )}
-
-          {/* Continue Button */}
-          <Button onPress={handleContinue} variant="primary" style={styles.continueButton}>
-            Continue
-          </Button>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -751,7 +639,6 @@ const styles = StyleSheet.create({
     backgroundColor: KindlingColors.background,
     borderBottomWidth: 1,
     borderBottomColor: `${KindlingColors.border}1a`,
-    zIndex: 10,
   },
   headerCenter: {
     flex: 1,
@@ -768,7 +655,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    zIndex: 10,
   },
   contentContainer: {
     paddingVertical: Spacing.lg,
@@ -779,70 +665,6 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  assetsSection: {
-    marginBottom: Spacing.lg,
-  },
-  assetsTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-    marginBottom: Spacing.sm,
-  },
-  assetsList: {
-    gap: Spacing.sm,
-  },
-  assetCard: {
-    backgroundColor: KindlingColors.background,
-    borderRadius: 8,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: KindlingColors.cream,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  assetCardEditing: {
-    borderColor: KindlingColors.green,
-    backgroundColor: `${KindlingColors.green}0D`,
-  },
-  assetInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  assetDescription: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  assetType: {
-    fontSize: Typography.fontSize.sm,
-    color: `${KindlingColors.navy}99`,
-  },
-  editingBadge: {
-    backgroundColor: KindlingColors.green,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  editingText: {
-    fontSize: Typography.fontSize.xs,
-    color: KindlingColors.background,
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  assetActions: {
-    gap: Spacing.xs,
-    alignItems: 'flex-end',
-  },
-  assetValue: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  deleteButton: {
-    marginTop: 4,
-  },
   formCard: {
     backgroundColor: `${KindlingColors.cream}33`,
     borderRadius: 12,
@@ -852,16 +674,11 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     marginBottom: Spacing.lg,
   },
-  formHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
   formTitle: {
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
+    marginBottom: Spacing.xs,
   },
   warningCard: {
     backgroundColor: '#FFF3E0',
@@ -983,24 +800,5 @@ const styles = StyleSheet.create({
   },
   formActions: {
     marginTop: Spacing.sm,
-  },
-  totalSection: {
-    padding: Spacing.md,
-    backgroundColor: `${KindlingColors.cream}66`,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: KindlingColors.beige,
-    marginBottom: Spacing.lg,
-  },
-  totalText: {
-    fontSize: Typography.fontSize.md,
-    color: KindlingColors.navy,
-    textAlign: 'center',
-  },
-  totalValue: {
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  continueButton: {
-    marginTop: 0,
   },
 });

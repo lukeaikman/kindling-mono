@@ -223,6 +223,7 @@ export default function PeopleSummaryScreen() {
     willActions,
     personActions,
     estateRemainderActions,
+    bequeathalActions,
     beneficiaryGroupActions,
   } = useAppState();
 
@@ -237,8 +238,9 @@ export default function PeopleSummaryScreen() {
       people,
       willData,
       estateRemainderState: estateState,
+      bequeathalData: bequeathalActions.getBequeathalData(),
     }),
-    [willActions, people, willData, estateState],
+    [willActions, people, willData, estateState, bequeathalActions],
   );
 
   // Context-aware CTA: forward to next stage, regression fix, or review & sign

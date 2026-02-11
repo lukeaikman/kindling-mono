@@ -396,7 +396,30 @@ export const useAppState = () => {
       setBequeathalData(updatedBequeathalData);
     }
     
-    // 6. Add userId to EstateRemainderState
+    // 6. Migrate selectedCategories (Set) → categoryStatus (Record)
+    if ((bequeathalData as any).selectedCategories && !bequeathalData.categoryStatus) {
+      const oldSet = (bequeathalData as any).selectedCategories;
+      // selectedCategories may be a Set, an Array (from JSON), or an object
+      const categories: string[] = oldSet instanceof Set
+        ? Array.from(oldSet)
+        : Array.isArray(oldSet)
+          ? oldSet
+          : Object.keys(oldSet || {});
+
+      if (categories.length > 0) {
+        const migrated: Record<string, { completedAt: string | null }> = {};
+        for (const cat of categories) {
+          migrated[cat] = { completedAt: null };
+        }
+        setBequeathalData(prev => {
+          const { selectedCategories: _removed, ...rest } = prev as any;
+          return { ...rest, categoryStatus: migrated, lastUpdated: new Date() };
+        });
+        console.log(`✅ Migrated ${categories.length} selectedCategories to categoryStatus`);
+      }
+    }
+
+    // 7. Add userId to EstateRemainderState
     if (!(estateRemainderState as any).userId) {
       setEstateRemainderState({
         ...estateRemainderState,
@@ -1206,11 +1229,19 @@ export const useAppState = () => {
       } as Asset;
 
       const arrayKey = getArrayKey(assetType);
-      setBequeathalData(prev => ({
-        ...prev,
-        [arrayKey]: [...(prev[arrayKey] as Asset[] || []), newAsset],
-        lastUpdated: new Date()
-      }));
+      setBequeathalData(prev => {
+        // Auto-invalidation: reset completedAt for this category
+        const updatedCategoryStatus = { ...prev.categoryStatus };
+        if (updatedCategoryStatus[assetType]) {
+          updatedCategoryStatus[assetType] = { completedAt: null };
+        }
+        return {
+          ...prev,
+          [arrayKey]: [...(prev[arrayKey] as Asset[] || []), newAsset],
+          categoryStatus: updatedCategoryStatus,
+          lastUpdated: new Date(),
+        };
+      });
 
       // Recalculate totals
       setTimeout(recalculateTotals, 0);
@@ -1225,13 +1256,21 @@ export const useAppState = () => {
       if (!asset) return;
 
       const arrayKey = getArrayKey(asset.type);
-      setBequeathalData(prev => ({
-        ...prev,
-        [arrayKey]: (prev[arrayKey] as Asset[] || []).map(a => 
-          a.id === id ? { ...a, ...updates, updatedAt: new Date().toISOString() } : a
-        ),
-        lastUpdated: new Date()
-      }));
+      setBequeathalData(prev => {
+        // Auto-invalidation: reset completedAt for this category
+        const updatedCategoryStatus = { ...prev.categoryStatus };
+        if (updatedCategoryStatus[asset.type]) {
+          updatedCategoryStatus[asset.type] = { completedAt: null };
+        }
+        return {
+          ...prev,
+          [arrayKey]: (prev[arrayKey] as Asset[] || []).map(a => 
+            a.id === id ? { ...a, ...updates, updatedAt: new Date().toISOString() } : a
+          ),
+          categoryStatus: updatedCategoryStatus,
+          lastUpdated: new Date(),
+        };
+      });
 
       // Recalculate totals
       setTimeout(recalculateTotals, 0);
@@ -1244,18 +1283,22 @@ export const useAppState = () => {
       if (!asset) return;
 
       const arrayKey = getArrayKey(asset.type);
-      setBequeathalData(prev => ({
-        ...prev,
-        [arrayKey]: (prev[arrayKey] as Asset[] || []).filter(a => a.id !== id),
-        lastUpdated: new Date()
-      }));
+      setBequeathalData(prev => {
+        // Auto-invalidation: reset completedAt for this category
+        const updatedCategoryStatus = { ...prev.categoryStatus };
+        if (updatedCategoryStatus[asset.type]) {
+          updatedCategoryStatus[asset.type] = { completedAt: null };
+        }
+        return {
+          ...prev,
+          [arrayKey]: (prev[arrayKey] as Asset[] || []).filter(a => a.id !== id),
+          categoryStatus: updatedCategoryStatus,
+          lastUpdated: new Date(),
+        };
+      });
 
       // Recalculate totals
       setTimeout(recalculateTotals, 0);
-    },
-
-    deleteAsset: (id) => {
-      bequeathalActions.removeAsset(id);
     },
 
     getAssets: () => getAllAssets(),
@@ -1271,33 +1314,108 @@ export const useAppState = () => {
 
     getAllAssets,
 
-    getSelectedCategories: () => {
-      return Array.from(bequeathalData.selectedCategories);
-    },
+    // --- Category lifecycle ---
 
-    setSelectedCategories: (categories) => {
+    selectCategory: (categoryId) => {
       setBequeathalData(prev => ({
         ...prev,
-        selectedCategories: new Set(categories),
-        lastUpdated: new Date()
+        categoryStatus: {
+          ...prev.categoryStatus,
+          [categoryId]: { completedAt: null },
+        },
+        lastUpdated: new Date(),
       }));
     },
 
-    toggleCategory: (category) => {
+    deselectCategory: (categoryId) => {
+      // Guard: only deselect if no assets in category
+      const count = (bequeathalData[categoryId as keyof BequeathalData] as Asset[] | undefined)?.length ?? 0;
+      if (count > 0) return;
+
       setBequeathalData(prev => {
-        const newSet = new Set(prev.selectedCategories);
-        if (newSet.has(category)) {
-          newSet.delete(category);
-        } else {
-          newSet.add(category);
-        }
+        const { [categoryId]: _, ...rest } = prev.categoryStatus;
         return {
           ...prev,
-          selectedCategories: newSet,
-          lastUpdated: new Date()
+          categoryStatus: rest,
+          lastUpdated: new Date(),
         };
       });
     },
+
+    markCategoryComplete: (categoryId) => {
+      setBequeathalData(prev => ({
+        ...prev,
+        categoryStatus: {
+          ...prev.categoryStatus,
+          [categoryId]: { completedAt: new Date().toISOString() },
+        },
+        lastUpdated: new Date(),
+      }));
+    },
+
+    markCategoryIncomplete: (categoryId) => {
+      setBequeathalData(prev => ({
+        ...prev,
+        categoryStatus: {
+          ...prev.categoryStatus,
+          [categoryId]: { completedAt: null },
+        },
+        lastUpdated: new Date(),
+      }));
+    },
+
+    markAllCategoriesComplete: () => {
+      setBequeathalData(prev => {
+        const now = new Date().toISOString();
+        const updated: Record<string, { completedAt: string | null }> = {};
+        for (const key of Object.keys(prev.categoryStatus)) {
+          updated[key] = { completedAt: now };
+        }
+        return {
+          ...prev,
+          categoryStatus: updated,
+          lastUpdated: new Date(),
+        };
+      });
+    },
+
+    // --- Category queries ---
+
+    getSelectedCategories: () => {
+      return Object.keys(bequeathalData.categoryStatus || {});
+    },
+
+    isCategorySelected: (categoryId) => {
+      return categoryId in (bequeathalData.categoryStatus || {});
+    },
+
+    isCategoryComplete: (categoryId) => {
+      const entry = bequeathalData.categoryStatus?.[categoryId];
+      return entry?.completedAt !== null && entry?.completedAt !== undefined;
+    },
+
+    areAllCategoriesComplete: () => {
+      const status = bequeathalData.categoryStatus || {};
+      const keys = Object.keys(status);
+      if (keys.length === 0) return false;
+      return keys.every(k => status[k].completedAt !== null && status[k].completedAt !== undefined);
+    },
+
+    getAssetCountByType: (type) => {
+      return ((bequeathalData[type as keyof BequeathalData] as Asset[] | undefined) || []).length;
+    },
+
+    getTotalAssetCount: () => {
+      const selected = Object.keys(bequeathalData.categoryStatus || {});
+      return selected.reduce((sum, cat) => {
+        const arr = bequeathalData[cat as keyof BequeathalData];
+        return sum + (Array.isArray(arr) ? arr.length : 0);
+      }, 0);
+    },
+
+    // --- Raw data access ---
+
+    getBequeathalData: () => bequeathalData,
   };
 
   // =============================================================================

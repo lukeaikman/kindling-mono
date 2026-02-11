@@ -1,27 +1,28 @@
 /**
  * Important Items Entry Screen
- * 
- * Form for adding and managing valuable items with beneficiary assignments.
+ *
+ * Single-asset entry form. Supports add (new) and edit (?id=xxx).
  * Items can be assigned to specific people, groups, or the estate.
- * 
+ *
  * Navigation:
- * - Back: Returns to important items intro
- * - Continue: Proceeds to next category or will-dashboard
+ * - Back: Category Summary (/bequeathal/important-items/summary)
+ * - Save: Category Summary (/bequeathal/important-items/summary)
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Input, CurrencyInput } from '../../../src/components/ui';
 import { AddPersonDialog, MultiBeneficiarySelector, BeneficiarySelection, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import { getPersonFullName, getPersonRelationshipDisplay } from '../../../src/utils/helpers';
-import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
 import type { ImportantItemAsset } from '../../../src/types';
+
+const SUMMARY_ROUTE = '/bequeathal/important-items/summary';
 
 interface ImportantItemForm {
   title: string;
@@ -31,74 +32,42 @@ interface ImportantItemForm {
 
 export default function ImportantItemsEntryScreen() {
   const { bequeathalActions, personActions, beneficiaryGroupActions, willActions } = useAppState();
-  const scrollViewRef = useRef<ScrollView>(null);
+  const params = useLocalSearchParams();
+  const editingAssetId = params.id as string | undefined;
+  const loadedIdRef = useRef<string | null>(null);
+
   const [formData, setFormData] = useState<ImportantItemForm>({
     title: '',
     beneficiaries: [],
     estimatedValue: 0,
   });
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
-
-  // Get existing important items
-  const importantItems = bequeathalActions.getAssetsByType('important-items') as ImportantItemAsset[];
-  const totalValue = importantItems.reduce((sum, item) => sum + (item.estimatedValue || 0), 0);
 
   // Get will-maker ID to exclude from beneficiary selection
   const willMaker = willActions.getUser();
   const excludePersonIds = willMaker?.id ? [willMaker.id] : [];
 
-  const handleBeneficiariesChange = (newBeneficiaries: BeneficiarySelection | BeneficiarySelection[]) => {
-    const beneficiariesArray = Array.isArray(newBeneficiaries) ? newBeneficiaries : [newBeneficiaries];
-    setFormData(prev => ({ ...prev, beneficiaries: beneficiariesArray }));
-  };
-
-  const handleAddItem = () => {
-    if (!formData.title.trim() || formData.beneficiaries.length === 0 || formData.estimatedValue === 0) {
+  // Load existing asset when editing
+  useEffect(() => {
+    if (!editingAssetId) {
+      loadedIdRef.current = null;
       return;
     }
 
-    const estimatedValue = Math.round(formData.estimatedValue);
+    if (loadedIdRef.current === editingAssetId) return;
 
-    const itemData = {
-      title: formData.title.trim(),
-      beneficiaryAssignments: {
-        beneficiaries: formData.beneficiaries.map(b => ({
-          id: b.id,
-          type: b.type,
-          name: b.name,
-        }))
-      },
-      estimatedValue,
-      netValue: estimatedValue,
-    };
+    const allAssets = bequeathalActions.getAllAssets();
+    if (allAssets.length === 0) return;
 
-    if (editingItemId) {
-      bequeathalActions.updateAsset(editingItemId, itemData);
-      setEditingItemId(null);
-    } else {
-      bequeathalActions.addAsset('important-items', itemData);
+    const asset = bequeathalActions.getAssetById(editingAssetId);
+    if (!asset || asset.type !== 'important-items') {
+      router.push(SUMMARY_ROUTE as any);
+      return;
     }
 
-    // Reset form
-    setFormData({
-      title: '',
-      beneficiaries: [],
-      estimatedValue: 0,
-    });
-
-    // Scroll to bottom to show the new item (double RAF to ensure render complete)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      });
-    });
-  };
-
-  const handleEditItem = (itemId: string) => {
-    const item = bequeathalActions.getAssetById(itemId) as ImportantItemAsset;
-    if (!item) return;
+    const item = asset as ImportantItemAsset;
+    loadedIdRef.current = editingAssetId;
 
     const beneficiaries: BeneficiarySelection[] = item.beneficiaryAssignments?.beneficiaries.map(b => {
       if (b.type === 'estate') {
@@ -121,30 +90,44 @@ export default function ImportantItemsEntryScreen() {
       beneficiaries,
       estimatedValue: item.estimatedValue || 0,
     });
-    setEditingItemId(itemId);
+  }, [editingAssetId, bequeathalActions]);
+
+  const handleBeneficiariesChange = (newBeneficiaries: BeneficiarySelection | BeneficiarySelection[]) => {
+    const beneficiariesArray = Array.isArray(newBeneficiaries) ? newBeneficiaries : [newBeneficiaries];
+    setFormData(prev => ({ ...prev, beneficiaries: beneficiariesArray }));
   };
 
-  const handleCancelEdit = () => {
-    setFormData({
-      title: '',
-      beneficiaries: [],
-      estimatedValue: 0,
-    });
-    setEditingItemId(null);
-  };
+  const handleSave = () => {
+    if (!formData.title.trim() || formData.beneficiaries.length === 0 || formData.estimatedValue === 0) {
+      return;
+    }
 
-  const handleDeleteItem = (itemId: string) => {
-    bequeathalActions.removeAsset(itemId);
+    const estimatedValue = Math.round(formData.estimatedValue);
+
+    const itemData = {
+      title: formData.title.trim(),
+      beneficiaryAssignments: {
+        beneficiaries: formData.beneficiaries.map(b => ({
+          id: b.id,
+          type: b.type,
+          name: b.name,
+        }))
+      },
+      estimatedValue,
+      netValue: estimatedValue,
+    };
+
+    if (editingAssetId) {
+      bequeathalActions.updateAsset(editingAssetId, itemData);
+    } else {
+      bequeathalActions.addAsset('important-items', itemData);
+    }
+
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const handleBack = () => {
-    router.back();
-  };
-
-  const handleContinue = () => {
-    const selectedCategories = bequeathalActions.getSelectedCategories();
-    const nextRoute = getNextCategoryRoute('important-items', selectedCategories);
-    router.push(nextRoute);
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const canSubmit = formData.title.trim() && formData.beneficiaries.length > 0 && formData.estimatedValue > 0;
@@ -165,23 +148,23 @@ export default function ImportantItemsEntryScreen() {
           <View style={styles.iconCircle}>
             <IconButton icon="diamond" size={20} iconColor={KindlingColors.navy} />
           </View>
-          <Text style={styles.headerTitle}>Important Items</Text>
+          <Text style={styles.headerTitle}>
+            {editingAssetId ? 'Edit Item' : 'Add Item'}
+          </Text>
         </View>
         <View style={styles.headerRight} />
       </View>
 
       {/* Content */}
       <ScrollView
-        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          {/* Add Item Form */}
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>
-              {editingItemId ? 'Edit Item' : 'Add New Item'}
+              {editingAssetId ? 'Update the details below.' : 'Add a valuable or sentimental item.'}
             </Text>
 
             <Input
@@ -214,125 +197,14 @@ export default function ImportantItemsEntryScreen() {
               onValueChange={(value) => setFormData(prev => ({ ...prev, estimatedValue: value }))}
             />
 
-            <View style={styles.formActions}>
-              <Button
-                onPress={handleAddItem}
-                variant="primary"
-                disabled={!canSubmit}
-                style={styles.submitButton}
-              >
-                {editingItemId ? 'Update Item' : 'Add Item'}
-              </Button>
-              
-              {editingItemId && (
-                <Button
-                  onPress={handleCancelEdit}
-                  variant="outline"
-                  style={styles.cancelButton}
-                >
-                  Cancel
-                </Button>
-              )}
-            </View>
-          </View>
-
-          {/* Items List */}
-          {importantItems.length > 0 ? (
-            <View style={styles.itemsSection}>
-              <Text style={styles.itemsTitle}>
-                Added Items ({importantItems.length})
-              </Text>
-              
-              <View style={styles.itemsList}>
-                {importantItems.map((item) => {
-                  const beneficiaries = item.beneficiaryAssignments?.beneficiaries || [];
-                  
-                  return (
-                    <View key={item.id} style={styles.itemCard}>
-                      <View style={styles.itemInfo}>
-                        <Text style={styles.itemTitle}>{item.title}</Text>
-                        
-                        <View style={styles.itemDetail}>
-                          <Text style={styles.detailLabel}>For:</Text>
-                          <View style={styles.beneficiariesList}>
-                            {beneficiaries.map((b, idx) => {
-                              let displayName = b.name || 'Unknown';
-                              if (b.type === 'person') {
-                                const person = personActions.getPersonById(b.id);
-                                if (person) {
-                                  displayName = `${getPersonFullName(person)} (${getPersonRelationshipDisplay(person)})`;
-                                }
-                              } else if (b.type === 'estate') {
-                                displayName = 'The Estate';
-                              }
-                              
-                              return (
-                                <Text key={idx} style={styles.beneficiaryText}>
-                                  {displayName}
-                                </Text>
-                              );
-                            })}
-                          </View>
-                        </View>
-                        
-                        <View style={styles.itemDetail}>
-                          <Text style={styles.detailLabel}>Value:</Text>
-                          <Text style={styles.valueText}>
-                            £{(item.estimatedValue || 0).toLocaleString('en-GB', {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 2
-                            })}
-                          </Text>
-                        </View>
-                      </View>
-                      
-                      <View style={styles.itemActions}>
-                        <TouchableOpacity onPress={() => handleEditItem(item.id)} style={styles.actionButton}>
-                          <IconButton icon="pencil" size={18} iconColor={KindlingColors.navy} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleDeleteItem(item.id)} style={styles.actionButton}>
-                          <IconButton icon="delete" size={18} iconColor={KindlingColors.destructive} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-
-              {/* Total Value */}
-              {totalValue > 0 && (
-                <Text style={styles.totalText}>
-                  Valuables Total: <Text style={styles.totalValue}>£{totalValue.toLocaleString('en-GB', {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 2
-                  })}</Text>
-                </Text>
-              )}
-            </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIconCircle}>
-                <IconButton icon="diamond" size={32} iconColor={KindlingColors.navy} />
-              </View>
-              <Text style={styles.emptyTitle}>No items added yet</Text>
-              <Text style={styles.emptyText}>Add your first important item using the form above</Text>
-            </View>
-          )}
-
-          {/* Action Buttons - naturally at bottom of content */}
-          {importantItems.length > 0 && (
-            <TouchableOpacity
-              onPress={() => scrollViewRef.current?.scrollTo({ y: 0, animated: true })}
-              style={styles.addAnotherButton}
-              activeOpacity={0.7}
+            <Button
+              onPress={handleSave}
+              variant="primary"
+              disabled={!canSubmit}
             >
-              <Text style={styles.addAnotherText}>Add Another Item</Text>
-            </TouchableOpacity>
-          )}
-          
-          <Button onPress={handleContinue} variant="primary" style={styles.continueButton}>
-            Continue
-          </Button>
+              {editingAssetId ? 'Save changes' : 'Add this item'}
+            </Button>
+          </View>
         </View>
       </ScrollView>
 
@@ -363,7 +235,6 @@ export default function ImportantItemsEntryScreen() {
         visible={showGroupDrawer}
         onClose={() => setShowGroupDrawer(false)}
         onSelectGroup={(groupId) => {
-          // Add the selected group to beneficiaries
           const group = beneficiaryGroupActions.getGroupById(groupId);
           if (group) {
             const groupSelection: BeneficiarySelection = {
@@ -438,7 +309,6 @@ const styles = StyleSheet.create({
     backgroundColor: KindlingColors.background,
     borderBottomWidth: 1,
     borderBottomColor: `${KindlingColors.border}1a`,
-    zIndex: 10,
   },
   headerCenter: {
     flex: 1,
@@ -466,7 +336,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    zIndex: 10,
   },
   contentContainer: {
     paddingVertical: Spacing.lg,
@@ -492,130 +361,4 @@ const styles = StyleSheet.create({
     color: KindlingColors.navy,
     marginBottom: Spacing.xs,
   },
-  formActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  submitButton: {
-    flex: 1,
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  itemsSection: {
-    gap: Spacing.md,
-  },
-  itemsTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  itemsList: {
-    gap: Spacing.sm,
-  },
-  itemCard: {
-    backgroundColor: KindlingColors.background,
-    borderRadius: 8,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: KindlingColors.cream,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  itemInfo: {
-    flex: 1,
-    gap: Spacing.xs,
-  },
-  itemTitle: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  itemDetail: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.xs,
-  },
-  detailLabel: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-  },
-  beneficiariesList: {
-    flex: 1,
-    gap: 2,
-  },
-  beneficiaryText: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
-    color: KindlingColors.navy,
-  },
-  valueText: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  itemActions: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    marginLeft: Spacing.sm,
-  },
-  actionButton: {
-    padding: 0,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl * 2,
-    gap: Spacing.md,
-  },
-  emptyIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: `${KindlingColors.navy}10`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  emptyText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-    textAlign: 'center',
-  },
-  totalText: {
-    fontSize: Typography.fontSize.md,
-    color: KindlingColors.navy,
-    marginTop: 0,
-    textAlign: 'center',
-  },
-  totalValue: {
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  addAnotherButton: {
-    backgroundColor: KindlingColors.background,
-    borderWidth: 2,
-    borderColor: KindlingColors.green,
-    borderRadius: 8,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.xl,
-  },
-  addAnotherText: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.green,
-  },
-  continueButton: {
-    marginTop: Spacing.sm,
-  },
-  dialogText: {
-    fontSize: Typography.fontSize.md,
-    color: KindlingColors.brown,
-    marginBottom: Spacing.md,
-  },
 });
-

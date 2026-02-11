@@ -1,29 +1,23 @@
 /**
- * Investments Entry Screen
- * 
- * Form for adding and managing investment accounts.
- * Loads ISAs created in Bank Accounts screen (Phase 5 integration).
- * Multi-beneficiary support for flexible distribution.
- * 
- * Navigation:
- * - Back: Returns to investments intro
- * - Continue: Proceeds to next category or will-dashboard
+ * Single-asset entry form. Supports add (new) and edit (?id=xxx).
+ * Navigation: Back → /bequeathal/investment/summary, Save → /bequeathal/investment/summary
  */
 
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Select, Input, CurrencyInput } from '../../../src/components/ui';
 import { AddPersonDialog, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
 import { getPersonFullName, getPersonRelationshipDisplay } from '../../../src/utils/helpers';
 import { validatePercentageAllocation, getBeneficiaryDisplayName } from '../../../src/utils/beneficiaryHelpers';
 import type { InvestmentAsset, BeneficiaryAssignment } from '../../../src/types';
+
+const SUMMARY_ROUTE = '/bequeathal/investment/summary';
 
 interface InvestmentForm {
   provider: string;
@@ -33,9 +27,10 @@ interface InvestmentForm {
 }
 
 export default function InvestmentsEntryScreen() {
+  const params = useLocalSearchParams();
+  const editingAssetId = params.id as string | undefined;
+
   const { bequeathalActions, personActions, beneficiaryGroupActions, willActions } = useAppState();
-  const [showForm, setShowForm] = useState(true);
-  const [showInvestmentsList, setShowInvestmentsList] = useState(true);
   const [formData, setFormData] = useState<InvestmentForm>({
     provider: '',
     investmentType: '',
@@ -43,7 +38,6 @@ export default function InvestmentsEntryScreen() {
     estimatedValue: 0,
   });
   const [balanceNotSure, setBalanceNotSure] = useState(false);
-  const [editingInvestmentId, setEditingInvestmentId] = useState<string | null>(null);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
@@ -61,32 +55,49 @@ export default function InvestmentsEntryScreen() {
     { label: 'Other', value: 'other' },
   ];
 
-  // Load existing investments (includes ISAs from Bank Accounts - Phase 5)
-  const investments = bequeathalActions.getAssetsByType('investment') as InvestmentAsset[];
-  const totalValue = investments.reduce((sum, inv) => sum + (inv.estimatedValue || 0), 0);
-  const unknownValueCount = investments.filter(inv => (inv.estimatedValue || 0) === 0).length;
-
   // Get will-maker ID to exclude from beneficiary selection
   const willMaker = willActions.getUser();
   const excludePersonIds = willMaker?.id ? [willMaker.id] : [];
 
-  // Hide form after first investment
+  // Load existing asset for edit mode
+  const loadedIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (investments.length === 0) {
-      setShowForm(true);
-    } else if (investments.length > 0) {
-      setShowForm(false);
+    if (!editingAssetId || loadedIdRef.current === editingAssetId) return;
+    loadedIdRef.current = editingAssetId;
+
+    const investment = bequeathalActions.getAssetById(editingAssetId) as InvestmentAsset | undefined;
+    if (!investment) {
+      router.push(SUMMARY_ROUTE as any);
+      return;
     }
-  }, []);
+
+    // Load beneficiaries array (handles both old single and new percentage formats)
+    let beneficiaries: BeneficiaryAssignment[] = [];
+    if (investment.beneficiaryAssignments?.beneficiaries) {
+      beneficiaries = investment.beneficiaryAssignments.beneficiaries.map(b => ({
+        id: b.id,
+        type: b.type,
+        percentage: b.percentage || (investment.beneficiaryAssignments!.beneficiaries.length === 1 ? 100 : undefined),
+      }));
+    }
+
+    setFormData({
+      provider: investment.provider,
+      investmentType: investment.investmentType || '',
+      beneficiaries,
+      estimatedValue: investment.estimatedValue || 0,
+    });
+    setBalanceNotSure((investment.estimatedValue || 0) === 0);
+  }, [editingAssetId]);
 
   const handleBeneficiariesChange = (newBeneficiaries: BeneficiaryAssignment[]) => {
     setFormData(prev => ({ ...prev, beneficiaries: newBeneficiaries }));
   };
 
-  const handleAddInvestment = () => {
+  const handleSave = () => {
     // Validation
     if (!formData.provider.trim() || formData.beneficiaries.length === 0) return;
-    
+
     // Validate percentages total 100%
     if (!validatePercentageAllocation({ beneficiaries: formData.beneficiaries })) {
       return; // Component already shows error
@@ -99,7 +110,7 @@ export default function InvestmentsEntryScreen() {
     const investmentTypeLabel = investmentTypeOptions.find(opt => opt.value === investmentType)?.label || 'Other';
 
     const investmentData = {
-      title: formData.investmentType 
+      title: formData.investmentType
         ? `${formData.provider} - ${investmentTypeLabel}`
         : formData.provider,
       provider: formData.provider.trim(),
@@ -115,80 +126,21 @@ export default function InvestmentsEntryScreen() {
       netValue: estimatedValue,
     };
 
-    if (editingInvestmentId) {
-      bequeathalActions.updateAsset(editingInvestmentId, investmentData);
-      setEditingInvestmentId(null);
+    if (editingAssetId) {
+      bequeathalActions.updateAsset(editingAssetId, investmentData);
     } else {
       bequeathalActions.addAsset('investment', investmentData);
     }
 
-    // Reset form
-    setFormData({
-      provider: '',
-      investmentType: '',
-      beneficiaries: [],
-      estimatedValue: 0,
-    });
-    setBalanceNotSure(false);
-    setShowForm(false);
-  };
-
-  const handleEditInvestment = (investmentId: string) => {
-    const investment = bequeathalActions.getAssetById(investmentId) as InvestmentAsset;
-    if (!investment) return;
-
-    // Load beneficiaries array (handles both old single and new percentage formats)
-    let beneficiaries: BeneficiaryAssignment[] = [];
-    
-    if (investment.beneficiaryAssignments?.beneficiaries) {
-      beneficiaries = investment.beneficiaryAssignments.beneficiaries.map(b => ({
-        id: b.id,
-        type: b.type,
-        percentage: b.percentage || (investment.beneficiaryAssignments!.beneficiaries.length === 1 ? 100 : undefined),
-      }));
-    }
-
-    setFormData({
-      provider: investment.provider,
-      investmentType: investment.investmentType || '',
-      beneficiaries,
-      estimatedValue: investment.estimatedValue || 0,
-    });
-    setEditingInvestmentId(investmentId);
-    setShowForm(true);
-  };
-
-  const handleCancelEdit = () => {
-    setFormData({
-      provider: '',
-      investmentType: '',
-      beneficiaries: [],
-      estimatedValue: 0,
-    });
-    setBalanceNotSure(false);
-    setEditingInvestmentId(null);
-    setShowForm(false);
-  };
-
-  const handleRemoveInvestment = (id: string) => {
-    bequeathalActions.removeAsset(id);
-    if (editingInvestmentId === id) {
-      handleCancelEdit();
-    }
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const handleBack = () => {
-    router.back();
+    router.push(SUMMARY_ROUTE as any);
   };
 
-  const handleContinue = () => {
-    const selectedCategories = bequeathalActions.getSelectedCategories();
-    const nextRoute = getNextCategoryRoute('investment', selectedCategories);
-    router.push(nextRoute);
-  };
-
-  const canSubmit = formData.provider.trim() && 
-    formData.beneficiaries.length > 0 && 
+  const canSubmit = formData.provider.trim() &&
+    formData.beneficiaries.length > 0 &&
     validatePercentageAllocation({ beneficiaries: formData.beneficiaries });
 
   return (
@@ -204,7 +156,9 @@ export default function InvestmentsEntryScreen() {
       <View style={styles.header}>
         <BackButton onPress={handleBack} />
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Enter Investments</Text>
+          <Text style={styles.headerTitle}>
+            {editingAssetId ? 'Edit Investment' : 'Add Investment'}
+          </Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -216,220 +170,91 @@ export default function InvestmentsEntryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          {/* Add Investment Form */}
-          {showForm && (
-            <View style={styles.formCard}>
-              <Text style={styles.formTitle}>
-                {editingInvestmentId ? 'Edit Investment' : 'Add Investment'}
-              </Text>
-              
-              <Input
-                label="Investment With *"
-                placeholder="e.g., AJ Bell, Hargreaves Lansdown"
-                value={formData.provider}
-                onChangeText={(value) => setFormData(prev => ({ ...prev, provider: value }))}
-              />
+          <View style={styles.formCard}>
+            <Text style={styles.formTitle}>
+              {editingAssetId ? 'Update the details below.' : 'Add an investment account.'}
+            </Text>
 
-              <Select
-                label="Investment Type"
-                placeholder="Select investment type..."
-                value={formData.investmentType}
-                options={investmentTypeOptions}
-                onChange={(value) => setFormData(prev => ({ ...prev, investmentType: value }))}
-              />
+            <Input
+              label="Investment With *"
+              placeholder="e.g., AJ Bell, Hargreaves Lansdown"
+              value={formData.provider}
+              onChangeText={(value) => setFormData(prev => ({ ...prev, provider: value }))}
+            />
 
-              {/* Beneficiaries with Percentage Allocations */}
-              <BeneficiaryWithPercentages
-                allocationMode="percentage"
-                value={formData.beneficiaries}
-                onChange={handleBeneficiariesChange}
-                personActions={personActions}
-                beneficiaryGroupActions={beneficiaryGroupActions}
-                excludePersonIds={excludePersonIds}
-                label="Who will receive this? *"
-                onAddNewPerson={(onCreated) => {
-                  addPersonSelectionRef.current = onCreated || null;
-                  setShowAddPersonDialog(true);
-                }}
-                onAddNewGroup={() => setShowGroupDrawer(true)}
-              />
+            <Select
+              label="Investment Type"
+              placeholder="Select investment type..."
+              value={formData.investmentType}
+              options={investmentTypeOptions}
+              onChange={(value) => setFormData(prev => ({ ...prev, investmentType: value }))}
+            />
 
-              <View style={styles.balanceSection}>
-                <View style={balanceNotSure && styles.disabledInputContainer}>
-                  <CurrencyInput
-                    label="Estimated Value"
-                    placeholder="0"
-                    value={balanceNotSure ? 0 : formData.estimatedValue}
-                    onValueChange={(value) => {
-                      setFormData(prev => ({ ...prev, estimatedValue: value }));
-                      setBalanceNotSure(false);
-                    }}
-                    disabled={balanceNotSure}
-                  />
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    const newValue = !balanceNotSure;
-                    setBalanceNotSure(newValue);
-                    if (newValue) {
-                      setFormData(prev => ({ ...prev, estimatedValue: 0 }));
-                    }
+            {/* Beneficiaries with Percentage Allocations */}
+            <BeneficiaryWithPercentages
+              allocationMode="percentage"
+              value={formData.beneficiaries}
+              onChange={handleBeneficiariesChange}
+              personActions={personActions}
+              beneficiaryGroupActions={beneficiaryGroupActions}
+              excludePersonIds={excludePersonIds}
+              label="Who will receive this? *"
+              onAddNewPerson={(onCreated) => {
+                addPersonSelectionRef.current = onCreated || null;
+                setShowAddPersonDialog(true);
+              }}
+              onAddNewGroup={() => setShowGroupDrawer(true)}
+            />
+
+            <View style={styles.balanceSection}>
+              <View style={balanceNotSure && styles.disabledInputContainer}>
+                <CurrencyInput
+                  label="Estimated Value"
+                  placeholder="0"
+                  value={balanceNotSure ? 0 : formData.estimatedValue}
+                  onValueChange={(value) => {
+                    setFormData(prev => ({ ...prev, estimatedValue: value }));
+                    setBalanceNotSure(false);
                   }}
-                  style={styles.checkboxRow}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.checkboxCircle, balanceNotSure && styles.checkboxCircleSelected]}>
-                    {balanceNotSure && (
-                      <IconButton
-                        icon="check"
-                        size={16}
-                        iconColor={KindlingColors.background}
-                        style={styles.checkIcon}
-                      />
-                    )}
-                  </View>
-                  <Text style={styles.checkboxLabel}>Unsure of balance</Text>
-                </TouchableOpacity>
+                  disabled={balanceNotSure}
+                />
               </View>
-
-              <View style={styles.formActions}>
-                <Button
-                  onPress={handleAddInvestment}
-                  variant="primary"
-                  disabled={!canSubmit}
-                  style={styles.submitButton}
-                >
-                  {editingInvestmentId ? 'Update Investment' : 'Add Investment'}
-                </Button>
-                
-                {editingInvestmentId && (
-                  <Button
-                    onPress={handleCancelEdit}
-                    variant="outline"
-                    style={styles.cancelButton}
-                  >
-                    Cancel
-                  </Button>
-                )}
-              </View>
-            </View>
-          )}
-
-          {/* Existing Investments List */}
-          {investments.length > 0 && (
-            <View style={styles.investmentsSection}>
-              <View style={styles.investmentsHeader}>
-                <Text style={styles.investmentsTitle}>
-                  Your Investments ({investments.length})
-                </Text>
-                <TouchableOpacity onPress={() => setShowInvestmentsList(!showInvestmentsList)}>
-                  <IconButton
-                    icon={showInvestmentsList ? 'eye-off' : 'eye'}
-                    size={20}
-                    iconColor={KindlingColors.brown}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {showInvestmentsList && (
-                <View style={styles.investmentsList}>
-                  {investments.map((investment) => {
-                    const investmentTypeLabel = investmentTypeOptions.find(
-                      opt => opt.value === investment.investmentType
-                    )?.label || 'Other';
-                    
-                    const beneficiaries = investment.beneficiaryAssignments?.beneficiaries || [];
-                    
-                    return (
-                      <View key={investment.id} style={styles.investmentCard}>
-                        <View style={styles.investmentInfo}>
-                          <Text style={styles.investmentProvider}>{investment.provider}</Text>
-                          <Text style={styles.investmentType}>{investmentTypeLabel}</Text>
-                          
-                          {/* Beneficiaries with Percentages */}
-                          {beneficiaries.length > 0 && (
-                            <View style={styles.beneficiariesRow}>
-                              <Text style={styles.beneficiaryLabel}>For: </Text>
-                              <View style={styles.beneficiariesList}>
-                                {beneficiaries.map((b, idx) => {
-                                  const displayName = getBeneficiaryDisplayName(
-                                    b,
-                                    personActions,
-                                    beneficiaryGroupActions
-                                  );
-                                  const percentage = b.percentage || 0;
-                                  const percentageValue = investment.estimatedValue 
-                                    ? `£${Math.round((investment.estimatedValue * percentage) / 100).toLocaleString()}`
-                                    : '';
-                                  
-                                  return (
-                                    <Text key={idx} style={styles.beneficiaryText}>
-                                      {displayName} {percentage}% {percentageValue && `(${percentageValue})`}
-                                      {idx < beneficiaries.length - 1 && ', '}
-                                    </Text>
-                                  );
-                                })}
-                              </View>
-                            </View>
-                          )}
-                          
-                          <Text style={styles.investmentValue}>
-                            {(investment.estimatedValue || 0) === 0 
-                              ? 'Value not known' 
-                              : `£${(investment.estimatedValue || 0).toLocaleString()}`}
-                          </Text>
-                        </View>
-                        
-                        <View style={styles.investmentActions}>
-                          <TouchableOpacity
-                            onPress={() => handleEditInvestment(investment.id)}
-                            style={styles.actionButton}
-                          >
-                            <IconButton icon="pencil" size={18} iconColor={KindlingColors.navy} />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => handleRemoveInvestment(investment.id)}
-                            style={styles.actionButton}
-                          >
-                            <IconButton icon="delete" size={18} iconColor={KindlingColors.destructive} />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    );
-                  })}
-
-                  {/* Total Summary */}
-                  <View style={styles.totalSection}>
-                    <Text style={styles.totalText}>
-                      Investments Total: <Text style={styles.totalValue}>£{totalValue.toLocaleString()}</Text>
-                    </Text>
-                    {unknownValueCount > 0 && (
-                      <Text style={styles.unknownValueText}>
-                        (+ {unknownValueCount} unknown {unknownValueCount === 1 ? 'balance' : 'balances'})
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Action Buttons - at bottom of content */}
-          {investments.length > 0 && (
-            <>
               <TouchableOpacity
-                onPress={() => setShowForm(true)}
-                style={styles.addAnotherButton}
+                onPress={() => {
+                  const newValue = !balanceNotSure;
+                  setBalanceNotSure(newValue);
+                  if (newValue) {
+                    setFormData(prev => ({ ...prev, estimatedValue: 0 }));
+                  }
+                }}
+                style={styles.checkboxRow}
                 activeOpacity={0.7}
               >
-                <Text style={styles.addAnotherText}>Add Another Investment</Text>
+                <View style={[styles.checkboxCircle, balanceNotSure && styles.checkboxCircleSelected]}>
+                  {balanceNotSure && (
+                    <IconButton
+                      icon="check"
+                      size={16}
+                      iconColor={KindlingColors.background}
+                      style={styles.checkIcon}
+                    />
+                  )}
+                </View>
+                <Text style={styles.checkboxLabel}>Unsure of balance</Text>
               </TouchableOpacity>
+            </View>
 
-              <Button onPress={handleContinue} variant="primary" style={styles.continueButton}>
-                Continue
+            <View style={styles.formActions}>
+              <Button
+                onPress={handleSave}
+                variant="primary"
+                disabled={!canSubmit}
+                style={styles.submitButton}
+              >
+                {editingAssetId ? 'Save changes' : 'Add this investment'}
               </Button>
-            </>
-          )}
+            </View>
+          </View>
         </View>
       </ScrollView>
 
@@ -529,7 +354,6 @@ const styles = StyleSheet.create({
     backgroundColor: KindlingColors.background,
     borderBottomWidth: 1,
     borderBottomColor: `${KindlingColors.border}1a`,
-    zIndex: 10,
   },
   headerCenter: {
     flex: 1,
@@ -546,7 +370,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    zIndex: 10,
   },
   contentContainer: {
     paddingVertical: Spacing.lg,
@@ -612,127 +435,6 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 1,
-  },
-  cancelButton: {
-    flex: 1,
-  },
-  investmentsSection: {
-    gap: Spacing.md,
-  },
-  investmentsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
-  },
-  investmentsTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  investmentsList: {
-    gap: Spacing.sm,
-  },
-  investmentCard: {
-    backgroundColor: KindlingColors.background,
-    borderRadius: 8,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: KindlingColors.cream,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  investmentInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  investmentProvider: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  investmentType: {
-    fontSize: Typography.fontSize.sm,
-    color: `${KindlingColors.navy}99`,
-  },
-  beneficiariesRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-  },
-  beneficiaryLabel: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-  },
-  beneficiariesList: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  beneficiaryText: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
-    color: KindlingColors.navy,
-  },
-  investmentValue: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
-    color: KindlingColors.navy,
-    backgroundColor: `${KindlingColors.cream}80`,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  investmentActions: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    marginLeft: Spacing.sm,
-  },
-  actionButton: {
-    padding: 0,
-  },
-  totalSection: {
-    marginTop: Spacing.md,
-    padding: Spacing.md,
-    backgroundColor: `${KindlingColors.cream}66`,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: KindlingColors.beige,
-  },
-  totalText: {
-    fontSize: Typography.fontSize.md,
-    color: KindlingColors.navy,
-    textAlign: 'center',
-  },
-  totalValue: {
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  unknownValueText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-  },
-  addAnotherButton: {
-    backgroundColor: KindlingColors.background,
-    borderWidth: 2,
-    borderColor: KindlingColors.green,
-    borderRadius: 8,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.xl,
-  },
-  addAnotherText: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.green,
-  },
-  continueButton: {
-    marginTop: Spacing.sm,
   },
   dialogText: {
     fontSize: Typography.fontSize.md,

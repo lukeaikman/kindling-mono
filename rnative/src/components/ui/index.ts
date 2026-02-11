@@ -59,3 +59,6 @@ export type { InformationCardProps } from './InformationCard';
 
 export { EstateCategoryCard } from './EstateCategoryCard';
 export type { EstateCategoryCardProps } from './EstateCategoryCard';
+
+export { AssetCard } from './AssetCard';
+export type { AssetCardProps } from './AssetCard';

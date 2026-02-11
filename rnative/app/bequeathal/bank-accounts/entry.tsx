@@ -1,26 +1,27 @@
 /**
  * Bank Accounts Entry Screen
- * 
- * Form for adding and managing bank accounts.
+ *
+ * Single-asset entry form. Supports add (new) and edit (?id=xxx).
  * Handles UK and non-UK banks with conditional fields.
- * ISAs are saved as InvestmentAsset but shown in this list.
- * 
+ * ISAs are saved as InvestmentAsset (cross-category save).
+ *
  * Navigation:
- * - Back: Returns to bank accounts intro
- * - Continue: Proceeds to next category or will-dashboard
+ * - Back: Category Summary (/bequeathal/bank-accounts/summary)
+ * - Save: Category Summary (/bequeathal/bank-accounts/summary)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Select, Input, CurrencyInput, SearchableSelect } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import { getNextCategoryRoute } from '../../../src/utils/categoryNavigation';
-import type { BankAccountAsset, InvestmentAsset } from '../../../src/types';
+import type { BankAccountAsset } from '../../../src/types';
+
+const SUMMARY_ROUTE = '/bequeathal/bank-accounts/summary';
 
 interface BankAccountForm {
   bankName: string;
@@ -35,8 +36,10 @@ interface BankAccountForm {
 
 export default function BankAccountsEntryScreen() {
   const { bequeathalActions } = useAppState();
-  const [showForm, setShowForm] = useState(true);
-  const [showAccountsList, setShowAccountsList] = useState(true);
+  const params = useLocalSearchParams();
+  const editingAssetId = params.id as string | undefined;
+  const loadedIdRef = useRef<string | null>(null);
+
   const [formData, setFormData] = useState<BankAccountForm>({
     bankName: '',
     accountType: 'current',
@@ -94,28 +97,44 @@ export default function BankAccountsEntryScreen() {
     { label: 'Joint Account', value: 'joint' },
   ];
 
-  // Load existing accounts
-  const bankAccounts = bequeathalActions.getAssetsByType('bank-accounts') as BankAccountAsset[];
-  const allInvestments = bequeathalActions.getAssetsByType('investment') as InvestmentAsset[];
-  const isaAccounts = allInvestments.filter(inv => inv.investmentType === 'ISA');
-  
-  const allAccounts = [...bankAccounts, ...isaAccounts];
-  const totalValue = allAccounts.reduce((sum, acc) => sum + (acc.estimatedValue || 0), 0);
-  const unknownBalanceCount = allAccounts.filter(acc => (acc.estimatedValue || 0) === 0).length;
-
-  // Hide form after first account if none existed initially
+  // Load existing asset when editing
   useEffect(() => {
-    if (bankAccounts.length === 0 && isaAccounts.length === 0) {
-      setShowForm(true);
-    } else if (bankAccounts.length > 0 || isaAccounts.length > 0) {
-      setShowForm(false);
+    if (!editingAssetId) {
+      loadedIdRef.current = null;
+      return;
     }
-  }, []);
+
+    if (loadedIdRef.current === editingAssetId) return;
+
+    const allAssets = bequeathalActions.getAllAssets();
+    if (allAssets.length === 0) return;
+
+    const asset = bequeathalActions.getAssetById(editingAssetId);
+    if (!asset || asset.type !== 'bank-accounts') {
+      router.push(SUMMARY_ROUTE as any);
+      return;
+    }
+
+    const account = asset as BankAccountAsset;
+    loadedIdRef.current = editingAssetId;
+
+    setFormData({
+      bankName: account.isNonUkBank ? 'Non UK Bank' : (account.provider || ''),
+      accountType: (account.accountType as any) || 'current',
+      ownershipType: (account.ownershipType as any) || 'personal',
+      estimatedBalance: account.estimatedValue || 0,
+      accountNumber: account.accountNumber || '',
+      nonUkBankName: account.nonUkBankName || '',
+      accountId: (account as any).accountId || '',
+      notes: (account as any).notes || '',
+    });
+    setBalanceNotSure((account.estimatedValue || 0) === 0);
+  }, [editingAssetId, bequeathalActions]);
 
   const isNonUkBank = formData.bankName === 'Non UK Bank';
   const isISA = formData.accountType === 'isa';
 
-  const handleAddAccount = () => {
+  const handleSave = () => {
     // Validation
     if (!formData.bankName) return;
     if (isNonUkBank && !formData.nonUkBankName) return;
@@ -135,7 +154,7 @@ export default function BankAccountsEntryScreen() {
     const accountTypeLabel = accountTypeOptions.find(opt => opt.value === formData.accountType)?.label || 'Current Account';
     const displayBankName = isNonUkBank ? formData.nonUkBankName : formData.bankName;
 
-    // ISA Handling: Save as InvestmentAsset
+    // ISA Handling: Save as InvestmentAsset (cross-category)
     if (isISA) {
       const investmentData = {
         title: `${displayBankName} - ${accountTypeLabel}`,
@@ -145,7 +164,12 @@ export default function BankAccountsEntryScreen() {
         estimatedValue,
         netValue: estimatedValue,
       };
-      bequeathalActions.addAsset('investment', investmentData);
+
+      if (editingAssetId) {
+        bequeathalActions.updateAsset(editingAssetId, investmentData);
+      } else {
+        bequeathalActions.addAsset('investment', investmentData);
+      }
     } else {
       // Regular bank account
       const accountData = {
@@ -153,7 +177,7 @@ export default function BankAccountsEntryScreen() {
         provider: displayBankName,
         accountType: formData.accountType,
         accountNumber: isNonUkBank ? undefined : (formData.accountNumber || undefined),
-        sortCode: undefined, // Not collected in form, but field exists for future
+        sortCode: undefined,
         ownershipType: formData.ownershipType,
         isNonUkBank,
         nonUkBankName: isNonUkBank ? formData.nonUkBankName : undefined,
@@ -162,36 +186,19 @@ export default function BankAccountsEntryScreen() {
         estimatedValue,
         netValue: estimatedValue,
       };
-      bequeathalActions.addAsset('bank-accounts', accountData);
+
+      if (editingAssetId) {
+        bequeathalActions.updateAsset(editingAssetId, accountData);
+      } else {
+        bequeathalActions.addAsset('bank-accounts', accountData);
+      }
     }
 
-    // Reset form
-    setFormData({
-      bankName: '',
-      accountType: 'current',
-      ownershipType: 'personal',
-      estimatedBalance: 0,
-      accountNumber: '',
-      nonUkBankName: '',
-      accountId: '',
-      notes: '',
-    });
-    setBalanceNotSure(false);
-    setShowForm(false);
-  };
-
-  const handleRemoveAccount = (id: string) => {
-    bequeathalActions.removeAsset(id);
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const handleBack = () => {
-    router.back();
-  };
-
-  const handleContinue = () => {
-    const selectedCategories = bequeathalActions.getSelectedCategories();
-    const nextRoute = getNextCategoryRoute('bank-accounts', selectedCategories);
-    router.push(nextRoute);
+    router.push(SUMMARY_ROUTE as any);
   };
 
   const canSubmit = formData.bankName && (!isNonUkBank || formData.nonUkBankName);
@@ -209,7 +216,9 @@ export default function BankAccountsEntryScreen() {
       <View style={styles.header}>
         <BackButton onPress={handleBack} />
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Enter Accounts</Text>
+          <Text style={styles.headerTitle}>
+            {editingAssetId ? 'Edit Account' : 'Add Account'}
+          </Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -221,279 +230,151 @@ export default function BankAccountsEntryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          {/* Add Account Form */}
-          {showForm && (
-            <View style={styles.formCard}>
-              <Text style={styles.formTitle}>Add Bank Account</Text>
-              
-              <SearchableSelect
-                label="Held With *"
-                placeholder="Search bank or building society..."
-                value={formData.bankName}
-                options={bankProviders}
-                onChange={(value) => setFormData(prev => ({ 
-                  ...prev, 
-                  bankName: value,
-                  nonUkBankName: value === 'Non UK Bank' ? prev.nonUkBankName : '',
-                  accountId: value === 'Non UK Bank' ? prev.accountId : '',
-                  notes: value === 'Non UK Bank' ? prev.notes : ''
-                }))}
-              />
+          <View style={styles.formCard}>
+            <Text style={styles.formTitle}>
+              {editingAssetId ? 'Update the details below.' : 'Add a bank account.'}
+            </Text>
 
-              {isNonUkBank && (
-                <>
-                  <Input
-                    label="Bank Name *"
-                    placeholder="Enter bank name"
-                    value={formData.nonUkBankName}
-                    onChangeText={(value) => setFormData(prev => ({ ...prev, nonUkBankName: value }))}
-                  />
-                  
-                  <Input
-                    label="Account ID"
-                    placeholder="Enter account identifier"
-                    value={formData.accountId}
-                    onChangeText={(value) => setFormData(prev => ({ ...prev, accountId: value }))}
-                  />
+            <SearchableSelect
+              label="Held With *"
+              placeholder="Search bank or building society..."
+              value={formData.bankName}
+              options={bankProviders}
+              onChange={(value) => setFormData(prev => ({
+                ...prev,
+                bankName: value,
+                nonUkBankName: value === 'Non UK Bank' ? prev.nonUkBankName : '',
+                accountId: value === 'Non UK Bank' ? prev.accountId : '',
+                notes: value === 'Non UK Bank' ? prev.notes : ''
+              }))}
+            />
 
-                  <Input
-                    label="Notes"
-                    placeholder="Any other helpful details, e.g. sort code, Routing Number, Branch Number, Private Banker Details, etc"
-                    value={formData.notes}
-                    onChangeText={(value) => setFormData(prev => ({ ...prev, notes: value }))}
-                    multiline
-                    numberOfLines={3}
-                  />
-                </>
-              )}
-
-              <Select
-                label="Account Type *"
-                placeholder="Select account type..."
-                value={formData.accountType}
-                options={accountTypeOptions}
-                onChange={(value) => setFormData(prev => ({ 
-                  ...prev, 
-                  accountType: value as typeof formData.accountType
-                }))}
-              />
-
-              {isISA && (
-                <View style={styles.isaWarning}>
-                  <IconButton icon="information" size={20} iconColor={KindlingColors.green} style={styles.isaWarningIcon} />
-                  <Text style={styles.isaWarningText}>
-                    This will be saved under Investments and appear in that section in future screens
-                  </Text>
-                </View>
-              )}
-
-              {!isISA && (
-                <Select
-                  label="Ownership *"
-                  placeholder="Select ownership type..."
-                  value={formData.ownershipType}
-                  options={ownershipTypeOptions}
-                  onChange={(value) => setFormData(prev => ({ 
-                    ...prev, 
-                    ownershipType: value as typeof formData.ownershipType
-                  }))}
-                />
-              )}
-
-              {!isNonUkBank && (
+            {isNonUkBank && (
+              <>
                 <Input
-                  label="Account Number"
-                  placeholder="12345678"
-                  value={formData.accountNumber}
-                  onChangeText={(value) => {
-                    // Only allow digits
-                    const digitsOnly = value.replace(/\D/g, '');
-                    setFormData(prev => ({ ...prev, accountNumber: digitsOnly }));
-                  }}
-                  keyboardType="number-pad"
-                  maxLength={8}
+                  label="Bank Name *"
+                  placeholder="Enter bank name"
+                  value={formData.nonUkBankName}
+                  onChangeText={(value) => setFormData(prev => ({ ...prev, nonUkBankName: value }))}
                 />
-              )}
 
-              <View style={styles.balanceSection}>
-                <View style={balanceNotSure && styles.disabledInputContainer}>
-                  <CurrencyInput
-                    label="Estimated Balance"
-                    placeholder="0"
-                    value={balanceNotSure ? 0 : formData.estimatedBalance}
-                    onValueChange={(value) => {
-                      setFormData(prev => ({ ...prev, estimatedBalance: value }));
-                      setBalanceNotSure(false);
-                    }}
-                    disabled={balanceNotSure}
-                  />
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    const newValue = !balanceNotSure;
-                    setBalanceNotSure(newValue);
-                    if (newValue) {
-                      // Clear the input when "Unsure" is checked
-                      setFormData(prev => ({ ...prev, estimatedBalance: 0 }));
-                    }
-                  }}
-                  style={styles.checkboxRow}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.checkboxCircle, balanceNotSure && styles.checkboxCircleSelected]}>
-                    {balanceNotSure && (
-                      <IconButton
-                        icon="check"
-                        size={16}
-                        iconColor={KindlingColors.background}
-                        style={styles.checkIcon}
-                      />
-                    )}
-                  </View>
-                  <Text style={styles.checkboxLabel}>Unsure of balance</Text>
-                </TouchableOpacity>
-              </View>
+                <Input
+                  label="Account ID"
+                  placeholder="Enter account identifier"
+                  value={formData.accountId}
+                  onChangeText={(value) => setFormData(prev => ({ ...prev, accountId: value }))}
+                />
 
-              <Text style={styles.privacyNote}>
-                IMPORTANT: This is only stored on your phone and never on our servers - it allows us to estimate your inheritance tax and help structure your estate
-              </Text>
+                <Input
+                  label="Notes"
+                  placeholder="Any other helpful details, e.g. sort code, Routing Number, Branch Number, Private Banker Details, etc"
+                  value={formData.notes}
+                  onChangeText={(value) => setFormData(prev => ({ ...prev, notes: value }))}
+                  multiline
+                  numberOfLines={3}
+                />
+              </>
+            )}
 
-              <Button
-                onPress={handleAddAccount}
-                variant="primary"
-                disabled={!canSubmit}
-              >
-                Add Account
-              </Button>
-            </View>
-          )}
+            <Select
+              label="Account Type *"
+              placeholder="Select account type..."
+              value={formData.accountType}
+              options={accountTypeOptions}
+              onChange={(value) => setFormData(prev => ({
+                ...prev,
+                accountType: value as typeof formData.accountType
+              }))}
+            />
 
-          {/* Existing Accounts List */}
-          {(bankAccounts.length > 0 || isaAccounts.length > 0) && (
-            <View style={styles.accountsSection}>
-              <View style={styles.accountsHeader}>
-                <Text style={styles.accountsTitle}>
-                  Your Bank Accounts ({bankAccounts.length + isaAccounts.length})
+            {isISA && (
+              <View style={styles.isaWarning}>
+                <IconButton icon="information" size={20} iconColor={KindlingColors.green} style={styles.isaWarningIcon} />
+                <Text style={styles.isaWarningText}>
+                  This will be saved under Investments and appear in that section
                 </Text>
-                <TouchableOpacity onPress={() => setShowAccountsList(!showAccountsList)}>
-                  <IconButton
-                    icon={showAccountsList ? 'eye-off' : 'eye'}
-                    size={20}
-                    iconColor={KindlingColors.brown}
-                  />
-                </TouchableOpacity>
               </View>
+            )}
 
-              {showAccountsList && (
-                <View style={styles.accountsList}>
-                  {/* Bank Accounts */}
-                  {bankAccounts.map((account) => {
-                    const accountTypeName = accountTypeOptions.find(opt => opt.value === account.accountType)?.label || 'Current Account';
-                    let secondLine = accountTypeName;
-                    
-                    // Build second line with account type and number
-                    if (account.isNonUkBank && account.accountId) {
-                      secondLine = `${accountTypeName} - ID: ${account.accountId}`;
-                    } else if (!account.isNonUkBank && account.accountNumber) {
-                      secondLine = `${accountTypeName} - ${account.accountNumber}`;
-                    }
-                    
-                    return (
-                      <View key={account.id} style={styles.accountCard}>
-                        <View style={styles.accountInfo}>
-                          <Text style={styles.accountBank}>
-                            {account.isNonUkBank ? (account.nonUkBankName || account.provider) : account.provider}
-                          </Text>
-                          <Text style={styles.accountType}>
-                            {secondLine}
-                          </Text>
-                          
-                          {/* Notes for non-UK banks */}
-                          {account.isNonUkBank && account.notes && (
-                            <Text style={styles.accountNotes} numberOfLines={1}>
-                              {account.notes}
-                            </Text>
-                          )}
-                          
-                          <Text style={styles.accountBalance}>
-                            {(account.estimatedValue || 0) === 0 ? 'Balance not known' : `£${(account.estimatedValue || 0).toLocaleString()}`}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          onPress={() => handleRemoveAccount(account.id)}
-                          style={styles.deleteButton}
-                        >
-                          <IconButton icon="delete" size={20} iconColor={KindlingColors.destructive} />
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
+            {!isISA && (
+              <Select
+                label="Ownership *"
+                placeholder="Select ownership type..."
+                value={formData.ownershipType}
+                options={ownershipTypeOptions}
+                onChange={(value) => setFormData(prev => ({
+                  ...prev,
+                  ownershipType: value as typeof formData.ownershipType
+                }))}
+              />
+            )}
 
-                  {/* ISAs (shown with note) */}
-                  {isaAccounts.map((isa) => {
-                    const secondLine = isa.accountNumber ? `ISA - ${isa.accountNumber}` : 'ISA';
-                    
-                    return (
-                      <View key={isa.id} style={styles.accountCard}>
-                        <View style={styles.accountInfo}>
-                          <Text style={styles.accountBank}>{isa.provider}</Text>
-                          <Text style={styles.accountType}>{secondLine}</Text>
-                          <View style={styles.isaNote}>
-                            <IconButton icon="information" size={16} iconColor={KindlingColors.green} style={styles.isaIcon} />
-                            <Text style={styles.isaText}>Will appear under Investments</Text>
-                          </View>
-                          <Text style={styles.accountBalance}>
-                            {(isa.estimatedValue || 0) === 0 ? 'Balance not known' : `£${(isa.estimatedValue || 0).toLocaleString()}`}
-                          </Text>
-                        </View>
-                        <TouchableOpacity
-                          onPress={() => handleRemoveAccount(isa.id)}
-                          style={styles.deleteButton}
-                        >
-                          <IconButton icon="delete" size={20} iconColor={KindlingColors.destructive} />
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
+            {!isNonUkBank && (
+              <Input
+                label="Account Number"
+                placeholder="12345678"
+                value={formData.accountNumber}
+                onChangeText={(value) => {
+                  const digitsOnly = value.replace(/\D/g, '');
+                  setFormData(prev => ({ ...prev, accountNumber: digitsOnly }));
+                }}
+                keyboardType="number-pad"
+                maxLength={8}
+              />
+            )}
 
-              {/* Total Accounts Summary */}
-              {(bankAccounts.length > 0 || isaAccounts.length > 0) && (
-                <View style={styles.totalSection}>
-                  <Text style={styles.totalText}>
-                    Accounts Total: <Text style={styles.totalValue}>£{totalValue.toLocaleString()}</Text>
-                  </Text>
-                  {unknownBalanceCount > 0 && (
-                    <Text style={styles.unknownBalanceText}>
-                      (+ {unknownBalanceCount} unknown {unknownBalanceCount === 1 ? 'balance' : 'balances'})
-                    </Text>
+            <View style={styles.balanceSection}>
+              <View style={balanceNotSure && styles.disabledInputContainer}>
+                <CurrencyInput
+                  label="Estimated Balance"
+                  placeholder="0"
+                  value={balanceNotSure ? 0 : formData.estimatedBalance}
+                  onValueChange={(value) => {
+                    setFormData(prev => ({ ...prev, estimatedBalance: value }));
+                    setBalanceNotSure(false);
+                  }}
+                  disabled={balanceNotSure}
+                />
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  const newValue = !balanceNotSure;
+                  setBalanceNotSure(newValue);
+                  if (newValue) {
+                    setFormData(prev => ({ ...prev, estimatedBalance: 0 }));
+                  }
+                }}
+                style={styles.checkboxRow}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkboxCircle, balanceNotSure && styles.checkboxCircleSelected]}>
+                  {balanceNotSure && (
+                    <IconButton
+                      icon="check"
+                      size={16}
+                      iconColor={KindlingColors.background}
+                      style={styles.checkIcon}
+                    />
                   )}
                 </View>
-              )}
+                <Text style={styles.checkboxLabel}>Unsure of balance</Text>
+              </TouchableOpacity>
             </View>
-          )}
+
+            <Text style={styles.privacyNote}>
+              IMPORTANT: This is only stored on your phone and never on our servers - it allows us to estimate your inheritance tax and help structure your estate
+            </Text>
+
+            <Button
+              onPress={handleSave}
+              variant="primary"
+              disabled={!canSubmit}
+            >
+              {editingAssetId ? 'Save changes' : 'Add this account'}
+            </Button>
+          </View>
         </View>
       </ScrollView>
-
-      {/* Footer */}
-      <View style={styles.footer}>
-        {(bankAccounts.length > 0 || isaAccounts.length > 0) && !showForm && (
-          <>
-            <TouchableOpacity
-              onPress={() => setShowForm(true)}
-              style={styles.addAnotherButton}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.addAnotherText}>Add Another Account</Text>
-            </TouchableOpacity>
-
-            <Button onPress={handleContinue} variant="primary">
-              Continue
-            </Button>
-          </>
-        )}
-      </View>
     </SafeAreaView>
   );
 }
@@ -551,23 +432,11 @@ const styles = StyleSheet.create({
     backgroundColor: KindlingColors.background,
     borderBottomWidth: 1,
     borderBottomColor: `${KindlingColors.border}1a`,
-    zIndex: 10,
   },
   headerCenter: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
-  },
-  iconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: `${KindlingColors.navy}1a`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: -8,
   },
   headerRight: {
     width: 48,
@@ -579,7 +448,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    zIndex: 10,
   },
   contentContainer: {
     paddingVertical: Spacing.lg,
@@ -665,127 +533,4 @@ const styles = StyleSheet.create({
     color: KindlingColors.green,
     lineHeight: 18,
   },
-  accountsSection: {
-    gap: Spacing.md,
-  },
-  accountsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
-  },
-  accountsTitle: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  accountsList: {
-    gap: Spacing.sm,
-  },
-  accountCard: {
-    backgroundColor: KindlingColors.background,
-    borderRadius: 8,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: KindlingColors.cream,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  accountInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  accountBank: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
-  accountType: {
-    fontSize: Typography.fontSize.sm,
-    color: `${KindlingColors.navy}99`,
-  },
-  accountNumber: {
-    fontSize: Typography.fontSize.xs,
-    color: `${KindlingColors.navy}80`,
-  },
-  accountNotes: {
-    fontSize: Typography.fontSize.xs,
-    color: `${KindlingColors.navy}80`,
-  },
-  accountBalance: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.medium,
-    color: KindlingColors.navy,
-    backgroundColor: `${KindlingColors.cream}80`,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  isaNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  isaIcon: {
-    margin: 0,
-    padding: 0,
-  },
-  isaText: {
-    fontSize: Typography.fontSize.xs,
-    color: KindlingColors.green,
-    fontWeight: Typography.fontWeight.medium,
-  },
-  deleteButton: {
-    marginLeft: Spacing.sm,
-  },
-  totalSection: {
-    marginTop: Spacing.md,
-    padding: Spacing.md,
-    backgroundColor: `${KindlingColors.cream}66`,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: KindlingColors.beige,
-  },
-  totalText: {
-    fontSize: Typography.fontSize.md,
-    color: KindlingColors.navy,
-    textAlign: 'center',
-  },
-  totalValue: {
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  unknownBalanceText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-  },
-  footer: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: KindlingColors.background,
-    borderTopWidth: 1,
-    borderTopColor: `${KindlingColors.border}1a`,
-    zIndex: 10,
-    gap: Spacing.sm,
-  },
-  addAnotherButton: {
-    backgroundColor: KindlingColors.background,
-    borderWidth: 2,
-    borderColor: KindlingColors.green,
-    borderRadius: 8,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addAnotherText: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.green,
-  },
 });
-
