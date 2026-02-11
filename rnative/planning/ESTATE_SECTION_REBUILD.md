@@ -836,9 +836,13 @@ Changes per file:
 **Status:** Implemented and verified. Scope reduced after Elon/Jobs review — cut swipe-to-delete and intro remove button for simplicity.
 
 **What was delivered:**
-1. **Mode A float-to-top reorder:** Selected cards animate upward to sit above unselected cards. Canonical order preserved within each group. `SelectionMode` converted from arrow-function-returning-JSX to a proper function component with `useMemo` for sorted render order. Each card wrapped in `Animated.View` with `Layout.springify().damping(18).stiffness(150)` for smooth, damped reflow.
-2. **Mode B card enter/exit:** Category cards added from the "Add something else" tray fade in (`FadeIn.duration(250)`), deselected cards fade out (`FadeOut.duration(200)`), and sibling cards reflow smoothly via `Layout.springify().damping(18).stiffness(150)`.
+1. **Mode A float-to-top reorder:** Selected cards animate upward to sit above unselected cards. Canonical order preserved within each group. `SelectionMode` converted from arrow-function-returning-JSX to a proper function component with `useMemo` for sorted render order. Each card wrapped in `Animated.View` with `Layout.springify().damping(50).stiffness(300)` for fast, assured reflow.
+2. **Mode B card enter/exit:** Category cards added from the "Add something else" tray fade in (`FadeIn.duration(250)`), deselected cards fade out (`FadeOut.duration(200)`), and sibling cards reflow smoothly via `Layout.springify().damping(50).stiffness(300)`.
 3. **Canonical ordering maintained:** Mode A uses `CATEGORY_META.filter()` which preserves canonical order within selected/unselected groups. Mode B uses `sortByCanonicalOrder()` on `selectedCategories`.
+4. **Hydration flash fix:** Navigating to the Estate Dashboard briefly flashed Mode A before Mode B because `useAsyncStorageState` initialises with empty defaults before AsyncStorage loads. Fixed by:
+   - Exposing `isInitialized` as a third return element from `useAsyncStorageState` in `src/hooks/useAppState.ts`
+   - Destructuring `isBequeathalHydrated` from the bequeathal data hook call
+   - Gating content + footer render in `estate-dashboard.tsx` on `isBequeathalHydrated` — header and background render immediately, content appears only once AsyncStorage has definitively loaded
 
 **What was cut (after Elon/Jobs review):**
 - **Swipe-left-to-delete** — close-circle icon already handles deselection; adding `Swipeable` risked gesture conflicts inside `ScrollView` + `Animated.View` for no unique functionality
@@ -846,10 +850,11 @@ Changes per file:
 - **Scale bump / colour interpolation** on Mode A cards — Jobs: "the best checkbox animation is one you don't notice." Instant background colour shift via style conditional is sufficient.
 
 **Implementation details:**
-- Single file changed: `app/estate-dashboard.tsx`
-- New import: `Animated, { FadeIn, FadeOut, Layout }` from `react-native-reanimated`
-- Spring config: `damping(18).stiffness(150)` — damped and assured, not bouncy. Tuned for a financial app feel per Jobs feedback.
+- Files changed: `app/estate-dashboard.tsx`, `src/hooks/useAppState.ts`
+- New import in estate-dashboard: `Animated, { FadeIn, FadeOut, Layout }` from `react-native-reanimated`
+- Spring config: `damping(50).stiffness(300)` — fast and snappy with no overshoot. Tuned up from initial `damping(18).stiffness(150)` during testing to improve rapid-tap responsiveness.
 - Durations reduced from original 400ms to 250ms (enter) / 200ms (exit) per Jobs: "400ms is nearly half a second of watching something materialise"
+- `useAsyncStorageState` return type changed from `[T, Dispatch]` to `[T, Dispatch, boolean]` — non-breaking, unused third element is harmless at existing call sites
 - No new files, no new dependencies
 
 **Acceptance criteria — all met:**
@@ -857,6 +862,7 @@ Changes per file:
 - Cards fade in/out cleanly in Mode B when added from tray or deselected
 - Sibling cards reflow without scroll jumps
 - Canonical ordering preserved in all animation states
+- No Mode A flash when navigating to estate dashboard with existing assets
 - 60fps target (Reanimated layout animations run on UI thread)
 
 ### Phase 4: NetWealthToast
@@ -1016,7 +1022,7 @@ Changes per file:
 | File | Phase | Status | Changes |
 |------|-------|--------|---------|
 | `src/types/index.ts` | 2 | **DONE** | Replaced `selectedCategories` with `categoryStatus`. Removed `setSelectedCategories`, `toggleCategory`, `deleteAsset`. Added new methods. |
-| `src/hooks/useAppState.ts` | 2 | **DONE** | All new/replaced actions. Auto-invalidation. Migration step for `selectedCategories` → `categoryStatus`. |
+| `src/hooks/useAppState.ts` | 2, 3 | **DONE** | All new/replaced actions. Auto-invalidation. Migration step for `selectedCategories` → `categoryStatus`. Phase 3: exposed `isInitialized` as third tuple element from `useAsyncStorageState`; destructured `isBequeathalHydrated` for estate dashboard hydration gate. |
 | `src/utils/willProgress.ts` | 2 | **DONE** | Extended `WillProgressState`. Implemented all estate helpers. Updated 3 route strings. |
 | `src/utils/categoryNavigation.ts` | 2 | **DONE** | `CATEGORY_META`, canonical ordering, `getCategoryRoute()`, `getCategoryEntryRoute()`, `getCategoryLabel()`, `getCategoryIcon()`, `sortByCanonicalOrder()`. Removed pipeline functions. |
 | `app/will-dashboard.tsx` | 2 | **DONE** | Routes to `/estate-dashboard`. Dynamic `getEstateSubline()`. Passes `bequeathalData`. |
@@ -1059,6 +1065,8 @@ Non-obvious decisions that would confuse a developer encountering this plan fres
 | "Actually, there's more" button removed | Redundant — "Add another" exists, and auto-invalidation already resets completion on any mutation. One fewer decision for the user. |
 | "That's everything" is a ghost text link, not a button | Demoted from primary action. The warm green "Add another" is the primary CTA on summary screens. Completion marking is intentional, not default. |
 | All slug values humanised via formatters | User feedback: "show my life, not your database." Every raw type slug (e.g. `isa-stocks-shares`) is mapped to human text (e.g. "Stocks & Shares ISA") before reaching the UI. |
+| `isBequeathalHydrated` gates estate dashboard content | `useAsyncStorageState` initialises with empty defaults before AsyncStorage loads. Without gating, Mode A flashes briefly before Mode B on navigation. Exposed `isInitialized` as third tuple element — data-driven signal, no timing heuristics. |
+| Spring config `damping(50).stiffness(300)` not `(18)/(150)` | Initial damped spring was too slow — blocked rapid tapping during animation settle. Increased stiffness and damping together for faster completion (~200ms) with no perceptible overshoot. |
 
 ---
 
