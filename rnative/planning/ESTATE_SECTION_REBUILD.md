@@ -12,70 +12,63 @@ Rebuild the "Your Estate" section of the will-building journey. Replace the curr
 - KISS data model — `categoryStatus` is the single source of truth for selection AND completion
 - Human language — "That's everything", "Do you have any of these?", not "Mark complete"
 - Generic components — one `CategorySummaryScreen`, one `AssetCard` with per-type field config
-- Phase 1 is a static UI prototype with dummy data; plumbing comes later
+- Phase 1 was a static UI prototype with dummy data; Phase 2 wired everything up
 - No "Continue" buttons in the estate flow — cards are the navigation, "All assets added" is the exit
 - Any edit/delete/add invalidates completion — user must re-confirm "That's everything"
 
 ---
 
-## Current State
+## Current State (post Phase 2)
 
-### What exists today
+### What exists now
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| Category Selection | `app/bequeathal/categories.tsx` | Checkbox-based category picker (to be superseded) |
-| Category Navigation | `src/utils/categoryNavigation.ts` | Linear pipeline routing (first → next → next → dashboard) |
-| Per-category Intro | `app/bequeathal/{category}/intro.tsx` | Educational screen shown every time (10 files) |
-| Per-category Entry | `app/bequeathal/{category}/entry.tsx` | Asset data entry form (10 files) |
-| Property Summary | `app/bequeathal/property/summary.tsx` | List of added properties (property only) |
+| **Estate Dashboard** | `app/estate-dashboard.tsx` | Hub screen — Mode A (category picker) / Mode B (balance sheet). Fully wired to state. |
+| **Category Summary (generic)** | `src/components/screens/CategorySummaryScreen.tsx` | Reusable summary shell for all 10 categories. Warm morphic styling, completion toggle. |
+| **Asset Card** | `src/components/ui/AssetCard.tsx` | Compact row card: title + value + subline + delete + tap-to-edit |
+| **Estate Category Card** | `src/components/ui/EstateCategoryCard.tsx` | Dashboard card: 3 visual states, close-circle deselect, chevron |
+| **Asset Display Fields** | `src/utils/assetDisplayFields.ts` | `getAssetTitle`, `getAssetSubline`, `getAssetDisplayFields` + all slug formatters |
+| **Category Navigation** | `src/utils/categoryNavigation.ts` | Canonical ordering, `getCategoryRoute()`, `getCategoryEntryRoute()`, `getCategoryLabel()`, `getCategoryIcon()` |
+| **Per-category Summary** | `app/bequeathal/{category}/summary.tsx` | Thin route wrappers (10 files) rendering `CategorySummaryScreen` |
+| **Per-category Intro** | `app/bequeathal/{category}/intro.tsx` | Educational screen, shown only on first entry (10 files). Back → estate dashboard. |
+| **Per-category Entry** | `app/bequeathal/{category}/entry.tsx` | Single-asset entry forms (10 files). `?id=` editing. Save → category summary. |
+| Category Selection (legacy) | `app/bequeathal/categories.tsx` | Checkbox-based category picker — **superseded**, candidate for deletion in Phase 6 |
 | Estate Remainder | `app/bequeathal/estate-remainder-*.tsx` | Residue allocation (part of Your People) |
-| Will Dashboard | `app/will-dashboard.tsx` | Main 3-stage dashboard, routes to `/bequeathal/categories` |
-| Progress Utils | `src/utils/willProgress.ts` | `deriveYourEstateStatus()` is a stub returning `'Not started'` |
-| Types | `src/types/index.ts` | `BequeathalData`, `BaseAsset`, `BequeathalActions`, `AssetSummary` |
+| Will Dashboard | `app/will-dashboard.tsx` | Main 3-stage dashboard, routes to `/estate-dashboard`. Dynamic estate subline. |
+| Progress Utils | `src/utils/willProgress.ts` | Full estate helpers: `deriveYourEstateStatus()`, `getEstateSubline()`, `getEstateNetValue()`, etc. |
+| Types | `src/types/index.ts` | `categoryStatus: Record<string, { completedAt: string \| null }>`. New `BequeathalActions` methods. |
+| State | `src/hooks/useAppState.ts` | All new actions implemented. Auto-invalidation on asset mutations. Migration from old `selectedCategories`. |
 
-### Existing `BequeathalActions` methods to replace
+### What was resolved (problems from original plan)
 
-The current `BequeathalActions` interface has methods that need changing:
-- `getSelectedCategories()` — **REPLACE** implementation to read from `categoryStatus` keys
-- `setSelectedCategories()` — **DELETE** (replaced by `selectCategory` / `deselectCategory`)
-- `toggleCategory()` — **DELETE** (replaced by `selectCategory` / `deselectCategory`)
-- `deleteAsset?()` — **DELETE** (deprecated alias for `removeAsset`; would bypass auto-invalidation if kept)
+| # | Problem | Status |
+|---|---------|--------|
+| 1 | Linear pipeline — forced march through categories | **FIXED** — hub-and-spoke model, return to estate dashboard between categories |
+| 2 | Intro shown every time | **FIXED** — estate dashboard routes to intro (no assets) or summary (has assets) |
+| 3 | No summary for most categories | **FIXED** — generic `CategorySummaryScreen` for all 10 categories |
+| 4 | No estate overview | **FIXED** — Mode B balance sheet with net/gross/trust breakdown |
+| 5 | No category completion tracking | **FIXED** — `categoryStatus.completedAt` + "That's everything" UX |
+| 6 | No draft/auto-save | Planned for Phase 5 |
+| 7 | No validation feedback | Planned for Phase 5 |
+| 8 | Fragile `useEffect` | **PARTIALLY FIXED** — entry forms now use `loadedIdRef` pattern for `?id=` editing. Full useEffect audit in Phase 5. |
 
-### Existing `WillProgressState` — must extend
+### What was changed from the original Phase 2 plan during implementation
 
-The current `WillProgressState` interface in `willProgress.ts` has no `bequeathalData` field:
-```typescript
-export interface WillProgressState {
-  willMaker: Person | undefined;
-  people: Person[];
-  willData: WillData;
-  estateRemainderState: EstateRemainderState;
-}
-```
-This must be extended with `bequeathalData: BequeathalData` before `deriveYourEstateStatus()` can work. All call sites that construct this state object must be updated accordingly.
-
-### Existing route strings to update
-
-`willProgress.ts` currently hardcodes `/bequeathal/categories` in three places:
-- `getNextRoute()` (line 298) — return value, must change to `/estate-dashboard`
-- `getContinueLabel()` (line 324) — `.includes()` check, must change to match `estate-dashboard`
-- `getPeopleSummaryCTA()` (line 370) — route value, must change to `/estate-dashboard`
+| Change | Reason |
+|--------|--------|
+| "Actually, there's more" button removed | Redundant — "Add another" already exists, and auto-invalidation resets completion on any asset mutation |
+| "That's everything" changed from toggle to ghost text link | Simplified: marks complete + navigates to estate dashboard in one tap. No need for a separate completion state on the summary screen. |
+| 9 entry forms refactored (originally Phase 5 scope) | Discovered during testing that legacy embedded lists broke the hub-spoke model. Pulled forward as prerequisite for consistent UX. |
+| `getAssetSubline()` + all slug formatters added | User spotted raw database slugs (e.g. "isa-stocks-shares") in the UI. Added human-readable formatters for all asset types. |
+| Multiple rounds of visual polish on CategorySummaryScreen/AssetCard | Iterated from flat/clinical → warm/morphic styling through user feedback sessions. Final look matches People Summary warmth level. |
+| `getEstateGrossValue()`, `getEstateTrustValue()`, `isIHTReady()` added | Not in original plan — needed for Mode B dashboard display and IHT readiness indicator. |
+| `formatShortCurrency()` added | Not in original plan — needed for compact value display on dashboard cards and Will Dashboard subline. |
+| Bottom sheet z-index fix | `zIndex: 10` on header/scroll/footer was rendering over the bottom sheet. Removed during implementation. |
 
 ### Out of scope
 
 - `debts-credit` and `other` asset types — these exist in `AssetType` and `BequeathalData` as stubs but have no UI in the native app (no intro, entry, or summary screens). They are excluded from this plan and ignored in net estate value calculations. If needed later, they follow the same pattern as all other categories.
-
-### Problems with current flow
-
-1. **Linear pipeline** — after categories, user is marched through all of them in sequence. No way to dip into one category and come back.
-2. **Intro shown every time** — even if assets exist in a category, the user sees the educational screen again on re-entry.
-3. **No summary for most categories** — only Property has a summary screen. Re-entering a category puts you into entry mode, not a list of what you've added.
-4. **No estate overview** — no single screen showing total wealth, per-category breakdown, or progress.
-5. **No category completion tracking** — no way for the user to signal "I'm done with this category."
-6. **No draft/auto-save** — 83-field property form loses data on accidental back navigation.
-7. **No validation feedback** — user doesn't know which fields are incomplete until they try to save.
-8. **Fragile `useEffect`** — property entry screen uses `useEffect` with no dependency array.
 
 ---
 
@@ -741,49 +734,100 @@ Phases ordered for fastest end-to-end testability: prototype first, then data + 
 - Scrollable on small devices, fits on iPhone 14/15
 - Looks and feels like the rest of the app (People Summary, Will Dashboard)
 
-### Phase 2: Data Model, Navigation & Summary Screens (functional skeleton)
+### Phase 2: Data Model, Navigation & Summary Screens — COMPLETED
 
 **Goal:** Wire up the entire flow end-to-end: data model, navigation, and summary screens. Prioritise a working skeleton over polish.
 
-**Deliverables:**
+**Status:** Fully implemented and committed. All acceptance criteria met, plus significant bonus work on entry form consistency and visual polish.
 
-**Data model:**
-1. In `BequeathalData`: replace `selectedCategories: Set<string>` with `categoryStatus: Record<string, { completedAt: string | null }>`
-2. In `BequeathalActions`: replace `setSelectedCategories` and `toggleCategory` with new methods (select, deselect, mark complete, mark incomplete, mark all complete, queries). Re-implement `getSelectedCategories` to read from `categoryStatus` keys.
-3. In `useAppState.ts`: implement all new/replaced actions. Add auto-invalidation to existing `addAsset`, `updateAsset`, `removeAsset` — they reset `completedAt` to `null` for the affected category.
-4. Extend `WillProgressState` with `bequeathalData: BequeathalData`. Update all call sites.
-5. Implement `deriveYourEstateStatus()`, `getEstateNetValue()`, `getTotalAssetCount()`, `getEstateSubline()` in `willProgress.ts`
-6. Update hardcoded `/bequeathal/categories` route strings in `getNextRoute()` and `getPeopleSummaryCTA()` to `/estate-dashboard`
+**What was delivered:**
 
-**Navigation:**
-7. Will Dashboard "Your Estate" card routes to `/estate-dashboard` (always, even when complete)
-8. Estate Dashboard wired to real state (Mode A/B derived from total asset count)
-9. Selected cards route to summary (assets > 0) or intro (assets === 0) via `getCategoryRoute()`
-10. All intro screen Back buttons → `/estate-dashboard`
-11. All entry form Back buttons → that category's summary screen
-12. All summary screen Back buttons → `/estate-dashboard`
-13. Estate Dashboard Back → Will Dashboard
-14. Refactor `categoryNavigation.ts`: remove `getNextCategoryRoute`, `getFirstCategoryRoute`, `setSelectedCategories` pipeline. Add canonical ordering and `getCategoryRoute` helper.
-15. "All assets added" wired with specific completion popup
-16. "Add something else" opens bottom sheet tray
+**Data model (items 1–6):**
+1. `BequeathalData`: replaced `selectedCategories: Set<string>` with `categoryStatus: Record<string, { completedAt: string | null }>`. Migration step in `useAppState.ts` for existing data.
+2. `BequeathalActions`: removed `setSelectedCategories`, `toggleCategory`, and `deleteAsset`. Added `selectCategory`, `deselectCategory`, `markCategoryComplete`, `markCategoryIncomplete`, `markAllCategoriesComplete`, `isCategorySelected`, `isCategoryComplete`, `areAllCategoriesComplete`, `getAssetCountByType`, `getTotalAssetCount`. Re-implemented `getSelectedCategories` to read from `categoryStatus` keys.
+3. `useAppState.ts`: all new/replaced actions implemented. Auto-invalidation on `addAsset`, `updateAsset`, `removeAsset` — each resets `completedAt` to `null` for the affected category.
+4. Extended `WillProgressState` with `bequeathalData: BequeathalData`. Updated all call sites (`will-dashboard.tsx`, `estate-remainder-split.tsx`, `guardianship/wishes.tsx`, `people/summary.tsx`).
+5. Implemented in `willProgress.ts`: `deriveYourEstateStatus()`, `getEstateNetValue()`, `getEstateGrossValue()`, `getEstateTrustValue()`, `getTotalAssetCount()`, `getEstateSubline()`, `formatShortCurrency()`, `isIHTReady()`.
+6. Updated all 3 hardcoded `/bequeathal/categories` references in `willProgress.ts` to `/estate-dashboard`.
 
-**Summary screens:**
-17. Create `src/components/screens/CategorySummaryScreen.tsx` — generic summary shell
-18. Create `src/components/ui/AssetCard.tsx` — single generic asset card component
-19. Create `src/utils/assetDisplayFields.ts` — `getAssetDisplayFields(asset: Asset)` returns display config per type
-20. Create 9 thin route files (one per new category) + refactor existing Property summary into thin wrapper
-21. Implement "That's everything" / "Actually, there's more" toggle
-22. Implement empty state: "You have no assets in this category" with Add/Complete/Back
-23. Dynamic sublines on Will Dashboard via `getEstateSubline()`
+**Navigation (items 7–16):**
+7. Will Dashboard "Your Estate" card routes to `/estate-dashboard` (always, including when complete).
+8. Estate Dashboard fully wired to real state: Mode A/B derived from `getTotalAssetCount() > 0`. Real net/gross/trust values from `willProgress.ts` helpers.
+9. Selected cards route to summary (assets > 0) or intro (assets === 0) via `getCategoryRoute()`.
+10. All 10 intro screen `handleSkip`/Back buttons → `/estate-dashboard`. Removed unused `getNextCategoryRoute` imports.
+11. All 10 entry form Back buttons → explicit `router.push(SUMMARY_ROUTE)` (not `router.back()`). See "Entry form hub-spoke fix" below.
+12. All summary screen Back buttons → `/estate-dashboard`.
+13. Estate Dashboard Back → Will Dashboard.
+14. Refactored `categoryNavigation.ts`: added `CATEGORY_META` with canonical ordering, `sortByCanonicalOrder()`, `getCategoryRoute()`, `getCategoryEntryRoute()`, `getCategoryLabel()`, `getCategoryIcon()`. Removed legacy pipeline functions.
+15. "All assets added" button wired with specific popup naming incomplete/empty categories.
+16. "Add something else" opens `@gorhom/bottom-sheet` tray with unselected categories. Fixed z-index issue where tray rendered under screen content.
 
-**Acceptance criteria:**
+**Summary screens (items 17–23):**
+17. Created `src/components/screens/CategorySummaryScreen.tsx` — generic summary shell with:
+    - Warm cream summary banner with brand-gold (beige) outline, category icon, total value
+    - Green/navy morphic blobs (matching People Summary visual language)
+    - "That's everything" marks complete AND navigates back to estate dashboard
+    - Empty state: "Nothing here yet" with Add button
+18. Created `src/components/ui/AssetCard.tsx` — compact row card:
+    - Title left, value right on same line
+    - Human-readable subline via `getAssetSubline()` (no raw slugs)
+    - Green accent bar on left (matching SummaryCard pattern)
+    - `close-circle` delete icon top-right (matching EstateCategoryCard pattern)
+    - Tap-to-edit via whole-card `TouchableOpacity` with chevron hint
+    - Navy-tinted borders, warm brown subline text
+19. Created `src/utils/assetDisplayFields.ts`:
+    - `getAssetTitle(asset)` — primary title per type
+    - `getAssetSubline(asset)` — compact one-liner subtitle (e.g. "Stocks & Shares ISA with HL")
+    - `getAssetDisplayFields(asset)` — detailed field rows per type
+    - Formatter functions for every asset type: `formatInvestmentType`, `formatPensionType`, `formatPolicyType`, `formatAccountType`, `formatBusinessAssetType`, `formatAgriculturalType`, `formatPropertyType`, `formatOwnership`. All raw slugs humanised — no database identifiers ever reach the UI.
+20. Created 9 thin route files + refactored existing `property/summary.tsx` into thin wrapper.
+21. Completion UX simplified from original plan: removed "Actually, there's more" toggle (redundant — "Add another" button already exists, and auto-invalidation resets completion on any asset mutation). "That's everything" is now a quiet ghost text link that marks complete and navigates to estate dashboard. When already complete, reads "All done — back to estate".
+22. Empty state implemented: "Nothing here yet" with category icon in cream circle, Add button, and "That's everything" still available.
+23. Dynamic sublines on Will Dashboard via `getEstateSubline()`.
+
+**Bonus: Entry form hub-spoke fix (9 files):**
+Discovered during testing that 9 of 10 entry forms still used a legacy pattern with embedded asset lists, `showForm` state, "Add Another" / "Continue" buttons, and `router.back()` navigation. All 9 were refactored to enforce consistent single-asset hub-spoke UX:
+- `app/bequeathal/investment/entry.tsx`
+- `app/bequeathal/bank-accounts/entry.tsx`
+- `app/bequeathal/pensions/entry.tsx`
+- `app/bequeathal/life-insurance/entry.tsx`
+- `app/bequeathal/private-company-shares/entry.tsx`
+- `app/bequeathal/crypto-currency/entry.tsx`
+- `app/bequeathal/important-items/entry.tsx`
+- `app/bequeathal/assets-held-through-business/entry.tsx`
+- `app/bequeathal/agricultural-assets/entry.tsx`
+
+Changes per file:
+- Added `SUMMARY_ROUTE` constant for explicit navigation
+- Added `useLocalSearchParams` for `?id=xxx` editing support
+- Added `useEffect` + `loadedIdRef` pattern to load/pre-fill asset data for editing, with stale ID guard (redirects to summary if asset not found)
+- Removed all legacy `showForm` state, `useEffect` conditional display, embedded asset lists, "Add Another" buttons, "Continue" buttons
+- Renamed add handlers to `handleSave` — calls `addAsset` or `updateAsset` based on `editingAssetId`, then navigates to `SUMMARY_ROUTE`
+- Back button changed from `router.back()` to explicit `router.push(SUMMARY_ROUTE)` (critical — prevents returning to intro screens)
+- Dynamic header titles: "Add [Asset Type]" / "Edit [Asset Type]"
+- Warm button labels: "Add this investment" / "Save changes" (not generic "Save")
+- Context-aware intro copy for forms
+- Cleaned up 50–100 lines of dead styles per file
+- Updated JSDoc comments to reflect new navigation pattern
+- Preserved specific logic: ISA cross-save in bank-accounts, business selector in assets-held-through-business
+
+**Bonus: Visual polish iterations:**
+- Multiple rounds of user feedback on CategorySummaryScreen styling:
+  - Started with flat white screen → added morphic blobs → refined to green + navy blobs (People Summary recipe)
+  - Summary banner iterated from beige box → cream hero → final: white background with brand-gold (beige) outline, compact vertical padding
+  - Asset cards iterated from tall field-row layout → compact title/value row with green accent bars
+  - Button hierarchy: "Add another" promoted to green primary, "That's everything" demoted to ghost text link
+- All slug formatters added after user spotted raw database values ("isa-stocks-shares") in the UI
+
+**Acceptance criteria — all met:**
 - Full flow works end-to-end: Will Dashboard → Estate Dashboard → select category → Intro → Entry → save → Summary → back → Estate Dashboard with updated values
 - Mode A → Mode B transition works after first asset
-- Completion toggle works on summary screens
-- Auto-invalidation works (edit asset → completion resets)
+- Completion toggle works on summary screens (marks complete + navigates to estate dashboard)
+- Auto-invalidation works (edit/add/delete asset → completion resets)
 - "All assets added" popup is specific about which categories need attention
-- Back buttons all go to correct destinations
+- Back buttons all go to correct destinations (including critical fix: entry forms → summary, not back to intro)
 - No orphan screens or dead ends
+- All entry forms support `?id=` editing with consistent UX
 
 ### Phase 3: Category Selection Animation
 
@@ -825,7 +869,7 @@ Phases ordered for fastest end-to-end testability: prototype first, then data + 
 
 ### Phase 5: Form Improvements
 
-**Goal:** Auto-save drafts, validation feedback, and useEffect fix.
+**Goal:** Auto-save drafts and validation feedback. (Note: the `useEffect` / back-button / `loadedIdRef` pattern was already implemented in Phase 2 as part of the entry form hub-spoke fix.)
 
 **Deliverables:**
 1. **Auto-save drafts:**
@@ -839,14 +883,12 @@ Phases ordered for fastest end-to-end testability: prototype first, then data + 
    - Tapping scrolls to first incomplete field
    - Red borders + "Required" text on all incomplete required fields
    - Real-time count updates
-3. **useEffect fix:**
-   - Add `[editingPropertyId, bequeathalActions]` dependency array to property entry
+3. ~~**useEffect fix:**~~ — **Already done in Phase 2.** All 10 entry forms now use `loadedIdRef` + `useEffect` with proper dependency arrays for `?id=` editing. No further work needed here.
 
 **Acceptance criteria:**
 - Navigating away from a half-filled property form and returning restores the draft
 - "Discard Draft" reverts correctly for both new and edit scenarios
 - Validation feedback shows correct count and scrolls to correct field
-- No unnecessary re-renders from the useEffect fix
 
 ### Phase 6: Cleanup
 
@@ -866,6 +908,8 @@ Phases ordered for fastest end-to-end testability: prototype first, then data + 
 ---
 
 ## Test Plan
+
+> **Note:** A comprehensive, standalone test plan for Phases 1 and 2 is available at `native-app/planning/ESTATE_PHASE_1_2_TEST_PLAN.md`. The table below is the original high-level test inventory covering all phases. Unit tests for Phases 1–2 are now testable; tests for Phases 4–5 features (toast, drafts, validation) are pending those phases.
 
 ### Unit Tests
 
@@ -933,41 +977,46 @@ Phases ordered for fastest end-to-end testability: prototype first, then data + 
 
 ## File Inventory
 
-### New files to create
+### New files created
 
-| File | Phase | Description |
-|------|-------|-------------|
-| `app/estate-dashboard.tsx` | 1 | Estate Dashboard screen (hub) |
-| `src/components/ui/EstateCategoryCard.tsx` | 1 | Reusable category card component |
-| `src/components/screens/CategorySummaryScreen.tsx` | 2 | Generic category summary shell |
-| `src/components/ui/AssetCard.tsx` | 2 | Single generic asset card (all types) |
-| `src/utils/assetDisplayFields.ts` | 2 | `getAssetDisplayFields()` — per-type field config |
-| `app/bequeathal/bank-accounts/summary.tsx` | 2 | Thin route file |
-| `app/bequeathal/investment/summary.tsx` | 2 | Thin route file |
-| `app/bequeathal/pensions/summary.tsx` | 2 | Thin route file |
-| `app/bequeathal/life-insurance/summary.tsx` | 2 | Thin route file |
-| `app/bequeathal/private-company-shares/summary.tsx` | 2 | Thin route file |
-| `app/bequeathal/assets-held-through-business/summary.tsx` | 2 | Thin route file |
-| `app/bequeathal/important-items/summary.tsx` | 2 | Thin route file |
-| `app/bequeathal/crypto-currency/summary.tsx` | 2 | Thin route file |
-| `app/bequeathal/agricultural-assets/summary.tsx` | 2 | Thin route file |
-| `src/components/ui/NetWealthToast.tsx` | 4 | Odometer toast component |
-| `src/context/NetWealthToastContext.tsx` | 4 | Toast trigger context |
-| `src/hooks/useDraftAutoSave.ts` | 5 | Auto-save hook |
+| File | Phase | Status | Description |
+|------|-------|--------|-------------|
+| `app/estate-dashboard.tsx` | 1→2 | **DONE** | Estate Dashboard screen (hub) — static in P1, fully wired in P2 |
+| `src/components/ui/EstateCategoryCard.tsx` | 1 | **DONE** | Reusable category card component |
+| `src/components/screens/CategorySummaryScreen.tsx` | 2 | **DONE** | Generic category summary shell (warm morphic styling) |
+| `src/components/ui/AssetCard.tsx` | 2 | **DONE** | Compact row-based asset card (title/value/subline/delete/edit) |
+| `src/utils/assetDisplayFields.ts` | 2 | **DONE** | `getAssetTitle`, `getAssetSubline`, `getAssetDisplayFields` + all slug formatters |
+| `app/bequeathal/bank-accounts/summary.tsx` | 2 | **DONE** | Thin route file |
+| `app/bequeathal/investment/summary.tsx` | 2 | **DONE** | Thin route file |
+| `app/bequeathal/pensions/summary.tsx` | 2 | **DONE** | Thin route file |
+| `app/bequeathal/life-insurance/summary.tsx` | 2 | **DONE** | Thin route file |
+| `app/bequeathal/private-company-shares/summary.tsx` | 2 | **DONE** | Thin route file |
+| `app/bequeathal/assets-held-through-business/summary.tsx` | 2 | **DONE** | Thin route file |
+| `app/bequeathal/important-items/summary.tsx` | 2 | **DONE** | Thin route file |
+| `app/bequeathal/crypto-currency/summary.tsx` | 2 | **DONE** | Thin route file |
+| `app/bequeathal/agricultural-assets/summary.tsx` | 2 | **DONE** | Thin route file |
+| `native-app/planning/ESTATE_PHASE_1_2_TEST_PLAN.md` | 2 | **DONE** | Comprehensive test plan for Phases 1 and 2 |
+| `src/components/ui/NetWealthToast.tsx` | 4 | Pending | Odometer toast component |
+| `src/context/NetWealthToastContext.tsx` | 4 | Pending | Toast trigger context |
+| `src/hooks/useDraftAutoSave.ts` | 5 | Pending | Auto-save hook |
 
-### Existing files to modify
+### Existing files modified
 
-| File | Phase | Changes |
-|------|-------|---------|
-| `src/types/index.ts` | 2 | Replace `selectedCategories` with `categoryStatus`. Remove `setSelectedCategories`, `toggleCategory`, and `deleteAsset` from `BequeathalActions`. Add new methods. |
-| `src/hooks/useAppState.ts` | 2 | Implement new/replaced actions. Auto-invalidation on `addAsset`/`updateAsset`/`removeAsset`. Remove `setSelectedCategories`, `toggleCategory`, and `deleteAsset` implementations. |
-| `src/utils/willProgress.ts` | 2 | Extend `WillProgressState` with `bequeathalData`. Implement `deriveYourEstateStatus()`, `getEstateSubline()`, `getEstateNetValue()`, `getTotalAssetCount()`, `formatShortCurrency()`. Update `/bequeathal/categories` → `/estate-dashboard` in `getNextRoute()`, `getContinueLabel()`, and `getPeopleSummaryCTA()` (3 places). |
-| `src/utils/categoryNavigation.ts` | 2 | Add canonical ordering, `getCategoryRoute()` helper. Remove `getNextCategoryRoute`, `getFirstCategoryRoute`. |
-| `app/will-dashboard.tsx` | 2 | Route "Your Estate" to `/estate-dashboard` (always). Dynamic subline. Pass `bequeathalData` into `WillProgressState`. |
-| `app/bequeathal/property/summary.tsx` | 2 | Replace with thin wrapper around `CategorySummaryScreen`. |
-| `app/bequeathal/property/entry.tsx` | 5 | Auto-save, validation, useEffect fix |
-| `app/bequeathal/*/intro.tsx` (all 10) | 2 | Back → `/estate-dashboard`. No other logic changes. |
-| `app/bequeathal/*/entry.tsx` (all 10) | 2, 4 | Back → category summary. NetWealthToast integration (Phase 4). |
+| File | Phase | Status | Changes |
+|------|-------|--------|---------|
+| `src/types/index.ts` | 2 | **DONE** | Replaced `selectedCategories` with `categoryStatus`. Removed `setSelectedCategories`, `toggleCategory`, `deleteAsset`. Added new methods. |
+| `src/hooks/useAppState.ts` | 2 | **DONE** | All new/replaced actions. Auto-invalidation. Migration step for `selectedCategories` → `categoryStatus`. |
+| `src/utils/willProgress.ts` | 2 | **DONE** | Extended `WillProgressState`. Implemented all estate helpers. Updated 3 route strings. |
+| `src/utils/categoryNavigation.ts` | 2 | **DONE** | `CATEGORY_META`, canonical ordering, `getCategoryRoute()`, `getCategoryEntryRoute()`, `getCategoryLabel()`, `getCategoryIcon()`, `sortByCanonicalOrder()`. Removed pipeline functions. |
+| `app/will-dashboard.tsx` | 2 | **DONE** | Routes to `/estate-dashboard`. Dynamic `getEstateSubline()`. Passes `bequeathalData`. |
+| `app/bequeathal/property/summary.tsx` | 2 | **DONE** | Thin wrapper around `CategorySummaryScreen`. |
+| `app/bequeathal/*/intro.tsx` (all 10) | 2 | **DONE** | Back/skip → `/estate-dashboard`. Removed unused pipeline imports. |
+| `app/bequeathal/*/entry.tsx` (all 10) | 2 | **DONE** | Single-asset forms. `?id=` editing. `SUMMARY_ROUTE` navigation. Removed embedded lists. Dynamic headers/labels/copy. Dead styles cleaned. |
+| `app/bequeathal/categories.tsx` | 2 | **DONE** | Minimally patched to use new `bequeathalActions` API. Routes to `/estate-dashboard`. Still candidate for deletion in Phase 6. |
+| `src/components/ui/index.ts` | 1–2 | **DONE** | Exported `EstateCategoryCard`, `AssetCard`. |
+| `app/developer/dashboard.tsx` | 1 | **DONE** | Added Estate Dashboard + People Summary to quick nav dropdown. |
+| `app/bequeathal/*/entry.tsx` (all 10) | 4 | Pending | NetWealthToast integration. |
+| `app/bequeathal/property/entry.tsx` | 5 | Pending | Auto-save, validation UX improvements. |
 
 ### Files to potentially delete (Phase 6)
 
@@ -984,7 +1033,7 @@ Non-obvious decisions that would confuse a developer encountering this plan fres
 | Decision | Rationale |
 |----------|-----------|
 | `categoryStatus` replaces `selectedCategories` | Single source of truth. "Selected" = has entry. "Complete" = `completedAt` is set. Eliminates sync bugs. |
-| One `AssetCard` component, not per-type cards | Card layout is identical; only the displayed fields differ. `getAssetDisplayFields()` returns the right fields per type. Extract bespoke cards later only if genuinely needed. |
+| One `AssetCard` component, not per-type cards | Card layout is identical; only the displayed fields differ. `getAssetSubline()` returns the right one-liner per type. Extract bespoke cards later only if genuinely needed. |
 | `WillProgressState` must include `bequeathalData` | The current interface doesn't have it. All call sites need updating. This is a prerequisite for `deriveYourEstateStatus()`. |
 | Intro screens don't auto-redirect | Estate dashboard is the routing brain. It navigates to intro (no assets) or summary (has assets). Intros just render content. |
 | Net value calc: only Property has liabilities | Only `PropertyAsset` has a `mortgage` field. One `if (type === 'property')` check. No general-purpose debt framework needed. |
@@ -993,6 +1042,12 @@ Non-obvious decisions that would confuse a developer encountering this plan fres
 | `completedAt` is a date, not a boolean | Enables future re-affirmation: "You marked this complete 14 months ago — still accurate?" |
 | Any asset mutation invalidates completion | Add, edit, or delete on a complete category resets `completedAt` to null. User must re-confirm. |
 | Empty category stays on summary, not intro | Deleting all assets shows summary empty state. User still has Add/Complete/Back. Category stays selected in `categoryStatus`. |
+| Entry forms are single-asset, not embedded lists | Pulled forward from Phase 5 to Phase 2. Legacy pattern broke hub-spoke model — user saw two summary screens in sequence. Each form now handles one asset, saves, and navigates to `SUMMARY_ROUTE`. |
+| `router.push(SUMMARY_ROUTE)` not `router.back()` | Explicit navigation prevents returning to intro screens or creating unexpected back-stack behaviour. |
+| `loadedIdRef` pattern for `?id=` editing | `useRef` to track which asset ID has been loaded into the form, preventing re-render loops from `useEffect` and guarding against stale `?id=` params. |
+| "Actually, there's more" button removed | Redundant — "Add another" exists, and auto-invalidation already resets completion on any mutation. One fewer decision for the user. |
+| "That's everything" is a ghost text link, not a button | Demoted from primary action. The warm green "Add another" is the primary CTA on summary screens. Completion marking is intentional, not default. |
+| All slug values humanised via formatters | User feedback: "show my life, not your database." Every raw type slug (e.g. `isa-stocks-shares`) is mapped to human text (e.g. "Stocks & Shares ISA") before reaching the UI. |
 
 ---
 
@@ -1007,13 +1062,14 @@ Non-obvious decisions that would confuse a developer encountering this plan fres
 
 ## Estimated Effort
 
-| Phase | Description | Effort |
-|-------|-------------|--------|
-| 1 | Static UI Prototype (both modes) | Small — 1 screen + 1 component with dummy data |
-| 2 | Data Model + Navigation + Summary Screens (functional skeleton) | Large — types, state, routing, generic summary, asset card, 9 route files, field config |
-| 3 | Category Selection Animation | Medium — float/metamorphosis animation, bottom sheet tray |
-| 4 | NetWealthToast | Medium — animation component + context |
-| 5 | Form Improvements | Medium — auto-save hook, validation UX, useEffect fix |
-| 6 | Cleanup | Small — audit and delete legacy code |
+| Phase | Description | Effort | Status |
+|-------|-------------|--------|--------|
+| 1 | Static UI Prototype (both modes) | Small — 1 screen + 1 component with dummy data | **COMPLETED** |
+| 2 | Data Model + Navigation + Summary Screens + Entry Form Fix | Large — types, state, routing, generic summary, asset card, 9 route files, field config, 9 entry form refactors, visual polish | **COMPLETED** |
+| 3 | Category Selection Animation | Medium — float/metamorphosis animation, bottom sheet tray | Pending |
+| 4 | NetWealthToast | Medium — animation component + context | Pending |
+| 5 | Form Improvements | Medium — auto-save hook, validation UX (note: useEffect/back-button issues already fixed in Phase 2) | Pending |
+| 6 | Cleanup | Small — audit and delete legacy code | Pending |
 
 **Total:** ~17 new files, ~20 modified files, across 6 phases.
+**Delivered so far:** 15 new files created, ~25 files modified (Phases 1 + 2, including bonus work).
