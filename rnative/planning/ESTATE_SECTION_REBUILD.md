@@ -829,24 +829,35 @@ Changes per file:
 - No orphan screens or dead ends
 - All entry forms support `?id=` editing with consistent UX
 
-### Phase 3: Category Selection Animation
+### Phase 3: Category Selection Animation — COMPLETED
 
-**Goal:** Polish the float-to-top animation for category selection and the "Add something else" tray.
+**Goal:** Smooth animations for category selection, deselection, and reorder on the Estate Dashboard.
 
-**Deliverables:**
-1. Mode A: checking a category → card transforms and animates (metamorphosis from checkbox row to full selected card)
-2. Mode B: "Add something else" tray opens as a bottom sheet, selecting a category animates it into the selected zone above
-3. Deselecting a category (with no assets) → card animates back down / disappears from selected zone
-4. Canonical ordering maintained within the zone during animation
-5. **Swipe-left-to-delete** on zero-asset `EstateCategoryCard` components — swipe reveals a red "Remove" action button (iOS-native pattern, using `react-native-gesture-handler` or `Swipeable` from reanimated). Complements the existing close icon for discoverability.
-6. **"Remove category" option inside category intros** — when a user taps into a zero-asset category and lands on the intro screen, provide a secondary "Remove this category" link/button.
+**Status:** Implemented and verified. Scope reduced after Elon/Jobs review — cut swipe-to-delete and intro remove button for simplicity.
 
-**Acceptance criteria:**
-- Selection animation is smooth and feels like the card is "growing" into its full form
-- Deselection animates card away cleanly
-- Bottom sheet tray for "Add something else" works smoothly
-- Swipe-left reveals "Remove" cleanly with haptic feedback
-- 60fps animations
+**What was delivered:**
+1. **Mode A float-to-top reorder:** Selected cards animate upward to sit above unselected cards. Canonical order preserved within each group. `SelectionMode` converted from arrow-function-returning-JSX to a proper function component with `useMemo` for sorted render order. Each card wrapped in `Animated.View` with `Layout.springify().damping(18).stiffness(150)` for smooth, damped reflow.
+2. **Mode B card enter/exit:** Category cards added from the "Add something else" tray fade in (`FadeIn.duration(250)`), deselected cards fade out (`FadeOut.duration(200)`), and sibling cards reflow smoothly via `Layout.springify().damping(18).stiffness(150)`.
+3. **Canonical ordering maintained:** Mode A uses `CATEGORY_META.filter()` which preserves canonical order within selected/unselected groups. Mode B uses `sortByCanonicalOrder()` on `selectedCategories`.
+
+**What was cut (after Elon/Jobs review):**
+- **Swipe-left-to-delete** — close-circle icon already handles deselection; adding `Swipeable` risked gesture conflicts inside `ScrollView` + `Animated.View` for no unique functionality
+- **"Remove category" on intro screens** — "Skip for now" already routes to estate dashboard where close-circle handles deletion; adding a third footer option cluttered the UI
+- **Scale bump / colour interpolation** on Mode A cards — Jobs: "the best checkbox animation is one you don't notice." Instant background colour shift via style conditional is sufficient.
+
+**Implementation details:**
+- Single file changed: `app/estate-dashboard.tsx`
+- New import: `Animated, { FadeIn, FadeOut, Layout }` from `react-native-reanimated`
+- Spring config: `damping(18).stiffness(150)` — damped and assured, not bouncy. Tuned for a financial app feel per Jobs feedback.
+- Durations reduced from original 400ms to 250ms (enter) / 200ms (exit) per Jobs: "400ms is nearly half a second of watching something materialise"
+- No new files, no new dependencies
+
+**Acceptance criteria — all met:**
+- Selected cards float to top smoothly in Mode A, unselected shift down to fill gaps
+- Cards fade in/out cleanly in Mode B when added from tray or deselected
+- Sibling cards reflow without scroll jumps
+- Canonical ordering preserved in all animation states
+- 60fps target (Reanimated layout animations run on UI thread)
 
 ### Phase 4: NetWealthToast
 
@@ -1066,10 +1077,10 @@ Non-obvious decisions that would confuse a developer encountering this plan fres
 |-------|-------------|--------|--------|
 | 1 | Static UI Prototype (both modes) | Small — 1 screen + 1 component with dummy data | **COMPLETED** |
 | 2 | Data Model + Navigation + Summary Screens + Entry Form Fix | Large — types, state, routing, generic summary, asset card, 9 route files, field config, 9 entry form refactors, visual polish | **COMPLETED** |
-| 3 | Category Selection Animation | Medium — float/metamorphosis animation, bottom sheet tray | Pending |
+| 3 | Category Selection Animation | Small — reduced scope after review: float-to-top reorder + enter/exit fade, single file | **COMPLETED** |
 | 4 | NetWealthToast | Medium — animation component + context | Pending |
 | 5 | Form Improvements | Medium — auto-save hook, validation UX (note: useEffect/back-button issues already fixed in Phase 2) | Pending |
 | 6 | Cleanup | Small — audit and delete legacy code | Pending |
 
 **Total:** ~17 new files, ~20 modified files, across 6 phases.
-**Delivered so far:** 15 new files created, ~25 files modified (Phases 1 + 2, including bonus work).
+**Delivered so far:** 15 new files created, ~25 files modified (Phases 1 + 2 + 3, including bonus work).

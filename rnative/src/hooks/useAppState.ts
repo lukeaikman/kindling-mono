@@ -61,7 +61,7 @@ const useAsyncStorageState = <T>(
   storageKey: string,
   initialValue: T,
   dateFields: string[] = []
-): [T, React.Dispatch<React.SetStateAction<T>>] => {
+): [T, React.Dispatch<React.SetStateAction<T>>, boolean] => {
   const [state, setStateInternal] = useState<T>(initialValue);
   const [isInitialized, setIsInitialized] = useState(false);
   const prevKeyRef = useRef<string | undefined>(undefined);
@@ -128,7 +128,7 @@ const useAsyncStorageState = <T>(
     }
   }, [state, isInitialized, storageKey]);
 
-  return [state, setState];
+  return [state, setState, isInitialized];
 };
 
 /**
@@ -206,7 +206,7 @@ export const useAppState = () => {
     []
   );
 
-  const [bequeathalData, setBequeathalData] = useAsyncStorageState<BequeathalData>(
+  const [bequeathalData, setBequeathalData, isBequeathalHydrated] = useAsyncStorageState<BequeathalData>(
     getScopedKey(STORAGE_KEYS.BEQUEATHAL_DATA),
     getInitialBequeathalData(),
     ['lastUpdated']
@@ -2110,6 +2110,7 @@ export const useAppState = () => {
     bequestActions,
     relationshipActions,
     estateRemainderActions,
+    isBequeathalHydrated,
     purgeAllData,
     clearInMemoryState
   };

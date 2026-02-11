@@ -25,6 +25,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 
 import { BackButton, Button } from '../src/components/ui';
 import { EstateCategoryCard } from '../src/components/ui/EstateCategoryCard';
@@ -74,55 +75,68 @@ interface ModeAProps {
   onToggle: (id: string) => void;
 }
 
-const SelectionMode: React.FC<ModeAProps> = ({ selectedIds, onToggle }) => (
-  <View style={styles.modeAContainer}>
-    {/* Intro */}
-    <View style={styles.introSection}>
-      <Text style={styles.modeATitle}>Let's map out what you own</Text>
-      <Text style={styles.modeASubtitle}>
-        Tick everything that applies — you can always add more later.
-      </Text>
-    </View>
+function SelectionMode({ selectedIds, onToggle }: ModeAProps) {
+  // Float selected cards to top, preserving canonical order within each group
+  const sortedCategories = useMemo(() => {
+    const selected = CATEGORY_META.filter((c) => selectedIds.has(c.id));
+    const unselected = CATEGORY_META.filter((c) => !selectedIds.has(c.id));
+    return [...selected, ...unselected];
+  }, [selectedIds]);
 
-    {/* Category selection cards */}
-    <View style={styles.categoryList}>
-      {CATEGORY_META.map((cat) => {
-        const isSelected = selectedIds.has(cat.id);
-        return (
-          <TouchableOpacity
-            key={cat.id}
-            style={[styles.selectionCard, isSelected && styles.selectionCardSelected]}
-            onPress={() => onToggle(cat.id)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.selectionRow}>
-              <View style={styles.selectionIconCircle}>
-                <MaterialCommunityIcons
-                  name={cat.icon as any}
-                  size={22}
-                  color={KindlingColors.navy}
-                />
-              </View>
-              <View style={styles.selectionTextContainer}>
-                <Text style={styles.selectionTitle}>{cat.label}</Text>
-                <Text style={styles.selectionDescription}>{cat.description}</Text>
-              </View>
-              <View style={[styles.checkCircle, isSelected && styles.checkCircleSelected]}>
-                {isSelected && (
-                  <MaterialCommunityIcons
-                    name="check"
-                    size={16}
-                    color={KindlingColors.background}
-                  />
-                )}
-              </View>
-            </View>
-          </TouchableOpacity>
-        );
-      })}
+  return (
+    <View style={styles.modeAContainer}>
+      {/* Intro */}
+      <View style={styles.introSection}>
+        <Text style={styles.modeATitle}>Let's map out what you own</Text>
+        <Text style={styles.modeASubtitle}>
+          Tick everything that applies — you can always add more later.
+        </Text>
+      </View>
+
+      {/* Category selection cards */}
+      <View style={styles.categoryList}>
+        {sortedCategories.map((cat) => {
+          const isSelected = selectedIds.has(cat.id);
+          return (
+            <Animated.View
+              key={cat.id}
+              layout={Layout.springify().damping(50).stiffness(300)}
+            >
+              <TouchableOpacity
+                style={[styles.selectionCard, isSelected && styles.selectionCardSelected]}
+                onPress={() => onToggle(cat.id)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.selectionRow}>
+                  <View style={styles.selectionIconCircle}>
+                    <MaterialCommunityIcons
+                      name={cat.icon as any}
+                      size={22}
+                      color={KindlingColors.navy}
+                    />
+                  </View>
+                  <View style={styles.selectionTextContainer}>
+                    <Text style={styles.selectionTitle}>{cat.label}</Text>
+                    <Text style={styles.selectionDescription}>{cat.description}</Text>
+                  </View>
+                  <View style={[styles.checkCircle, isSelected && styles.checkCircleSelected]}>
+                    {isSelected && (
+                      <MaterialCommunityIcons
+                        name="check"
+                        size={16}
+                        color={KindlingColors.background}
+                      />
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          );
+        })}
+      </View>
     </View>
-  </View>
-);
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Mode B — Balance Sheet Mode
@@ -203,16 +217,22 @@ const BalanceSheetMode: React.FC<ModeBProps> = ({
       {/* Selected category cards */}
       <View style={styles.categoryCards}>
         {cards.map((cat) => (
-          <EstateCategoryCard
+          <Animated.View
             key={cat.id}
-            icon={cat.icon}
-            title={cat.label}
-            assetCount={cat.assetCount}
-            netValue={cat.netValue}
-            isComplete={cat.isComplete}
-            onPress={() => onCardPress(cat.id, cat.assetCount)}
-            onDeselect={cat.assetCount === 0 ? () => onDeselect(cat.id) : undefined}
-          />
+            entering={FadeIn.duration(250)}
+            exiting={FadeOut.duration(200)}
+            layout={Layout.springify().damping(50).stiffness(300)}
+          >
+            <EstateCategoryCard
+              icon={cat.icon}
+              title={cat.label}
+              assetCount={cat.assetCount}
+              netValue={cat.netValue}
+              isComplete={cat.isComplete}
+              onPress={() => onCardPress(cat.id, cat.assetCount)}
+              onDeselect={cat.assetCount === 0 ? () => onDeselect(cat.id) : undefined}
+            />
+          </Animated.View>
         ))}
       </View>
 
@@ -248,7 +268,7 @@ const BalanceSheetMode: React.FC<ModeBProps> = ({
 // ---------------------------------------------------------------------------
 
 export default function EstateDashboardScreen() {
-  const { bequeathalActions, willActions, personActions, estateRemainderActions } = useAppState();
+  const { bequeathalActions, willActions, personActions, estateRemainderActions, isBequeathalHydrated } = useAppState();
 
   // Build progress state for willProgress helpers
   const bd: BequeathalData = bequeathalActions.getBequeathalData();
@@ -453,44 +473,48 @@ export default function EstateDashboardScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      {/* Content */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {isBalanceSheet ? (
-          <BalanceSheetMode
-            cards={categoryCards}
-            netValue={netValue}
-            grossValue={grossValue}
-            trustValue={trustValue}
-            ihtReady={ihtReady}
-            onCardPress={handleCardPress}
-            onDeselect={handleDeselect}
-            onAddSomethingElse={handleAddSomethingElse}
-          />
-        ) : (
-          <SelectionMode
-            selectedIds={selectedSet}
-            onToggle={handleToggleCategory}
-          />
-        )}
-      </ScrollView>
+      {/* Content — gated on AsyncStorage hydration to prevent Mode A flash */}
+      {isBequeathalHydrated ? (
+        <>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.contentContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {isBalanceSheet ? (
+              <BalanceSheetMode
+                cards={categoryCards}
+                netValue={netValue}
+                grossValue={grossValue}
+                trustValue={trustValue}
+                ihtReady={ihtReady}
+                onCardPress={handleCardPress}
+                onDeselect={handleDeselect}
+                onAddSomethingElse={handleAddSomethingElse}
+              />
+            ) : (
+              <SelectionMode
+                selectedIds={selectedSet}
+                onToggle={handleToggleCategory}
+              />
+            )}
+          </ScrollView>
 
-      {/* Footer */}
-      {isBalanceSheet ? (
-        <View style={styles.footer}>
-          <Button onPress={handleAllAssetsAdded} variant="primary">
-            All assets added
-          </Button>
-        </View>
-      ) : selectedSet.size > 0 ? (
-        <View style={styles.footer}>
-          <Button onPress={handleModeAGetStarted} variant="primary">
-            Let's get started
-          </Button>
-        </View>
+          {/* Footer */}
+          {isBalanceSheet ? (
+            <View style={styles.footer}>
+              <Button onPress={handleAllAssetsAdded} variant="primary">
+                All assets added
+              </Button>
+            </View>
+          ) : selectedSet.size > 0 ? (
+            <View style={styles.footer}>
+              <Button onPress={handleModeAGetStarted} variant="primary">
+                Let's get started
+              </Button>
+            </View>
+          ) : null}
+        </>
       ) : null}
 
       {/* Bottom Sheet — "Add something else" tray */}
