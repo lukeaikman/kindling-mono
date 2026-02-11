@@ -504,6 +504,8 @@ export default function DeveloperDashboard() {
                     value={dashboardScreen}
                     options={[
                       { label: 'Will Dashboard', value: '/will-dashboard' },
+                      { label: 'Estate Dashboard', value: '/estate-dashboard' },
+                      { label: 'People Summary', value: '/people/summary' },
                     ]}
                     onChange={setDashboardScreen}
                   />

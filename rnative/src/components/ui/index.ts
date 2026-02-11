@@ -56,3 +56,6 @@ export type { ExecutorConfirmationDialogProps } from './ExecutorConfirmationDial
 export type { VideoPlayerProps } from './VideoPlayer';
 export { InformationCard } from './InformationCard';
 export type { InformationCardProps } from './InformationCard';
+
+export { EstateCategoryCard } from './EstateCategoryCard';
+export type { EstateCategoryCardProps } from './EstateCategoryCard';

@@ -357,9 +357,11 @@ Cards ordered by canonical ordering. Three visual states:
 | Has assets, not complete | Card with value summary | Icon + title + "X items · £Yk net" | Chevron | → Summary screen |
 | Complete | Green pill, green left accent | Icon + title + "X items · £Yk net" | Chevron | → Summary screen |
 
-**Deselection rules:**
-- Categories with no assets show a checkbox allowing deselection (both modes)
-- Categories with `assetCount > 0` hide the checkbox — cannot accidentally deselect a category with assets
+**Deselection rules (two affordances — decided during Phase 1 review):**
+1. **Close icon (Phase 1):** Categories with no assets show a small `close-circle` icon positioned at the top-right corner of the card. Subtle, muted colour, does not clutter the card layout. Tapping removes the category from `categoryStatus`.
+2. **Swipe-left to delete (Phase 2/3):** For a native iOS feel, zero-asset category cards also support swipe-left to reveal a red "Remove" action. This is the primary deselection mechanism for power users.
+3. **"Remove category" inside category:** When tapping into a zero-asset category (which goes to the intro screen), a secondary "Remove category" option is available, providing a third path to deselection.
+- Categories with `assetCount > 0` show **none** of these affordances — cannot accidentally deselect a category with assets.
 
 #### "Add something else" button (Mode B only)
 
@@ -784,11 +786,14 @@ Phases ordered for fastest end-to-end testability: prototype first, then data + 
 2. Mode B: "Add something else" tray opens as a bottom sheet, selecting a category animates it into the selected zone above
 3. Deselecting a category (with no assets) → card animates back down / disappears from selected zone
 4. Canonical ordering maintained within the zone during animation
+5. **Swipe-left-to-delete** on zero-asset `EstateCategoryCard` components — swipe reveals a red "Remove" action button (iOS-native pattern, using `react-native-gesture-handler` or `Swipeable` from reanimated). Complements the existing close icon for discoverability.
+6. **"Remove category" option inside category intros** — when a user taps into a zero-asset category and lands on the intro screen, provide a secondary "Remove this category" link/button.
 
 **Acceptance criteria:**
 - Selection animation is smooth and feels like the card is "growing" into its full form
 - Deselection animates card away cleanly
 - Bottom sheet tray for "Add something else" works smoothly
+- Swipe-left reveals "Remove" cleanly with haptic feedback
 - 60fps animations
 
 ### Phase 4: NetWealthToast
