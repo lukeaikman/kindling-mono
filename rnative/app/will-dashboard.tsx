@@ -32,6 +32,7 @@ import {
   deriveYourEstateStatus,
   deriveLegalCheckStatus,
   getNextRoute,
+  getNextYourPeopleRoute,
   getYourPeopleProgress,
   canSign,
   isWaitingForAcceptances,
@@ -293,7 +294,10 @@ export default function WillDashboardScreen() {
   const handleStagePress = useCallback(
     (stageId: string) => {
       if (stageId === 'your-people') {
-        router.push(nextRoute as any);
+        // Stage-specific routing: goes to summary when complete,
+        // or the next incomplete sub-flow when not
+        const peopleRoute = getNextYourPeopleRoute(progressState);
+        router.push(peopleRoute as any);
         return;
       }
       const stage = STAGES.find((s) => s.id === stageId);
@@ -301,7 +305,7 @@ export default function WillDashboardScreen() {
         router.push(stage.route as any);
       }
     },
-    [nextRoute],
+    [progressState],
   );
 
   const handleSigningPress = useCallback(() => {
