@@ -163,9 +163,9 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
                   </Text>
                 )}
                 <Text style={styles.summaryCount}>
-                  {assets.length} {assets.length === 1
-                    ? categoryLabel.toLowerCase().replace(/s$/, '')
-                    : categoryLabel.toLowerCase()}
+                  Value of {assets.length} {assets.length === 1
+                    ? categoryLabel.replace(/s$/, '')
+                    : categoryLabel}
                 </Text>
               </View>
 

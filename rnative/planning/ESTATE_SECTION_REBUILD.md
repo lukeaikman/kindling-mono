@@ -18,7 +18,7 @@ Rebuild the "Your Estate" section of the will-building journey. Replace the curr
 
 ---
 
-## Current State (post Phase 2)
+## Current State (post Phase 4)
 
 ### What exists now
 
@@ -39,6 +39,8 @@ Rebuild the "Your Estate" section of the will-building journey. Replace the curr
 | Progress Utils | `src/utils/willProgress.ts` | Full estate helpers: `deriveYourEstateStatus()`, `getEstateSubline()`, `getEstateNetValue()`, etc. |
 | Types | `src/types/index.ts` | `categoryStatus: Record<string, { completedAt: string \| null }>`. New `BequeathalActions` methods. |
 | State | `src/hooks/useAppState.ts` | All new actions implemented. Auto-invalidation on asset mutations. Migration from old `selectedCategories`. |
+| **NetWealthToast** | `src/components/ui/NetWealthToast.tsx` | Glassmorphic odometer toast — BlurView glass, growing sprout, soft settle glow, dissolving edge. |
+| **NetWealthToastContext** | `src/context/NetWealthToastContext.tsx` | Global provider: `seedIfNeeded`, `notifySave(delta)`, `show`, `hide`. Delta-based API avoids stale state. |
 
 ### What was resolved (problems from original plan)
 
@@ -433,21 +435,41 @@ The existing `app/bequeathal/property/summary.tsx` becomes a thin wrapper too. I
 
 ### 3. NetWealthToast Component (`src/components/ui/NetWealthToast.tsx`)
 
-**Drop-down toast notification triggered when an asset is saved.**
+**Glassmorphic drop-down toast celebrating estate growth on every asset save.**
 
 Behaviour:
 1. Appears when any asset is saved (new or updated) and net estate value increases
-2. **Silent** when assets are deleted (value decreases) — no toast on deletion
-3. Drops down from top of screen (iOS notification banner style)
-4. Shows: "Net Estate Value" label + odometer-style number animation (old → new value)
-5. Stays for ~2.5 seconds
-6. Fades up and out
+2. **Silent** when assets are deleted (value decreases), when delta ≤ 0, or for trust-owned properties
+3. Drops down from top of screen with spring physics (iOS notification banner feel)
+4. Shows: "Your estate grew" label (warm brown, normal weight) + growing sprout icon + odometer-style number animation (old → new value)
+5. Stays for ~2.5s after odometer settles, then fades out over 250ms
+6. Micro-haptic feedback (`ImpactFeedbackStyle.Light`) on appearance
 
-Implementation notes:
-- Uses `react-native-reanimated` for smooth drop-down and fade-out
-- Digit-by-digit rolling animation for the number (odometer effect)
-- Triggered from asset entry save handlers via a context or event emitter
-- Must work regardless of which screen the user is on when saving
+Visual design:
+- **Frosted glass background** — `BlurView` (`intensity={80}`, `tint="light"`) + white overlay at 82% opacity, matching the `GlassMenu` language. No flat colours or hard shadows.
+- **Dissolving bottom edge** — 24px rounded corners with a thin 10px dissolve strip (15% white opacity) instead of a hard border. Toast fades into the screen.
+- **Growing sprout icon** — `MaterialCommunityIcons` `sprout` (20px, brand green) replaces the original `arrow-up-bold`. Animates with `scaleY` 0→1 + `scaleX` 0.8→1 via spring physics, anchored from the bottom. Triggers 150ms after toast drop-down to feel organic.
+- **Separated pound sign** — `£` rendered in `fontSize.lg`, normal weight, 70% opacity. Reads as a gentle prefix, not part of the mechanical counter.
+- **Digit styling** — `fontSize.xxl` (24px), semibold, navy, `tabular-nums`. `DIGIT_HEIGHT: 40` for generous breathing room.
+- **Soft settle glow** — each digit gets a `lightGreen` flash at 30% peak opacity with `borderRadius: 8` (not the hard `green` + `borderRadius: 4` of earlier iterations).
+
+Animation timing:
+- Spring drop-down: `damping: 20`, `stiffness: 200` (~300ms settle)
+- Digit roll: 1100ms per column, 80ms stagger left-to-right, cubic ease-out
+- Settle glow: 40ms ramp to 30% opacity, 200ms fade
+- Sprout growth: 150ms delay, then spring (`damping: 12`, `stiffness: 180`)
+- Hold: 2500ms after animation completes
+- Fade-out: 250ms opacity transition
+
+Rapid saves:
+- If a new save fires while the toast is visible, the hide timer is cleared. The odometer re-rolls from the current `toValue` to the new target. The sprout re-grows.
+
+Implementation:
+- `react-native-reanimated` for all animations (`withSpring`, `withTiming`, `withDelay`, `withSequence`, `useAnimatedStyle`, `runOnJS`)
+- `expo-blur` `BlurView` for frosted glass
+- `expo-haptics` for micro-celebration on appearance
+- `runOnJS` hide callback uses a stable `useCallback` reference (not a function-updater through `runOnJS`, which caused crashes in earlier iterations)
+- Defensive `typeof value === 'number' && !isNaN(value)` guards in `formatCurrency` and render state — prevents `toLocaleString of undefined` crashes from unexpected prop values
 
 ### 4. Intro Screen Changes
 
@@ -865,24 +887,67 @@ Changes per file:
 - No Mode A flash when navigating to estate dashboard with existing assets
 - 60fps target (Reanimated layout animations run on UI thread)
 
-### Phase 4: NetWealthToast
+### Phase 4: NetWealthToast — COMPLETED
 
-**Goal:** Build the drop-down odometer toast that animates on asset save.
+**Goal:** Build the glassmorphic drop-down odometer toast that celebrates estate growth on every asset save.
 
-**Deliverables:**
-1. `src/components/ui/NetWealthToast.tsx` — the animated toast component
-2. `src/context/NetWealthToastContext.tsx` — context provider for triggering the toast from anywhere
-3. Odometer digit-rolling animation using `react-native-reanimated`
-4. Drop-down from top, hold 2.5s, fade out
-5. Integration into asset entry save handlers (property first, then all others)
-6. Only triggers on net value increase; silent on decrease/deletion
+**Status:** Fully implemented and committed. All acceptance criteria met, plus significant design refinement through Steve Jobs review.
 
-**Acceptance criteria:**
-- Saving a new property triggers the toast
-- Number rolls from old value to new value
-- Toast appears regardless of which screen you're on
-- Deleting an asset does not trigger the toast
-- Animation is smooth (60fps)
+**What was delivered:**
+
+**Core components (items 1–2):**
+1. `src/components/ui/NetWealthToast.tsx` — animated toast component with:
+   - Frosted glass background (`BlurView` intensity 80, white overlay 82% opacity)
+   - Growing `sprout` icon (spring-animated scaleY/scaleX from 0, replaces original `arrow-up-bold`)
+   - "Your estate grew" label in `KindlingColors.brown`, `fontSize.md`, normal weight
+   - Odometer digit columns: `fontSize.xxl`, semibold, `DIGIT_HEIGHT: 40`, `tabular-nums`
+   - Separated `£` sign in lighter weight + 70% opacity
+   - Soft settle glow: `lightGreen` at 30% peak opacity, `borderRadius: 8`
+   - Dissolving bottom edge: 24px rounded corners + 10px dissolve strip
+   - Micro-haptic feedback on appearance
+2. `src/context/NetWealthToastContext.tsx` — global context with:
+   - `seedIfNeeded(bd: BequeathalData)` — called on estate dashboard mount, sets `lastNetValue` ref to current net estate (0 for new users, actual total for returning users)
+   - `notifySave(delta: number)` — accepts the net value change directly (not `BequeathalData`), avoiding stale-state issues from batched `setState`. Adds delta to `lastNetValue`, triggers toast if positive.
+   - `show(from, to)` — direct trigger for dev testing
+   - `hide()` — called by toast after fade-out animation completes
+
+**Animation tuning (items 3–4):**
+3. Odometer: 1100ms digit roll (up from initial 800ms), 80ms left-to-right stagger, cubic ease-out. Sprout grows 150ms after drop-down. Settle glow: 40ms ramp, 200ms fade.
+4. Lifecycle: spring drop-down (~300ms), 2500ms hold (up from initial 2000ms), 250ms fade-out.
+
+**Integration (items 5–6):**
+5. All 11 entry forms wired (`property/entry.tsx`, `property/trust-details.tsx`, + 9 others). Each computes a `delta` locally:
+   - New asset: `delta = estimatedValue` (or `estimatedValue - mortgage` for property)
+   - Edit: `delta = newEstimatedValue - oldEstimatedValue`
+   - Trust-owned property: `delta = 0` (trust assets excluded from net calculations)
+6. Estate dashboard seeds the context on mount via `useEffect` + `seedIfNeeded`
+7. Developer dashboard has two test buttons calling `show(from, to)` directly for isolated testing
+8. `_layout.tsx` wraps app with `NetWealthToastProvider`, renders `NetWealthToast` as sibling to `Stack` (global overlay on all screens)
+
+**Bugs found and fixed during implementation:**
+- **First save not triggering toast:** `bequeathalActions.getBequeathalData()` returned stale pre-save data due to batched `setState`. Fixed by changing `notifySave` API from `(bd: BequeathalData)` to `(delta: number)` — entry forms compute delta locally, bypassing stale global state entirely.
+- **Crash from `runOnJS` with function updater:** `runOnJS(setRenderState)((prev) => ...)` doesn't reliably handle arrow-function arguments in Reanimated. Fixed by extracting a stable `hideRenderState` callback via `useCallback`.
+- **`toLocaleString` of `undefined`:** Defensive guards added to `formatCurrency` and render state initialisation. Values validated as `typeof number && !isNaN` before use.
+- **`AssetCard` missing from barrel export:** `src/components/ui/index.ts` didn't re-export `AssetCard`, causing render crash in `CategorySummaryScreen`. Added the export.
+- **`CategorySummaryScreen` value crash:** Added `Array.isArray(assets)` guards and `?? 0` fallbacks on `totalValue`/`totalNet` render lines.
+
+**Design evolution (Steve Jobs review):**
+- Original design: flat cream background, bold `arrow-up-bold`, grey "Your estate" label, tight padding, hard bottom border — felt like "a banking app notification"
+- Final design: frosted glass, growing sprout, warm brown "Your estate grew", generous breathing room, dissolving edge — feels like "the app celebrating with you"
+- Timing extended: digit roll +300ms (800→1100ms), hold +500ms (2000→2500ms) for a more settled, confident feel
+
+**Key architectural decision — `notifySave(delta)` not `notifySave(bequeathalData)`:**
+The original API had each entry form call `toast.notifySave(bequeathalActions.getBequeathalData())` after `addAsset()`. Because `addAsset` uses React's batched `setState`, `getBequeathalData()` returns the pre-save closure value. This caused the toast to fire one save behind (first save silent, second save shows first asset's value). The fix: entry forms compute `delta = newValue - oldValue` using local form data (which is always current) and pass it directly. The context adds delta to its internal `lastNetValue` ref. This avoids reading stale global state entirely. `useAppState.ts` was NOT modified — the fix is entirely at the call site and context API level.
+
+**Acceptance criteria — all met:**
+- First-ever asset save triggers the toast (celebration for new users)
+- Number rolls from old value to new value via odometer animation
+- Toast appears regardless of which screen the user is on
+- Deleting an asset does not trigger the toast (delta ≤ 0 is silent)
+- Trust-owned properties are silent (delta = 0)
+- Rapid consecutive saves interrupt and re-roll (timer cleared, digits animate to new target)
+- Animation is smooth (Reanimated UI thread)
+- Dev dashboard buttons allow isolated testing of toast UI/animations
 
 ### Phase 5: Form Improvements
 
@@ -1013,8 +1078,8 @@ Changes per file:
 | `app/bequeathal/crypto-currency/summary.tsx` | 2 | **DONE** | Thin route file |
 | `app/bequeathal/agricultural-assets/summary.tsx` | 2 | **DONE** | Thin route file |
 | `native-app/planning/ESTATE_PHASE_1_2_TEST_PLAN.md` | 2 | **DONE** | Comprehensive test plan for Phases 1 and 2 |
-| `src/components/ui/NetWealthToast.tsx` | 4 | Pending | Odometer toast component |
-| `src/context/NetWealthToastContext.tsx` | 4 | Pending | Toast trigger context |
+| `src/components/ui/NetWealthToast.tsx` | 4 | **DONE** | Glassmorphic odometer toast (BlurView, growing sprout, soft glow, dissolving edge) |
+| `src/context/NetWealthToastContext.tsx` | 4 | **DONE** | Global toast context with `seedIfNeeded`, `notifySave(delta)`, `show`, `hide` |
 | `src/hooks/useDraftAutoSave.ts` | 5 | Pending | Auto-save hook |
 
 ### Existing files modified
@@ -1032,7 +1097,13 @@ Changes per file:
 | `app/bequeathal/categories.tsx` | 2 | **DONE** | Minimally patched to use new `bequeathalActions` API. Routes to `/estate-dashboard`. Still candidate for deletion in Phase 6. |
 | `src/components/ui/index.ts` | 1–2 | **DONE** | Exported `EstateCategoryCard`, `AssetCard`. |
 | `app/developer/dashboard.tsx` | 1 | **DONE** | Added Estate Dashboard + People Summary to quick nav dropdown. |
-| `app/bequeathal/*/entry.tsx` (all 10) | 4 | Pending | NetWealthToast integration. |
+| `app/bequeathal/*/entry.tsx` (all 10) | 4 | **DONE** | NetWealthToast integration — each computes `delta` locally and calls `toast.notifySave(delta)`. |
+| `app/bequeathal/property/trust-details.tsx` | 4 | **DONE** | Toast integration — passes `delta = 0` (trust assets excluded from net). |
+| `app/_layout.tsx` | 4 | **DONE** | Wrapped with `NetWealthToastProvider`, `AppContent` renders `NetWealthToast` as global overlay. |
+| `app/developer/dashboard.tsx` | 4 | **DONE** | Added two test buttons for isolated toast UI/animation testing. |
+| `app/estate-dashboard.tsx` | 4 | **DONE** | Seeds toast context on mount via `useEffect` + `seedIfNeeded`. |
+| `src/components/screens/CategorySummaryScreen.tsx` | 4 | **DONE** | Defensive guards: `Array.isArray`, `?? 0` fallbacks on value calculations. |
+| `src/components/ui/index.ts` | 4 | **DONE** | Added missing `AssetCard` + `AssetCardProps` export. |
 | `app/bequeathal/property/entry.tsx` | 5 | Pending | Auto-save, validation UX improvements. |
 
 ### Files to potentially delete (Phase 6)
@@ -1067,12 +1138,18 @@ Non-obvious decisions that would confuse a developer encountering this plan fres
 | All slug values humanised via formatters | User feedback: "show my life, not your database." Every raw type slug (e.g. `isa-stocks-shares`) is mapped to human text (e.g. "Stocks & Shares ISA") before reaching the UI. |
 | `isBequeathalHydrated` gates estate dashboard content | `useAsyncStorageState` initialises with empty defaults before AsyncStorage loads. Without gating, Mode A flashes briefly before Mode B on navigation. Exposed `isInitialized` as third tuple element — data-driven signal, no timing heuristics. |
 | Spring config `damping(50).stiffness(300)` not `(18)/(150)` | Initial damped spring was too slow — blocked rapid tapping during animation settle. Increased stiffness and damping together for faster completion (~200ms) with no perceptible overshoot. |
+| `notifySave(delta)` not `notifySave(bequeathalData)` | `addAsset` uses batched `setState`. Calling `getBequeathalData()` immediately after returns stale pre-save data. Entry forms compute delta locally (always current), context adds delta to its ref. Avoids stale global state entirely. `useAppState.ts` untouched. |
+| Growing sprout icon, not arrow | `arrow-up-bold` felt like a stock ticker. `sprout` carries the Kindling brand metaphor (nurturing growth) and animates organically via spring `scaleY`. |
+| Frosted glass toast, not flat cream | Flat `cream` background with hard borders felt like a banking notification. `BlurView` glass matches `GlassMenu` design language and feels ephemeral/celebratory. |
+| `runOnJS` with stable callback, not function updater | Passing `(prev) => ({...prev, show: false})` through `runOnJS(setRenderState)` caused crashes — Reanimated doesn't reliably handle function-updater arguments across the JS/native bridge. Extracted `hideRenderState` via `useCallback`. |
 
 ---
 
 ## Dependencies
 
-- `react-native-reanimated` — already installed, used for NetWealthToast odometer and category selection animations
+- `react-native-reanimated` — already installed, used for NetWealthToast odometer/sprout animations and category selection animations
+- `expo-blur` — already installed, used for NetWealthToast frosted glass background (matching GlassMenu)
+- `expo-haptics` — already installed, used for NetWealthToast micro-celebration on appearance
 - `@react-native-async-storage/async-storage` — already installed, used for draft persistence
 - `@gorhom/bottom-sheet` — already installed, used for "Add something else" tray
 - No new dependencies required
@@ -1086,9 +1163,9 @@ Non-obvious decisions that would confuse a developer encountering this plan fres
 | 1 | Static UI Prototype (both modes) | Small — 1 screen + 1 component with dummy data | **COMPLETED** |
 | 2 | Data Model + Navigation + Summary Screens + Entry Form Fix | Large — types, state, routing, generic summary, asset card, 9 route files, field config, 9 entry form refactors, visual polish | **COMPLETED** |
 | 3 | Category Selection Animation | Small — reduced scope after review: float-to-top reorder + enter/exit fade, single file | **COMPLETED** |
-| 4 | NetWealthToast | Medium — animation component + context | Pending |
+| 4 | NetWealthToast | Medium — animation component + context + 11 entry form integrations + bug fixes + design refinement | **COMPLETED** |
 | 5 | Form Improvements | Medium — auto-save hook, validation UX (note: useEffect/back-button issues already fixed in Phase 2) | Pending |
 | 6 | Cleanup | Small — audit and delete legacy code | Pending |
 
 **Total:** ~17 new files, ~20 modified files, across 6 phases.
-**Delivered so far:** 15 new files created, ~25 files modified (Phases 1 + 2 + 3, including bonus work).
+**Delivered so far:** 17 new files created, ~30 files modified (Phases 1 + 2 + 3 + 4, including bonus work and bug fixes).
