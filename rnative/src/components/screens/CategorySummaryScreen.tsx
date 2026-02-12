@@ -13,7 +13,7 @@
  */
 
 import React, { useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -186,24 +186,15 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
                 Add another
               </Button>
 
-              {/* That's everything — quiet exit to estate dashboard */}
-              <TouchableOpacity
+              {/* That's everything — secondary button, exit to estate dashboard */}
+              <Button
                 onPress={handleMarkComplete}
+                variant="outline"
+                icon="check"
                 style={styles.completeButton}
-                activeOpacity={0.6}
               >
-                <MaterialCommunityIcons
-                  name="check"
-                  size={16}
-                  color={isComplete ? KindlingColors.green : KindlingColors.brown}
-                />
-                <Text style={[
-                  styles.completeText,
-                  isComplete && styles.completeTextDone,
-                ]}>
-                  {isComplete ? "All done — back to estate" : "That's everything"}
-                </Text>
-              </TouchableOpacity>
+                {isComplete ? "All added" : "That's everything"}
+              </Button>
             </>
           )}
         </View>
@@ -374,21 +365,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
 
-  // "That's everything" — quiet ghost link
   completeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    paddingVertical: Spacing.md,
     marginTop: Spacing.sm,
-  },
-  completeText: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.medium,
-    color: KindlingColors.brown,
-  },
-  completeTextDone: {
-    color: KindlingColors.green,
   },
 });
