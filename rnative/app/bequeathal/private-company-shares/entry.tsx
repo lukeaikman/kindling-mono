@@ -8,10 +8,12 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Input, CurrencyInput, Select, RadioGroup } from '../../../src/components/ui';
+import { Button, BackButton, Input, CurrencyInput, Select, RadioGroup, DraftBanner, ValidationAttentionButton } from '../../../src/components/ui';
 import { AddPersonDialog, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
+import { useDraftAutoSave } from '../../../src/hooks/useDraftAutoSave';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import { validatePercentageAllocation } from '../../../src/utils/beneficiaryHelpers';
@@ -44,6 +46,7 @@ export default function PrivateCompanySharesEntryScreen() {
   const params = useLocalSearchParams();
   const editingAssetId = params.id as string | undefined;
   const loadedIdRef = useRef<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [ownershipMode, setOwnershipMode] = useState<'percentage' | 'shares'>('percentage');
   const [formData, setFormData] = useState<ShareForm>({
@@ -66,6 +69,51 @@ export default function PrivateCompanySharesEntryScreen() {
   });
   const [valueNotSure, setValueNotSure] = useState(false);
   const [companySelection, setCompanySelection] = useState<string>('__NEW__');
+
+  // Draft auto-save
+  const initialFormData = useRef<ShareForm>(formData).current;
+  const isFormLoaded = editingAssetId ? loadedIdRef.current === editingAssetId : true;
+
+  const { hasDraft, hasChanges, restoreDraft, discardDraft } = useDraftAutoSave<ShareForm>({
+    category: 'private-company-shares',
+    assetId: editingAssetId || null,
+    formData,
+    isLoaded: isFormLoaded,
+    initialData: initialFormData,
+  });
+
+  const draftRestoredRef = useRef(false);
+  useEffect(() => {
+    if (hasDraft && !draftRestoredRef.current) {
+      const draft = restoreDraft();
+      if (draft) {
+        setFormData(draft);
+        draftRestoredRef.current = true;
+        // Prevent the load-from-store effect from overwriting the restored draft
+        if (editingAssetId) {
+          loadedIdRef.current = editingAssetId;
+        }
+      }
+    }
+  }, [hasDraft, restoreDraft, editingAssetId]);
+
+  const handleDiscardDraft = async () => {
+    await discardDraft();
+    if (editingAssetId) {
+      loadedIdRef.current = null;
+    } else {
+      setFormData(initialFormData);
+    }
+    draftRestoredRef.current = false;
+  };
+
+  const { attentionLabel, triggerValidation } = useFormValidation({
+    fields: [
+      { key: 'companyName', label: 'Company name', isValid: !!formData.companyName.trim() },
+    ],
+    scrollViewRef,
+  });
+
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
@@ -282,6 +330,9 @@ export default function PrivateCompanySharesEntryScreen() {
       : 0;
     toast.notifySave(estimatedValue - oldAssetValue);
 
+    // Clear draft on successful save
+    discardDraft();
+
     router.push(SUMMARY_ROUTE as any);
   };
 
@@ -314,11 +365,20 @@ export default function PrivateCompanySharesEntryScreen() {
 
       {/* Content */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
+          {/* Draft Banner */}
+          <DraftBanner
+            categoryLabel="shareholding"
+            isEditing={!!editingAssetId}
+            onDiscard={handleDiscardDraft}
+            visible={hasDraft}
+          />
+
           {/* Add/Edit Share Form */}
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>
@@ -653,6 +713,7 @@ export default function PrivateCompanySharesEntryScreen() {
             >
               {editingAssetId ? 'Save changes' : 'Add this shareholding'}
             </Button>
+            <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
           </View>
         </View>
       </ScrollView>

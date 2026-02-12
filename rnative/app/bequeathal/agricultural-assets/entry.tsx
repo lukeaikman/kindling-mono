@@ -8,9 +8,11 @@ import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Select, Input, CurrencyInput, RadioGroup, SearchableSelect } from '../../../src/components/ui';
+import { Button, BackButton, Select, Input, CurrencyInput, RadioGroup, SearchableSelect, DraftBanner, ValidationAttentionButton } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
+import { useDraftAutoSave } from '../../../src/hooks/useDraftAutoSave';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import type { AgriculturalAsset } from '../../../src/types';
@@ -42,6 +44,7 @@ export default function AgriculturalAssetsEntryScreen() {
   const params = useLocalSearchParams();
   const editingAssetId = params.id as string | undefined;
   const loadedIdRef = useRef<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [showCompanyWarning, setShowCompanyWarning] = useState(false);
   const [formData, setFormData] = useState<AssetForm>({
@@ -63,6 +66,53 @@ export default function AgriculturalAssetsEntryScreen() {
     notes: '',
   });
   const [valueNotSure, setValueNotSure] = useState(false);
+
+  // Draft auto-save
+  const initialFormData = useRef<AssetForm>(formData).current;
+  const isFormLoaded = editingAssetId ? loadedIdRef.current === editingAssetId : true;
+
+  const { hasDraft, hasChanges, restoreDraft, discardDraft } = useDraftAutoSave<AssetForm>({
+    category: 'agricultural-assets',
+    assetId: editingAssetId || null,
+    formData,
+    isLoaded: isFormLoaded,
+    initialData: initialFormData,
+  });
+
+  const draftRestoredRef = useRef(false);
+  useEffect(() => {
+    if (hasDraft && !draftRestoredRef.current) {
+      const draft = restoreDraft();
+      if (draft) {
+        setFormData(draft);
+        draftRestoredRef.current = true;
+        // Prevent the load-from-store effect from overwriting the restored draft
+        if (editingAssetId) {
+          loadedIdRef.current = editingAssetId;
+        }
+      }
+    }
+  }, [hasDraft, restoreDraft, editingAssetId]);
+
+  const handleDiscardDraft = async () => {
+    await discardDraft();
+    if (editingAssetId) {
+      loadedIdRef.current = null; // Force reload
+    } else {
+      setFormData(initialFormData);
+    }
+    draftRestoredRef.current = false;
+  };
+
+  const { attentionLabel, triggerValidation } = useFormValidation({
+    fields: [
+      { key: 'aprOwnershipStructure', label: 'Ownership structure', isValid: !!formData.aprOwnershipStructure },
+      { key: 'assetType', label: 'Asset type', isValid: !!formData.assetType },
+      { key: 'assetDescription', label: 'Asset description', isValid: !!formData.assetDescription.trim() },
+      { key: 'hasDebtsEncumbrances', label: 'Debts/encumbrances', isValid: !!formData.hasDebtsEncumbrances },
+    ],
+    scrollViewRef,
+  });
 
   // Asset type options (grouped)
   const assetTypeOptions = [
@@ -284,6 +334,9 @@ export default function AgriculturalAssetsEntryScreen() {
       : 0;
     toast.notifySave(estimatedValue - oldAssetValue);
 
+    // Clear draft on successful save
+    discardDraft();
+
     router.push(SUMMARY_ROUTE as any);
   };
 
@@ -324,11 +377,20 @@ export default function AgriculturalAssetsEntryScreen() {
 
       {/* Content */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
+          {/* Draft Banner */}
+          <DraftBanner
+            categoryLabel="agricultural asset"
+            isEditing={!!editingAssetId}
+            onDiscard={handleDiscardDraft}
+            visible={hasDraft}
+          />
+
           {/* Add/Edit Form */}
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>
@@ -584,6 +646,7 @@ export default function AgriculturalAssetsEntryScreen() {
                   >
                     {editingAssetId ? 'Save changes' : 'Add this asset'}
                   </Button>
+                  <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
                 </View>
               </>
             )}

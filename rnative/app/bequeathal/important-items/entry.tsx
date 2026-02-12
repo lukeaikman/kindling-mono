@@ -14,9 +14,10 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Input, CurrencyInput } from '../../../src/components/ui';
+import { Button, BackButton, Input, CurrencyInput, ValidationAttentionButton } from '../../../src/components/ui';
 import { AddPersonDialog, MultiBeneficiarySelector, BeneficiarySelection, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
@@ -37,6 +38,7 @@ export default function ImportantItemsEntryScreen() {
   const params = useLocalSearchParams();
   const editingAssetId = params.id as string | undefined;
   const loadedIdRef = useRef<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [formData, setFormData] = useState<ImportantItemForm>({
     title: '',
@@ -45,6 +47,15 @@ export default function ImportantItemsEntryScreen() {
   });
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
+
+  const { attentionLabel, triggerValidation } = useFormValidation({
+    fields: [
+      { key: 'title', label: 'Title', isValid: !!formData.title.trim() },
+      { key: 'beneficiaries', label: 'Beneficiaries', isValid: formData.beneficiaries.length > 0 },
+      { key: 'estimatedValue', label: 'Estimated Value', isValid: formData.estimatedValue > 0 },
+    ],
+    scrollViewRef,
+  });
 
   // Get will-maker ID to exclude from beneficiary selection
   const willMaker = willActions.getUser();
@@ -165,6 +176,7 @@ export default function ImportantItemsEntryScreen() {
 
       {/* Content */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
@@ -212,6 +224,7 @@ export default function ImportantItemsEntryScreen() {
             >
               {editingAssetId ? 'Save changes' : 'Add this item'}
             </Button>
+            <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
           </View>
         </View>
       </ScrollView>

@@ -14,10 +14,12 @@ import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Input, Select, RadioGroup, Checkbox, CurrencyInput, PercentageInput } from '../../../src/components/ui';
+import { Button, BackButton, Input, Select, RadioGroup, Checkbox, CurrencyInput, PercentageInput, DraftBanner, ValidationAttentionButton } from '../../../src/components/ui';
 import { AddPersonDialog, BeneficiaryWithPercentages, MultiBeneficiarySelector } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
+import { useDraftAutoSave } from '../../../src/hooks/useDraftAutoSave';
 import { PropertyAsset, Trust, TrustType } from '../../../src/types';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
@@ -251,12 +253,61 @@ export default function PropertyTrustDetailsScreen() {
   const [bareCoBeneficiaries, setBareCoBeneficiaries] = useState<BeneficiaryAssignment[]>([]);
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   
   // Helper text visibility state for remainderman fields
   const [showRemaindermanHelper, setShowRemaindermanHelper] = useState<Record<string, boolean>>({});
 
   // Load existing trust data if trustId provided (Rule 4a pattern)
   const loadedTrustIdRef = useRef<string | null>(null);
+
+  // Initial defaults (used by draft auto-save to detect changes)
+  const initialTrustData = useRef<TrustData>(trustData).current;
+  const isTrustFormLoaded = trustId ? loadedTrustIdRef.current === trustId : true;
+
+  // Draft auto-save
+  const { hasDraft: hasTrustDraft, hasChanges: hasTrustChanges, restoreDraft: restoreTrustDraft, discardDraft: discardTrustDraft } = useDraftAutoSave<TrustData>({
+    category: 'property-trust',
+    assetId: trustId || propertyId || null,
+    formData: trustData,
+    isLoaded: isTrustFormLoaded,
+    initialData: initialTrustData,
+  });
+
+  // Auto-restore draft on mount
+  const trustDraftRestoredRef = useRef(false);
+  useEffect(() => {
+    if (hasTrustDraft && !trustDraftRestoredRef.current) {
+      const draft = restoreTrustDraft();
+      if (draft) {
+        setTrustData(draft);
+        trustDraftRestoredRef.current = true;
+        // Prevent the load-from-store effect from overwriting the restored draft
+        if (trustId) {
+          loadedTrustIdRef.current = trustId;
+        }
+      }
+    }
+  }, [hasTrustDraft, restoreTrustDraft, trustId]);
+
+  const handleDiscardTrustDraft = async () => {
+    await discardTrustDraft();
+    if (trustId) {
+      loadedTrustIdRef.current = null; // Force reload
+    } else {
+      setTrustData(initialTrustData);
+    }
+    trustDraftRestoredRef.current = false;
+  };
+
+  const { attentionLabel, triggerValidation } = useFormValidation({
+    fields: [
+      { key: 'trustName', label: 'Trust name', isValid: !!trustData.trustName },
+      { key: 'trustType', label: 'Trust type', isValid: !!trustData.trustType },
+      { key: 'trustRole', label: 'Trust role', isValid: trustData.trustType === 'other' || !!trustData.trustRole },
+    ],
+    scrollViewRef,
+  });
 
   useEffect(() => {
     if (!trustId) {
@@ -2512,6 +2563,9 @@ export default function PropertyTrustDetailsScreen() {
     // so delta is 0 — silent on the toast.
     toast.notifySave(0);
     
+    // Clear draft on successful save
+    discardTrustDraft();
+
     router.push('/bequeathal/property/summary');
   };
 
@@ -2530,12 +2584,21 @@ export default function PropertyTrustDetailsScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView 
+      <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView} 
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
+          {/* Draft Banner */}
+          <DraftBanner
+            categoryLabel="trust details"
+            isEditing={!!trustId}
+            onDiscard={handleDiscardTrustDraft}
+            visible={hasTrustDraft}
+          />
+
           <Text style={styles.introText}>
             Property held in trust requires additional details for accurate estate planning and tax calculations.
           </Text>
@@ -2626,6 +2689,7 @@ export default function PropertyTrustDetailsScreen() {
         >
           Save Trust Details
         </Button>
+        <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
       </View>
     </SafeAreaView>
   );

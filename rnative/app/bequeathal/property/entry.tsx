@@ -15,11 +15,13 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Accordion, Input, Select, Checkbox, CurrencyInput, Switch, PercentageInput, RadioGroup } from '../../../src/components/ui';
+import { Button, BackButton, Accordion, Input, Select, Checkbox, CurrencyInput, Switch, PercentageInput, RadioGroup, DraftBanner, ValidationAttentionButton, FieldError, FIELD_ERROR_BORDER_COLOR } from '../../../src/components/ui';
 import { SearchableSelect } from '../../../src/components/ui/SearchableSelect';
 import { AddPersonDialog, BeneficiaryWithPercentages } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
+import { useDraftAutoSave } from '../../../src/hooks/useDraftAutoSave';
+import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import type { PropertyAsset, BeneficiaryAssignment, PrivateCompanySharesAsset } from '../../../src/types';
@@ -130,6 +132,9 @@ export default function PropertyEntryScreen() {
   const params = useLocalSearchParams();
   const editingPropertyId = params.id as string | undefined;
 
+  // ScrollView ref for validation scroll-to-top
+  const scrollViewRef = useRef<ScrollView>(null);
+
   // Accordion expansion state (only one open at a time)
   const [expandedAccordion, setExpandedAccordion] = useState<string>('address');
 
@@ -207,6 +212,50 @@ export default function PropertyEntryScreen() {
   });
 
   const [companySelection, setCompanySelection] = useState<string>('');
+
+  // Initial defaults (used by draft auto-save to detect changes)
+  const initialPropertyData = useRef<PropertyData>(propertyData).current;
+  const isFormLoaded = editingPropertyId ? loadedPropertyIdRef.current === editingPropertyId : true;
+
+  // Draft auto-save
+  const { hasDraft, hasChanges, restoreDraft, discardDraft } = useDraftAutoSave<PropertyData>({
+    category: 'property',
+    assetId: editingPropertyId || null,
+    formData: propertyData,
+    isLoaded: isFormLoaded,
+    initialData: initialPropertyData,
+  });
+
+  // Auto-restore draft on mount
+  const draftRestoredRef = useRef(false);
+  useEffect(() => {
+    if (hasDraft && !draftRestoredRef.current) {
+      const draft = restoreDraft();
+      if (draft) {
+        setPropertyData(draft);
+        draftRestoredRef.current = true;
+        // Prevent the load-from-store effect from overwriting the restored draft
+        if (editingPropertyId) {
+          loadedPropertyIdRef.current = editingPropertyId;
+        }
+      }
+    }
+  }, [hasDraft, restoreDraft, editingPropertyId]);
+
+  const handleDiscardDraft = async () => {
+    await discardDraft();
+    if (editingPropertyId) {
+      // Revert to last-saved asset state
+      const asset = bequeathalActions.getAssetById(editingPropertyId) as PropertyAsset | undefined;
+      if (asset) {
+        loadedPropertyIdRef.current = null; // Force reload
+      }
+    } else {
+      // Reset to blank defaults
+      setPropertyData(initialPropertyData);
+    }
+    draftRestoredRef.current = false;
+  };
 
   const companyOptions = [
     ...businessActions.getBusinesses().map(business => ({
@@ -413,6 +462,22 @@ export default function PropertyEntryScreen() {
            propertyData.fhlLongLetsUnder155Days;
   };
 
+  // Validation
+  const { invalidCount, showErrors, triggerValidation, fieldErrors, attentionLabel } = useFormValidation({
+    fields: [
+      { key: 'address1', label: 'Address Line 1', isValid: !!propertyData.address1 },
+      { key: 'townCity', label: 'Town/City', isValid: !!propertyData.townCity },
+      { key: 'country', label: 'Country', isValid: !!propertyData.country },
+      { key: 'ownershipType', label: 'Ownership Type', isValid: !!propertyData.ownershipType },
+      { key: 'estimatedValue', label: 'Estimated Value', isValid: propertyData.estimatedValue > 0 },
+      { key: 'mortgageProvider', label: 'Mortgage Provider', isValid: !!propertyData.mortgageProvider },
+      { key: 'usage', label: 'Usage', isValid: !!propertyData.usage },
+      { key: 'propertyType', label: 'Property Type', isValid: !!propertyData.propertyType },
+      { key: 'beneficiaries', label: 'Beneficiaries', isValid: isTrustOwned() || beneficiaries.length > 0 },
+    ],
+    scrollViewRef,
+  });
+
   // Net value calculation
   const getNetValue = () => {
     const value = propertyData.estimatedValue || 0;
@@ -497,6 +562,9 @@ export default function PropertyEntryScreen() {
         savedPropertyId = bequeathalActions.addAsset('property', propertyAsset as any);
       }
       
+      // Clear draft on successful save
+      discardDraft();
+
       // Navigate to trust details with propertyId
       // If property has trustId, also pass it for editing
       const property = bequeathalActions.getAssetById(savedPropertyId) as PropertyAsset;
@@ -669,6 +737,9 @@ export default function PropertyEntryScreen() {
       toast.notifySave(newPropertyNet);
     }
     
+    // Clear draft on successful save
+    discardDraft();
+
     // Navigate to summary
     router.push('/bequeathal/property/summary');
   };
@@ -689,11 +760,20 @@ export default function PropertyEntryScreen() {
 
       {/* Accordion Content */}
       <ScrollView 
+        ref={scrollViewRef}
         style={styles.scrollView} 
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
+          {/* Draft Banner */}
+          <DraftBanner
+            categoryLabel="property"
+            isEditing={!!editingPropertyId}
+            onDiscard={handleDiscardDraft}
+            visible={hasDraft}
+          />
+
           <View style={styles.accordionContainer}>
             {/* Accordion 1: Address (Always) */}
             <Accordion
@@ -703,12 +783,16 @@ export default function PropertyEntryScreen() {
               onExpandedChange={(expanded) => setExpandedAccordion(expanded ? 'address' : '')}
             >
               <View style={styles.accordionContent}>
-                <Input
-                  label="Address Line 1 *"
-                  placeholder="Enter first line of address..."
-                  value={propertyData.address1}
-                  onChangeText={(value) => updatePropertyData('address1', value)}
-                />
+                <View>
+                  <Input
+                    label="Address Line 1 *"
+                    placeholder="Enter first line of address..."
+                    value={propertyData.address1}
+                    onChangeText={(value) => updatePropertyData('address1', value)}
+                    style={showErrors && fieldErrors.address1 ? { borderColor: FIELD_ERROR_BORDER_COLOR } : undefined}
+                  />
+                  <FieldError visible={showErrors && fieldErrors.address1} />
+                </View>
 
                 <Input
                   label="Address Line 2"
@@ -717,12 +801,16 @@ export default function PropertyEntryScreen() {
                   onChangeText={(value) => updatePropertyData('address2', value)}
                 />
 
-                <Input
-                  label="Town/City *"
-                  placeholder="Enter town or city..."
-                  value={propertyData.townCity}
-                  onChangeText={(value) => updatePropertyData('townCity', value)}
-                />
+                <View>
+                  <Input
+                    label="Town/City *"
+                    placeholder="Enter town or city..."
+                    value={propertyData.townCity}
+                    onChangeText={(value) => updatePropertyData('townCity', value)}
+                    style={showErrors && fieldErrors.townCity ? { borderColor: FIELD_ERROR_BORDER_COLOR } : undefined}
+                  />
+                  <FieldError visible={showErrors && fieldErrors.townCity} />
+                </View>
 
                 <Input
                   label="County/State"
@@ -1462,24 +1550,25 @@ export default function PropertyEntryScreen() {
 
           {/* Save Button at bottom of scroll content */}
           <View style={styles.saveButtonContainer}>
-        <Button 
-          onPress={handleSave}
-          variant="primary"
-          disabled={
-            !propertyData.address1 ||
-            !propertyData.townCity ||
-            !propertyData.country ||
-            !propertyData.usage ||
-            !propertyData.propertyType ||
-            propertyData.estimatedValue === 0 ||
-            !propertyData.ownershipType ||
-            !propertyData.mortgageProvider ||
-            (isTrustOwned() ? false : beneficiaries.length === 0)
-          }
-        >
-            Save Property
-        </Button>
-      </View>
+            <Button 
+              onPress={handleSave}
+              variant="primary"
+              disabled={
+                !propertyData.address1 ||
+                !propertyData.townCity ||
+                !propertyData.country ||
+                !propertyData.usage ||
+                !propertyData.propertyType ||
+                propertyData.estimatedValue === 0 ||
+                !propertyData.ownershipType ||
+                !propertyData.mortgageProvider ||
+                (isTrustOwned() ? false : beneficiaries.length === 0)
+              }
+            >
+              Save Property
+            </Button>
+            <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
+          </View>
         </View>
       </ScrollView>
       <AddPersonDialog

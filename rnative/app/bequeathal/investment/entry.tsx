@@ -8,9 +8,10 @@ import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Select, Input, CurrencyInput } from '../../../src/components/ui';
+import { Button, BackButton, Select, Input, CurrencyInput, ValidationAttentionButton } from '../../../src/components/ui';
 import { AddPersonDialog, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
@@ -63,6 +64,16 @@ export default function InvestmentsEntryScreen() {
 
   // Load existing asset for edit mode
   const loadedIdRef = useRef<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const { attentionLabel, triggerValidation } = useFormValidation({
+    fields: [
+      { key: 'provider', label: 'Provider', isValid: !!formData.provider.trim() },
+      { key: 'beneficiaries', label: 'Beneficiaries', isValid: formData.beneficiaries.length > 0 },
+    ],
+    scrollViewRef,
+  });
+
   useEffect(() => {
     if (!editingAssetId || loadedIdRef.current === editingAssetId) return;
     loadedIdRef.current = editingAssetId;
@@ -173,6 +184,7 @@ export default function InvestmentsEntryScreen() {
 
       {/* Content */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
@@ -261,6 +273,7 @@ export default function InvestmentsEntryScreen() {
               >
                 {editingAssetId ? 'Save changes' : 'Add this investment'}
               </Button>
+              <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
             </View>
           </View>
         </View>

@@ -15,9 +15,11 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Select, Input, CurrencyInput, SearchableSelect } from '../../../src/components/ui';
+import { Button, BackButton, Select, Input, CurrencyInput, SearchableSelect, DraftBanner, ValidationAttentionButton } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
+import { useDraftAutoSave } from '../../../src/hooks/useDraftAutoSave';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import type { BankAccountAsset } from '../../../src/types';
@@ -41,6 +43,7 @@ export default function BankAccountsEntryScreen() {
   const params = useLocalSearchParams();
   const editingAssetId = params.id as string | undefined;
   const loadedIdRef = useRef<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [formData, setFormData] = useState<BankAccountForm>({
     bankName: '',
@@ -53,6 +56,51 @@ export default function BankAccountsEntryScreen() {
     notes: '',
   });
   const [balanceNotSure, setBalanceNotSure] = useState(false);
+
+  // Draft auto-save
+  const initialFormData = useRef<BankAccountForm>(formData).current;
+  const isFormLoaded = editingAssetId ? loadedIdRef.current === editingAssetId : true;
+
+  const { hasDraft, hasChanges, restoreDraft, discardDraft } = useDraftAutoSave<BankAccountForm>({
+    category: 'bank-accounts',
+    assetId: editingAssetId || null,
+    formData,
+    isLoaded: isFormLoaded,
+    initialData: initialFormData,
+  });
+
+  const draftRestoredRef = useRef(false);
+  useEffect(() => {
+    if (hasDraft && !draftRestoredRef.current) {
+      const draft = restoreDraft();
+      if (draft) {
+        setFormData(draft);
+        draftRestoredRef.current = true;
+        // Prevent the load-from-store effect from overwriting the restored draft
+        if (editingAssetId) {
+          loadedIdRef.current = editingAssetId;
+        }
+      }
+    }
+  }, [hasDraft, restoreDraft, editingAssetId]);
+
+  const handleDiscardDraft = async () => {
+    await discardDraft();
+    if (editingAssetId) {
+      loadedIdRef.current = null;
+    } else {
+      setFormData(initialFormData);
+    }
+    draftRestoredRef.current = false;
+  };
+
+  const { attentionLabel, triggerValidation } = useFormValidation({
+    fields: [
+      { key: 'bankName', label: 'Bank name', isValid: !!formData.bankName },
+      { key: 'nonUkBankName', label: 'Non-UK bank name', isValid: formData.bankName !== 'Non UK Bank' || !!formData.nonUkBankName },
+    ],
+    scrollViewRef,
+  });
 
   // UK Bank Providers
   const bankProviders = [
@@ -202,6 +250,9 @@ export default function BankAccountsEntryScreen() {
       : 0;
     toast.notifySave(estimatedValue - oldAssetValue);
 
+    // Clear draft on successful save
+    discardDraft();
+
     router.push(SUMMARY_ROUTE as any);
   };
 
@@ -233,11 +284,20 @@ export default function BankAccountsEntryScreen() {
 
       {/* Content */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
+          {/* Draft Banner */}
+          <DraftBanner
+            categoryLabel="bank account"
+            isEditing={!!editingAssetId}
+            onDiscard={handleDiscardDraft}
+            visible={hasDraft}
+          />
+
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>
               {editingAssetId ? 'Update the details below.' : 'Add a bank account.'}
@@ -380,6 +440,7 @@ export default function BankAccountsEntryScreen() {
             >
               {editingAssetId ? 'Save changes' : 'Add this account'}
             </Button>
+            <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
           </View>
         </View>
       </ScrollView>

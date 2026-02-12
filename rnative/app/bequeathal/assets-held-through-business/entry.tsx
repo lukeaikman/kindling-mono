@@ -11,8 +11,9 @@ import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Select, Input, CurrencyInput, SearchableSelect } from '../../../src/components/ui';
+import { Button, BackButton, Select, Input, CurrencyInput, SearchableSelect, ValidationAttentionButton } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
@@ -36,6 +37,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
   const params = useLocalSearchParams();
   const editingAssetId = params.id as string | undefined;
   const loadedIdRef = useRef<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [selectedBusinessId, setSelectedBusinessId] = useState<string>('');
   const [selectedBusinessName, setSelectedBusinessName] = useState<string>('');
@@ -49,6 +51,15 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
     estimatedValue: 0,
   });
   const [valueNotSure, setValueNotSure] = useState(false);
+
+  const { attentionLabel, triggerValidation } = useFormValidation({
+    fields: [
+      { key: 'businessId', label: 'Business', isValid: !!selectedBusinessId },
+      { key: 'assetType', label: 'Asset Type', isValid: !!formData.assetType },
+      { key: 'assetDescription', label: 'Asset Description', isValid: !!formData.assetDescription.trim() },
+    ],
+    scrollViewRef,
+  });
 
   // Asset type options (grouped)
   const assetTypeOptions = [
@@ -227,6 +238,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
 
       {/* Content */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
@@ -365,6 +377,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
                 >
                   {editingAssetId ? 'Save changes' : 'Add this asset'}
                 </Button>
+                <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
               </View>
             </>
           )}

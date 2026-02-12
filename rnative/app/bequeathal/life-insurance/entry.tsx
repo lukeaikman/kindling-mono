@@ -21,10 +21,12 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, SearchableSelect, Select, RadioGroup, CurrencyInput } from '../../../src/components/ui';
+import { Button, BackButton, SearchableSelect, Select, RadioGroup, CurrencyInput, DraftBanner, ValidationAttentionButton } from '../../../src/components/ui';
 import { AddPersonDialog, PersonSelector, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
+import { useDraftAutoSave } from '../../../src/hooks/useDraftAutoSave';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import { validatePercentageAllocation } from '../../../src/utils/beneficiaryHelpers';
@@ -66,9 +68,60 @@ export default function LifeInsuranceEntryScreen() {
   const [addPersonContext, setAddPersonContext] = useState<'lifeAssured' | 'beneficiaries'>('beneficiaries');
   const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Load existing asset data when editing
   const loadedIdRef = useRef<string | null>(null);
+
+  // Draft auto-save
+  const initialFormData = useRef<LifeInsuranceForm>(formData).current;
+  const isFormLoaded = editingAssetId ? loadedIdRef.current === editingAssetId : true;
+
+  const { hasDraft, hasChanges, restoreDraft, discardDraft } = useDraftAutoSave<LifeInsuranceForm>({
+    category: 'life-insurance',
+    assetId: editingAssetId || null,
+    formData,
+    isLoaded: isFormLoaded,
+    initialData: initialFormData,
+  });
+
+  const draftRestoredRef = useRef(false);
+  useEffect(() => {
+    if (hasDraft && !draftRestoredRef.current) {
+      const draft = restoreDraft();
+      if (draft) {
+        setFormData(draft);
+        draftRestoredRef.current = true;
+        // Prevent the load-from-store effect from overwriting the restored draft
+        if (editingAssetId) {
+          loadedIdRef.current = editingAssetId;
+        }
+      }
+    }
+  }, [hasDraft, restoreDraft, editingAssetId]);
+
+  const handleDiscardDraft = async () => {
+    await discardDraft();
+    if (editingAssetId) {
+      loadedIdRef.current = null;
+    } else {
+      setFormData(initialFormData);
+    }
+    draftRestoredRef.current = false;
+  };
+
+  const { attentionLabel, triggerValidation } = useFormValidation({
+    fields: [
+      { key: 'provider', label: 'Provider', isValid: !!formData.provider.trim() },
+      { key: 'lifeAssured', label: 'Life assured', isValid: !!formData.lifeAssured },
+      { key: 'sumInsured', label: 'Sum insured', isValid: formData.sumInsured > 0 },
+      { key: 'policyType', label: 'Policy type', isValid: !!formData.policyType },
+      { key: 'heldInTrust', label: 'Held in trust', isValid: !!formData.heldInTrust },
+      { key: 'premiumStatus', label: 'Premium status', isValid: !!formData.premiumStatus },
+    ],
+    scrollViewRef,
+  });
+
   useEffect(() => {
     if (!editingAssetId || loadedIdRef.current === editingAssetId) return;
     loadedIdRef.current = editingAssetId;
@@ -209,6 +262,9 @@ export default function LifeInsuranceEntryScreen() {
       : 0;
     toast.notifySave(formData.sumInsured - oldAssetValue);
 
+    // Clear draft on successful save
+    discardDraft();
+
     router.push(SUMMARY_ROUTE as any);
   };
 
@@ -242,8 +298,16 @@ export default function LifeInsuranceEntryScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
+      <ScrollView ref={scrollViewRef} style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
         <View style={styles.content}>
+          {/* Draft Banner */}
+          <DraftBanner
+            categoryLabel="life insurance policy"
+            isEditing={!!editingAssetId}
+            onDiscard={handleDiscardDraft}
+            visible={hasDraft}
+          />
+
           <View style={styles.formCard}>
             <Text style={styles.formTitle}>
               {editingAssetId ? 'Update the details below.' : 'Add a life insurance policy.'}
@@ -361,6 +425,7 @@ export default function LifeInsuranceEntryScreen() {
               >
                 {editingAssetId ? 'Save changes' : 'Add this policy'}
               </Button>
+              <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
             </View>
           </View>
         </View>
