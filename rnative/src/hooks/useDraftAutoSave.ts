@@ -7,7 +7,8 @@
  *
  * Key design decisions:
  *   - 2-second debounce (useRef timer, not a dependency-heavy library)
- *   - async/await throughout — no fire-and-forget promises
+ *   - Unmount flush: if a debounce is pending when the user navigates away,
+ *     the draft is saved immediately (fire-and-forget) so nothing is lost
  *   - `isLoaded` gate prevents saving blank initial state during edit hydration
  *   - `hasChanges` is a simple boolean flip, not a deep compare on every render
  *   - Draft auto-restores silently; caller renders a warm banner, not a dialog
@@ -80,6 +81,13 @@ export function useDraftAutoSave<T>(
 
   // Track whether form data has been touched (gate for debounced saves)
   const formTouched = useRef(false);
+
+  // Track latest values via refs so the unmount cleanup can flush correctly
+  // (useEffect cleanup closures capture stale values without refs)
+  const formDataRef = useRef<T>(formData);
+  formDataRef.current = formData;
+  const draftKeyRef = useRef(draftKey);
+  draftKeyRef.current = draftKey;
 
   // -----------------------------------------------------------------------
   // 1. On mount: check for existing draft
@@ -171,13 +179,18 @@ export function useDraftAutoSave<T>(
   }, [draftKey]);
 
   // -----------------------------------------------------------------------
-  // Cleanup on unmount
+  // Cleanup on unmount — flush any pending debounced save immediately
   // -----------------------------------------------------------------------
 
   useEffect(() => {
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
+        // If the user navigated away before the debounce fired, save now
+        if (formTouched.current) {
+          saveData(draftKeyRef.current, formDataRef.current).catch(() => {});
+          console.log(`[DraftAutoSave] Flushed pending draft for ${draftKeyRef.current} on unmount`);
+        }
       }
     };
   }, []);
