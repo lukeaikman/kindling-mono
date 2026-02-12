@@ -21,6 +21,7 @@ import { Select } from '../../src/components/ui/Select';
 import { SplashScreen } from '../../src/components/splash';
 import { useAppState } from '../../src/hooks/useAppState';
 import { useAuth, clearAllAuthData } from '../../src/hooks/useAuth';
+import { useNetWealthToast } from '../../src/context/NetWealthToastContext';
 import * as SecureStore from 'expo-secure-store';
 import { seedAllData } from '../../src/utils/seedData';
 import { copyToClipboard } from '../../src/utils/clipboardHelpers';
@@ -37,6 +38,7 @@ import { Spacing, Typography } from '../../src/styles/constants';
 export default function DeveloperDashboard() {
   const { personActions, bequeathalActions, willActions, purgeAllData, activeWillMakerId, setActiveWillMakerId } = useAppState();
   const { logout, status } = useAuth();
+  const netWealthToast = useNetWealthToast();
   const [storageData, setStorageData] = useState<Record<string, any>>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [showSplash, setShowSplash] = useState(false);
@@ -251,6 +253,22 @@ export default function DeveloperDashboard() {
               onPress={() => router.push('/developer/trust-sandbox')}
             >
               Trust Details Sandbox
+            </Button>
+            
+            <Button
+              variant="secondary"
+              onPress={() => netWealthToast.show(100000, 250000)}
+              icon="cash-plus"
+            >
+              Test Net Wealth Toast
+            </Button>
+
+            <Button
+              variant="secondary"
+              onPress={() => netWealthToast.show(250000, 523400)}
+              icon="cash-plus"
+            >
+              Test Toast (2nd value)
             </Button>
           </View>
         </Card>

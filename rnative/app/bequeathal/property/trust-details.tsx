@@ -17,6 +17,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Input, Select, RadioGroup, Checkbox, CurrencyInput, PercentageInput } from '../../../src/components/ui';
 import { AddPersonDialog, BeneficiaryWithPercentages, MultiBeneficiarySelector } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { PropertyAsset, Trust, TrustType } from '../../../src/types';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
@@ -140,6 +141,7 @@ interface TrustData {
 
 export default function PropertyTrustDetailsScreen() {
   const { personActions, beneficiaryGroupActions, trustActions, bequeathalActions, willActions } = useAppState();
+  const toast = useNetWealthToast();
   const params = useLocalSearchParams();
   const propertyId = params.propertyId as string | undefined;
   const trustId = params.trustId as string | undefined;
@@ -2505,6 +2507,10 @@ export default function PropertyTrustDetailsScreen() {
     // TODO: If trustData.trustType === 'other', create backend task for team to reach out about trust details
     // Task should include: property ID, trust ID, trust name, user ID
     // This indicates property is owned by a trust but details need to be collected separately
+    
+    // Trust-owned assets are excluded from net estate value (heldInTrust === 'yes'),
+    // so delta is 0 — silent on the toast.
+    toast.notifySave(0);
     
     router.push('/bequeathal/property/summary');
   };

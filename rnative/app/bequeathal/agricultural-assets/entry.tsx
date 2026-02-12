@@ -10,6 +10,7 @@ import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Select, Input, CurrencyInput, RadioGroup, SearchableSelect } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import type { AgriculturalAsset } from '../../../src/types';
@@ -37,6 +38,7 @@ interface AssetForm {
 
 export default function AgriculturalAssetsEntryScreen() {
   const { bequeathalActions } = useAppState();
+  const toast = useNetWealthToast();
   const params = useLocalSearchParams();
   const editingAssetId = params.id as string | undefined;
   const loadedIdRef = useRef<string | null>(null);
@@ -275,6 +277,12 @@ export default function AgriculturalAssetsEntryScreen() {
     } else {
       bequeathalActions.addAsset('agricultural-assets', assetData);
     }
+
+    // Compute delta for net wealth toast (avoids reading stale batched state)
+    const oldAssetValue = editingAssetId
+      ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
+      : 0;
+    toast.notifySave(estimatedValue - oldAssetValue);
 
     router.push(SUMMARY_ROUTE as any);
   };

@@ -39,12 +39,14 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
   const assets = bequeathalActions.getAssetsByType(categoryId as any) as Asset[];
   const isComplete = bequeathalActions.isCategoryComplete(categoryId);
 
-  // Calculate total value
+  // Calculate total value (defensive: ensure always a number)
   const totalValue = useMemo(() => {
+    if (!Array.isArray(assets)) return 0;
     return assets.reduce((sum, a) => sum + (a.estimatedValue || 0), 0);
   }, [assets]);
 
   const totalNet = useMemo(() => {
+    if (!Array.isArray(assets)) return 0;
     return assets.reduce((sum, a) => {
       const value = a.estimatedValue || 0;
       if (a.type === 'property') {
@@ -55,8 +57,8 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
     }, 0);
   }, [assets]);
 
-  const hasAssets = assets.length > 0;
-  const showNet = totalNet !== totalValue;
+  const hasAssets = Array.isArray(assets) && assets.length > 0;
+  const showNet = (totalNet ?? 0) !== (totalValue ?? 0);
 
   // Navigation
   const handleBack = useCallback(() => {
@@ -153,11 +155,11 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
                   />
                 </View>
                 <Text style={styles.summaryTotal}>
-                  £{totalValue.toLocaleString()}
+                  £{(totalValue ?? 0).toLocaleString()}
                 </Text>
                 {showNet && (
                   <Text style={styles.summaryNet}>
-                    Net: £{totalNet.toLocaleString()}
+                    Net: £{(totalNet ?? 0).toLocaleString()}
                   </Text>
                 )}
                 <Text style={styles.summaryCount}>

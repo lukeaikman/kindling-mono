@@ -15,6 +15,7 @@ import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Select, Input, CurrencyInput } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import type { CryptoCurrencyAsset } from '../../../src/types';
@@ -30,6 +31,7 @@ interface CryptoForm {
 
 export default function CryptoCurrencyEntryScreen() {
   const { bequeathalActions } = useAppState();
+  const toast = useNetWealthToast();
   const params = useLocalSearchParams();
   const editingAssetId = params.id as string | undefined;
   const loadedIdRef = useRef<string | null>(null);
@@ -117,6 +119,12 @@ export default function CryptoCurrencyEntryScreen() {
     } else {
       bequeathalActions.addAsset('crypto-currency', holdingData);
     }
+
+    // Compute delta for net wealth toast (avoids reading stale batched state)
+    const oldAssetValue = editingAssetId
+      ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
+      : 0;
+    toast.notifySave(estimatedValue - oldAssetValue);
 
     router.push(SUMMARY_ROUTE as any);
   };

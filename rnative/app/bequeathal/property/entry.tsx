@@ -19,6 +19,7 @@ import { Button, BackButton, Accordion, Input, Select, Checkbox, CurrencyInput, 
 import { SearchableSelect } from '../../../src/components/ui/SearchableSelect';
 import { AddPersonDialog, BeneficiaryWithPercentages } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import type { PropertyAsset, BeneficiaryAssignment, PrivateCompanySharesAsset } from '../../../src/types';
@@ -125,6 +126,7 @@ interface PropertyData {
 
 export default function PropertyEntryScreen() {
   const { bequeathalActions, personActions, beneficiaryGroupActions, businessActions } = useAppState();
+  const toast = useNetWealthToast();
   const params = useLocalSearchParams();
   const editingPropertyId = params.id as string | undefined;
 
@@ -654,6 +656,17 @@ export default function PropertyEntryScreen() {
       bequeathalActions.updateAsset(editingPropertyId, propertyAsset as any);
     } else {
     bequeathalActions.addAsset('property', propertyAsset as any);
+    }
+    
+    // Compute delta for net wealth toast (avoids reading stale batched state)
+    // Property net = estimatedValue - mortgage outstanding
+    const newPropertyNet = propertyData.estimatedValue - (hasMortgage() ? (propertyData.mortgageAmount || 0) : 0);
+    if (editingPropertyId) {
+      const oldAsset = bequeathalActions.getAssetById(editingPropertyId) as any;
+      const oldPropertyNet = (oldAsset?.estimatedValue || 0) - (oldAsset?.mortgage?.outstandingAmount || 0);
+      toast.notifySave(newPropertyNet - oldPropertyNet);
+    } else {
+      toast.notifySave(newPropertyNet);
     }
     
     // Navigate to summary

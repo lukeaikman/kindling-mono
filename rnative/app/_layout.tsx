@@ -3,6 +3,32 @@ import { PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { kindlingTheme } from '../src/styles/theme';
 import { NetworkProvider } from '../src/context/NetworkContext';
+import { NetWealthToastProvider, useNetWealthToast } from '../src/context/NetWealthToastContext';
+import { NetWealthToast } from '../src/components/ui/NetWealthToast';
+
+/**
+ * Inner layout that can consume the NetWealthToast context.
+ * Renders the navigation stack + the global toast overlay.
+ */
+function AppContent() {
+  const { toast, hide } = useNetWealthToast();
+
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="intro" />
+        <Stack.Screen name="auth" />
+      </Stack>
+      <NetWealthToast
+        visible={toast.visible}
+        fromValue={toast.fromValue}
+        toValue={toast.toValue}
+        onHide={hide}
+      />
+    </>
+  );
+}
 
 /**
  * Root layout component for Expo Router
@@ -17,11 +43,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <PaperProvider theme={kindlingTheme}>
         <NetworkProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="intro" />
-            <Stack.Screen name="auth" />
-          </Stack>
+          <NetWealthToastProvider>
+            <AppContent />
+          </NetWealthToastProvider>
         </NetworkProvider>
       </PaperProvider>
     </GestureHandlerRootView>

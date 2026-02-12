@@ -24,6 +24,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, SearchableSelect, Select, RadioGroup, CurrencyInput } from '../../../src/components/ui';
 import { AddPersonDialog, PersonSelector, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import { validatePercentageAllocation } from '../../../src/utils/beneficiaryHelpers';
@@ -45,6 +46,7 @@ interface LifeInsuranceForm {
 
 export default function LifeInsuranceEntryScreen() {
   const { bequeathalActions, personActions, beneficiaryGroupActions, willActions } = useAppState();
+  const toast = useNetWealthToast();
 
   const params = useLocalSearchParams();
   const editingAssetId = params.id as string | undefined;
@@ -200,6 +202,12 @@ export default function LifeInsuranceEntryScreen() {
     } else {
       bequeathalActions.addAsset('life-insurance', policyData);
     }
+
+    // Compute delta for net wealth toast (avoids reading stale batched state)
+    const oldAssetValue = editingAssetId
+      ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
+      : 0;
+    toast.notifySave(formData.sumInsured - oldAssetValue);
 
     router.push(SUMMARY_ROUTE as any);
   };

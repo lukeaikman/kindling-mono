@@ -11,6 +11,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Button, BackButton, Select, Input, CurrencyInput } from '../../../src/components/ui';
 import { AddPersonDialog, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
+import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
 import { getPersonFullName, getPersonRelationshipDisplay } from '../../../src/utils/helpers';
@@ -31,6 +32,7 @@ export default function InvestmentsEntryScreen() {
   const editingAssetId = params.id as string | undefined;
 
   const { bequeathalActions, personActions, beneficiaryGroupActions, willActions } = useAppState();
+  const toast = useNetWealthToast();
   const [formData, setFormData] = useState<InvestmentForm>({
     provider: '',
     investmentType: '',
@@ -131,6 +133,12 @@ export default function InvestmentsEntryScreen() {
     } else {
       bequeathalActions.addAsset('investment', investmentData);
     }
+
+    // Compute delta for net wealth toast (avoids reading stale batched state)
+    const oldAssetValue = editingAssetId
+      ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
+      : 0;
+    toast.notifySave(estimatedValue - oldAssetValue);
 
     router.push(SUMMARY_ROUTE as any);
   };

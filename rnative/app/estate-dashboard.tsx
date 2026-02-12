@@ -11,7 +11,7 @@
  * @module screens/estate-dashboard
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -30,6 +30,7 @@ import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
 import { BackButton, Button } from '../src/components/ui';
 import { EstateCategoryCard } from '../src/components/ui/EstateCategoryCard';
 import { useAppState } from '../src/hooks/useAppState';
+import { useNetWealthToast } from '../src/context/NetWealthToastContext';
 import {
   CATEGORY_META,
   sortByCanonicalOrder,
@@ -269,9 +270,17 @@ const BalanceSheetMode: React.FC<ModeBProps> = ({
 
 export default function EstateDashboardScreen() {
   const { bequeathalActions, willActions, personActions, estateRemainderActions, isBequeathalHydrated } = useAppState();
+  const netWealthToast = useNetWealthToast();
+
+  // Seed the net wealth toast so first asset save is compared correctly
+  const bd: BequeathalData = bequeathalActions.getBequeathalData();
+  useEffect(() => {
+    if (isBequeathalHydrated) {
+      netWealthToast.seedIfNeeded(bd);
+    }
+  }, [isBequeathalHydrated]);
 
   // Build progress state for willProgress helpers
-  const bd: BequeathalData = bequeathalActions.getBequeathalData();
   const progressState: WillProgressState = useMemo(
     () => ({
       willMaker: willActions.getUser(),
