@@ -132,6 +132,12 @@ export default function PropertyEntryScreen() {
   const params = useLocalSearchParams();
   const editingPropertyId = params.id as string | undefined;
 
+  // Track the property ID after first save so that subsequent saves (e.g. the
+  // trust-owned flow where the user goes back from trust-details and re-saves)
+  // update the same property rather than creating duplicates.
+  const [persistedPropertyId, setPersistedPropertyId] = useState<string | undefined>(undefined);
+  const effectivePropertyId = persistedPropertyId || editingPropertyId;
+
   // ScrollView ref for validation scroll-to-top
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -220,7 +226,7 @@ export default function PropertyEntryScreen() {
   // Draft auto-save
   const { hasDraft, hasChanges, restoreDraft, discardDraft } = useDraftAutoSave<PropertyData>({
     category: 'property',
-    assetId: editingPropertyId || null,
+    assetId: effectivePropertyId || null,
     formData: propertyData,
     isLoaded: isFormLoaded,
     initialData: initialPropertyData,
@@ -235,18 +241,18 @@ export default function PropertyEntryScreen() {
         setPropertyData(draft);
         draftRestoredRef.current = true;
         // Prevent the load-from-store effect from overwriting the restored draft
-        if (editingPropertyId) {
-          loadedPropertyIdRef.current = editingPropertyId;
+        if (effectivePropertyId) {
+          loadedPropertyIdRef.current = effectivePropertyId;
         }
       }
     }
-  }, [hasDraft, restoreDraft, editingPropertyId]);
+  }, [hasDraft, restoreDraft, effectivePropertyId]);
 
   const handleDiscardDraft = async () => {
     await discardDraft();
-    if (editingPropertyId) {
+    if (effectivePropertyId) {
       // Revert to last-saved asset state
-      const asset = bequeathalActions.getAssetById(editingPropertyId) as PropertyAsset | undefined;
+      const asset = bequeathalActions.getAssetById(effectivePropertyId) as PropertyAsset | undefined;
       if (asset) {
         loadedPropertyIdRef.current = null; // Force reload
       }
@@ -553,13 +559,15 @@ export default function PropertyEntryScreen() {
         } : undefined,
       };
       
-      // Save or update property
+      // Save or update property (use effectivePropertyId to prevent duplicates
+      // when the user navigates back from trust-details and re-saves)
       let savedPropertyId: string;
-      if (editingPropertyId) {
-        bequeathalActions.updateAsset(editingPropertyId, propertyAsset as any);
-        savedPropertyId = editingPropertyId;
+      if (effectivePropertyId) {
+        bequeathalActions.updateAsset(effectivePropertyId, propertyAsset as any);
+        savedPropertyId = effectivePropertyId;
       } else {
         savedPropertyId = bequeathalActions.addAsset('property', propertyAsset as any);
+        setPersistedPropertyId(savedPropertyId);
       }
       
       // Clear draft on successful save
@@ -720,17 +728,18 @@ export default function PropertyEntryScreen() {
     }
 
     // Save to state - update if editing, add if new
-    if (editingPropertyId) {
-      bequeathalActions.updateAsset(editingPropertyId, propertyAsset as any);
+    if (effectivePropertyId) {
+      bequeathalActions.updateAsset(effectivePropertyId, propertyAsset as any);
     } else {
-    bequeathalActions.addAsset('property', propertyAsset as any);
+      const newId = bequeathalActions.addAsset('property', propertyAsset as any);
+      setPersistedPropertyId(newId);
     }
     
     // Compute delta for net wealth toast (avoids reading stale batched state)
     // Property net = estimatedValue - mortgage outstanding
     const newPropertyNet = propertyData.estimatedValue - (hasMortgage() ? (propertyData.mortgageAmount || 0) : 0);
-    if (editingPropertyId) {
-      const oldAsset = bequeathalActions.getAssetById(editingPropertyId) as any;
+    if (effectivePropertyId) {
+      const oldAsset = bequeathalActions.getAssetById(effectivePropertyId) as any;
       const oldPropertyNet = (oldAsset?.estimatedValue || 0) - (oldAsset?.mortgage?.outstandingAmount || 0);
       toast.notifySave(newPropertyNet - oldPropertyNet);
     } else {
@@ -769,7 +778,7 @@ export default function PropertyEntryScreen() {
           {/* Draft Banner */}
           <DraftBanner
             categoryLabel="property"
-            isEditing={!!editingPropertyId}
+            isEditing={!!effectivePropertyId}
             onDiscard={handleDiscardDraft}
             visible={hasDraft}
           />
@@ -1011,13 +1020,15 @@ export default function PropertyEntryScreen() {
                   />
                 )}
 
-                <Button
-                  onPress={() => setExpandedAccordion(getNextAccordion('usage'))}
-                  variant="primary"
-                  disabled={!propertyData.usage || !propertyData.propertyType}
-                >
-                  Next
-                </Button>
+                {getNextAccordion('usage') !== '' && (
+                  <Button
+                    onPress={() => setExpandedAccordion(getNextAccordion('usage'))}
+                    variant="primary"
+                    disabled={!propertyData.usage || !propertyData.propertyType}
+                  >
+                    Next
+                  </Button>
+                )}
               </View>
             </Accordion>
 
@@ -1565,7 +1576,7 @@ export default function PropertyEntryScreen() {
                 (isTrustOwned() ? false : beneficiaries.length === 0)
               }
             >
-              Save Property
+              {isTrustOwned() ? 'Continue to Trust Details' : 'Save Property'}
             </Button>
             <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
           </View>
