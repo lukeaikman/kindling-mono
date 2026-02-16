@@ -372,7 +372,7 @@ export default function PropertyTrustDetailsScreen() {
                 <Select
                   placeholder="Year..."
                   value={trustData.settlorTransferYear}
-                  options={Array.from({ length: 7 }, (_, i) => {
+                  options={Array.from({ length: 8 }, (_, i) => {
                     const year = new Date().getFullYear() - i;
                     return { label: year.toString(), value: year.toString() };
                   })}
@@ -380,6 +380,15 @@ export default function PropertyTrustDetailsScreen() {
                 />
               </View>
             </View>
+
+            {/* Date contradiction warning */}
+            {transferDate && yearsElapsed >= 7 && (
+              <View style={styles.warningBox}>
+                <Text style={styles.warningText}>
+                  You indicated the property was transferred within the last 7 years, however the date entered is more than 7 years ago. Please alter the selection above if the date is correct.
+                </Text>
+              </View>
+            )}
 
             {/* 3. Transfer Value */}
             <View style={{ marginBottom: Spacing.sm }}>
@@ -1846,6 +1855,13 @@ export default function PropertyTrustDetailsScreen() {
       
       // If answered 'yes' (<7 years), require all conditional fields
       if (trustData.settlorTransferWithin7Years === 'yes') {
+        // Block save if entered date actually exceeds 7 years (contradicts gateway answer)
+        if (trustData.settlorTransferMonth && trustData.settlorTransferYear) {
+          const enteredDate = new Date(parseInt(trustData.settlorTransferYear), parseInt(trustData.settlorTransferMonth) - 1);
+          const elapsed = (Date.now() - enteredDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+          if (elapsed >= 7) return false;
+        }
+
         return (
           trustData.settlorTransferMonth !== '' &&
           trustData.settlorTransferYear !== '' &&
