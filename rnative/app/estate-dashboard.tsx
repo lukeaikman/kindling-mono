@@ -344,6 +344,23 @@ export default function EstateDashboardScreen() {
     [selectedSet],
   );
 
+  // ---- Dev dashboard triple-tap ----
+  const lastTapRef = useRef<number>(0);
+  const tapCountRef = useRef(0);
+  const handleHeaderPress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 400) {
+      tapCountRef.current += 1;
+    } else {
+      tapCountRef.current = 1;
+    }
+    lastTapRef.current = now;
+    if (tapCountRef.current >= 3) {
+      tapCountRef.current = 0;
+      router.push('/developer/dashboard');
+    }
+  };
+
   // ---- Handlers ----
   const handleBack = useCallback(() => {
     router.push('/will-dashboard' as any);
@@ -469,7 +486,7 @@ export default function EstateDashboardScreen() {
       {/* Header */}
       <View style={styles.header}>
         <BackButton onPress={handleBack} />
-        <View style={styles.headerCenter}>
+        <TouchableOpacity style={styles.headerCenter} onPress={handleHeaderPress} activeOpacity={1}>
           <View style={styles.headerIconCircle}>
             <MaterialCommunityIcons
               name="treasure-chest"
@@ -478,7 +495,7 @@ export default function EstateDashboardScreen() {
             />
           </View>
           <Text style={styles.headerTitle}>Your Estate</Text>
-        </View>
+        </TouchableOpacity>
         <View style={styles.headerRight} />
       </View>
 

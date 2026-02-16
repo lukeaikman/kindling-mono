@@ -12,8 +12,8 @@
  * @module components/screens/CategorySummaryScreen
  */
 
-import React, { useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import React, { useCallback, useMemo, useRef } from 'react';
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -96,6 +96,23 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
     router.push('/estate-dashboard' as any);
   }, [bequeathalActions, categoryId]);
 
+  // Dev dashboard triple-tap
+  const lastTapRef = useRef<number>(0);
+  const tapCountRef = useRef(0);
+  const handleHeaderPress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 400) {
+      tapCountRef.current += 1;
+    } else {
+      tapCountRef.current = 1;
+    }
+    lastTapRef.current = now;
+    if (tapCountRef.current >= 3) {
+      tapCountRef.current = 0;
+      router.push('/developer/dashboard');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
@@ -109,7 +126,7 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
       {/* Header */}
       <View style={styles.header}>
         <BackButton onPress={handleBack} />
-        <View style={styles.headerCenter}>
+        <TouchableOpacity style={styles.headerCenter} onPress={handleHeaderPress} activeOpacity={1}>
           <View style={styles.headerIconCircle}>
             <MaterialCommunityIcons
               name={categoryIcon as any}
@@ -118,7 +135,7 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
             />
           </View>
           <Text style={styles.headerTitle}>{categoryLabel}</Text>
-        </View>
+        </TouchableOpacity>
         <View style={styles.headerRight} />
       </View>
 

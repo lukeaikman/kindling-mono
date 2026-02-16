@@ -7,7 +7,7 @@
 **Constraints:**
 - Treat the current `Trust` and `PropertyAsset` interfaces as true north — extend, don't replace
 - Maintain the role-based nested object pattern (`settlor?`, `beneficiary?`, `trustee?`)
-- No changes to `useAppState.ts` or the `TrustActions` / `BequeathalActions` APIs
+- Minimal changes to `useAppState.ts` (role field only); no changes to `TrustActions` / `BequeathalActions` APIs
 - Pre-beta: no backward compatibility baggage. Delete stale fields rather than deprecating. Purge AsyncStorage before testing.
 
 **Design principles:**
@@ -26,7 +26,7 @@
 ```typescript
 Trust {
   // Core: id, userId, name, type, creationMonth, creationYear, creationDate
-  // Roles: isUserSettlor, isUserBeneficiary, isUserTrustee
+  // Role: userRole?: TrustRole (single source of truth)
   
   settlor?: {
     reservedBenefit: 'none' | 'yes';
@@ -101,7 +101,7 @@ Some fields describe the trust itself, independent of any role.
 |---|---|
 | `chainedTrustStructure` | `Trust.chainedTrustStructure` — the trust has (or doesn't have) a chained structure |
 | `lifeInterestTrustCreationDate` | `Trust.preFinanceAct2006` — whether the trust predates the Finance Act 2006; affects IIP treatment |
-| `trustRole` | `Trust.userRole` — the exact sub-role string, not just boolean flags |
+| `trustRole` | `Trust.userRole` — typed as `TrustRole`, single source of truth for the user's relationship to the trust |
 
 ### Role-relationship fields → `Trust.settlor?` / `Trust.beneficiary?` sub-objects
 
@@ -144,24 +144,32 @@ export interface PropertyAsset extends BaseAsset {
 
 **File:** `src/types/index.ts`
 
-Delete `remaindermanTransferDateUnsure` and `remaindermanTransferValueUnsure` (pre-beta, no production data to migrate).
+Delete `remaindermanTransferDateUnsure` and `remaindermanTransferValueUnsure` (pre-beta, no production data to migrate). Delete `isUserSettlor`, `isUserBeneficiary`, `isUserTrustee` boolean flags — replaced by `userRole: TrustRole`.
 
 ```typescript
+export type TrustRole =
+  | 'settlor'
+  | 'beneficiary'
+  | 'settlor_and_beneficiary'
+  | 'settlor_and_beneficial_interest' // Life Interest only
+  | 'life_interest'                    // Life Interest beneficiary (life tenant)
+  | 'remainderman';                    // Life Interest beneficiary (remainderman)
+
 export interface Trust {
   // ... existing core fields ...
   
-  // NEW — Explicit sub-role (source of truth for the specific role the user selected)
-  userRole?: string;  // e.g. 'life_interest', 'remainderman', 'settlor', 'settlor_and_beneficial_interest', 'beneficiary', 'settlor_and_beneficiary'
+  // Single source of truth for the user's role in this trust
+  userRole?: TrustRole;
   
-  // NEW — Trust-level characteristics
+  // Trust-level characteristics
   chainedTrustStructure?: boolean;
   preFinanceAct2006?: 'before_2006' | 'on_or_after_2006';  // undefined = not yet answered
   
   // ... role objects, assetIds, metadata ...
   
-  // DELETE these two fields (were remainderman-specific, now on PropertyAsset):
-  // remaindermanTransferDateUnsure?: boolean;
-  // remaindermanTransferValueUnsure?: boolean;
+  // DELETED:
+  // isUserSettlor, isUserBeneficiary, isUserTrustee (replaced by userRole)
+  // remaindermanTransferDateUnsure, remaindermanTransferValueUnsure (now on PropertyAsset)
 }
 ```
 
@@ -250,7 +258,7 @@ beneficiary?: {
 };
 ```
 
-**Note:** `bareSettlorAndBeneficiary` sub-object removed. After moving `currentlyLiveInProperty` to `PropertyAsset.occupiedByOwner` and `valueAtTransfer` to `PropertyAsset.trustTransferValue`, the only remaining field was `coBeneficiaries[]`. Since the form uses a single `bareCoBeneficiaries` state variable for both bare beneficiary and bare S&B contexts, the co-beneficiaries array is consolidated on `beneficiary.bare.coBeneficiaries`. The role (`isUserSettlor` + `isUserBeneficiary`) determines the context.
+**Note:** `bareSettlorAndBeneficiary` sub-object removed. After moving `currentlyLiveInProperty` to `PropertyAsset.occupiedByOwner` and `valueAtTransfer` to `PropertyAsset.trustTransferValue`, the only remaining field was `coBeneficiaries[]`. Since the form uses a single `bareCoBeneficiaries` state variable for both bare beneficiary and bare S&B contexts, the co-beneficiaries array is consolidated on `beneficiary.bare.coBeneficiaries`. The `userRole` field determines the context.
 
 **IMPORTANT — Bare S&B save scoping:** When `trustType === 'bare'` and `trustRole === 'settlor_and_beneficiary'`, create `beneficiary.bare` with **only** `{ coBeneficiaries }`. Do NOT populate `percentage`, `percentageUnknown`, `shareWithOthers`, `numberOfOthers`, `giftedByLivingSettlor`, `giftMonth`, or `giftYear` — those are bare-beneficiary-only fields (asked only when `trustRole === 'beneficiary'`). The interface defines all fields on one sub-object for simplicity, but on save, only the fields relevant to the current role are written.
 
@@ -269,8 +277,9 @@ No new fields needed for the 9 implemented combinations.
 | `occupiedByOwner` on `PropertyAsset`, separate from `primaryResidence` | Legally distinct: `primaryResidence` = PPR/CGT, `occupiedByOwner` = GROB/IHT. A property can be trust-owned and occupied without being your primary residence. |
 | `chainedTrustStructure` on Trust top-level | A property of the trust deed, not of any role. |
 | `preFinanceAct2006` as `'before_2006' \| 'on_or_after_2006' \| undefined` | Three-state: before, after, or not yet answered. A boolean would conflate "not yet answered" with one of the states. Direct mapping to/from the form — no encode/decode needed. |
-| `userRole` on Trust top-level | The exact sub-role string (`'life_interest'`, `'remainderman'`, `'settlor_and_beneficial_interest'`, etc.). Eliminates fragile inference from `isUserSettlor` + `isUserBeneficiary` + "which sub-object is populated" on load. Boolean flags kept for quick checks. |
+| `userRole` on Trust top-level (typed as `TrustRole`) | The exact sub-role (`'life_interest'`, `'remainderman'`, `'settlor_and_beneficial_interest'`, etc.). Single source of truth — the old `isUserSettlor`/`isUserBeneficiary`/`isUserTrustee` boolean flags have been removed. No inference needed on load. |
 | Delete `remaindermanTransferDateUnsure/ValueUnsure` from Trust | Pre-beta, no production data. These belong on PropertyAsset now. Clean delete, no deprecation baggage. |
+| Delete `isUserSettlor/isUserBeneficiary/isUserTrustee` from Trust | Replaced by `userRole: TrustRole`. Pre-beta, no reason to carry boolean tech debt. `userRole` is the single source of truth. |
 | No `settlor.bare` sub-object | After moving transfer fields to PropertyAsset, bare trust settlor has zero role-specific fields. |
 | No `bareSettlorAndBeneficiary` sub-object | After moving `currentlyLiveInProperty` and `valueAtTransfer` to PropertyAsset, only `coBeneficiaries[]` remained. Consolidated on `beneficiary.bare.coBeneficiaries`. |
 | Discretionary single fields flattened to parent | `settlor.discretionaryComplexSituation` and `beneficiary.discretionaryInsurancePolicy` are single booleans/enums. Sub-objects for one field add nesting without benefit. |
@@ -403,7 +412,7 @@ Only populate sub-objects relevant to the current `trustType + trustRole`. Do no
 
 Implement `loadTrustToFormData()` and `loadStateArrays()`. Use `trust.userRole` to determine which sub-objects to read from.
 
-**Handling `userRole === undefined`:** This is the normal state when creating a new trust (user hasn't picked a role yet). If `trust.userRole` is `undefined`, fall back to inferring from `isUserSettlor` + `isUserBeneficiary` + `trust.type`. If all are empty/false (brand new trust), return form defaults — do not crash on undefined access. The load function must always be safe to call with a partially-populated Trust object.
+**Handling `userRole === undefined`:** This is the normal state when creating a new trust (user hasn't picked a role yet). If `trust.userRole` is `undefined`, return form defaults — do not crash on undefined access. The load function must always be safe to call with a partially-populated Trust object.
 
 Load transfer fields from `PropertyAsset`:
 ```typescript
@@ -446,7 +455,7 @@ Replace inline save/load logic with calls to extracted functions. Verify both sa
 
 | TrustData field | Trust field | Notes |
 |---|---|---|
-| `trustRole` | `userRole` | Direct string. Source of truth for specific sub-role on load. |
+| `trustRole` | `userRole` | Typed as `TrustRole`. Single source of truth for role on load. |
 | `chainedTrustStructure` | `chainedTrustStructure` | Direct |
 | `lifeInterestTrustCreationDate` | `preFinanceAct2006` | Direct: `'before_2006'` ↔ `'before_2006'`, `'on_or_after_2006'` ↔ `'on_or_after_2006'`, `''` ↔ `undefined` |
 
@@ -456,7 +465,7 @@ Replace inline save/load logic with calls to extracted functions. Verify both sa
 |---|---|
 | `trustName` | `name` |
 | `trustType` | `type` (via enum map) |
-| `trustRole` | `isUserSettlor` / `isUserBeneficiary` flags (kept alongside `userRole`) |
+| `trustRole` | `userRole` (typed as `TrustRole`) |
 | `creationMonth` | `creationMonth` |
 | `creationYear` | `creationYear` |
 | `reservedBenefit` | `settlor.reservedBenefit` |

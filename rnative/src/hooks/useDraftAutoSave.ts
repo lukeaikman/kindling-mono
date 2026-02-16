@@ -57,6 +57,12 @@ function getDraftKey(category: string, assetId: string | null): string {
   return `draft:${category}:${assetId || 'new'}`;
 }
 
+/** Returns a formatted HH:MM:SS timestamp for log messages */
+function ts(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+}
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -103,10 +109,10 @@ export function useDraftAutoSave<T>(
         if (stored !== null) {
           draftDataRef.current = stored;
           setHasDraft(true);
-          console.log(`[DraftAutoSave] Found draft for ${draftKey}`);
+          console.log(`[draftautosave] [${ts()}] Found draft for ${draftKey}`);
         }
       } catch (err) {
-        console.warn(`[DraftAutoSave] Failed to load draft for ${draftKey}:`, err);
+        console.warn(`[draftautosave] [${ts()}] Failed to load draft for ${draftKey}:`, err);
       }
     })();
   }, [draftKey]);
@@ -140,9 +146,9 @@ export function useDraftAutoSave<T>(
     timerRef.current = setTimeout(async () => {
       try {
         await saveData(draftKey, formData);
-        console.log(`[DraftAutoSave] Saved draft for ${draftKey}`);
+        console.log(`[draftautosave] [${ts()}] Saved draft for ${draftKey}`);
       } catch (err) {
-        console.warn(`[DraftAutoSave] Failed to save draft for ${draftKey}:`, err);
+        console.warn(`[draftautosave] [${ts()}] Failed to save draft for ${draftKey}:`, err);
       }
     }, DEBOUNCE_MS);
 
@@ -168,9 +174,9 @@ export function useDraftAutoSave<T>(
   const discardDraft = useCallback(async () => {
     try {
       await removeData(draftKey);
-      console.log(`[DraftAutoSave] Discarded draft for ${draftKey}`);
+      console.log(`[draftautosave] [${ts()}] Discarded draft for ${draftKey}`);
     } catch (err) {
-      console.warn(`[DraftAutoSave] Failed to discard draft for ${draftKey}:`, err);
+      console.warn(`[draftautosave] [${ts()}] Failed to discard draft for ${draftKey}:`, err);
     }
     draftDataRef.current = null;
     setHasDraft(false);
@@ -189,7 +195,7 @@ export function useDraftAutoSave<T>(
         // If the user navigated away before the debounce fired, save now
         if (formTouched.current) {
           saveData(draftKeyRef.current, formDataRef.current).catch(() => {});
-          console.log(`[DraftAutoSave] Flushed pending draft for ${draftKeyRef.current} on unmount`);
+          console.log(`[draftautosave] [${ts()}] Flushed pending draft for ${draftKeyRef.current} on unmount`);
         }
       }
     };

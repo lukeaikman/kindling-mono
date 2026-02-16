@@ -534,6 +534,20 @@ export interface PropertyAsset extends BaseAsset {
   // Trust reference (foreign key to Trust entity)
   trustId?: string;
 
+  // Trust transfer details (when this asset entered the trust)
+  trustTransferMonth?: string;
+  trustTransferYear?: string;
+  trustTransferDateUnknown?: boolean;
+  trustTransferValue?: number;
+  trustTransferValueUnknown?: boolean;
+  /** User-asserted "within last 7 years" when exact date unknown. Material to IHT 7-year rule.
+   *  true = within 7 years (PET still in window), false = over 7 years (fully exempt), undefined = not asked.
+   *  Only meaningful when trustTransferDateUnknown === true. */
+  trustTransferWithin7Years?: boolean;
+  /** Does the user currently live in this trust-owned property? Relevant for GROB detection.
+   *  Distinct from primaryResidence (PPR/CGT) — see TRUST_DATA_MODEL_COMPLETION.md Section 2 for legal distinction. */
+  occupiedByOwner?: boolean;
+
   // Company ownership (legacy fields) + shared Business linkage
   businessId?: string;
   companyName?: string;
@@ -957,6 +971,18 @@ export type TrustType =
   | 'other_trust';
 
 /**
+ * Trust role — the user's specific relationship to the trust.
+ * Single source of truth; replaces the old isUserSettlor/isUserBeneficiary/isUserTrustee booleans.
+ */
+export type TrustRole =
+  | 'settlor'
+  | 'beneficiary'
+  | 'settlor_and_beneficiary'
+  | 'settlor_and_beneficial_interest' // Life Interest only
+  | 'life_interest'                    // Life Interest beneficiary (life tenant)
+  | 'remainderman';                    // Life Interest beneficiary (remainderman)
+
+/**
  * Trust beneficiary allocation
  */
 export interface TrustBeneficiary {
@@ -982,20 +1008,36 @@ export interface Trust {
   creationYear: string;
   creationDate?: Date; // Computed from month/year for easier filtering
   
-  // User's Relationship to Trust (boolean flags for multiple roles)
-  isUserSettlor: boolean; // The user (userId) is settlor of this trust
-  isUserBeneficiary: boolean; // The user (userId) is beneficiary
-  isUserTrustee: boolean; // The user (userId) is trustee
+  // User's specific role in this trust (single source of truth)
+  userRole?: TrustRole;
   
-  // Settlor-Specific Data (populated when isUserSettlor = true)
+  // Trust-level characteristics
+  chainedTrustStructure?: boolean;
+  preFinanceAct2006?: 'before_2006' | 'on_or_after_2006'; // undefined = not yet answered
+  
+  // Settlor-Specific Data (populated when userRole is a settlor role)
   settlor?: {
     reservedBenefit: 'none' | 'yes';
     benefitDescription?: string; // Conditional: only when reservedBenefit = 'yes'
     beneficiaries: TrustBeneficiary[];
     trusteeIds: string[]; // Array of Person IDs or 'myself' string
+    
+    // Life Interest Settlor fields
+    lifeInterest?: {
+      noBenefitConfirmed: boolean;
+      payingMarketRent: 'yes' | 'no' | '';
+      lifeInterestEndingEvents: string;
+      remaindermen: TrustBeneficiary[];
+      // Settlor + Beneficial Interest sub-role
+      beneficialInterestType: string;
+      wantsReview: boolean;
+    };
+    
+    // Discretionary Settlor (single field, flattened)
+    discretionaryComplexSituation?: boolean;
   };
   
-  // Beneficiary-Specific Data (populated when isUserBeneficiary = true)
+  // Beneficiary-Specific Data (populated when userRole is a beneficiary role)
   beneficiary?: {
     // Life Interest Trust fields
     entitlementType?: 'right_to_income' | 'right_to_use' | 'both' | 'other';
@@ -1005,12 +1047,51 @@ export interface Trust {
     // General benefit description (all non-bare trust types)
     benefitDescription?: string;
     
-    // Settlor-Interested Trust fields (when isUserSettlor && isUserBeneficiary)
+    // Settlor-Interested Trust fields (when userRole is a dual role like settlor_and_beneficiary)
     isSettlorOfThisTrust?: 'yes' | 'no';
     spouseExcludedFromBenefit?: 'yes' | 'no' | 'not_sure';
+    
+    // Life Interest Beneficiary (life tenant) fields
+    lifeInterest?: {
+      spouseSuccession: 'yes' | 'no' | '';
+      sharing: 'not_shared' | 'shared_equally' | 'shared_unequally' | 'successive' | '';
+      equalSharingCount: number;
+      unequalSharingPercentage: number;
+      successiveCurrentTenant: string;
+      successiveCurrentStatus: 'not_started' | 'active' | 'not_sure' | '';
+      hasComplexCircumstances: boolean;
+    };
+    
+    // Life Interest Remainderman fields
+    remainderman?: {
+      lifeTenantAlive: 'yes' | 'no' | 'not_sure' | '';
+      ownershipClarification: 'now_own' | 'not_sure' | '';
+      lifeTenantAge: number;
+      settlorAlive: 'yes' | 'no' | 'not_sure' | '';
+      successionBeneficiary: string;
+    };
+    
+    // Bare Trust Beneficiary fields (also holds coBeneficiaries for S&B context)
+    bare?: {
+      percentage: number;
+      percentageUnknown: boolean;
+      shareWithOthers: 'yes' | 'no' | '';
+      numberOfOthers: string;
+      giftedByLivingSettlor: 'yes_less_than_7' | 'yes_more_than_7' | 'no_not_sure' | '';
+      giftMonth: string;
+      giftYear: string;
+      coBeneficiaries: TrustBeneficiary[];
+    };
+    
+    // Discretionary Beneficiary (single field, flattened)
+    discretionaryInsurancePolicy?: 'yes' | 'no' | 'unsure' | '';
+    
+    // Discretionary Settlor & Beneficiary (flattened)
+    discretionarySettlorBeneficiarySpouseExcluded?: 'yes' | 'no' | 'not_sure' | '';
+    discretionarySettlorBeneficiaryComplexSituation?: boolean;
   };
   
-  // Trustee-Specific Data (populated when isUserTrustee = true)
+  // Trustee-Specific Data (placeholder for future trustee role)
   trustee?: {
     // Placeholder for future trustee-specific fields
     duties?: string[];
@@ -1019,10 +1100,6 @@ export interface Trust {
   
   // Asset References
   assetIds: string[]; // Array of asset IDs held in this trust
-  
-  // Remainderman-specific fields (for life interest trusts)
-  remaindermanTransferDateUnsure?: boolean; // User is unsure about transfer date
-  remaindermanTransferValueUnsure?: boolean; // User is unsure about transfer value
   
   // Metadata
   createdAt: Date;

@@ -20,126 +20,18 @@ import { useAppState } from '../../../src/hooks/useAppState';
 import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { useDraftAutoSave } from '../../../src/hooks/useDraftAutoSave';
-import { PropertyAsset, Trust, TrustType } from '../../../src/types';
+import { PropertyAsset } from '../../../src/types';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-
-/**
- * Beneficiary assignment type (matches structure from beneficiaryAssignments)
- */
-type BeneficiaryAssignment = {
-  id: string;
-  type: 'person' | 'group' | 'estate';
-  name?: string;
-  percentage?: number;
-};
-
-/**
- * Trust data structure
- */
-interface TrustData {
-  // Base fields (3)
-  trustName: string;
-  trustType: 'life_interest' | 'bare' | 'discretionary' | 'other' | '';
-  trustRole: string; // Options depend on trust type
-  
-  // Life Interest Settlor fields (new spec)
-  settlorTransferWithin7Years: string; // 'yes' | 'no' | ''
-  settlorTransferMonth: string;
-  settlorTransferYear: string;
-  settlorTransferValue: number;
-  settlorNoBenefitConfirmed: boolean; // User confirms they cannot benefit from trust
-  
-  // Life Interest Settlor + Beneficial Interest fields (new spec)
-  settlorAndBeneficialBenefitType: string; // 'life_interest' | 'right_to_occupy' | 'right_to_income' | 'discretionary' | 'other' | ''
-  settlorAndBeneficialWantsReview: boolean; // User wants team to reach out about alternatives
-  // Legacy fields (kept for backwards compatibility, may be removed later)
-  reservedBenefit: string;
-  payingMarketRent: string;
-  creationMonth: string;
-  creationYear: string;
-  lifeInterestDateUnknown: boolean;
-  propertyValueAtTransfer: number;
-  lifeInterestValueUnknown: boolean;
-  chainedTrustStructure: boolean;
-  lifeInterestEndingEvents: string;
-  
-  // Life Interest Beneficiary fields
-  benefitType: string; // 'life_interest' or 'remainderman' (auto-set based on role)
-  // New Life Interest fields (per spec)
-  lifeInterestTrustCreationDate: string; // 'before_2006' | 'on_or_after_2006' | ''
-  lifeInterestIsIPDI: string; // 'yes' | 'no' | '' - Only shown if post-2006
-  lifeInterestSpouseSuccession: string; // 'yes' | 'no' | ''
-  lifeInterestSharing: string; // 'not_shared' | 'shared_equally' | 'shared_unequally' | 'successive' | ''
-  lifeInterestEqualSharingCount: number; // 2-10+
-  lifeInterestUnequalSharingPercentage: number; // 1-99
-  lifeInterestSuccessiveCurrentTenant: string; // Text input
-  lifeInterestSuccessiveCurrentStatus: string; // 'not_started' | 'active' | 'not_sure' | ''
-  // Legacy fields (kept for backwards compatibility, may be removed later)
-  settlorStillLiving: string;
-  lifeInterestBeganOnPassing: string;
-  lifeInterestBeganWhen: string;
-  interestType: string;
-  shareLifeInterestWithOthers: string;
-  lifeInterestPercentage: number;
-  hasComplexCircumstances: boolean;
-  
-  // Remainderman fields (new spec)
-  remaindermanLifeTenantAlive: string; // 'yes' | 'no' | 'not_sure' | ''
-  remaindermanOwnershipClarification: string; // 'now_own' | 'not_sure' | ''
-  remaindermanLifeTenantAge: number; // 18-110
-  remaindermanTransferMonth: string;
-  remaindermanTransferYear: string;
-  remaindermanTransferValue: number;
-  remaindermanTransferDateUnsure: boolean; // User is unsure about transfer date
-  remaindermanTransferValueUnsure: boolean; // User is unsure about transfer value
-  remaindermanSettlorAlive: string; // 'yes' | 'no' | 'not_sure' | ''
-  remaindermanSuccessionBeneficiary: string; // Person/group/estate ID for succession planning
-  // Legacy fields (kept for backwards compatibility)
-  capitalInterestPercentage: number;
-  lifeTenantAge: string;
-  knownContingencies: string;
-  
-  // Bare Trust Settlor fields
-  bareSettlorDateUnknown: boolean;
-  bareSettlorValueUnknown: boolean;
-  
-  // Bare Trust Beneficiary fields
-  bareBeneficiaryPercentage: number;
-  bareBeneficiaryPercentageUnknown: boolean;
-  bareBeneficiaryShareWithOthers: string; // 'yes' | 'no' | ''
-  bareBeneficiaryNumberOfOthers: string; // 'unknown' | '1' | '2' | ... | '30' | ''
-  bareBeneficiaryEstimatedPercentage: number; // Calculated
-  bareBeneficiaryTotalUnknownBeneficiaries: number; // Calculated: 1 + numberOfOthers
-  bareBeneficiaryGiftedByLivingSettlor: string; // 'yes_less_than_7' | 'yes_more_than_7' | 'no_not_sure' | ''
-  bareBeneficiaryGiftMonth: string;
-  bareBeneficiaryGiftYear: string;
-  
-  // Bare Trust Settlor & Beneficiary fields
-  currentlyLiveInProperty: string;
-  bareValueAtTransfer: number;
-  bareSettlorAndBeneficiaryValueUnknown: boolean;
-  spouseExcludedFromBenefit: 'yes' | 'no' | 'not_sure' | '';
-  
-  // Discretionary Trust Settlor fields
-  discretionaryTransferMonth: string;
-  discretionaryTransferYear: string;
-  discretionarySettlorDateUnknown: boolean;
-  discretionaryValueAtTransfer: number;
-  discretionarySettlorValueUnknown: boolean;
-  discretionaryComplexSituation: boolean;
-  
-  // Discretionary Trust Beneficiary fields
-  discretionaryBeneficiaryTransferMonth: string;
-  discretionaryBeneficiaryTransferYear: string;
-  discretionaryBeneficiaryDateUnknown: boolean;
-  discretionaryBeneficiaryValueAtTransfer: number;
-  discretionaryBeneficiaryValueUnknown: boolean;
-  discretionaryBeneficiaryInsurancePolicy: 'yes' | 'no' | 'unsure' | '';
-  
-  // Discretionary Trust Settlor & Beneficiary fields
-  discretionarySettlorAndBeneficiarySpouseExcluded: 'yes' | 'no' | 'not_sure' | '';
-}
+import {
+  TrustData,
+  BeneficiaryAssignment,
+  TRUST_DATA_DEFAULTS,
+  buildTrustEntityData,
+  buildPropertyTransferData,
+  loadTrustToFormData,
+  loadStateArrays,
+} from './trustDataMapping';
 
 export default function PropertyTrustDetailsScreen() {
   const { personActions, beneficiaryGroupActions, trustActions, bequeathalActions, willActions } = useAppState();
@@ -150,98 +42,7 @@ export default function PropertyTrustDetailsScreen() {
   const isSandbox = !propertyId || params.sandbox === 'true';
 
   // Base trust data
-  const [trustData, setTrustData] = useState<TrustData>({
-    trustName: '',
-    trustType: '',
-    trustRole: '',
-    // Life Interest Settlor (new spec)
-    settlorTransferWithin7Years: '',
-    settlorTransferMonth: '',
-    settlorTransferYear: '',
-    settlorTransferValue: 0,
-    settlorNoBenefitConfirmed: false,
-    // Life Interest Settlor + Beneficial Interest (new spec)
-    settlorAndBeneficialBenefitType: '',
-    settlorAndBeneficialWantsReview: false,
-    // Legacy fields (kept for backwards compatibility)
-    reservedBenefit: '',
-    payingMarketRent: '',
-    creationMonth: '',
-    creationYear: '',
-    lifeInterestDateUnknown: false,
-    propertyValueAtTransfer: 0,
-    lifeInterestValueUnknown: false,
-    chainedTrustStructure: false,
-    lifeInterestEndingEvents: '',
-    // Life Interest Beneficiary
-    benefitType: '',
-    // New Life Interest fields
-    lifeInterestTrustCreationDate: '',
-    lifeInterestIsIPDI: '',
-    lifeInterestSpouseSuccession: '',
-    lifeInterestSharing: '',
-    lifeInterestEqualSharingCount: 0,
-    lifeInterestUnequalSharingPercentage: 0,
-    lifeInterestSuccessiveCurrentTenant: '',
-    lifeInterestSuccessiveCurrentStatus: '',
-    // Legacy fields (kept for backwards compatibility)
-    settlorStillLiving: '',
-    lifeInterestBeganOnPassing: '',
-    lifeInterestBeganWhen: '',
-    interestType: '',
-    shareLifeInterestWithOthers: '',
-    lifeInterestPercentage: 0,
-    hasComplexCircumstances: false,
-    // Remainderman (new spec)
-    remaindermanLifeTenantAlive: '',
-    remaindermanOwnershipClarification: '',
-    remaindermanLifeTenantAge: 0,
-    remaindermanTransferMonth: '',
-    remaindermanTransferYear: '',
-    remaindermanTransferValue: 0,
-    remaindermanTransferDateUnsure: false,
-    remaindermanTransferValueUnsure: false,
-    remaindermanSettlorAlive: '',
-    remaindermanSuccessionBeneficiary: '',
-    // Legacy fields (kept for backwards compatibility)
-    capitalInterestPercentage: 0,
-    lifeTenantAge: '',
-    knownContingencies: '',
-    // Bare Trust Settlor
-    bareSettlorDateUnknown: false,
-    bareSettlorValueUnknown: false,
-    // Bare Trust Beneficiary
-    bareBeneficiaryPercentage: 0,
-    bareBeneficiaryPercentageUnknown: false,
-    bareBeneficiaryShareWithOthers: '',
-    bareBeneficiaryNumberOfOthers: '',
-    bareBeneficiaryEstimatedPercentage: 0,
-    bareBeneficiaryTotalUnknownBeneficiaries: 0,
-    bareBeneficiaryGiftedByLivingSettlor: '',
-    bareBeneficiaryGiftMonth: '',
-    bareBeneficiaryGiftYear: '',
-    // Bare Trust Settlor & Beneficiary
-    currentlyLiveInProperty: '',
-    bareValueAtTransfer: 0,
-    bareSettlorAndBeneficiaryValueUnknown: false,
-    spouseExcludedFromBenefit: '',
-    // Discretionary Trust Settlor
-    discretionaryTransferMonth: '',
-    discretionaryTransferYear: '',
-    discretionarySettlorDateUnknown: false,
-    discretionaryValueAtTransfer: 0,
-    discretionarySettlorValueUnknown: false,
-    discretionaryComplexSituation: false,
-    // Discretionary Trust Beneficiary
-    discretionaryBeneficiaryTransferMonth: '',
-    discretionaryBeneficiaryTransferYear: '',
-    discretionaryBeneficiaryDateUnknown: false,
-    discretionaryBeneficiaryValueAtTransfer: 0,
-    discretionaryBeneficiaryValueUnknown: false,
-    discretionaryBeneficiaryInsurancePolicy: '',
-    // Discretionary Trust Settlor & Beneficiary
-    discretionarySettlorAndBeneficiarySpouseExcluded: '',
-  });
+  const [trustData, setTrustData] = useState<TrustData>({ ...TRUST_DATA_DEFAULTS });
 
   // Remaindermen (for Life Interest Settlor and optional for Life Interest Beneficiary)
   const [remaindermen, setRemaindermen] = useState<BeneficiaryAssignment[]>([]);
@@ -327,132 +128,15 @@ export default function PropertyTrustDetailsScreen() {
       return;
     }
     
-    // Map TrustType enum to form value
-    const trustTypeMap: Partial<Record<TrustType, 'life_interest' | 'bare' | 'discretionary'>> = {
-      'life_interest_trust': 'life_interest',
-      'bare_trust': 'bare',
-      'discretionary_trust': 'discretionary',
-      'settlor_interested_trust': 'discretionary', // Map to discretionary for now
-      'interest_in_possession_trust': 'life_interest', // Map to life_interest for now
-    };
-    const mappedTrustType = trustTypeMap[trust.type] || '';
+    // Map Trust entity + PropertyAsset → form state using extracted mapping functions
+    const property = propertyId ? bequeathalActions.getAssetById(propertyId) as PropertyAsset | undefined : undefined;
+    setTrustData(loadTrustToFormData(trust, property));
     
-    // Map Trust entity → form state
-    // For life interest trusts, use specific roles
-    let trustRole: string;
-    if (mappedTrustType === 'life_interest') {
-      // Life interest trusts have specific roles
-      if (trust.isUserSettlor && trust.isUserBeneficiary) {
-        trustRole = 'settlor_and_beneficial_interest';
-      } else if (trust.isUserSettlor) {
-        trustRole = 'settlor';
-      } else if (trust.isUserBeneficiary) {
-        // Default to 'life_interest' - user can change to 'remainderman' if needed
-        // Could also check beneficiary data to determine, but for now default to life_interest
-        trustRole = 'life_interest';
-      } else {
-        trustRole = 'beneficiary'; // Fallback
-      }
-    } else {
-      // For other trust types, use original logic
-      trustRole = trust.isUserSettlor && trust.isUserBeneficiary 
-        ? 'settlor_and_beneficiary'
-        : trust.isUserSettlor 
-          ? 'settlor'
-          : 'beneficiary';
-    }
-    
-    setTrustData({
-      trustName: trust.name,
-      trustType: trustTypeMap[trust.type] || '',
-      trustRole,
-      creationMonth: trust.creationMonth || '',
-      creationYear: trust.creationYear || '',
-      spouseExcludedFromBenefit: trust.beneficiary?.spouseExcludedFromBenefit || '',
-      discretionarySettlorAndBeneficiarySpouseExcluded: trust.beneficiary?.spouseExcludedFromBenefit || '',
-      // Life Interest Settlor (new spec)
-      settlorTransferWithin7Years: '',
-      settlorTransferMonth: '',
-      settlorTransferYear: '',
-      settlorTransferValue: 0,
-      settlorNoBenefitConfirmed: false,
-      // Life Interest Settlor + Beneficial Interest (new spec)
-      settlorAndBeneficialBenefitType: '',
-      settlorAndBeneficialWantsReview: false,
-      // Legacy fields (kept for backwards compatibility)
-      reservedBenefit: trust.settlor?.reservedBenefit === 'yes' ? 'yes' : '',
-      payingMarketRent: '',
-      lifeInterestDateUnknown: false,
-      propertyValueAtTransfer: 0,
-      lifeInterestValueUnknown: false,
-      chainedTrustStructure: false,
-      lifeInterestEndingEvents: '',
-      benefitType: mappedTrustType === 'life_interest' && trustRole === 'remainderman' 
-        ? 'remainderman' 
-        : mappedTrustType === 'life_interest' && (trustRole === 'life_interest' || trustRole === 'beneficiary')
-          ? 'life_interest'
-          : '',
-      // New Life Interest fields
-      lifeInterestTrustCreationDate: '',
-      lifeInterestIsIPDI: '',
-      lifeInterestSpouseSuccession: '',
-      lifeInterestSharing: '',
-      lifeInterestEqualSharingCount: 0,
-      lifeInterestUnequalSharingPercentage: 0,
-      lifeInterestSuccessiveCurrentTenant: '',
-      lifeInterestSuccessiveCurrentStatus: '',
-      // Legacy fields (kept for backwards compatibility)
-      settlorStillLiving: '',
-      lifeInterestBeganOnPassing: '',
-      lifeInterestBeganWhen: '',
-      interestType: trust.beneficiary?.entitlementType || '',
-      shareLifeInterestWithOthers: '',
-      lifeInterestPercentage: 0,
-      hasComplexCircumstances: false,
-      // Remainderman (new spec)
-      remaindermanLifeTenantAlive: '',
-      remaindermanOwnershipClarification: '',
-      remaindermanLifeTenantAge: 0,
-      remaindermanTransferMonth: '',
-      remaindermanTransferYear: '',
-      remaindermanTransferValue: 0,
-      remaindermanTransferDateUnsure: trust.remaindermanTransferDateUnsure || false,
-      remaindermanTransferValueUnsure: trust.remaindermanTransferValueUnsure || false,
-      remaindermanSettlorAlive: '',
-      remaindermanSuccessionBeneficiary: '',
-      // Legacy fields (kept for backwards compatibility)
-      capitalInterestPercentage: 0,
-      lifeTenantAge: '',
-      knownContingencies: '',
-      bareSettlorDateUnknown: false,
-      bareSettlorValueUnknown: false,
-      // Bare Trust Beneficiary
-      bareBeneficiaryPercentage: 0,
-      bareBeneficiaryPercentageUnknown: false,
-      bareBeneficiaryShareWithOthers: '',
-      bareBeneficiaryNumberOfOthers: '',
-      bareBeneficiaryEstimatedPercentage: 0,
-      bareBeneficiaryTotalUnknownBeneficiaries: 0,
-      bareBeneficiaryGiftedByLivingSettlor: '',
-      bareBeneficiaryGiftMonth: '',
-      bareBeneficiaryGiftYear: '',
-      // Bare Trust Settlor & Beneficiary
-      currentlyLiveInProperty: trust.beneficiary?.rightOfOccupation ? 'yes' : '',
-      bareValueAtTransfer: 0,
-      bareSettlorAndBeneficiaryValueUnknown: false,
-      discretionaryTransferMonth: '',
-      discretionaryTransferYear: '',
-      discretionarySettlorDateUnknown: false,
-      discretionaryValueAtTransfer: 0,
-      discretionarySettlorValueUnknown: false,
-      discretionaryComplexSituation: false,
-      discretionaryBeneficiaryTransferMonth: '',
-      discretionaryBeneficiaryTransferYear: '',
-      discretionaryBeneficiaryDateUnknown: false,
-      discretionaryBeneficiaryValueAtTransfer: 0,
-      discretionaryBeneficiaryValueUnknown: false,
-      discretionaryBeneficiaryInsurancePolicy: '',
-    });
+    // Load state arrays (remaindermen, bareBeneficiaries, bareCoBeneficiaries)
+    const arrays = loadStateArrays(trust);
+    setRemaindermen(arrays.remaindermen);
+    setBareBeneficiaries(arrays.bareBeneficiaries);
+    setBareCoBeneficiaries(arrays.bareCoBeneficiaries);
     
     loadedTrustIdRef.current = trustId;
   });
@@ -2277,29 +1961,6 @@ export default function PropertyTrustDetailsScreen() {
       return true;
     }
 
-    // Legacy: Life Interest Beneficiary validation (for backwards compatibility)
-    if (trustData.trustType === 'life_interest' && trustData.trustRole === 'beneficiary') {
-      if (!trustData.benefitType) return false;
-      
-      // Life Interest path
-      if (trustData.benefitType === 'life_interest') {
-        const needsBeganWhen = trustData.settlorStillLiving === 'no' && trustData.lifeInterestBeganOnPassing === 'no';
-        const needsPercentage = trustData.shareLifeInterestWithOthers === 'yes';
-        
-        return (
-          trustData.settlorStillLiving !== '' &&
-          trustData.interestType !== '' &&
-          (!needsBeganWhen || trustData.lifeInterestBeganWhen !== '') &&
-          (!needsPercentage || trustData.lifeInterestPercentage > 0)
-        );
-      }
-      
-      // Remainderman path
-      if (trustData.benefitType === 'remainderman') {
-        return trustData.capitalInterestPercentage > 0;
-      }
-    }
-
     // Bare Trust Settlor validation
     if (trustData.trustType === 'bare' && trustData.trustRole === 'settlor') {
       // Date is required
@@ -2411,85 +2072,21 @@ export default function PropertyTrustDetailsScreen() {
   };
 
   const handleSave = () => {
-    // Map form trustType to TrustType enum
-    const trustTypeMap: Record<string, TrustType> = {
-      'life_interest': 'life_interest_trust',
-      'bare': 'bare_trust',
-      'discretionary': 'discretionary_trust',
-      'other': 'other_trust',
-    };
-    
-    // Helper to determine if role is settlor
-    const isSettlorRole = () => {
-      if (trustData.trustType === 'other') {
-        return false; // 'other' trust type has no role
-      }
-      if (trustData.trustType === 'life_interest') {
-        return trustData.trustRole === 'settlor' || trustData.trustRole === 'settlor_and_beneficial_interest';
-      }
-      return trustData.trustRole.includes('settlor');
-    };
-    
-    // Helper to determine if role is beneficiary
-    const isBeneficiaryRole = () => {
-      if (trustData.trustType === 'other') {
-        return false; // 'other' trust type has no role
-      }
-      if (trustData.trustType === 'life_interest') {
-        return trustData.trustRole === 'life_interest' || 
-               trustData.trustRole === 'remainderman' || 
-               trustData.trustRole === 'settlor_and_beneficial_interest' ||
-               trustData.trustRole === 'beneficiary'; // Legacy
-      }
-      return trustData.trustRole.includes('beneficiary');
-    };
-    
-    // Determine settlor data
-    const settlor = isSettlorRole() ? {
-      reservedBenefit: (trustData.reservedBenefit ? (trustData.reservedBenefit === 'none' ? 'none' : 'yes') : 'none') as 'yes' | 'none',
-      benefitDescription: trustData.reservedBenefit && trustData.reservedBenefit !== 'none' ? trustData.reservedBenefit : undefined,
-      beneficiaries: bareBeneficiaries.map(b => ({
-        id: b.id,
-        type: b.type as 'person' | 'group' | 'myself',
-        percentage: b.percentage || 0,
-        isManuallyEdited: false,
-      })),
-      trusteeIds: [] as string[],
-    } : undefined;
-    
-    // Determine beneficiary data
-    const beneficiary = isBeneficiaryRole() ? {
-      entitlementType: trustData.interestType as 'right_to_income' | 'right_to_use' | 'both' | 'other' | undefined,
-      rightOfOccupation: trustData.currentlyLiveInProperty === 'yes',
-      benefitDescription: '',
-      isSettlorOfThisTrust: (trustData.trustRole === 'settlor_and_beneficiary' || trustData.trustRole === 'settlor_and_beneficial_interest') ? 'yes' as const : 'no' as const,
-      spouseExcludedFromBenefit: (trustData.trustRole === 'settlor_and_beneficiary' || trustData.trustRole === 'settlor_and_beneficial_interest')
-        ? (trustData.trustType === 'bare' 
-          ? trustData.spouseExcludedFromBenefit as 'yes' | 'no' | 'not_sure' | undefined
-          : trustData.discretionarySettlorAndBeneficiarySpouseExcluded as 'yes' | 'no' | 'not_sure' | undefined)
-        : undefined,
-    } : undefined;
-    
     // Get current user ID from willActions (consistent with other screens)
     const willMaker = willActions.getUser();
     const currentUserId = willMaker?.id || '';
     
     // Sandbox mode: save trust without property link
     if (isSandbox) {
-      const trustEntityData: Omit<Trust, 'id' | 'createdAt' | 'updatedAt'> = {
+      const trustEntityData = buildTrustEntityData({
+        trustData,
+        remaindermen,
+        bareBeneficiaries,
+        bareCoBeneficiaries,
         userId: currentUserId,
-        name: trustData.trustName,
-        type: trustTypeMap[trustData.trustType] || 'bare_trust',
-        creationMonth: trustData.creationMonth || '',
-        creationYear: trustData.creationYear || '',
-        isUserSettlor: isSettlorRole(),
-        isUserBeneficiary: isBeneficiaryRole(),
-        isUserTrustee: false,
-        assetIds: [], // Empty in sandbox - trust exists but not linked to property
-        createdInContext: 'other', // Mark as sandbox/test
-        settlor,
-        beneficiary,
-      };
+        assetIds: [],
+        createdInContext: 'other',
+      });
       
       const savedTrustId = trustId 
         ? (trustActions.updateTrust(trustId, trustEntityData), trustId)
@@ -2522,21 +2119,15 @@ export default function PropertyTrustDetailsScreen() {
     // Use property.userId as fallback, but prefer willActions
     const userId = currentUserId || property?.userId || '';
     
-    // Map form data to Trust entity structure
-    const trustEntityData: Omit<Trust, 'id' | 'createdAt' | 'updatedAt'> = {
-      userId: userId,
-      name: trustData.trustName,
-      type: trustTypeMap[trustData.trustType] || 'bare_trust',
-      creationMonth: trustData.creationMonth || '',
-      creationYear: trustData.creationYear || '',
-      isUserSettlor: trustData.trustType === 'other' ? false : trustData.trustRole.includes('settlor'),
-      isUserBeneficiary: trustData.trustType === 'other' ? false : trustData.trustRole.includes('beneficiary'),
-      isUserTrustee: false,
+    const trustEntityData = buildTrustEntityData({
+      trustData,
+      remaindermen,
+      bareBeneficiaries,
+      bareCoBeneficiaries,
+      userId,
       assetIds: [propertyId],
       createdInContext: 'property',
-      settlor,
-      beneficiary,
-    };
+    });
     
     // Save to Trust entity
     let savedTrustId: string;
@@ -2547,11 +2138,15 @@ export default function PropertyTrustDetailsScreen() {
       savedTrustId = trustActions.addTrust(trustEntityData);
     }
     
-    // Update PropertyAsset with trustId reference (reuse property from above)
+    // Build and save PropertyAsset transfer data from role-aware helpers
+    const transferData = buildPropertyTransferData(trustData);
+    
+    // Update PropertyAsset with trustId reference + transfer fields
     if (property) {
       bequeathalActions.updateAsset(propertyId, {
         ...property,
         trustId: savedTrustId,
+        ...transferData,
       });
     }
     
