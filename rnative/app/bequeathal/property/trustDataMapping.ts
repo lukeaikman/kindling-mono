@@ -82,6 +82,8 @@ export interface TrustData {
   remaindermanSuccessionBeneficiary: string; // Person/group/estate ID for succession planning
 
   // Bare Trust Settlor fields
+  bareSettlorTransferMonth: string;
+  bareSettlorTransferYear: string;
   bareSettlorDateUnknown: boolean;
   bareSettlorValueUnknown: boolean;
 
@@ -171,6 +173,8 @@ export const TRUST_DATA_DEFAULTS: TrustData = {
   remaindermanSettlorAlive: '',
   remaindermanSuccessionBeneficiary: '',
   // Bare Trust Settlor
+  bareSettlorTransferMonth: '',
+  bareSettlorTransferYear: '',
   bareSettlorDateUnknown: false,
   bareSettlorValueUnknown: false,
   // Bare Trust Beneficiary
@@ -253,7 +257,7 @@ export function isBeneficiaryRole(trustData: TrustData): boolean {
 // trustType + trustRole combination, avoiding stale data from
 // previously-selected roles. Uses ?? (nullish coalescing) throughout.
 
-/** Helper 1: getTransferValue — 5 form aliases → PropertyAsset.trustTransferValue */
+/** Helper 1: getTransferValue — 6 form aliases → PropertyAsset.trustTransferValue */
 function getTransferValue(td: TrustData): number | undefined {
   const { trustType, trustRole } = td;
   if (trustType === 'life_interest') {
@@ -262,6 +266,7 @@ function getTransferValue(td: TrustData): number | undefined {
     if (trustRole === 'remainderman') return td.remaindermanTransferValue ?? undefined;
   }
   if (trustType === 'bare') {
+    if (trustRole === 'settlor') return td.bareValueAtTransfer ?? undefined;
     if (trustRole === 'settlor_and_beneficiary') return td.bareValueAtTransfer ?? undefined;
   }
   if (trustType === 'discretionary') {
@@ -271,13 +276,16 @@ function getTransferValue(td: TrustData): number | undefined {
   return undefined;
 }
 
-/** Helper 2: getTransferMonth — 4 form aliases → PropertyAsset.trustTransferMonth */
+/** Helper 2: getTransferMonth — 5 form aliases → PropertyAsset.trustTransferMonth */
 function getTransferMonth(td: TrustData): string | undefined {
   const { trustType, trustRole } = td;
   if (trustType === 'life_interest') {
     if (trustRole === 'settlor' || trustRole === 'settlor_and_beneficial_interest')
       return td.settlorTransferMonth ?? undefined;
     if (trustRole === 'remainderman') return td.remaindermanTransferMonth ?? undefined;
+  }
+  if (trustType === 'bare') {
+    if (trustRole === 'settlor') return td.bareSettlorTransferMonth ?? undefined;
   }
   if (trustType === 'discretionary') {
     if (trustRole === 'settlor') return td.discretionaryTransferMonth ?? undefined;
@@ -286,13 +294,16 @@ function getTransferMonth(td: TrustData): string | undefined {
   return undefined;
 }
 
-/** Helper 3: getTransferYear — 4 form aliases → PropertyAsset.trustTransferYear */
+/** Helper 3: getTransferYear — 5 form aliases → PropertyAsset.trustTransferYear */
 function getTransferYear(td: TrustData): string | undefined {
   const { trustType, trustRole } = td;
   if (trustType === 'life_interest') {
     if (trustRole === 'settlor' || trustRole === 'settlor_and_beneficial_interest')
       return td.settlorTransferYear ?? undefined;
     if (trustRole === 'remainderman') return td.remaindermanTransferYear ?? undefined;
+  }
+  if (trustType === 'bare') {
+    if (trustRole === 'settlor') return td.bareSettlorTransferYear ?? undefined;
   }
   if (trustType === 'discretionary') {
     if (trustRole === 'settlor') return td.discretionaryTransferYear ?? undefined;
@@ -611,6 +622,9 @@ export function loadTrustToFormData(trust: Trust, property?: PropertyAsset): Tru
     }
     if (mappedTrustType === 'bare') {
       if (trustRole === 'settlor') {
+        data.bareSettlorTransferMonth = transferMonth ?? '';
+        data.bareSettlorTransferYear = transferYear ?? '';
+        data.bareValueAtTransfer = transferValue ?? 0;
         data.bareSettlorDateUnknown = dateUnknown ?? false;
         data.bareSettlorValueUnknown = valueUnknown ?? false;
       }

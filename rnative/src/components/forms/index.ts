@@ -31,3 +31,6 @@ export type { BeneficiarySplitCardProps } from './BeneficiarySplitCard';
 
 export { PersonSelector } from './PersonSelector';
 export type { PersonSelectorProps } from './PersonSelector';
+
+export { TransferDateValueFields } from './TransferDateValueFields';
+export type { TransferDateValueFieldsProps } from './TransferDateValueFields';
