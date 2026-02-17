@@ -94,20 +94,19 @@ describe('Group A: buildPropertyTransferData', () => {
     expect(result.trustTransferWithin7Years).toBe(false);
   });
 
-  // A-5a: LI Remainderman "no" gateway — gateway not mapped to PropertyAsset
-  // (remainderman gateway is form-only; within7Years undefined regardless)
-  it('A-5a: LI Remainderman "no" — within7Years undefined (not mapped)', () => {
+  // A-5a: LI Remainderman "no" gateway — maps to false
+  it('A-5a: LI Remainderman "no" — within7Years false', () => {
     const td = makeTrustData({
       trustType: 'life_interest',
       trustRole: 'remainderman',
       remaindermanTransferWithin7Years: 'no',
     });
     const result = buildPropertyTransferData(td);
-    expect(result.trustTransferWithin7Years).toBeUndefined();
+    expect(result.trustTransferWithin7Years).toBe(false);
   });
 
-  // A-5b: LI Remainderman "yes" — transfer month/year/value populate but gateway doesn't map
-  it('A-5b: LI Remainderman "yes" — transfer fields populated, within7Years undefined', () => {
+  // A-5b: LI Remainderman "yes" gateway — maps to true, transfer fields populated
+  it('A-5b: LI Remainderman "yes" — within7Years true, transfer fields populated', () => {
     const td = makeTrustData({
       trustType: 'life_interest',
       trustRole: 'remainderman',
@@ -117,13 +116,13 @@ describe('Group A: buildPropertyTransferData', () => {
       remaindermanTransferValue: 300000,
     });
     const result = buildPropertyTransferData(td);
-    expect(result.trustTransferWithin7Years).toBeUndefined();
+    expect(result.trustTransferWithin7Years).toBe(true);
     expect(result.trustTransferMonth).toBe('06');
     expect(result.trustTransferYear).toBe('2022');
     expect(result.trustTransferValue).toBe(300000);
   });
 
-  // A-5c: LI Remainderman "not_sure" gateway
+  // A-5c: LI Remainderman "not_sure" — falls through to undefined by design
   it('A-5c: LI Remainderman "not_sure" — within7Years undefined', () => {
     const td = makeTrustData({
       trustType: 'life_interest',
@@ -360,10 +359,83 @@ describe('Group B: Round-trip (buildTrustEntityData -> loadTrustToFormData)', ()
       toTrust(entity, 'trust-4'),
       property as PropertyAsset,
     );
+    expect(loaded.remaindermanTransferWithin7Years).toBe('yes');
     expect(loaded.remaindermanLifeTenantAlive).toBe('yes');
     expect(loaded.remaindermanLifeTenantAge).toBe(72);
     expect(loaded.remaindermanSettlorAlive).toBe('yes');
     expect(loaded.remaindermanSuccessionBeneficiary).toBe('person-1');
+  });
+
+  // B-4 edge: within7Years undefined + dateUnknown true → loads as 'not_sure'
+  it('B-4 edge: within7Years undefined + dateUnknown true → loads as not_sure', () => {
+    const trust = {
+      id: 'trust-rem-edge-1',
+      userId: 'test-user',
+      name: 'Rem Edge Trust',
+      type: 'life_interest_trust',
+      creationMonth: '',
+      creationYear: '',
+      assetIds: ['asset-1'],
+      createdInContext: 'property',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      beneficiary: {
+        entitlementType: undefined,
+        rightOfOccupation: false,
+        benefitDescription: '',
+        isSettlorOfThisTrust: 'no',
+        remainderman: {
+          lifeTenantAlive: 'yes',
+          ownershipClarification: '',
+          lifeTenantAge: 70,
+          settlorAlive: '',
+          successionBeneficiary: '',
+        },
+      },
+      userRole: 'remainderman',
+    } as unknown as Trust;
+    const property = {
+      trustTransferWithin7Years: undefined,
+      trustTransferDateUnknown: true,
+    } as Partial<PropertyAsset>;
+    const loaded = loadTrustToFormData(trust, property as PropertyAsset);
+    expect(loaded.remaindermanTransferWithin7Years).toBe('not_sure');
+  });
+
+  // B-4 edge: within7Years undefined + dateUnknown false → loads as '' (forces re-answer)
+  it('B-4 edge: within7Years undefined + dateUnknown false → loads as empty', () => {
+    const trust = {
+      id: 'trust-rem-edge-2',
+      userId: 'test-user',
+      name: 'Rem Edge Trust 2',
+      type: 'life_interest_trust',
+      creationMonth: '',
+      creationYear: '',
+      assetIds: ['asset-1'],
+      createdInContext: 'property',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      beneficiary: {
+        entitlementType: undefined,
+        rightOfOccupation: false,
+        benefitDescription: '',
+        isSettlorOfThisTrust: 'no',
+        remainderman: {
+          lifeTenantAlive: 'yes',
+          ownershipClarification: '',
+          lifeTenantAge: 70,
+          settlorAlive: '',
+          successionBeneficiary: '',
+        },
+      },
+      userRole: 'remainderman',
+    } as unknown as Trust;
+    const property = {
+      trustTransferWithin7Years: undefined,
+      trustTransferDateUnknown: false,
+    } as Partial<PropertyAsset>;
+    const loaded = loadTrustToFormData(trust, property as PropertyAsset);
+    expect(loaded.remaindermanTransferWithin7Years).toBe('');
   });
 
   // B-5: Bare Beneficiary

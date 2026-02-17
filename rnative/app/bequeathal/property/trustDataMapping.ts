@@ -358,7 +358,7 @@ function getTransferValueUnknown(td: TrustData): boolean | undefined {
 }
 
 /**
- * Helper 6: getTransferWithin7Years — LI Settlor/S&BI + Bare Settlor + Discretionary Settlor/S&B
+ * Helper 6: getTransferWithin7Years — LI Settlor/S&BI + LI Remainderman + Bare Settlor + Discretionary Settlor/S&B + Discretionary Beneficiary
  * String → boolean: 'yes' → true, 'no' → false, '' → undefined
  */
 function getTransferWithin7Years(td: TrustData): boolean | undefined {
@@ -366,6 +366,11 @@ function getTransferWithin7Years(td: TrustData): boolean | undefined {
       (td.trustRole === 'settlor' || td.trustRole === 'settlor_and_beneficial_interest')) {
     if (td.settlorTransferWithin7Years === 'yes') return true;
     if (td.settlorTransferWithin7Years === 'no') return false;
+  }
+  if (td.trustType === 'life_interest' && td.trustRole === 'remainderman') {
+    if (td.remaindermanTransferWithin7Years === 'yes') return true;
+    if (td.remaindermanTransferWithin7Years === 'no') return false;
+    // 'not_sure' falls through to return undefined
   }
   if (td.trustType === 'bare' && td.trustRole === 'settlor') {
     if (td.bareSettlorTransferWithin7Years === 'yes') return true;
@@ -379,7 +384,7 @@ function getTransferWithin7Years(td: TrustData): boolean | undefined {
   if (td.trustType === 'discretionary' && td.trustRole === 'beneficiary') {
     if (td.discretionaryBeneficiaryTransferWithin7Years === 'yes') return true;
     if (td.discretionaryBeneficiaryTransferWithin7Years === 'no') return false;
-    // 'not_sure' → undefined (same as LI Remainderman)
+    // 'not_sure' → undefined
   }
   return undefined;
 }
@@ -635,6 +640,16 @@ export function loadTrustToFormData(trust: Trust, property?: PropertyAsset): Tru
         data.settlorTransferWithin7Years = boolToYesNo(within7Years);
       }
       if (trustRole === 'remainderman') {
+        // 4-way gateway mapping: true→'yes', false→'no', undefined+dateUnknown→'not_sure', else ''
+        if (within7Years === true) {
+          data.remaindermanTransferWithin7Years = 'yes';
+        } else if (within7Years === false) {
+          data.remaindermanTransferWithin7Years = 'no';
+        } else if (within7Years === undefined && (dateUnknown ?? false)) {
+          data.remaindermanTransferWithin7Years = 'not_sure';
+        } else {
+          data.remaindermanTransferWithin7Years = '';
+        }
         data.remaindermanTransferValue = transferValue ?? 0;
         data.remaindermanTransferMonth = transferMonth ?? '';
         data.remaindermanTransferYear = transferYear ?? '';
