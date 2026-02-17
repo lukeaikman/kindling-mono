@@ -150,6 +150,7 @@ interface CategoryCardData {
   assetCount: number;
   netValue: number;
   isComplete: boolean;
+  hasUnknownValues?: boolean;
 }
 
 interface ModeBProps {
@@ -230,6 +231,7 @@ const BalanceSheetMode: React.FC<ModeBProps> = ({
               assetCount={cat.assetCount}
               netValue={cat.netValue}
               isComplete={cat.isComplete}
+              hasUnknownValues={cat.hasUnknownValues}
               onPress={() => onCardPress(cat.id, cat.assetCount)}
               onDeselect={cat.assetCount === 0 ? () => onDeselect(cat.id) : undefined}
             />
@@ -325,6 +327,8 @@ export default function EstateDashboardScreen() {
         }
       }
 
+      const hasUnknown = assets.some(a => a.estimatedValueUnknown === true);
+
       return {
         id: catId,
         label: meta?.label || catId,
@@ -332,6 +336,7 @@ export default function EstateDashboardScreen() {
         assetCount,
         netValue: catNet,
         isComplete: bequeathalActions.isCategoryComplete(catId),
+        hasUnknownValues: hasUnknown,
       };
     });
   }, [selectedCategories, bequeathalActions]);

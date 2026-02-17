@@ -31,6 +31,7 @@ export interface AssetCardProps {
 export const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete }) => {
   const title = getAssetTitle(asset);
   const subline = getAssetSubline(asset);
+  const isValueUnknown = asset.estimatedValueUnknown === true;
   const value = asset.estimatedValue || 0;
 
   return (
@@ -57,7 +58,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete })
         activeOpacity={onEdit ? 0.7 : 1}
         onPress={onEdit ? () => onEdit(asset.id) : undefined}
         accessibilityRole="button"
-        accessibilityLabel={`${title}, £${value.toLocaleString()}${subline ? `, ${subline}` : ''}`}
+        accessibilityLabel={`${title}, ${isValueUnknown ? 'value unknown' : `£${value.toLocaleString()}`}${subline ? `, ${subline}` : ''}`}
       >
         {/* Green accent bar */}
         <View style={styles.accentBar} />
@@ -72,7 +73,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete })
 
         {/* Right: value + chevron */}
         <View style={styles.rightSection}>
-          <Text style={styles.value}>£{value.toLocaleString()}</Text>
+          <Text style={styles.value}>{isValueUnknown ? '?' : `£${value.toLocaleString()}`}</Text>
           {onEdit && (
             <MaterialCommunityIcons
               name="chevron-right"

@@ -57,6 +57,10 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
     }, 0);
   }, [assets]);
 
+  const hasUnknownValues = useMemo(() => {
+    return assets.some(a => a.estimatedValueUnknown === true);
+  }, [assets]);
+
   const hasAssets = Array.isArray(assets) && assets.length > 0;
   const showNet = (totalNet ?? 0) !== (totalValue ?? 0);
 
@@ -172,11 +176,11 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
                   />
                 </View>
                 <Text style={styles.summaryTotal}>
-                  £{(totalValue ?? 0).toLocaleString()}
+                  £{(totalValue ?? 0).toLocaleString()}{hasUnknownValues ? '+' : ''}
                 </Text>
                 {showNet && (
                   <Text style={styles.summaryNet}>
-                    Net: £{(totalNet ?? 0).toLocaleString()}
+                    Net: £{(totalNet ?? 0).toLocaleString()}{hasUnknownValues ? '+' : ''}
                   </Text>
                 )}
                 <Text style={styles.summaryCount}>

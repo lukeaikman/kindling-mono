@@ -66,6 +66,8 @@ export interface EstateCategoryCardProps {
   onPress?: () => void;
   /** Deselect handler — only shown when assetCount === 0 */
   onDeselect?: () => void;
+  /** Whether any asset in this category has an unknown value */
+  hasUnknownValues?: boolean;
   /** Optional style override */
   style?: ViewStyle;
 }
@@ -87,10 +89,11 @@ const formatShortValue = (value: number): string => {
 };
 
 /** Build the subline text based on asset count and value */
-const getSubline = (assetCount: number, netValue: number): string | null => {
+const getSubline = (assetCount: number, netValue: number, hasUnknownValues?: boolean): string | null => {
   if (assetCount === 0) return null;
   const items = assetCount === 1 ? '1 item' : `${assetCount} items`;
-  return `${items} · ${formatShortValue(netValue)} net`;
+  const suffix = hasUnknownValues ? '+' : '';
+  return `${items} · ${formatShortValue(netValue)}${suffix} net`;
 };
 
 // ---------------------------------------------------------------------------
@@ -103,13 +106,14 @@ export const EstateCategoryCard: React.FC<EstateCategoryCardProps> = ({
   assetCount,
   netValue,
   isComplete,
+  hasUnknownValues,
   onPress,
   onDeselect,
   style,
 }) => {
   const hasAssets = assetCount > 0;
   const pill = getPillStyle(isComplete, hasAssets);
-  const subline = getSubline(assetCount, netValue);
+  const subline = getSubline(assetCount, netValue, hasUnknownValues);
   const showPill = isComplete || !hasAssets;
   const showCloseIcon = !hasAssets && !!onDeselect;
 
