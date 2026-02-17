@@ -339,6 +339,9 @@ export interface BequeathalData {
   // A category is "selected" if it has an entry here.
   // completedAt: null = selected but not complete. ISO string = complete.
   categoryStatus: Record<string, { completedAt: string | null }>;
+  // Set to true when user taps "Let's get started" from Mode A.
+  // Controls transition from category picker (Mode A) to dashboard cards (Mode B).
+  hasStartedEntry?: boolean;
   totalEstimatedValue: number;
   totalNetValue: number;
   lastUpdated: Date;
@@ -855,6 +858,7 @@ export interface BequeathalActions {
   // Category lifecycle — NEW (replaces setSelectedCategories / toggleCategory / deleteAsset)
   selectCategory: (categoryId: string) => void;
   deselectCategory: (categoryId: string) => void;
+  setHasStartedEntry: (value: boolean) => void;
   markCategoryComplete: (categoryId: string) => void;
   markCategoryIncomplete: (categoryId: string) => void;
   markAllCategoriesComplete: () => void;

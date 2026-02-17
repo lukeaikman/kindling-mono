@@ -1340,6 +1340,14 @@ export const useAppState = () => {
       });
     },
 
+    setHasStartedEntry: (value) => {
+      setBequeathalData(prev => ({
+        ...prev,
+        hasStartedEntry: value,
+        lastUpdated: new Date(),
+      }));
+    },
+
     markCategoryComplete: (categoryId) => {
       setBequeathalData(prev => ({
         ...prev,

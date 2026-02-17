@@ -294,8 +294,9 @@ export default function EstateDashboardScreen() {
 
   // Derive real values
   const totalAssetCount = bequeathalActions.getTotalAssetCount();
-  const isBalanceSheet = totalAssetCount > 0;
   const selectedCategories = sortByCanonicalOrder(bequeathalActions.getSelectedCategories());
+  const hasStartedEntry = bequeathalActions.getBequeathalData().hasStartedEntry === true;
+  const isBalanceSheet = totalAssetCount > 0 || (hasStartedEntry && selectedCategories.length > 0);
   const selectedSet = useMemo(() => new Set(selectedCategories), [selectedCategories]);
 
   // Real calculated values for Mode B
@@ -388,6 +389,11 @@ export default function EstateDashboardScreen() {
   const handleDeselect = useCallback(
     (id: string) => {
       bequeathalActions.deselectCategory(id);
+      // If this was the last category, reset the started flag so Mode A returns
+      const remaining = bequeathalActions.getSelectedCategories().filter(c => c !== id);
+      if (remaining.length === 0) {
+        bequeathalActions.setHasStartedEntry(false);
+      }
     },
     [bequeathalActions],
   );
@@ -463,13 +469,14 @@ export default function EstateDashboardScreen() {
   }, [selectedCategories, bequeathalActions]);
 
   const handleModeAGetStarted = useCallback(() => {
-    // Navigate to the first selected category's intro
+    // Commit the transition from Mode A (category picker) to Mode B (dashboard cards)
     if (selectedCategories.length > 0) {
+      bequeathalActions.setHasStartedEntry(true);
       const firstCat = selectedCategories[0];
       const route = getCategoryRoute(firstCat, 0); // 0 assets in mode A
       router.push(route as any);
     }
-  }, [selectedCategories]);
+  }, [selectedCategories, bequeathalActions]);
 
   // ---- Render ----
   return (
@@ -528,11 +535,13 @@ export default function EstateDashboardScreen() {
 
           {/* Footer */}
           {isBalanceSheet ? (
-            <View style={styles.footer}>
-              <Button onPress={handleAllAssetsAdded} variant="primary">
-                All assets added
-              </Button>
-            </View>
+            totalAssetCount > 0 ? (
+              <View style={styles.footer}>
+                <Button onPress={handleAllAssetsAdded} variant="primary">
+                  All assets added
+                </Button>
+              </View>
+            ) : null
           ) : selectedSet.size > 0 ? (
             <View style={styles.footer}>
               <Button onPress={handleModeAGetStarted} variant="primary">
