@@ -47,9 +47,12 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
 }) => {
   // Display value as plain number (no £ in the text itself)
   const [displayValue, setDisplayValue] = React.useState(value > 0 ? value.toString() : '');
+  const isFocusedRef = React.useRef(false);
   
-  // Update display when value changes externally (e.g., "Not sure" clears it)
+  // Update display only when value changes externally (e.g., "Not sure" clears it).
+  // Skip while the user is actively typing — formatting/rounding happens on blur.
   React.useEffect(() => {
+    if (isFocusedRef.current) return;
     if (value === 0) {
       setDisplayValue('');
     } else if (value > 0) {
@@ -69,8 +72,13 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
     onValueChange(numericValue);
   };
   
+  const handleFocus = () => {
+    isFocusedRef.current = true;
+  };
+
   const handleBlur = () => {
-    // Format number with commas on blur (no £ symbol in text)
+    isFocusedRef.current = false;
+    // Round and format with commas on blur (no £ symbol in text)
     if (value > 0) {
       setDisplayValue(value.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
     } else {
@@ -83,6 +91,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
       {...props}
       value={displayValue}
       onChangeText={handleChange}
+      onFocus={handleFocus}
       onBlur={handleBlur}
       keyboardType="numeric"
       leftIcon="currency-gbp"
