@@ -193,7 +193,7 @@ export default function PrivateCompanySharesEntryScreen() {
       isActivelyTrading: share.isActivelyTrading || false,
       isNotHoldingCompany: share.isNotHoldingCompany || false,
     });
-    setValueNotSure((share.estimatedValue || 0) === 0);
+    setValueNotSure(share.estimatedValueUnknown === true);
   }, [editingAssetId, bequeathalActions]);
 
   const handleCompanySelection = (value: string) => {
@@ -239,8 +239,8 @@ export default function PrivateCompanySharesEntryScreen() {
       return; // Component already shows error state
     }
 
-    // Round value to nearest £1
-    const estimatedValue = Math.round(valueNotSure ? 0 : formData.estimatedValue);
+    // Round value to nearest £1 — undefined when unsure (not 0)
+    const estimatedValue = valueNotSure ? undefined : Math.round(formData.estimatedValue);
 
     // Build share data with ownership field
     let percentageOwnership: number | undefined;
@@ -297,6 +297,7 @@ export default function PrivateCompanySharesEntryScreen() {
       companyArticlesConfident: formData.companyArticlesConfident || undefined,
       companyCountryOfRegistration: formData.companyCountryOfRegistration || undefined,
       estimatedValue,
+      estimatedValueUnknown: valueNotSure || undefined,
       netValue: estimatedValue,
       notes: formData.notes || undefined,
       excludeFromNetWorth: formData.excludeFromNetWorth,
@@ -328,7 +329,7 @@ export default function PrivateCompanySharesEntryScreen() {
     const oldAssetValue = editingAssetId
       ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
       : 0;
-    toast.notifySave(estimatedValue - oldAssetValue);
+    toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
     // Clear draft on successful save
     discardDraft();

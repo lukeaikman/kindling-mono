@@ -1220,8 +1220,8 @@ export const useAppState = () => {
         type: assetType,
         title: assetData.title || 'Untitled Asset',
         description: assetData.description || '',
-        estimatedValue: assetData.estimatedValue || 0,
-        netValue: assetData.netValue || assetData.estimatedValue || 0,
+        estimatedValue: assetData.estimatedValue ?? undefined,
+        netValue: assetData.netValue ?? assetData.estimatedValue ?? undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       } as Asset;

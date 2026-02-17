@@ -133,7 +133,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
       assetDescription: businessAsset.assetDescription || '',
       estimatedValue: businessAsset.estimatedValue || 0,
     });
-    setValueNotSure((businessAsset.estimatedValue || 0) === 0);
+    setValueNotSure(businessAsset.estimatedValueUnknown === true);
   }, [editingAssetId, bequeathalActions]);
 
   const handleBusinessSelect = (businessId: string) => {
@@ -180,8 +180,8 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
     const business = businessActions.getBusinessById(selectedBusinessId);
     const businessName = business?.name || selectedBusinessName || 'Unknown Business';
 
-    // Round value to nearest £1
-    const estimatedValue = Math.round(valueNotSure ? 0 : formData.estimatedValue);
+    // Round value to nearest £1 — undefined when unsure (not 0)
+    const estimatedValue = valueNotSure ? undefined : Math.round(formData.estimatedValue);
 
     const assetTypeLabel = assetTypeOptions.find(opt => opt.value === formData.assetType)?.label || formData.assetType;
 
@@ -192,6 +192,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
       assetType: formData.assetType,
       assetDescription: formData.assetDescription || undefined,
       estimatedValue,
+      estimatedValueUnknown: valueNotSure || undefined,
       netValue: estimatedValue,
     };
 
@@ -205,7 +206,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
     const oldAssetValue = editingAssetId
       ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
       : 0;
-    toast.notifySave(estimatedValue - oldAssetValue);
+    toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
     router.push(SUMMARY_ROUTE as any);
   };

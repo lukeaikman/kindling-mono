@@ -102,15 +102,15 @@ export default function CryptoCurrencyEntryScreen() {
       estimatedValue: holding.estimatedValue || 0,
       notes: (holding as any).notes || '',
     });
-    setBalanceNotSure((holding.estimatedValue || 0) === 0);
+    setBalanceNotSure(holding.estimatedValueUnknown === true);
   }, [editingAssetId, bequeathalActions]);
 
   const handleSave = () => {
     // Validation
     if (!formData.platform) return;
 
-    // Round value to nearest £1
-    const estimatedValue = Math.round(balanceNotSure ? 0 : formData.estimatedValue);
+    // Round value to nearest £1 — undefined when unsure (not 0)
+    const estimatedValue = balanceNotSure ? undefined : Math.round(formData.estimatedValue);
 
     const holdingData = {
       title: formData.accountUsername
@@ -120,6 +120,7 @@ export default function CryptoCurrencyEntryScreen() {
       accountUsername: formData.accountUsername || undefined,
       notes: formData.notes || undefined,
       estimatedValue,
+      estimatedValueUnknown: balanceNotSure || undefined,
       netValue: estimatedValue,
     };
 
@@ -133,7 +134,7 @@ export default function CryptoCurrencyEntryScreen() {
     const oldAssetValue = editingAssetId
       ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
       : 0;
-    toast.notifySave(estimatedValue - oldAssetValue);
+    toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
     router.push(SUMMARY_ROUTE as any);
   };

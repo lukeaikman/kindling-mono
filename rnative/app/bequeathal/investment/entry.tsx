@@ -100,7 +100,7 @@ export default function InvestmentsEntryScreen() {
       beneficiaries,
       estimatedValue: investment.estimatedValue || 0,
     });
-    setBalanceNotSure((investment.estimatedValue || 0) === 0);
+    setBalanceNotSure(investment.estimatedValueUnknown === true);
   }, [editingAssetId]);
 
   const handleBeneficiariesChange = (newBeneficiaries: BeneficiaryAssignment[]) => {
@@ -116,8 +116,8 @@ export default function InvestmentsEntryScreen() {
       return; // Component already shows error
     }
 
-    // Round value to nearest £1
-    const estimatedValue = Math.round(balanceNotSure ? 0 : formData.estimatedValue);
+    // Round value to nearest £1 — undefined when unsure (not 0)
+    const estimatedValue = balanceNotSure ? undefined : Math.round(formData.estimatedValue);
 
     const investmentType = formData.investmentType || 'other';
     const investmentTypeLabel = investmentTypeOptions.find(opt => opt.value === investmentType)?.label || 'Other';
@@ -136,6 +136,7 @@ export default function InvestmentsEntryScreen() {
         }))
       },
       estimatedValue,
+      estimatedValueUnknown: balanceNotSure || undefined,
       netValue: estimatedValue,
     };
 
@@ -149,7 +150,7 @@ export default function InvestmentsEntryScreen() {
     const oldAssetValue = editingAssetId
       ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
       : 0;
-    toast.notifySave(estimatedValue - oldAssetValue);
+    toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
     router.push(SUMMARY_ROUTE as any);
   };

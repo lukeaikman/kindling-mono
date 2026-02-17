@@ -227,7 +227,7 @@ export default function AgriculturalAssetsEntryScreen() {
       bprOwnershipDuration: agAsset.bprOwnershipDuration || '',
       notes: agAsset.notes || '',
     });
-    setValueNotSure((agAsset.estimatedValue || 0) === 0);
+    setValueNotSure(agAsset.estimatedValueUnknown === true);
   }, [editingAssetId, bequeathalActions]);
 
   // APR qualification logic
@@ -289,10 +289,10 @@ export default function AgriculturalAssetsEntryScreen() {
     // Validation
     if (!formData.aprOwnershipStructure || !formData.assetType || !formData.assetDescription.trim()) return;
 
-    // Calculate net value
-    const estimatedValue = Math.round(valueNotSure ? 0 : formData.estimatedValue);
+    // Calculate net value — both undefined when value is unknown
+    const estimatedValue = valueNotSure ? undefined : Math.round(formData.estimatedValue);
     const debtAmount = formData.hasDebtsEncumbrances === 'yes' ? Math.round(formData.debtAmount) : 0;
-    const netValue = Math.max(0, estimatedValue - debtAmount);
+    const netValue = estimatedValue !== undefined ? Math.max(0, estimatedValue - debtAmount) : undefined;
 
     const assetTypeLabel = assetTypeOptions.find(opt => opt.value === formData.assetType)?.label || formData.assetType;
 
@@ -303,6 +303,7 @@ export default function AgriculturalAssetsEntryScreen() {
       aprOwnershipStructure: formData.aprOwnershipStructure as 'personal' | 'partnership' | 'trust' | 'not-sure',
       hasDebtsEncumbrances: formData.hasDebtsEncumbrances as 'yes' | 'no',
       estimatedValue,
+      estimatedValueUnknown: valueNotSure || undefined,
       netValue,
       // Asset-type conditionals
       farmWorkerOccupied: formData.assetType === 'farm-worker-cottage' ? formData.farmWorkerOccupied as any : undefined,
@@ -332,7 +333,7 @@ export default function AgriculturalAssetsEntryScreen() {
     const oldAssetValue = editingAssetId
       ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
       : 0;
-    toast.notifySave(estimatedValue - oldAssetValue);
+    toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
     // Clear draft on successful save
     discardDraft();

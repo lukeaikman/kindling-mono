@@ -111,7 +111,7 @@ export default function PensionsEntryScreen() {
       beneficiaryNominated: pension.beneficiaryNominated || 'not-sure',
       beneficiaries: pension.beneficiaryAssignments?.beneficiaries || [],
     });
-    setBalanceNotSure((pension.estimatedValue || 0) === 0);
+    setBalanceNotSure(pension.estimatedValueUnknown === true);
   }, [editingAssetId, bequeathalActions]);
 
   // Determine value field label based on pension type
@@ -132,8 +132,8 @@ export default function PensionsEntryScreen() {
       if (!validatePercentageAllocation({ beneficiaries: formData.beneficiaries })) return;
     }
 
-    // Round value to nearest £1
-    const estimatedValue = Math.round(balanceNotSure ? 0 : formData.estimatedValue);
+    // Round value to nearest £1 — undefined when unsure (not 0)
+    const estimatedValue = balanceNotSure ? undefined : Math.round(formData.estimatedValue);
 
     const pensionTypeLabel = pensionTypeOptions.find(opt => opt.value === formData.pensionType)?.label || formData.pensionType;
 
@@ -152,6 +152,7 @@ export default function PensionsEntryScreen() {
           }
         : undefined,
       estimatedValue,
+      estimatedValueUnknown: balanceNotSure || undefined,
       netValue: estimatedValue,
     };
 
@@ -165,7 +166,7 @@ export default function PensionsEntryScreen() {
     const oldAssetValue = editingAssetId
       ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
       : 0;
-    toast.notifySave(estimatedValue - oldAssetValue);
+    toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
     router.push(SUMMARY_ROUTE as any);
   };

@@ -445,6 +445,7 @@ export interface BaseAsset {
   title: string;
   description?: string;
   estimatedValue?: number;
+  estimatedValueUnknown?: boolean;
   netValue?: number;
   heldInTrust?: HeldInTrust;
   createdAt: string;

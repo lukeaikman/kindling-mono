@@ -178,7 +178,7 @@ export default function BankAccountsEntryScreen() {
       accountId: (account as any).accountId || '',
       notes: (account as any).notes || '',
     });
-    setBalanceNotSure((account.estimatedValue || 0) === 0);
+    setBalanceNotSure(account.estimatedValueUnknown === true);
   }, [editingAssetId, bequeathalActions]);
 
   const isNonUkBank = formData.bankName === 'Non UK Bank';
@@ -189,8 +189,8 @@ export default function BankAccountsEntryScreen() {
     if (!formData.bankName) return;
     if (isNonUkBank && !formData.nonUkBankName) return;
 
-    // Round balance to nearest £1
-    const estimatedValue = Math.round(balanceNotSure ? 0 : formData.estimatedBalance);
+    // Round balance to nearest £1 — undefined when unsure (not 0)
+    const estimatedValue = balanceNotSure ? undefined : Math.round(formData.estimatedBalance);
 
     // Validate account number if provided
     if (!isNonUkBank && formData.accountNumber) {
@@ -212,6 +212,7 @@ export default function BankAccountsEntryScreen() {
         provider: displayBankName,
         accountNumber: isNonUkBank ? formData.accountId : formData.accountNumber,
         estimatedValue,
+        estimatedValueUnknown: balanceNotSure || undefined,
         netValue: estimatedValue,
       };
 
@@ -234,6 +235,7 @@ export default function BankAccountsEntryScreen() {
         accountId: isNonUkBank ? formData.accountId : undefined,
         notes: isNonUkBank ? formData.notes : undefined,
         estimatedValue,
+        estimatedValueUnknown: balanceNotSure || undefined,
         netValue: estimatedValue,
       };
 
@@ -248,7 +250,7 @@ export default function BankAccountsEntryScreen() {
     const oldAssetValue = editingAssetId
       ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
       : 0;
-    toast.notifySave(estimatedValue - oldAssetValue);
+    toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
     // Clear draft on successful save
     discardDraft();
