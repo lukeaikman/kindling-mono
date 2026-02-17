@@ -49,16 +49,17 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   const [displayValue, setDisplayValue] = React.useState(value > 0 ? value.toString() : '');
   const isFocusedRef = React.useRef(false);
   
-  // Update display only when value changes externally (e.g., "Not sure" clears it).
+  // Update display only when value changes externally (e.g., "Unsure" checkbox clears it).
   // Skip while the user is actively typing — formatting/rounding happens on blur.
+  // Only clear to '' when disabled (Unsure ticked) — a genuine user-typed 0 must persist.
   React.useEffect(() => {
     if (isFocusedRef.current) return;
-    if (value === 0) {
+    if (value === 0 && disabled) {
       setDisplayValue('');
     } else if (value > 0) {
       setDisplayValue(value.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
     }
-  }, [value]);
+  }, [value, disabled]);
   
   const handleChange = (text: string) => {
     // Only allow digits and one decimal point
@@ -78,8 +79,8 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
 
   const handleBlur = () => {
     isFocusedRef.current = false;
-    // Round and format with commas on blur (no £ symbol in text)
-    if (value > 0) {
+    // Format with commas on blur — preserve user-typed 0 (displayValue !== '')
+    if (value >= 0 && displayValue !== '') {
       setDisplayValue(value.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 }));
     } else {
       setDisplayValue('');
