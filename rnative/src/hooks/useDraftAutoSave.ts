@@ -85,8 +85,12 @@ export function useDraftAutoSave<T>(
   // Track whether we've done the initial load check
   const initialCheckDone = useRef(false);
 
-  // Track whether form data has been touched (gate for debounced saves)
+  // Track whether form data has been touched by the user (gate for debounced saves)
   const formTouched = useRef(false);
+
+  // Synchronous guard: set to true in discardDraft() *before* any async work,
+  // so the unmount flush (which runs synchronously) knows not to re-save.
+  const discardedRef = useRef(false);
 
   // Track latest values via refs so the unmount cleanup can flush correctly
   // (useEffect cleanup closures capture stale values without refs)
@@ -94,6 +98,8 @@ export function useDraftAutoSave<T>(
   formDataRef.current = formData;
   const draftKeyRef = useRef(draftKey);
   draftKeyRef.current = draftKey;
+  const initialDataRef = useRef<T>(initialData);
+  initialDataRef.current = initialData;
 
   // -----------------------------------------------------------------------
   // 1. On mount: check for existing draft
@@ -125,14 +131,17 @@ export function useDraftAutoSave<T>(
     // Don't save until the form is loaded (edit-mode hydration gate)
     if (!isLoaded) return;
 
-    // Don't save the very first render (initial data, no user interaction)
+    // Don't save until the user has actually changed something.
+    // Compare serialised snapshots so we don't false-positive on re-renders.
     if (!formTouched.current) {
-      // Mark touched after the first real change.
-      // On the very first effect run, formData === initialData, so skip.
-      // On subsequent runs, formData has changed — mark as touched.
+      if (JSON.stringify(formData) === JSON.stringify(initialDataRef.current)) {
+        return;
+      }
       formTouched.current = true;
-      return;
     }
+
+    // Reset the discarded flag — the user is actively editing again
+    discardedRef.current = false;
 
     // Mark that the form has been changed
     setHasChanges(true);
@@ -172,6 +181,17 @@ export function useDraftAutoSave<T>(
   // -----------------------------------------------------------------------
 
   const discardDraft = useCallback(async () => {
+    // Synchronous flags FIRST — the unmount flush runs synchronously and must
+    // see these before the async removeData resolves.
+    discardedRef.current = true;
+    formTouched.current = false;
+
+    // Clear any pending debounce so it can't fire after discard
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
     try {
       await removeData(draftKey);
       console.log(`[draftautosave] [${ts()}] Discarded draft for ${draftKey}`);
@@ -181,7 +201,6 @@ export function useDraftAutoSave<T>(
     draftDataRef.current = null;
     setHasDraft(false);
     setHasChanges(false);
-    formTouched.current = false;
   }, [draftKey]);
 
   // -----------------------------------------------------------------------
@@ -192,8 +211,10 @@ export function useDraftAutoSave<T>(
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
-        // If the user navigated away before the debounce fired, save now
-        if (formTouched.current) {
+        // Flush the pending draft ONLY if:
+        //  - the user actually touched the form, AND
+        //  - discardDraft() was NOT called (i.e. this is a back-navigation, not a save)
+        if (formTouched.current && !discardedRef.current) {
           saveData(draftKeyRef.current, formDataRef.current).catch(() => {});
           console.log(`[draftautosave] [${ts()}] Flushed pending draft for ${draftKeyRef.current} on unmount`);
         }

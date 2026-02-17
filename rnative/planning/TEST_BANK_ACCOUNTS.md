@@ -1,12 +1,5 @@
 # Bank Accounts — Test Plan
 
-**Entry form:** `app/bequeathal/bank-accounts/entry.tsx`
-**Intro screen:** `app/bequeathal/bank-accounts/intro.tsx`
-**Summary screen:** `app/bequeathal/bank-accounts/summary.tsx` (uses `CategorySummaryScreen`)
-**Interface:** `BankAccountAsset` in `src/types/index.ts`
-**Date:** 2026-02-17
-**Status:** Not started
-
 ---
 
 ## Precursor: Purge data before testing
@@ -35,20 +28,20 @@
 ## B. UK Bank — Add Flow
 
 
-| #    | Test                                            | Steps                                                                                                                                                       | Pass criteria                                                                                                     |
-| ------ | :------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| B-1  | Add current account — basic                    | Select "Barclays" from provider search. Account type = Current Account. Ownership = Personal. Enter account number "12345678". Enter balance £1,500. Save. | Navigates to summary. Asset visible with title "Barclays - Current Account", balance £1,500.                     |
-| B-2  | Add savings account                             | Select "HSBC". Account type = Savings Account. Ownership = Joint. Enter balance £25,000. Leave account number blank. Save.                                 | Asset saved. Title "HSBC - Savings Account".`ownershipType === 'joint'`. Account number absent/undefined in data. |
-| B-3  | Add fixed-term deposit                          | Select "Nationwide Building Society". Account type = Fixed Term Deposit. Ownership = Personal. Enter balance £10,000. Save.                                | Asset saved with`accountType === 'fixed-term'`.                                                                   |
-| B-4  | Add "Other" account type                        | Select "Monzo". Account type = Other. Enter balance £500. Save.                                                                                            | Asset saved with`accountType === 'other'`.                                                                        |
-| B-5  | Provider search works                           | Tap provider field. Type "Star".                                                                                                                            | "Starling Bank" appears in filtered list. Other banks hidden.                                                     |
-| B-6  | Provider "Other" option                         | Select "Other" from provider list. Complete form. Save.                                                                                                     | Asset saved with`provider === 'Other'`.                                                                           |
-| B-7  | Balance "Unsure" checkbox                       | Select any bank + account type. Tick "Unsure of balance". Save.                                                                                             | `estimatedValue === 0` in data viewer. Balance input disabled/dimmed while ticked.                                |
-| B-8  | Balance rounding                                | Enter balance £1,234.56. Save.                                                                                                                             | `estimatedValue === 1235` (rounded to nearest £1).                                                               |
-| B-9  | Account number validation — too short          | Enter account number "12". Tap save.                                                                                                                        | Alert: "Invalid Account Number" — "UK account numbers must be 3-8 digits". Save blocked.                         |
-| B-10 | Account number validation — too long prevented | Try entering more than 8 digits in account number field.                                                                                                    | Field maxLength prevents input beyond 8 characters.                                                               |
-| B-11 | Account number — non-numeric stripped          | Type "ABC123DEF" in account number field.                                                                                                                   | Field shows "123" only (non-digits stripped on input).                                                            |
-| B-12 | Account number — 3 digits accepted             | Enter account number "123". Save (with valid provider + type).                                                                                              | Save succeeds.`accountNumber === '123'` in data.                                                                  |
+| #    | Test                                            | Steps                                                                                                                                                       | Pass criteria                                                                                                     | Pass? |
+| ------ | :------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------- |
+| B-1  | Add current account — basic                    | Select "Barclays" from provider search. Account type = Current Account. Ownership = Personal. Enter account number "12345678". Enter balance £1,500. Save. | Navigates to summary. Asset visible with title "Barclays - Current Account", balance £1,500.                     | Pass  |
+| B-2  | Add savings account                             | Select "HSBC". Account type = Savings Account. Ownership = Joint. Enter balance £25,000. Leave account number blank. Save.                                 | Asset saved. Title "HSBC - Savings Account".`ownershipType === 'joint'`. Account number absent/undefined in data. | Pass  |
+| B-3  | Add fixed-term deposit                          | Select "Nationwide Building Society". Account type = Fixed Term Deposit. Ownership = Personal. Enter balance £10,000. Save.                                | Asset saved with`accountType === 'fixed-term'`.                                                                   | Pass  |
+| B-4  | Add "Other" account type                        | Select "Monzo". Account type = Other. Enter balance £500. Save.                                                                                            | Asset saved with`accountType === 'other'`.                                                                        | Pass  |
+| B-5  | Provider search works                           | Tap provider field. Type "Star".                                                                                                                            | "Starling Bank" appears in filtered list. Other banks hidden.                                                     |       |
+| B-6  | Provider "Other" option                         | Select "Other" from provider list. Complete form. Save.                                                                                                     | Asset saved with`provider === 'Other'`.                                                                           |       |
+| B-7  | Balance "Unsure" checkbox                       | Select any bank + account type. Tick "Unsure of balance". Save.                                                                                             | `estimatedValue === 0` in data viewer. Balance input disabled/dimmed while ticked.                                |       |
+| B-8  | Balance rounding                                | Enter balance £1,234.56. Save.                                                                                                                             | `estimatedValue === 1235` (rounded to nearest £1).                                                               |       |
+| B-9  | Account number validation — too short          | Enter account number "12". Tap save.                                                                                                                        | Alert: "Invalid Account Number" — "UK account numbers must be 3-8 digits". Save blocked.                         |       |
+| B-10 | Account number validation — too long prevented | Try entering more than 8 digits in account number field.                                                                                                    | Field maxLength prevents input beyond 8 characters.                                                               |       |
+| B-11 | Account number — non-numeric stripped          | Type "ABC123DEF" in account number field.                                                                                                                   | Field shows "123" only (non-digits stripped on input).                                                            |       |
+| B-12 | Account number — 3 digits accepted             | Enter account number "123". Save (with valid provider + type).                                                                                              | Save succeeds.`accountNumber === '123'` in data.                                                                  |       |
 
 ---
 
@@ -111,6 +104,10 @@
 | G-2 | Draft discard — new asset   | From G-1, tap discard on draft banner.                                                                                     | Form resets to defaults (blank provider, balance 0, account type "current").                 |
 | G-3 | Draft discard — editing     | Edit an existing account. Change balance. Navigate away. Return. Tap discard.                                              | Form reverts to the saved asset data (not draft).                                            |
 | G-4 | Draft cleared on save        | Add a new account. Navigate away (draft created). Return, restore draft. Complete save. Navigate away and return to entry. | No draft banner shown. Fresh form.                                                           |
+| G-5 | Save then add new — form blank | Save a new bank account (e.g. Monzo, £500). From summary, tap "Add" to start a new account. | Entry form is completely blank: no provider, balance £0, account type "Current Account". No draft banner. Previous account's data must NOT appear. |
+| G-6 | Save then add new — app restart | Save a new bank account. Kill and reopen the app. Navigate to bank accounts and tap "Add". | Form is blank. No draft banner. Previous save did not leave a stale draft in AsyncStorage. |
+| G-7 | Quick save after typing | Start new account. Select Barclays, type balance £2,000, immediately tap "Add this account" (within 2 seconds of last keystroke). From summary, tap "Add". | Form is blank. The debounce timer must not flush stale data after save. |
+| G-8 | Discard then add new | Start new account, fill in Barclays + £1,000. Navigate away (draft created). Return, tap discard on draft banner. Save a different account. Tap "Add". | Form is blank. No ghost draft from the discarded session. |
 
 ---
 
@@ -162,17 +159,15 @@
 | D — ISA handling    | 5      | Cross-category save          |
 | E — Edit flow       | 5      | Load + update                |
 | F — Delete flow     | 3      | CRUD completion              |
-| G — Draft auto-save | 4      | Persistence lifecycle        |
+| G — Draft auto-save | 8      | Persistence lifecycle + race conditions |
 | H — Validation      | 4      | Required fields + defaults   |
 | I — Summary screen  | 5      | Display + totals             |
 | J — Data integrity  | 4      | Type safety + edge cases     |
-| **Total**            | **51** |                              |
+| **Total**            | **55** |                              |
 
 ---
 
 # Part 2: Jest Unit Tests (implement after manual tests pass)
-
-Unlike Property (which has a complex `trustDataMapping.ts` pure-function layer), Bank Accounts has its logic mostly inline in the component. The Jest-testable surface is smaller but still valuable.
 
 ## Candidates for Jest
 
