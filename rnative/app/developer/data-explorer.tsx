@@ -141,7 +141,7 @@ export default function DataExplorerScreen() {
     {
       name: 'Bank Accounts',
       icon: 'bank',
-      getData: () => bequeathalActions.getAssetsByType('bank-account'),
+      getData: () => bequeathalActions.getAssetsByType('bank-accounts'),
       getDisplayName: (asset) => `${asset.title || 'Untitled'} (${asset.accountType || 'Account'})`,
       getKey: (asset) => asset.id,
     },
@@ -155,7 +155,7 @@ export default function DataExplorerScreen() {
     {
       name: 'Pensions',
       icon: 'account-clock',
-      getData: () => bequeathalActions.getAssetsByType('pension'),
+      getData: () => bequeathalActions.getAssetsByType('pensions'),
       getDisplayName: (asset) => `${asset.title || 'Untitled'} (${asset.pensionType || 'Pension'})`,
       getKey: (asset) => asset.id,
     },
@@ -190,7 +190,7 @@ export default function DataExplorerScreen() {
     {
       name: 'Assets Through Business',
       icon: 'briefcase-account',
-      getData: () => bequeathalActions.getAssetsByType('assets-through-business'),
+      getData: () => bequeathalActions.getAssetsByType('assets-held-through-business'),
       getDisplayName: (asset) => `${asset.title || 'Untitled'}`,
       getKey: (asset) => asset.id,
     },

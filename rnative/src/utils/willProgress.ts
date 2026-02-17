@@ -9,10 +9,11 @@
  * TEST CASES – deriveYourPeopleStatus():
  *
  *   1. Empty state (no will-maker) → 'Not started'
- *   2. Only personal details filled → 'In progress'
- *   3. All complete, no children → 'Complete' (guardians skipped)
- *   4. All complete, has children, no guardians → 'In progress'
- *   5. All complete, has children, guardians set, invitations sent → 'Complete'
+ *   2. Will-maker has name + DOB but sub-flows incomplete → 'In progress'
+ *   3. Single, no children, all sub-flows complete → 'Complete'
+ *   4. All complete, no children → 'Complete' (guardians skipped)
+ *   5. Has children, no guardians → 'In progress'
+ *   6. Has children, guardians set, invitations sent → 'Complete'
  *
  * TEST CASES – getNextYourPeopleRoute():
  *
@@ -42,22 +43,14 @@ export interface WillProgressState {
 // Low-level checks
 // ---------------------------------------------------------------------------
 
-/** Will-maker has firstName, lastName, dateOfBirth, and a valid address */
-export function hasFullUserDetails(willMaker: Person | undefined): boolean {
+/** Will-maker exists with the minimum data collected during onboarding (name + DOB) */
+export function hasStartedOnboarding(willMaker: Person | undefined): boolean {
   if (!willMaker) return false;
   return !!(
     willMaker.firstName?.trim() &&
     willMaker.lastName?.trim() &&
-    willMaker.dateOfBirth &&
-    willMaker.address?.address1?.trim() &&
-    willMaker.address?.city?.trim() &&
-    willMaker.address?.postcode?.trim()
+    willMaker.dateOfBirth
   );
-}
-
-/** At least one family member was captured during onboarding */
-export function hasOnboardingData(people: Person[]): boolean {
-  return people.some((p) => p.createdInOnboarding === true);
 }
 
 /** True when there are children under 18 in the person list */
@@ -170,19 +163,16 @@ export function haveGuardiansAccepted(
 // ---------------------------------------------------------------------------
 
 export function deriveYourPeopleStatus(state: WillProgressState): StageStatus {
-  // "Started" gate: user has begun onboarding or has profile data
-  const started =
-    hasFullUserDetails(state.willMaker) || hasOnboardingData(state.people);
+  // "Started" gate: will-maker exists with name + DOB from onboarding
+  const started = hasStartedOnboarding(state.willMaker);
   if (!started) {
-    console.log('[willProgress] deriveYourPeopleStatus → Not started (no user details or onboarding data)');
+    console.log('[willProgress] deriveYourPeopleStatus → Not started (no will-maker or missing name/DOB)');
     return 'Not started';
   }
 
   const childrenExist = hasChildrenUnder18(state.people);
 
   // Completion checks: the 4 sub-flows that make up "Your People"
-  // (hasFullUserDetails & hasOnboardingData are onboarding/profile concerns,
-  //  not part of the Guardians → Residue → Executors → Invitations flow)
   const checkResults = {
     guardiansNominated: childrenExist ? areGuardiansNominated(state.people, state.willData) : true,
     residueAllocated: isResidueAllocated(state.estateRemainderState),
