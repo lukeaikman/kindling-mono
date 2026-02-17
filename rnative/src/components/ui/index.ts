@@ -55,9 +55,7 @@ export type { Under18ExecutorDialogProps } from './Under18ExecutorDialog';export
 export type { ExecutorConfirmationDialogProps } from './ExecutorConfirmationDialog';export { VideoPlayer } from './VideoPlayer';
 export type { VideoPlayerProps } from './VideoPlayer';
 export { InformationCard } from './InformationCard';
-export type { InformationCardProps } from './InformationCard';
-
-export { AssetCard } from './AssetCard';
+export type { InformationCardProps } from './InformationCard';export { AssetCard } from './AssetCard';
 export type { AssetCardProps } from './AssetCard';
 
 export { DraftBanner } from './DraftBanner';

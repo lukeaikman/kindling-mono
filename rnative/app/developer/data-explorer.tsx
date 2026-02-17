@@ -561,6 +561,27 @@ export default function DataExplorerScreen() {
         </TouchableOpacity>
       );
     }
+
+    if (key === 'trustId' && typeof value === 'string') {
+      const trust = allTrusts.find(t => t.id === value);
+      const trustName = trust?.name || 'Unknown Trust';
+      return (
+        <TouchableOpacity
+          onPress={() => {
+            if (trust) {
+              setSelectedInterface('Trust');
+              setSelectedInstance(trust);
+              setSelectedPropertyFromTrust(null);
+            }
+          }}
+          disabled={!trust}
+        >
+          <Text style={styles.propertyValueLink}>
+            {value} ({trustName})
+          </Text>
+        </TouchableOpacity>
+      );
+    }
     
     // Array/Object JSON formatting
     if (typeof value === 'object') {

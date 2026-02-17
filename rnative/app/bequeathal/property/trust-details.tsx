@@ -62,6 +62,19 @@ export default function PropertyTrustDetailsScreen() {
   // Contradiction state for LI Settlor 7-year warning
   const [liSettlorDateContradiction, setLiSettlorDateContradiction] = useState(false);
 
+  // Contradiction state for Bare Settlor 7-year warning
+  const [bareSettlorDateContradiction, setBareSettlorDateContradiction] = useState(false);
+
+  // Contradiction state for Discretionary Settlor 7-year warning
+  const [discSettlorDateContradiction, setDiscSettlorDateContradiction] = useState(false);
+
+  // Contradiction state for Discretionary Beneficiary 7-year warning
+  const [discBeneficiaryDateContradiction, setDiscBeneficiaryDateContradiction] = useState(false);
+
+  // Current user person ID (for excluding self from beneficiary selectors)
+  const willMaker = willActions.getUser();
+  const currentUserPersonId = willMaker?.id || '';
+
   // Load existing trust data if trustId provided (Rule 4a pattern)
   const loadedTrustIdRef = useRef<string | null>(null);
 
@@ -972,8 +985,31 @@ export default function PropertyTrustDetailsScreen() {
                 </>
               )}
               
-              {/* 3. Property Transfer Date - Only show if life tenant is alive */}
+              {/* 2b. 7-Year Gateway Question - Only show if life tenant is alive */}
               {trustData.remaindermanLifeTenantAlive === 'yes' && (
+                <RadioGroup
+                  label="Was this property transferred into the trust within the last 7 years? *"
+                  value={trustData.remaindermanTransferWithin7Years}
+                  options={[
+                    { label: 'Yes', value: 'yes' },
+                    { label: 'No, more than 7 years ago', value: 'no' },
+                    { label: "I'm not sure", value: 'not_sure' },
+                  ]}
+                  onChange={(value) => updateTrustData('remaindermanTransferWithin7Years', value)}
+                />
+              )}
+
+              {/* 2c. Success message if > 7 years */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && trustData.remaindermanTransferWithin7Years === 'no' && (
+                <View style={styles.successBox}>
+                  <Text style={styles.successText}>
+                    ✓ Transfer fully exempt — no IHT impact
+                  </Text>
+                </View>
+              )}
+
+              {/* 3. Property Transfer Date - Only show if life tenant is alive and gateway is 'yes' or 'not_sure' */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && (trustData.remaindermanTransferWithin7Years === 'yes' || trustData.remaindermanTransferWithin7Years === 'not_sure') && (
                 <>
                   {renderLabelWithHelp(
                 "Approximately when was this property transferred into the trust? *",
@@ -1021,13 +1057,11 @@ export default function PropertyTrustDetailsScreen() {
                   </View>
                 </View>
               )}
-              {/* TODO: Need to trigger task to backend team to reach out to explain implications of PET */}
               <Checkbox
                 label="Unsure"
                 checked={trustData.remaindermanTransferDateUnsure}
                 onCheckedChange={(value) => {
                   updateTrustData('remaindermanTransferDateUnsure', value);
-                  // Clear month/year when unsure is checked
                   if (value) {
                     updateTrustData('remaindermanTransferMonth', '');
                     updateTrustData('remaindermanTransferYear', '');
@@ -1037,8 +1071,8 @@ export default function PropertyTrustDetailsScreen() {
                 </>
               )}
               
-              {/* 4. Transfer Value (Conditional) - Only show if life tenant is alive and date is not unsure and within 7 years */}
-              {trustData.remaindermanLifeTenantAlive === 'yes' && !trustData.remaindermanTransferDateUnsure && isWithin7Years && trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear && (
+              {/* 4. Transfer Value (Conditional) - Only show if gateway is yes/not_sure, date not unsure, and within 7 years */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && (trustData.remaindermanTransferWithin7Years === 'yes' || trustData.remaindermanTransferWithin7Years === 'not_sure') && !trustData.remaindermanTransferDateUnsure && isWithin7Years && trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear && (
                 <>
                   {renderLabelWithHelp(
                     "Approximately what was the property value when transferred into trust? *",
@@ -1051,7 +1085,7 @@ export default function PropertyTrustDetailsScreen() {
                     </Text>
                   )}
                   <CurrencyInput
-                    placeholder="Enter value..."
+                    placeholder="Enter value at transfer..."
                     value={trustData.remaindermanTransferValue}
                     onValueChange={(value) => updateTrustData('remaindermanTransferValue', value)}
                     disabled={trustData.remaindermanTransferValueUnsure}
@@ -1061,7 +1095,6 @@ export default function PropertyTrustDetailsScreen() {
                     checked={trustData.remaindermanTransferValueUnsure}
                     onCheckedChange={(value) => {
                       updateTrustData('remaindermanTransferValueUnsure', value);
-                      // Clear value when unsure is checked
                       if (value) {
                         updateTrustData('remaindermanTransferValue', 0);
                       }
@@ -1070,8 +1103,8 @@ export default function PropertyTrustDetailsScreen() {
                 </>
               )}
               
-              {/* 5. Settlor Status (Conditional) - Only show if life tenant is alive and (transfer date is unsure OR within 7 years) */}
-              {trustData.remaindermanLifeTenantAlive === 'yes' && (trustData.remaindermanTransferDateUnsure || (isWithin7Years && trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear)) && (
+              {/* 5. Settlor Status (Conditional) - Only show if gateway is yes/not_sure and (date unsure OR within 7 years) */}
+              {trustData.remaindermanLifeTenantAlive === 'yes' && (trustData.remaindermanTransferWithin7Years === 'yes' || trustData.remaindermanTransferWithin7Years === 'not_sure') && (trustData.remaindermanTransferDateUnsure || (isWithin7Years && trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear)) && (
                 <>
                   <View>
                     {renderLabelWithHelp(
@@ -1139,7 +1172,7 @@ export default function PropertyTrustDetailsScreen() {
                 }}
                 allowEstate={true}
                 allowGroups={false}
-                excludePersonIds={[]} // TODO: Exclude current user ID when available
+                excludePersonIds={currentUserPersonId ? [currentUserPersonId] : []}
                 personActions={personActions}
                 beneficiaryGroupActions={beneficiaryGroupActions}
                 placeholder="Select beneficiary..."
@@ -1184,28 +1217,51 @@ export default function PropertyTrustDetailsScreen() {
           The bare trust beneficiaries own the property absolutely. This property will not be a part of your estate for inheritance tax purposes, unless you die within 7 years of creating the trust.
         </Text>
 
-        <TransferDateValueFields
-          dateLabel="When did you transfer this property into Trust? *"
-          month={trustData.bareSettlorTransferMonth}
-          year={trustData.bareSettlorTransferYear}
-          onMonthChange={(v) => updateTrustData('bareSettlorTransferMonth', v)}
-          onYearChange={(v) => updateTrustData('bareSettlorTransferYear', v)}
-          showDateUnknown={false}
-          showValue={isLessThan7Years && hasDate}
-          valueLabel="Value when transferred? *"
-          value={trustData.bareValueAtTransfer}
-          onValueChange={(v) => updateTrustData('bareValueAtTransfer', v)}
-          valueHelperText="This affects IHT if you die within 7 years"
-          showValueUnknown={false}
+        {/* 7-Year Gateway Question */}
+        <RadioGroup
+          label="Did you transfer this property into the trust within the last 7 years? *"
+          value={trustData.bareSettlorTransferWithin7Years}
+          options={[
+            { label: 'Yes', value: 'yes' },
+            { label: 'No', value: 'no' },
+          ]}
+          onChange={(value) => {
+            updateTrustData('bareSettlorTransferWithin7Years', value);
+            if (value === 'no') {
+              updateTrustData('bareSettlorTransferMonth', '');
+              updateTrustData('bareSettlorTransferYear', '');
+              updateTrustData('bareValueAtTransfer', 0);
+            }
+          }}
         />
 
-        {/* IF >7 years: Show success message */}
-        {!isLessThan7Years && hasDate && (
+        {/* Success message when >7 years */}
+        {trustData.bareSettlorTransferWithin7Years === 'no' && (
           <View style={styles.successBox}>
             <Text style={styles.successText}>
-              ✓ Transfer fully exempt - no IHT impact
+              ✓ Transfer fully exempt — no IHT impact
             </Text>
           </View>
+        )}
+
+        {/* Date + Value fields only when "Yes" */}
+        {trustData.bareSettlorTransferWithin7Years === 'yes' && (
+          <TransferDateValueFields
+            dateLabel="When did you transfer this property into Trust? *"
+            month={trustData.bareSettlorTransferMonth}
+            year={trustData.bareSettlorTransferYear}
+            onMonthChange={(v) => updateTrustData('bareSettlorTransferMonth', v)}
+            onYearChange={(v) => updateTrustData('bareSettlorTransferYear', v)}
+            showDateUnknown={false}
+            showContradictionWarning
+            onContradiction={setBareSettlorDateContradiction}
+            showValue={isLessThan7Years && hasDate}
+            valueLabel="Value when transferred? *"
+            value={trustData.bareValueAtTransfer}
+            onValueChange={(v) => updateTrustData('bareValueAtTransfer', v)}
+            valueHelperText="This affects IHT if you die within 7 years"
+            showValueUnknown={false}
+          />
         )}
       </View>
     );
@@ -1509,49 +1565,99 @@ export default function PropertyTrustDetailsScreen() {
     );
   };
 
-  const renderDiscretionarySettlorFieldset = () => (
-    <View style={styles.fieldsetContent}>
-      <Text style={styles.helperText}>
-        As the settlor who transferred property into a discretionary trust, we need the transfer details for 7-year rule calculations.
-      </Text>
+  const renderDiscretionarySettlorFieldset = () => {
+    const hasDate = !!trustData.discretionaryTransferMonth && !!trustData.discretionaryTransferYear;
 
-      <TransferDateValueFields
-        dateLabel="Month and year of property transferred into trust *"
-        dateHelperText="For 7-year rule tracking"
-        month={trustData.discretionaryTransferMonth}
-        year={trustData.discretionaryTransferYear}
-        onMonthChange={(v) => updateTrustData('discretionaryTransferMonth', v)}
-        onYearChange={(v) => updateTrustData('discretionaryTransferYear', v)}
-        showDateUnknown
-        dateUnknown={trustData.discretionarySettlorDateUnknown}
-        onDateUnknownChange={(v) => {
-          updateTrustData('discretionarySettlorDateUnknown', v);
-          if (v) {
-            updateTrustData('discretionaryTransferMonth', '');
-            updateTrustData('discretionaryTransferYear', '');
-          }
-        }}
-        valueLabel="Value at time of transfer *"
-        value={trustData.discretionaryValueAtTransfer}
-        onValueChange={(v) => updateTrustData('discretionaryValueAtTransfer', v)}
-        showValueUnknown
-        valueUnknown={trustData.discretionarySettlorValueUnknown}
-        onValueUnknownChange={(v) => {
-          updateTrustData('discretionarySettlorValueUnknown', v);
-          if (v) updateTrustData('discretionaryValueAtTransfer', 0);
-        }}
-      />
-    </View>
-  );
+    const isLessThan7Years = (() => {
+      if (!hasDate) return false;
+      const transferDate = new Date(
+        parseInt(trustData.discretionaryTransferYear),
+        parseInt(trustData.discretionaryTransferMonth) - 1
+      );
+      const now = new Date();
+      const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+      return yearsDiff < 7;
+    })();
+
+    return (
+      <View style={styles.fieldsetContent}>
+        <Text style={styles.helperText}>
+          As the settlor who transferred property into a discretionary trust, we need the transfer details for 7-year rule calculations.
+        </Text>
+
+        {/* 7-Year Gateway Question */}
+        <RadioGroup
+          label="Did you transfer this property into the trust within the last 7 years? *"
+          value={trustData.discretionarySettlorTransferWithin7Years}
+          options={[
+            { label: 'Yes', value: 'yes' },
+            { label: 'No', value: 'no' },
+          ]}
+          onChange={(value) => {
+            updateTrustData('discretionarySettlorTransferWithin7Years', value);
+            if (value === 'no') {
+              updateTrustData('discretionaryTransferMonth', '');
+              updateTrustData('discretionaryTransferYear', '');
+              updateTrustData('discretionaryValueAtTransfer', 0);
+              updateTrustData('discretionarySettlorDateUnknown', false);
+              updateTrustData('discretionarySettlorValueUnknown', false);
+            }
+          }}
+        />
+
+        {/* Success message when >7 years */}
+        {trustData.discretionarySettlorTransferWithin7Years === 'no' && (
+          <View style={styles.successBox}>
+            <Text style={styles.successText}>
+              ✓ Transfer fully exempt — no IHT impact
+            </Text>
+          </View>
+        )}
+
+        {/* Date + Value fields only when "Yes" */}
+        {trustData.discretionarySettlorTransferWithin7Years === 'yes' && (
+          <TransferDateValueFields
+            dateLabel="When did you transfer this property into the trust? *"
+            dateHelperText="For 7-year rule tracking"
+            month={trustData.discretionaryTransferMonth}
+            year={trustData.discretionaryTransferYear}
+            onMonthChange={(v) => updateTrustData('discretionaryTransferMonth', v)}
+            onYearChange={(v) => updateTrustData('discretionaryTransferYear', v)}
+            showDateUnknown
+            dateUnknown={trustData.discretionarySettlorDateUnknown}
+            onDateUnknownChange={(v) => {
+              updateTrustData('discretionarySettlorDateUnknown', v);
+              if (v) {
+                updateTrustData('discretionaryTransferMonth', '');
+                updateTrustData('discretionaryTransferYear', '');
+              }
+            }}
+            showContradictionWarning
+            onContradiction={setDiscSettlorDateContradiction}
+            showValue={isLessThan7Years || trustData.discretionarySettlorDateUnknown}
+            valueLabel="Value at time of transfer *"
+            value={trustData.discretionaryValueAtTransfer}
+            onValueChange={(v) => updateTrustData('discretionaryValueAtTransfer', v)}
+            showValueUnknown
+            valueUnknown={trustData.discretionarySettlorValueUnknown}
+            onValueUnknownChange={(v) => {
+              updateTrustData('discretionarySettlorValueUnknown', v);
+              if (v) updateTrustData('discretionaryValueAtTransfer', 0);
+            }}
+          />
+        )}
+      </View>
+    );
+  };
 
   const renderDiscretionaryBeneficiaryFieldset = () => {
-    // Calculate if transfer date is under 7 years or unknown
+    const gateway = trustData.discretionaryBeneficiaryTransferWithin7Years;
     const isDateUnknown = trustData.discretionaryBeneficiaryDateUnknown;
-    
-    const isUnder7Years = (() => {
-      if (isDateUnknown) return true; // Unknown = show insurance field
-      if (!trustData.discretionaryBeneficiaryTransferMonth || !trustData.discretionaryBeneficiaryTransferYear) return false;
-      
+    const hasDate = !!trustData.discretionaryBeneficiaryTransferMonth && !!trustData.discretionaryBeneficiaryTransferYear;
+
+    const isLessThan7Years = (() => {
+      if (isDateUnknown) return true;
+      if (!hasDate) return false;
       const transferDate = new Date(
         parseInt(trustData.discretionaryBeneficiaryTransferYear),
         parseInt(trustData.discretionaryBeneficiaryTransferMonth) - 1
@@ -1560,8 +1666,8 @@ export default function PropertyTrustDetailsScreen() {
       const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
       return yearsDiff < 7;
     })();
-    
-    const showInsuranceField = isUnder7Years || isDateUnknown;
+
+    const showInsuranceField = isLessThan7Years || isDateUnknown;
 
     return (
       <View style={styles.fieldsetContent}>
@@ -1569,36 +1675,110 @@ export default function PropertyTrustDetailsScreen() {
           As a beneficiary of this discretionary trust, we need to check if there's potential tax liability from the 7-year rule.
         </Text>
 
-        <TransferDateValueFields
-          dateLabel="Month and year this property was transferred into trust *"
-          dateHelperText="For 7-year rule tracking"
-          month={trustData.discretionaryBeneficiaryTransferMonth}
-          year={trustData.discretionaryBeneficiaryTransferYear}
-          onMonthChange={(v) => updateTrustData('discretionaryBeneficiaryTransferMonth', v)}
-          onYearChange={(v) => updateTrustData('discretionaryBeneficiaryTransferYear', v)}
-          showDateUnknown
-          dateUnknown={trustData.discretionaryBeneficiaryDateUnknown}
-          onDateUnknownChange={(v) => {
-            updateTrustData('discretionaryBeneficiaryDateUnknown', v);
-            if (v) {
+        {/* 7-Year Gateway Question */}
+        <RadioGroup
+          label="Was this property transferred into the trust within the last 7 years? *"
+          value={gateway}
+          options={[
+            { label: 'Yes', value: 'yes' },
+            { label: 'No, more than 7 years ago', value: 'no' },
+            { label: "I'm not sure", value: 'not_sure' },
+          ]}
+          onChange={(value) => {
+            updateTrustData('discretionaryBeneficiaryTransferWithin7Years', value);
+            if (value === 'no') {
+              updateTrustData('discretionaryBeneficiaryTransferMonth', '');
+              updateTrustData('discretionaryBeneficiaryTransferYear', '');
+              updateTrustData('discretionaryBeneficiaryValueAtTransfer', 0);
+              updateTrustData('discretionaryBeneficiaryDateUnknown', false);
+              updateTrustData('discretionaryBeneficiaryValueUnknown', false);
+              updateTrustData('discretionaryBeneficiaryInsurancePolicy', '');
+            }
+            if (value === 'not_sure') {
+              updateTrustData('discretionaryBeneficiaryDateUnknown', true);
               updateTrustData('discretionaryBeneficiaryTransferMonth', '');
               updateTrustData('discretionaryBeneficiaryTransferYear', '');
             }
           }}
-          valueLabel="£ Value when transferred (not current value) *"
-          value={trustData.discretionaryBeneficiaryValueAtTransfer}
-          onValueChange={(v) => updateTrustData('discretionaryBeneficiaryValueAtTransfer', v)}
-          valueHelperText="ℹ️ This determines potential tax if the settlor dies within 7 years"
-          showValueUnknown
-          valueUnknown={trustData.discretionaryBeneficiaryValueUnknown}
-          onValueUnknownChange={(v) => {
-            updateTrustData('discretionaryBeneficiaryValueUnknown', v);
-            if (v) updateTrustData('discretionaryBeneficiaryValueAtTransfer', 0);
-          }}
         />
 
+        {/* Success message when >7 years */}
+        {gateway === 'no' && (
+          <View style={styles.successBox}>
+            <Text style={styles.successText}>
+              ✓ Transfer fully exempt — no IHT impact
+            </Text>
+          </View>
+        )}
+
+        {/* Date + Value fields when "Yes" */}
+        {gateway === 'yes' && (
+          <TransferDateValueFields
+            dateLabel="Month and year this property was transferred into trust *"
+            dateHelperText="For 7-year rule tracking"
+            month={trustData.discretionaryBeneficiaryTransferMonth}
+            year={trustData.discretionaryBeneficiaryTransferYear}
+            onMonthChange={(v) => updateTrustData('discretionaryBeneficiaryTransferMonth', v)}
+            onYearChange={(v) => updateTrustData('discretionaryBeneficiaryTransferYear', v)}
+            showDateUnknown
+            dateUnknown={trustData.discretionaryBeneficiaryDateUnknown}
+            onDateUnknownChange={(v) => {
+              updateTrustData('discretionaryBeneficiaryDateUnknown', v);
+              if (v) {
+                updateTrustData('discretionaryBeneficiaryTransferMonth', '');
+                updateTrustData('discretionaryBeneficiaryTransferYear', '');
+              }
+            }}
+            showContradictionWarning
+            onContradiction={setDiscBeneficiaryDateContradiction}
+            showValue={isLessThan7Years || isDateUnknown}
+            valueLabel="£ Value when transferred (not current value) *"
+            value={trustData.discretionaryBeneficiaryValueAtTransfer}
+            onValueChange={(v) => updateTrustData('discretionaryBeneficiaryValueAtTransfer', v)}
+            valueHelperText="This determines potential tax if the settlor dies within 7 years"
+            showValueUnknown
+            valueUnknown={trustData.discretionaryBeneficiaryValueUnknown}
+            onValueUnknownChange={(v) => {
+              updateTrustData('discretionaryBeneficiaryValueUnknown', v);
+              if (v) updateTrustData('discretionaryBeneficiaryValueAtTransfer', 0);
+            }}
+          />
+        )}
+
+        {/* Date + Value fields when "I'm not sure" (date pre-ticked as unknown) */}
+        {gateway === 'not_sure' && (
+          <TransferDateValueFields
+            dateLabel="Month and year this property was transferred into trust *"
+            dateHelperText="For 7-year rule tracking"
+            month={trustData.discretionaryBeneficiaryTransferMonth}
+            year={trustData.discretionaryBeneficiaryTransferYear}
+            onMonthChange={(v) => updateTrustData('discretionaryBeneficiaryTransferMonth', v)}
+            onYearChange={(v) => updateTrustData('discretionaryBeneficiaryTransferYear', v)}
+            showDateUnknown
+            dateUnknown={trustData.discretionaryBeneficiaryDateUnknown}
+            onDateUnknownChange={(v) => {
+              updateTrustData('discretionaryBeneficiaryDateUnknown', v);
+              if (v) {
+                updateTrustData('discretionaryBeneficiaryTransferMonth', '');
+                updateTrustData('discretionaryBeneficiaryTransferYear', '');
+              }
+            }}
+            showValue
+            valueLabel="£ Value when transferred (not current value) *"
+            value={trustData.discretionaryBeneficiaryValueAtTransfer}
+            onValueChange={(v) => updateTrustData('discretionaryBeneficiaryValueAtTransfer', v)}
+            valueHelperText="This determines potential tax if the settlor dies within 7 years"
+            showValueUnknown
+            valueUnknown={trustData.discretionaryBeneficiaryValueUnknown}
+            onValueUnknownChange={(v) => {
+              updateTrustData('discretionaryBeneficiaryValueUnknown', v);
+              if (v) updateTrustData('discretionaryBeneficiaryValueAtTransfer', 0);
+            }}
+          />
+        )}
+
         {/* Risk message when date is unknown */}
-        {trustData.discretionaryBeneficiaryDateUnknown && (
+        {(gateway === 'yes' || gateway === 'not_sure') && isDateUnknown && (
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
               Estimated current IHT risk: Unknown. The trust may face a tax bill if the settlor dies within 7 years of transfer.
@@ -1606,8 +1786,8 @@ export default function PropertyTrustDetailsScreen() {
           </View>
         )}
 
-        {/* Insurance Policy Field - only show if under 7 years or unknown */}
-        {showInsuranceField && (
+        {/* Insurance Policy Field - only show if under 7 years or unknown, and gateway is yes/not_sure */}
+        {(gateway === 'yes' || gateway === 'not_sure') && showInsuranceField && (
           <RadioGroup
             label="Is there an insurance policy to cover potentially exempt transfers? *"
             value={trustData.discretionaryBeneficiaryInsurancePolicy}
@@ -1754,49 +1934,60 @@ export default function PropertyTrustDetailsScreen() {
         return trustData.remaindermanOwnershipClarification !== '';
       }
       
-      // If life tenant is alive, require:
-      // - Life tenant age
-      // - Transfer date (month and year)
-      // - Succession beneficiary
+      // If life tenant is alive, require age, gateway answer, and succession beneficiary
       if (trustData.remaindermanLifeTenantAlive === 'yes') {
         if (!trustData.remaindermanLifeTenantAge || trustData.remaindermanLifeTenantAge < 18) {
           return false;
         }
-        
-        // Transfer date validation - not required if unsure
-        if (!trustData.remaindermanTransferDateUnsure) {
-          if (!trustData.remaindermanTransferMonth || !trustData.remaindermanTransferYear) {
-            return false;
-          }
+
+        // Gateway question is required
+        if (!trustData.remaindermanTransferWithin7Years) {
+          return false;
         }
-        
+
+        // Succession beneficiary always required when life tenant is alive
         if (!trustData.remaindermanSuccessionBeneficiary) {
           return false;
         }
-        
-        // Calculate if within 7 years (only if date is provided)
-        const isWithin7Years = (() => {
-          if (!trustData.remaindermanTransferMonth || !trustData.remaindermanTransferYear) return false;
-          const transferDate = new Date(
-            parseInt(trustData.remaindermanTransferYear),
-            parseInt(trustData.remaindermanTransferMonth) - 1
-          );
-          const now = new Date();
-          const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-          return yearsDiff < 7;
-        })();
-        
-        // Settlor status - required if transfer date is unsure OR if within 7 years
-        const showSettlorStatus = trustData.remaindermanTransferDateUnsure || 
-          (trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear && isWithin7Years);
-        if (showSettlorStatus && !trustData.remaindermanSettlorAlive) {
-          return false;
+
+        // If "no" (>7 years), age + succession is all we need — skip date/value/settlor
+        if (trustData.remaindermanTransferWithin7Years === 'no') {
+          return true;
         }
-        
-        // Transfer value - only required if not unsure and within 7 years
-        if (!trustData.remaindermanTransferValueUnsure && isWithin7Years) {
-          if (trustData.remaindermanTransferValue <= 0) {
+
+        // If "yes" or "not_sure", require date (or unsure) + conditional value/settlor
+        if (trustData.remaindermanTransferWithin7Years === 'yes' || trustData.remaindermanTransferWithin7Years === 'not_sure') {
+          // Transfer date validation - not required if unsure
+          if (!trustData.remaindermanTransferDateUnsure) {
+            if (!trustData.remaindermanTransferMonth || !trustData.remaindermanTransferYear) {
+              return false;
+            }
+          }
+
+          // Calculate if within 7 years (only if date is provided)
+          const isWithin7Years = (() => {
+            if (!trustData.remaindermanTransferMonth || !trustData.remaindermanTransferYear) return false;
+            const transferDate = new Date(
+              parseInt(trustData.remaindermanTransferYear),
+              parseInt(trustData.remaindermanTransferMonth) - 1
+            );
+            const now = new Date();
+            const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+            return yearsDiff < 7;
+          })();
+
+          // Settlor status - required if transfer date is unsure OR if within 7 years
+          const showSettlorStatus = trustData.remaindermanTransferDateUnsure ||
+            (trustData.remaindermanTransferMonth && trustData.remaindermanTransferYear && isWithin7Years);
+          if (showSettlorStatus && !trustData.remaindermanSettlorAlive) {
             return false;
+          }
+
+          // Transfer value - only required if not unsure and within 7 years
+          if (!trustData.remaindermanTransferValueUnsure && isWithin7Years) {
+            if (trustData.remaindermanTransferValue <= 0) {
+              return false;
+            }
           }
         }
       }
@@ -1811,11 +2002,19 @@ export default function PropertyTrustDetailsScreen() {
 
     // Bare Trust Settlor validation
     if (trustData.trustType === 'bare' && trustData.trustRole === 'settlor') {
-      // Transfer date is required
+      // 1. Gateway must be answered
+      if (!trustData.bareSettlorTransferWithin7Years) return false;
+
+      // 2. If "no" (>7 years), no further fields needed
+      if (trustData.bareSettlorTransferWithin7Years === 'no') return true;
+
+      // 3. Block save if date contradicts the "within 7 years" assertion
+      if (bareSettlorDateContradiction) return false;
+
+      // 4. If "yes", require date and conditional value
       const hasDate = trustData.bareSettlorTransferMonth && trustData.bareSettlorTransferYear;
       if (!hasDate) return false;
-      
-      // Calculate if <7 years
+
       const isLessThan7Years = (() => {
         const transferDate = new Date(
           parseInt(trustData.bareSettlorTransferYear),
@@ -1825,13 +2024,11 @@ export default function PropertyTrustDetailsScreen() {
         const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
         return yearsDiff < 7;
       })();
-      
-      // If <7 years, value is required
+
       if (isLessThan7Years) {
         return trustData.bareValueAtTransfer > 0;
       }
-      
-      // If >=7 years, no value required (shows success message)
+
       return true;
     }
 
@@ -1855,44 +2052,55 @@ export default function PropertyTrustDetailsScreen() {
 
     // Discretionary Trust Settlor validation
     if (trustData.trustType === 'discretionary' && trustData.trustRole === 'settlor') {
-      // Date: Either "I don't know" is checked OR date fields are filled
+      // Gateway is required
+      if (!trustData.discretionarySettlorTransferWithin7Years) return false;
+
+      // "No" — fully exempt, nothing else needed
+      if (trustData.discretionarySettlorTransferWithin7Years === 'no') return true;
+
+      // Block save if contradiction warning is active
+      if (discSettlorDateContradiction) return false;
+
+      // "Yes" — need date (or unknown) and value (or unknown)
       const hasDateUnknown = trustData.discretionarySettlorDateUnknown;
       const hasDate = trustData.discretionaryTransferMonth && trustData.discretionaryTransferYear;
       
-      // Value: Either "I don't know" is checked OR value is > 0
       const hasValueUnknown = trustData.discretionarySettlorValueUnknown;
       const hasValue = trustData.discretionaryValueAtTransfer > 0;
       
       return (
-        (hasDateUnknown || hasDate) &&
+        (hasDateUnknown || !!hasDate) &&
         (hasValueUnknown || hasValue)
       );
     }
 
     // Discretionary Trust Beneficiary validation
     if (trustData.trustType === 'discretionary' && trustData.trustRole === 'beneficiary') {
-      // Date: Either "I don't know" is checked OR date fields are filled
+      // Gateway is required
+      if (!trustData.discretionaryBeneficiaryTransferWithin7Years) return false;
+
+      // "No" — fully exempt, nothing else needed
+      if (trustData.discretionaryBeneficiaryTransferWithin7Years === 'no') return true;
+
+      // Block save if contradiction warning is active
+      if (discBeneficiaryDateContradiction) return false;
+
+      // "Yes" or "I'm not sure" — need date (or unknown) and value (or unknown)
       const hasDateUnknown = trustData.discretionaryBeneficiaryDateUnknown;
       const hasDate = trustData.discretionaryBeneficiaryTransferMonth && trustData.discretionaryBeneficiaryTransferYear;
-      
-      if (!hasDateUnknown && !hasDate) {
-        return false; // Need either unknown checkbox OR date
-      }
-      
-      // Value: Either "I don't know" is checked OR value is > 0
+
+      if (!hasDateUnknown && !hasDate) return false;
+
       const hasValueUnknown = trustData.discretionaryBeneficiaryValueUnknown;
       const hasValue = trustData.discretionaryBeneficiaryValueAtTransfer > 0;
-      
-      if (!hasValueUnknown && !hasValue) {
-        return false; // Need either unknown checkbox OR value
-      }
-      
-      // Calculate if under 7 years or unknown
+
+      if (!hasValueUnknown && !hasValue) return false;
+
+      // Calculate if under 7 years or unknown for insurance requirement
       const isDateUnknown = trustData.discretionaryBeneficiaryDateUnknown;
       const isUnder7Years = (() => {
         if (isDateUnknown) return true;
-        if (!hasDate) return false; // Can't calculate if no date
-        
+        if (!hasDate) return false;
         const transferDate = new Date(
           parseInt(trustData.discretionaryBeneficiaryTransferYear),
           parseInt(trustData.discretionaryBeneficiaryTransferMonth) - 1
@@ -1901,12 +2109,12 @@ export default function PropertyTrustDetailsScreen() {
         const yearsDiff = (now.getTime() - transferDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
         return yearsDiff < 7;
       })();
-      
-      // If under 7 years or unknown, insurance policy is required
+
+      // If under 7 years or unknown, insurance policy answer is required
       if ((isUnder7Years || isDateUnknown) && !trustData.discretionaryBeneficiaryInsurancePolicy) {
         return false;
       }
-      
+
       return true;
     }
 

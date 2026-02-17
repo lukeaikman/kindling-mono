@@ -533,31 +533,66 @@ export default function PropertyEntryScreen() {
   };
 
   // Save property and navigate
+  // Shared property asset builder — single source of truth for both trust-owned and standard saves
+  const buildBasePropertyAsset = () => ({
+    type: 'property' as const,
+    title: propertyData.address1,
+
+    // Address
+    address: {
+      address1: propertyData.address1,
+      address2: propertyData.address2,
+      city: propertyData.townCity,
+      county: propertyData.countyState,
+      postcode: '',
+      country: propertyData.country,
+    },
+
+    // Usage & Type
+    usage: propertyData.usage as PropertyAsset['usage'],
+    propertyType: propertyData.propertyType,
+
+    // Ownership
+    ownershipType: propertyData.ownershipType as PropertyAsset['ownershipType'],
+    estimatedValue: propertyData.estimatedValue,
+
+    // Mortgage
+    hasMortgage: hasMortgage() || undefined,
+    mortgage: hasMortgage() ? {
+      outstandingAmount: propertyData.mortgageAmount,
+      provider: propertyData.mortgageProvider,
+    } : undefined,
+
+    // Acquisition (optional)
+    acquisitionMonth: propertyData.acquisitionMonth || undefined,
+    acquisitionYear: propertyData.acquisitionYear || undefined,
+
+    // FHL fields (conditional)
+    fhlAvailableOver210Days: isFHL() ? propertyData.fhlAvailableOver210Days : undefined,
+    fhlActuallyLet105Days: isFHL() ? propertyData.fhlActuallyLet105Days : undefined,
+    fhlLongLetsUnder155Days: isFHL() ? propertyData.fhlLongLetsUnder155Days : undefined,
+    fhlEstimatedAnnualIncome: isFHL() ? propertyData.fhlEstimatedAnnualIncome : undefined,
+
+    // Agricultural fields (conditional)
+    agriculturalActivelyFarmed: isAgricultural() ? propertyData.agriculturalActivelyFarmed : undefined,
+    agriculturalBuildingsIncluded: isAgricultural() ? propertyData.agriculturalBuildingsIncluded : undefined,
+
+    // Mixed-Use fields (conditional)
+    mixedUseCommercialPercentage: isMixedUse() ? propertyData.mixedUseCommercialPercentage : undefined,
+    mixedUseSeparateEntrances: isMixedUse() ? propertyData.mixedUseSeparateEntrances : undefined,
+    mixedUseResidentialWasMainHome: isMixedUse() ? propertyData.mixedUseResidentialWasMainHome : undefined,
+
+    // Buy-to-Let fields (conditional)
+    buyToLetAnnualRentalIncome: isBuyToLet() ? propertyData.buyToLetAnnualRentalIncome : undefined,
+    buyToLetTenancyType: isBuyToLet() ? (propertyData.buyToLetTenancyType as any) : undefined,
+    buyToLetTenancyTypeOther: isBuyToLet() ? propertyData.buyToLetTenancyTypeOther : undefined,
+    buyToLetTenantedAtDeath: isBuyToLet() ? propertyData.buyToLetTenantedAtDeath : undefined,
+  });
+
   const handleSave = () => {
     // If trust-owned, save property first, then navigate to trust details
     if (isTrustOwned()) {
-      // Save property without trust data
-      const propertyAsset = {
-        type: 'property' as const,
-        title: propertyData.address1,
-        address: {
-          address1: propertyData.address1,
-          address2: propertyData.address2,
-          city: propertyData.townCity,
-          county: propertyData.countyState,
-          postcode: '',
-          country: propertyData.country,
-        },
-        usage: propertyData.usage as PropertyAsset['usage'],
-        propertyType: propertyData.propertyType,
-        ownershipType: propertyData.ownershipType as PropertyAsset['ownershipType'],
-        estimatedValue: propertyData.estimatedValue,
-        hasMortgage: hasMortgage() || undefined,
-        mortgage: hasMortgage() ? {
-          outstandingAmount: propertyData.mortgageAmount,
-          provider: propertyData.mortgageProvider,
-        } : undefined,
-      };
+      const propertyAsset = buildBasePropertyAsset();
       
       // Save or update property (use effectivePropertyId to prevent duplicates
       // when the user navigates back from trust-details and re-saves)
@@ -611,64 +646,13 @@ export default function PropertyEntryScreen() {
 
     const resolvedBusinessId = resolveBusinessId();
 
-    // Convert propertyData to PropertyAsset format
+    // Convert propertyData to PropertyAsset format (base + ownership-specific fields)
     const propertyAsset = {
-      type: 'property' as const,
-      title: propertyData.address1, // Use address as title
-      
-      // Address
-      address: {
-        address1: propertyData.address1,
-        address2: propertyData.address2,
-        city: propertyData.townCity,
-        county: propertyData.countyState,
-        postcode: '', // Not collected for property (international)
-        country: propertyData.country,
-      },
-      
-      // Usage & Type
-      usage: propertyData.usage as PropertyAsset['usage'],
-      propertyType: propertyData.propertyType,
-      
-      // Ownership
-      ownershipType: propertyData.ownershipType as PropertyAsset['ownershipType'],
+      ...buildBasePropertyAsset(),
+
+      // Tenants-in-common percentage
       ownershipPercentage: propertyData.tenantsInCommonPercentage > 0 ? propertyData.tenantsInCommonPercentage : undefined,
-      
-      // Estimated value
-      estimatedValue: propertyData.estimatedValue,
-      
-      // Mortgage (if applicable)
-      hasMortgage: hasMortgage() || undefined,
-      mortgage: hasMortgage() ? {
-        outstandingAmount: propertyData.mortgageAmount,
-        provider: propertyData.mortgageProvider,
-      } : undefined,
-      
-      // Acquisition (optional)
-      acquisitionMonth: propertyData.acquisitionMonth || undefined,
-      acquisitionYear: propertyData.acquisitionYear || undefined,
-      
-      // FHL fields (conditional)
-      fhlAvailableOver210Days: isFHL() ? propertyData.fhlAvailableOver210Days : undefined,
-      fhlActuallyLet105Days: isFHL() ? propertyData.fhlActuallyLet105Days : undefined,
-      fhlLongLetsUnder155Days: isFHL() ? propertyData.fhlLongLetsUnder155Days : undefined,
-      fhlEstimatedAnnualIncome: isFHL() ? propertyData.fhlEstimatedAnnualIncome : undefined,
-      
-      // Agricultural fields (conditional)
-      agriculturalActivelyFarmed: isAgricultural() ? propertyData.agriculturalActivelyFarmed : undefined,
-      agriculturalBuildingsIncluded: isAgricultural() ? propertyData.agriculturalBuildingsIncluded : undefined,
-      
-      // Mixed-Use fields (conditional)
-      mixedUseCommercialPercentage: isMixedUse() ? propertyData.mixedUseCommercialPercentage : undefined,
-      mixedUseSeparateEntrances: isMixedUse() ? propertyData.mixedUseSeparateEntrances : undefined,
-      mixedUseResidentialWasMainHome: isMixedUse() ? propertyData.mixedUseResidentialWasMainHome : undefined,
-      
-      // Buy-to-Let fields (conditional)
-      buyToLetAnnualRentalIncome: isBuyToLet() ? propertyData.buyToLetAnnualRentalIncome : undefined,
-      buyToLetTenancyType: isBuyToLet() ? (propertyData.buyToLetTenancyType as any) : undefined,
-      buyToLetTenancyTypeOther: isBuyToLet() ? propertyData.buyToLetTenancyTypeOther : undefined,
-      buyToLetTenantedAtDeath: isBuyToLet() ? propertyData.buyToLetTenantedAtDeath : undefined,
-      
+
       // Company ownership (conditional)
       businessId: isCompanyOwned() ? resolvedBusinessId : undefined,
       companyName: isCompanyOwned() ? propertyData.companyName : undefined,
@@ -677,15 +661,13 @@ export default function PropertyEntryScreen() {
       companyShareClass: isCompanyOwned() ? propertyData.companyShareClass : undefined,
       companyNotes: isCompanyOwned() ? propertyData.companyNotes : undefined,
       companyArticlesConfident: isCompanyOwned() ? propertyData.companyArticlesConfident : undefined,
-      
-      // Trust - handled via Trust entity (trustId set in trust-details screen)
-      
+
       // Joint ownership (conditional)
       jointOwnershipType: isJointlyOwned() ? (propertyData.jointOwnershipType as any) : undefined,
       jointTenants: isJointlyOwned() && propertyData.jointOwnershipType === 'joint_tenants' 
         ? [{ id: 'placeholder', name: `${propertyData.jointTenantCount} joint tenants`, relationship: '' }]
         : undefined,
-      
+
       // Beneficiaries
       beneficiaryAssignments: !isTrustOwned() && beneficiaries.length > 0 ? {
         beneficiaries,

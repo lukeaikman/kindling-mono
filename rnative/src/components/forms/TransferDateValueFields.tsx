@@ -97,7 +97,7 @@ export const TransferDateValueFields: React.FC<TransferDateValueFieldsProps> = (
   onValueUnknownChange,
   valueUnknownLabel = "I'm not sure",
   showContradictionWarning = false,
-  contradictionMessage = 'You indicated the property was transferred within the last 7 years, however the date entered is more than 7 years ago. Please alter the selection above if the date is correct.',
+  contradictionMessage = "This date is more than 7 years ago. If that's right, change your answer above to 'No' — the transfer is fully exempt.",
   onContradiction,
 }) => {
   // Generate year options from yearRange

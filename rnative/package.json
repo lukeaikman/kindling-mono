@@ -7,7 +7,9 @@
     "android": "npx expo start --android",
     "ios": "npx expo start --ios",
     "web": "npx expo start --web",
-    "mock-api": "json-server --watch mock-api/db.json --port 3001"
+    "mock-api": "json-server --watch mock-api/db.json --port 3001",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",
@@ -43,11 +45,14 @@
     "react-native-worklets": "^0.7.2"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.0",
     "@types/react-native": "^0.73.0",
     "babel-plugin-module-resolver": "^5.0.2",
     "concurrently": "^9.2.1",
+    "jest": "^30.2.0",
     "json-server": "^1.0.0-beta.3",
+    "ts-jest": "^29.4.6",
     "typescript": "~5.9.2"
   },
   "private": true

@@ -73,6 +73,7 @@ export interface TrustData {
   remaindermanLifeTenantAlive: string; // 'yes' | 'no' | 'not_sure' | ''
   remaindermanOwnershipClarification: string; // 'now_own' | 'not_sure' | ''
   remaindermanLifeTenantAge: number; // 18-110
+  remaindermanTransferWithin7Years: string; // 'yes' | 'no' | 'not_sure' | '' — gateway question
   remaindermanTransferMonth: string;
   remaindermanTransferYear: string;
   remaindermanTransferValue: number;
@@ -82,6 +83,7 @@ export interface TrustData {
   remaindermanSuccessionBeneficiary: string; // Person/group/estate ID for succession planning
 
   // Bare Trust Settlor fields
+  bareSettlorTransferWithin7Years: string; // 'yes' | 'no' | ''
   bareSettlorTransferMonth: string;
   bareSettlorTransferYear: string;
   bareSettlorDateUnknown: boolean;
@@ -105,6 +107,7 @@ export interface TrustData {
   spouseExcludedFromBenefit: 'yes' | 'no' | 'not_sure' | '';
 
   // Discretionary Trust Settlor fields
+  discretionarySettlorTransferWithin7Years: string; // 'yes' | 'no' | ''
   discretionaryTransferMonth: string;
   discretionaryTransferYear: string;
   discretionarySettlorDateUnknown: boolean;
@@ -113,6 +116,7 @@ export interface TrustData {
   discretionaryComplexSituation: boolean;
 
   // Discretionary Trust Beneficiary fields
+  discretionaryBeneficiaryTransferWithin7Years: string; // 'yes' | 'no' | 'not_sure' | ''
   discretionaryBeneficiaryTransferMonth: string;
   discretionaryBeneficiaryTransferYear: string;
   discretionaryBeneficiaryDateUnknown: boolean;
@@ -165,6 +169,7 @@ export const TRUST_DATA_DEFAULTS: TrustData = {
   remaindermanLifeTenantAlive: '',
   remaindermanOwnershipClarification: '',
   remaindermanLifeTenantAge: 0,
+  remaindermanTransferWithin7Years: '',
   remaindermanTransferMonth: '',
   remaindermanTransferYear: '',
   remaindermanTransferValue: 0,
@@ -173,6 +178,7 @@ export const TRUST_DATA_DEFAULTS: TrustData = {
   remaindermanSettlorAlive: '',
   remaindermanSuccessionBeneficiary: '',
   // Bare Trust Settlor
+  bareSettlorTransferWithin7Years: '',
   bareSettlorTransferMonth: '',
   bareSettlorTransferYear: '',
   bareSettlorDateUnknown: false,
@@ -193,6 +199,7 @@ export const TRUST_DATA_DEFAULTS: TrustData = {
   bareSettlorAndBeneficiaryValueUnknown: false,
   spouseExcludedFromBenefit: '',
   // Discretionary Trust Settlor
+  discretionarySettlorTransferWithin7Years: '',
   discretionaryTransferMonth: '',
   discretionaryTransferYear: '',
   discretionarySettlorDateUnknown: false,
@@ -201,6 +208,7 @@ export const TRUST_DATA_DEFAULTS: TrustData = {
   discretionaryComplexSituation: false,
   // Discretionary Trust Beneficiary
   discretionaryBeneficiaryTransferMonth: '',
+  discretionaryBeneficiaryTransferWithin7Years: '',
   discretionaryBeneficiaryTransferYear: '',
   discretionaryBeneficiaryDateUnknown: false,
   discretionaryBeneficiaryValueAtTransfer: 0,
@@ -350,7 +358,7 @@ function getTransferValueUnknown(td: TrustData): boolean | undefined {
 }
 
 /**
- * Helper 6: getTransferWithin7Years — ONLY LI Settlor/S&BI
+ * Helper 6: getTransferWithin7Years — LI Settlor/S&BI + Bare Settlor + Discretionary Settlor/S&B
  * String → boolean: 'yes' → true, 'no' → false, '' → undefined
  */
 function getTransferWithin7Years(td: TrustData): boolean | undefined {
@@ -358,6 +366,20 @@ function getTransferWithin7Years(td: TrustData): boolean | undefined {
       (td.trustRole === 'settlor' || td.trustRole === 'settlor_and_beneficial_interest')) {
     if (td.settlorTransferWithin7Years === 'yes') return true;
     if (td.settlorTransferWithin7Years === 'no') return false;
+  }
+  if (td.trustType === 'bare' && td.trustRole === 'settlor') {
+    if (td.bareSettlorTransferWithin7Years === 'yes') return true;
+    if (td.bareSettlorTransferWithin7Years === 'no') return false;
+  }
+  if (td.trustType === 'discretionary' &&
+      (td.trustRole === 'settlor' || td.trustRole === 'settlor_and_beneficiary')) {
+    if (td.discretionarySettlorTransferWithin7Years === 'yes') return true;
+    if (td.discretionarySettlorTransferWithin7Years === 'no') return false;
+  }
+  if (td.trustType === 'discretionary' && td.trustRole === 'beneficiary') {
+    if (td.discretionaryBeneficiaryTransferWithin7Years === 'yes') return true;
+    if (td.discretionaryBeneficiaryTransferWithin7Years === 'no') return false;
+    // 'not_sure' → undefined (same as LI Remainderman)
   }
   return undefined;
 }
@@ -622,6 +644,7 @@ export function loadTrustToFormData(trust: Trust, property?: PropertyAsset): Tru
     }
     if (mappedTrustType === 'bare') {
       if (trustRole === 'settlor') {
+        data.bareSettlorTransferWithin7Years = boolToYesNo(within7Years);
         data.bareSettlorTransferMonth = transferMonth ?? '';
         data.bareSettlorTransferYear = transferYear ?? '';
         data.bareValueAtTransfer = transferValue ?? 0;
@@ -636,6 +659,7 @@ export function loadTrustToFormData(trust: Trust, property?: PropertyAsset): Tru
     }
     if (mappedTrustType === 'discretionary') {
       if (trustRole === 'settlor' || trustRole === 'settlor_and_beneficiary') {
+        data.discretionarySettlorTransferWithin7Years = boolToYesNo(within7Years);
         data.discretionaryValueAtTransfer = transferValue ?? 0;
         data.discretionaryTransferMonth = transferMonth ?? '';
         data.discretionaryTransferYear = transferYear ?? '';
@@ -643,6 +667,16 @@ export function loadTrustToFormData(trust: Trust, property?: PropertyAsset): Tru
         data.discretionarySettlorValueUnknown = valueUnknown ?? false;
       }
       if (trustRole === 'beneficiary') {
+        // Load gateway: true→'yes', false→'no', undefined+dateUnknown→'not_sure', else ''
+        if (within7Years === true) {
+          data.discretionaryBeneficiaryTransferWithin7Years = 'yes';
+        } else if (within7Years === false) {
+          data.discretionaryBeneficiaryTransferWithin7Years = 'no';
+        } else if (within7Years === undefined && (dateUnknown ?? false)) {
+          data.discretionaryBeneficiaryTransferWithin7Years = 'not_sure';
+        } else {
+          data.discretionaryBeneficiaryTransferWithin7Years = '';
+        }
         data.discretionaryBeneficiaryValueAtTransfer = transferValue ?? 0;
         data.discretionaryBeneficiaryTransferMonth = transferMonth ?? '';
         data.discretionaryBeneficiaryTransferYear = transferYear ?? '';
