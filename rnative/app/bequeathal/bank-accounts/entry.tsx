@@ -188,8 +188,6 @@ export default function BankAccountsEntryScreen() {
   const isISA = formData.accountType === 'isa';
 
   const handleSave = () => {
-    console.log('[D2-DEBUG] accountType:', formData.accountType, 'isISA:', isISA, 'bankName:', formData.bankName);
-
     // Validation
     if (!formData.bankName) return;
     if (isNonUkBank && !formData.nonUkBankName) return;
@@ -225,6 +223,9 @@ export default function BankAccountsEntryScreen() {
         bequeathalActions.updateAsset(editingAssetId, investmentData);
       } else {
         bequeathalActions.addAsset('investment', investmentData);
+        if (!bequeathalActions.isCategorySelected('investment')) {
+          bequeathalActions.selectCategory('investment');
+        }
       }
     } else {
       // Regular bank account
@@ -259,6 +260,13 @@ export default function BankAccountsEntryScreen() {
 
     // Clear draft on successful save
     discardDraft();
+
+    if (isISA) {
+      Alert.alert(
+        'ISA saved',
+        'Your ISA has been saved under Investments on your estate dashboard.',
+      );
+    }
 
     router.push(SUMMARY_ROUTE as any);
   };
