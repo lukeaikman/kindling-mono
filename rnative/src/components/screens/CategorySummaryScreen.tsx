@@ -176,11 +176,11 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
                   />
                 </View>
                 <Text style={styles.summaryTotal}>
-                  £{(totalValue ?? 0).toLocaleString()}{hasUnknownValues ? '+' : ''}
+                  £{(totalValue ?? 0).toLocaleString()}{hasUnknownValues ? '\u2009+' : ''}
                 </Text>
                 {showNet && (
                   <Text style={styles.summaryNet}>
-                    Net: £{(totalNet ?? 0).toLocaleString()}{hasUnknownValues ? '+' : ''}
+                    Net: £{(totalNet ?? 0).toLocaleString()}{hasUnknownValues ? '\u2009+' : ''}
                   </Text>
                 )}
                 <Text style={styles.summaryCount}>

@@ -34,6 +34,7 @@ interface ShareForm {
   acquisitionYear: string;
   beneficiaries: BeneficiaryAssignment[];
   estimatedValue: number;
+  valueNotSure: boolean;
   notes: string;
   excludeFromNetWorth: boolean;
   isActivelyTrading: boolean;
@@ -62,16 +63,16 @@ export default function PrivateCompanySharesEntryScreen() {
     acquisitionYear: '',
     beneficiaries: [],
     estimatedValue: 0,
+    valueNotSure: false,
     notes: '',
     excludeFromNetWorth: false,
     isActivelyTrading: false,
     isNotHoldingCompany: false,
   });
-  const [valueNotSure, setValueNotSure] = useState(false);
   const [companySelection, setCompanySelection] = useState<string>('__NEW__');
 
-  // Draft auto-save
-  const initialFormData = useRef<ShareForm>(formData).current;
+  // Draft auto-save — mutable ref so we can update baseline after loading an existing asset
+  const initialFormRef = useRef<ShareForm>(formData);
   const isFormLoaded = editingAssetId ? loadedIdRef.current === editingAssetId : true;
 
   const { hasDraft, hasChanges, restoreDraft, discardDraft } = useDraftAutoSave<ShareForm>({
@@ -79,7 +80,7 @@ export default function PrivateCompanySharesEntryScreen() {
     assetId: editingAssetId || null,
     formData,
     isLoaded: isFormLoaded,
-    initialData: initialFormData,
+    initialData: initialFormRef.current,
   });
 
   const draftRestoredRef = useRef(false);
@@ -102,7 +103,7 @@ export default function PrivateCompanySharesEntryScreen() {
     if (editingAssetId) {
       loadedIdRef.current = null;
     } else {
-      setFormData(initialFormData);
+      setFormData(initialFormRef.current);
     }
     draftRestoredRef.current = false;
   };
@@ -171,7 +172,7 @@ export default function PrivateCompanySharesEntryScreen() {
         ? 'no'
         : '';
 
-    setFormData({
+    const loaded: ShareForm = {
       companyName: share.companyName || '',
       businessId: share.businessId || '',
       companyCountryOfRegistration: share.companyCountryOfRegistration || 'uk',
@@ -188,12 +189,14 @@ export default function PrivateCompanySharesEntryScreen() {
       acquisitionYear: share.acquisitionYear || '',
       beneficiaries: share.beneficiaryAssignments?.beneficiaries || [],
       estimatedValue: share.estimatedValue || 0,
+      valueNotSure: share.estimatedValueUnknown === true,
       notes: share.notes || '',
       excludeFromNetWorth: share.excludeFromNetWorth || false,
       isActivelyTrading: share.isActivelyTrading || false,
       isNotHoldingCompany: share.isNotHoldingCompany || false,
-    });
-    setValueNotSure(share.estimatedValueUnknown === true);
+    };
+    setFormData(loaded);
+    initialFormRef.current = loaded;
   }, [editingAssetId, bequeathalActions]);
 
   const handleCompanySelection = (value: string) => {
@@ -240,7 +243,7 @@ export default function PrivateCompanySharesEntryScreen() {
     }
 
     // Round value to nearest £1 — undefined when unsure (not 0)
-    const estimatedValue = valueNotSure ? undefined : Math.round(formData.estimatedValue);
+    const estimatedValue = formData.valueNotSure ? undefined : Math.round(formData.estimatedValue);
 
     // Build share data with ownership field
     let percentageOwnership: number | undefined;
@@ -297,7 +300,7 @@ export default function PrivateCompanySharesEntryScreen() {
       companyArticlesConfident: formData.companyArticlesConfident || undefined,
       companyCountryOfRegistration: formData.companyCountryOfRegistration || undefined,
       estimatedValue,
-      estimatedValueUnknown: valueNotSure || undefined,
+      estimatedValueUnknown: formData.valueNotSure || undefined,
       netValue: estimatedValue,
       notes: formData.notes || undefined,
       excludeFromNetWorth: formData.excludeFromNetWorth,
@@ -526,31 +529,30 @@ export default function PrivateCompanySharesEntryScreen() {
 
             {/* Estimated Holding Value */}
             <View style={styles.valueSection}>
-              <View style={valueNotSure && styles.disabledInputContainer}>
+              <View style={formData.valueNotSure && styles.disabledInputContainer}>
                 <CurrencyInput
                   label="Estimated Holding Value"
                   placeholder="0"
-                  value={valueNotSure ? 0 : formData.estimatedValue}
+                  value={formData.valueNotSure ? 0 : formData.estimatedValue}
                   onValueChange={(value) => {
-                    setFormData(prev => ({ ...prev, estimatedValue: value }));
-                    setValueNotSure(false);
+                    setFormData(prev => ({ ...prev, estimatedValue: value, valueNotSure: false }));
                   }}
-                  disabled={valueNotSure}
+                  disabled={formData.valueNotSure}
                 />
               </View>
               <TouchableOpacity
                 onPress={() => {
-                  const newValue = !valueNotSure;
-                  setValueNotSure(newValue);
-                  if (newValue) {
-                    setFormData(prev => ({ ...prev, estimatedValue: 0 }));
-                  }
+                  setFormData(prev => ({
+                    ...prev,
+                    valueNotSure: !prev.valueNotSure,
+                    estimatedValue: !prev.valueNotSure ? 0 : prev.estimatedValue,
+                  }));
                 }}
                 style={styles.checkboxRow}
                 activeOpacity={0.7}
               >
-                <View style={[styles.checkboxCircle, valueNotSure && styles.checkboxCircleSelected]}>
-                  {valueNotSure && (
+                <View style={[styles.checkboxCircle, formData.valueNotSure && styles.checkboxCircleSelected]}>
+                  {formData.valueNotSure && (
                     <IconButton
                       icon="check"
                       size={16}

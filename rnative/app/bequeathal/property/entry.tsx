@@ -219,8 +219,8 @@ export default function PropertyEntryScreen() {
 
   const [companySelection, setCompanySelection] = useState<string>('');
 
-  // Initial defaults (used by draft auto-save to detect changes)
-  const initialPropertyData = useRef<PropertyData>(propertyData).current;
+  // Initial defaults — mutable ref so we can update baseline after loading an existing asset
+  const initialPropertyRef = useRef<PropertyData>(propertyData);
   const isFormLoaded = editingPropertyId ? loadedPropertyIdRef.current === editingPropertyId : true;
 
   // Draft auto-save
@@ -229,7 +229,7 @@ export default function PropertyEntryScreen() {
     assetId: effectivePropertyId || null,
     formData: propertyData,
     isLoaded: isFormLoaded,
-    initialData: initialPropertyData,
+    initialData: initialPropertyRef.current,
   });
 
   // Auto-restore draft on mount
@@ -258,7 +258,7 @@ export default function PropertyEntryScreen() {
       }
     } else {
       // Reset to blank defaults
-      setPropertyData(initialPropertyData);
+      setPropertyData(initialPropertyRef.current);
     }
     draftRestoredRef.current = false;
   };
@@ -341,7 +341,7 @@ export default function PropertyEntryScreen() {
     console.log('✅ Property found:', property.address?.address1);
     
     // Populate form with existing property data
-    setPropertyData({
+    const loadedData: PropertyData = {
       // Address
       address1: property.address?.address1 || '',
       address2: property.address?.address2 || '',
@@ -403,7 +403,9 @@ export default function PropertyEntryScreen() {
       tenantsInCommonPercentage: property.ownershipPercentage || 50,
       
       // Trust - handled via Trust entity (no inline fields)
-    });
+    };
+    setPropertyData(loadedData);
+    initialPropertyRef.current = loadedData;
     
     // Load beneficiaries
     if (property.beneficiaryAssignments?.beneficiaries) {

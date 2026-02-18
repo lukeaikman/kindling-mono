@@ -31,6 +31,7 @@ interface BankAccountForm {
   accountType: 'current' | 'savings' | 'isa' | 'fixed-term' | 'other';
   ownershipType: 'personal' | 'joint';
   estimatedBalance: number;
+  balanceNotSure: boolean;
   accountNumber: string;
   nonUkBankName: string;
   accountId: string;
@@ -50,15 +51,15 @@ export default function BankAccountsEntryScreen() {
     accountType: 'current',
     ownershipType: 'personal',
     estimatedBalance: 0,
+    balanceNotSure: false,
     accountNumber: '',
     nonUkBankName: '',
     accountId: '',
     notes: '',
   });
-  const [balanceNotSure, setBalanceNotSure] = useState(false);
 
-  // Draft auto-save
-  const initialFormData = useRef<BankAccountForm>(formData).current;
+  // Draft auto-save — mutable ref so we can update baseline after loading an existing asset
+  const initialFormRef = useRef<BankAccountForm>(formData);
   const isFormLoaded = editingAssetId ? loadedIdRef.current === editingAssetId : true;
 
   const { hasDraft, hasChanges, restoreDraft, discardDraft } = useDraftAutoSave<BankAccountForm>({
@@ -66,7 +67,7 @@ export default function BankAccountsEntryScreen() {
     assetId: editingAssetId || null,
     formData,
     isLoaded: isFormLoaded,
-    initialData: initialFormData,
+    initialData: initialFormRef.current,
   });
 
   const draftRestoredRef = useRef(false);
@@ -89,7 +90,7 @@ export default function BankAccountsEntryScreen() {
     if (editingAssetId) {
       loadedIdRef.current = null;
     } else {
-      setFormData(initialFormData);
+      setFormData(initialFormRef.current);
     }
     draftRestoredRef.current = false;
   };
@@ -168,17 +169,19 @@ export default function BankAccountsEntryScreen() {
     const account = asset as BankAccountAsset;
     loadedIdRef.current = editingAssetId;
 
-    setFormData({
+    const loaded: BankAccountForm = {
       bankName: account.isNonUkBank ? 'Non UK Bank' : (account.provider || ''),
       accountType: (account.accountType as any) || 'current',
       ownershipType: (account.ownershipType as any) || 'personal',
       estimatedBalance: account.estimatedValue || 0,
+      balanceNotSure: account.estimatedValueUnknown === true,
       accountNumber: account.accountNumber || '',
       nonUkBankName: account.nonUkBankName || '',
       accountId: (account as any).accountId || '',
       notes: (account as any).notes || '',
-    });
-    setBalanceNotSure(account.estimatedValueUnknown === true);
+    };
+    setFormData(loaded);
+    initialFormRef.current = loaded;
   }, [editingAssetId, bequeathalActions]);
 
   const isNonUkBank = formData.bankName === 'Non UK Bank';
@@ -190,7 +193,7 @@ export default function BankAccountsEntryScreen() {
     if (isNonUkBank && !formData.nonUkBankName) return;
 
     // Round balance to nearest £1 — undefined when unsure (not 0)
-    const estimatedValue = balanceNotSure ? undefined : Math.round(formData.estimatedBalance);
+    const estimatedValue = formData.balanceNotSure ? undefined : Math.round(formData.estimatedBalance);
 
     // Validate account number if provided
     if (!isNonUkBank && formData.accountNumber) {
@@ -212,7 +215,7 @@ export default function BankAccountsEntryScreen() {
         provider: displayBankName,
         accountNumber: isNonUkBank ? formData.accountId : formData.accountNumber,
         estimatedValue,
-        estimatedValueUnknown: balanceNotSure || undefined,
+        estimatedValueUnknown: formData.balanceNotSure || undefined,
         netValue: estimatedValue,
       };
 
@@ -235,7 +238,7 @@ export default function BankAccountsEntryScreen() {
         accountId: isNonUkBank ? formData.accountId : undefined,
         notes: isNonUkBank ? formData.notes : undefined,
         estimatedValue,
-        estimatedValueUnknown: balanceNotSure || undefined,
+        estimatedValueUnknown: formData.balanceNotSure || undefined,
         netValue: estimatedValue,
       };
 
@@ -394,31 +397,30 @@ export default function BankAccountsEntryScreen() {
             )}
 
             <View style={styles.balanceSection}>
-              <View style={balanceNotSure && styles.disabledInputContainer}>
+              <View style={formData.balanceNotSure && styles.disabledInputContainer}>
                 <CurrencyInput
                   label="Estimated Balance"
                   placeholder="0"
-                  value={balanceNotSure ? 0 : formData.estimatedBalance}
+                  value={formData.balanceNotSure ? 0 : formData.estimatedBalance}
                   onValueChange={(value) => {
-                    setFormData(prev => ({ ...prev, estimatedBalance: value }));
-                    setBalanceNotSure(false);
+                    setFormData(prev => ({ ...prev, estimatedBalance: value, balanceNotSure: false }));
                   }}
-                  disabled={balanceNotSure}
+                  disabled={formData.balanceNotSure}
                 />
               </View>
               <TouchableOpacity
                 onPress={() => {
-                  const newValue = !balanceNotSure;
-                  setBalanceNotSure(newValue);
-                  if (newValue) {
-                    setFormData(prev => ({ ...prev, estimatedBalance: 0 }));
-                  }
+                  setFormData(prev => ({
+                    ...prev,
+                    balanceNotSure: !prev.balanceNotSure,
+                    estimatedBalance: !prev.balanceNotSure ? 0 : prev.estimatedBalance,
+                  }));
                 }}
                 style={styles.checkboxRow}
                 activeOpacity={0.7}
               >
-                <View style={[styles.checkboxCircle, balanceNotSure && styles.checkboxCircleSelected]}>
-                  {balanceNotSure && (
+                <View style={[styles.checkboxCircle, formData.balanceNotSure && styles.checkboxCircleSelected]}>
+                  {formData.balanceNotSure && (
                     <IconButton
                       icon="check"
                       size={16}

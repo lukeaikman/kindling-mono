@@ -92,7 +92,7 @@ const formatShortValue = (value: number): string => {
 const getSubline = (assetCount: number, netValue: number, hasUnknownValues?: boolean): string | null => {
   if (assetCount === 0) return null;
   const items = assetCount === 1 ? '1 item' : `${assetCount} items`;
-  const suffix = hasUnknownValues ? '+' : '';
+  const suffix = hasUnknownValues ? '\u2009+' : '';
   return `${items} · ${formatShortValue(netValue)}${suffix} net`;
 };
 

@@ -73,8 +73,8 @@ export default function LifeInsuranceEntryScreen() {
   // Load existing asset data when editing
   const loadedIdRef = useRef<string | null>(null);
 
-  // Draft auto-save
-  const initialFormData = useRef<LifeInsuranceForm>(formData).current;
+  // Draft auto-save — mutable ref so we can update baseline after loading an existing asset
+  const initialFormRef = useRef<LifeInsuranceForm>(formData);
   const isFormLoaded = editingAssetId ? loadedIdRef.current === editingAssetId : true;
 
   const { hasDraft, hasChanges, restoreDraft, discardDraft } = useDraftAutoSave<LifeInsuranceForm>({
@@ -82,7 +82,7 @@ export default function LifeInsuranceEntryScreen() {
     assetId: editingAssetId || null,
     formData,
     isLoaded: isFormLoaded,
-    initialData: initialFormData,
+    initialData: initialFormRef.current,
   });
 
   const draftRestoredRef = useRef(false);
@@ -105,7 +105,7 @@ export default function LifeInsuranceEntryScreen() {
     if (editingAssetId) {
       loadedIdRef.current = null;
     } else {
-      setFormData(initialFormData);
+      setFormData(initialFormRef.current);
     }
     draftRestoredRef.current = false;
   };
@@ -132,7 +132,7 @@ export default function LifeInsuranceEntryScreen() {
       return;
     }
 
-    setFormData({
+    const loaded: LifeInsuranceForm = {
       provider: asset.provider,
       lifeAssured: asset.lifeAssured,
       sumInsured: asset.sumInsured,
@@ -141,7 +141,9 @@ export default function LifeInsuranceEntryScreen() {
       premiumStatus: asset.premiumStatus,
       allocationMode: asset.allocationMode || 'percentage',
       beneficiaries: asset.beneficiaryAssignments?.beneficiaries || [],
-    });
+    };
+    setFormData(loaded);
+    initialFormRef.current = loaded;
   }, [editingAssetId]);
 
   // Get will-maker ID to exclude

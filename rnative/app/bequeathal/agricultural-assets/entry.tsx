@@ -31,6 +31,7 @@ interface AssetForm {
   debtAmount: number;
   debtDescription: string;
   estimatedValue: number;
+  valueNotSure: boolean;
   aprOwnershipDuration: string;
   aprTrustType: string;
   bprActiveTrading: string;
@@ -59,16 +60,16 @@ export default function AgriculturalAssetsEntryScreen() {
     debtAmount: 0,
     debtDescription: '',
     estimatedValue: 0,
+    valueNotSure: false,
     aprOwnershipDuration: '',
     aprTrustType: '',
     bprActiveTrading: '',
     bprOwnershipDuration: '',
     notes: '',
   });
-  const [valueNotSure, setValueNotSure] = useState(false);
 
-  // Draft auto-save
-  const initialFormData = useRef<AssetForm>(formData).current;
+  // Draft auto-save — mutable ref so we can update baseline after loading an existing asset
+  const initialFormRef = useRef<AssetForm>(formData);
   const isFormLoaded = editingAssetId ? loadedIdRef.current === editingAssetId : true;
 
   const { hasDraft, hasChanges, restoreDraft, discardDraft } = useDraftAutoSave<AssetForm>({
@@ -76,7 +77,7 @@ export default function AgriculturalAssetsEntryScreen() {
     assetId: editingAssetId || null,
     formData,
     isLoaded: isFormLoaded,
-    initialData: initialFormData,
+    initialData: initialFormRef.current,
   });
 
   const draftRestoredRef = useRef(false);
@@ -97,9 +98,9 @@ export default function AgriculturalAssetsEntryScreen() {
   const handleDiscardDraft = async () => {
     await discardDraft();
     if (editingAssetId) {
-      loadedIdRef.current = null; // Force reload
+      loadedIdRef.current = null;
     } else {
-      setFormData(initialFormData);
+      setFormData(initialFormRef.current);
     }
     draftRestoredRef.current = false;
   };
@@ -209,7 +210,7 @@ export default function AgriculturalAssetsEntryScreen() {
     const agAsset = asset as AgriculturalAsset;
     loadedIdRef.current = editingAssetId;
 
-    setFormData({
+    const loaded: AssetForm = {
       aprOwnershipStructure: agAsset.aprOwnershipStructure || '',
       assetType: agAsset.assetType || 'agricultural-land',
       assetDescription: agAsset.assetDescription || '',
@@ -221,13 +222,15 @@ export default function AgriculturalAssetsEntryScreen() {
       debtAmount: agAsset.debtAmount || 0,
       debtDescription: agAsset.debtDescription || '',
       estimatedValue: agAsset.estimatedValue || 0,
+      valueNotSure: agAsset.estimatedValueUnknown === true,
       aprOwnershipDuration: agAsset.aprOwnershipDuration || '',
       aprTrustType: agAsset.aprTrustType || '',
       bprActiveTrading: agAsset.bprActiveTrading || '',
       bprOwnershipDuration: agAsset.bprOwnershipDuration || '',
       notes: agAsset.notes || '',
-    });
-    setValueNotSure(agAsset.estimatedValueUnknown === true);
+    };
+    setFormData(loaded);
+    initialFormRef.current = loaded;
   }, [editingAssetId, bequeathalActions]);
 
   // APR qualification logic
@@ -290,7 +293,7 @@ export default function AgriculturalAssetsEntryScreen() {
     if (!formData.aprOwnershipStructure || !formData.assetType || !formData.assetDescription.trim()) return;
 
     // Calculate net value — both undefined when value is unknown
-    const estimatedValue = valueNotSure ? undefined : Math.round(formData.estimatedValue);
+    const estimatedValue = formData.valueNotSure ? undefined : Math.round(formData.estimatedValue);
     const debtAmount = formData.hasDebtsEncumbrances === 'yes' ? Math.round(formData.debtAmount) : 0;
     const netValue = estimatedValue !== undefined ? Math.max(0, estimatedValue - debtAmount) : undefined;
 
@@ -303,7 +306,7 @@ export default function AgriculturalAssetsEntryScreen() {
       aprOwnershipStructure: formData.aprOwnershipStructure as 'personal' | 'partnership' | 'trust' | 'not-sure',
       hasDebtsEncumbrances: formData.hasDebtsEncumbrances as 'yes' | 'no',
       estimatedValue,
-      estimatedValueUnknown: valueNotSure || undefined,
+      estimatedValueUnknown: formData.valueNotSure || undefined,
       netValue,
       // Asset-type conditionals
       farmWorkerOccupied: formData.assetType === 'farm-worker-cottage' ? formData.farmWorkerOccupied as any : undefined,
@@ -591,31 +594,30 @@ export default function AgriculturalAssetsEntryScreen() {
 
                 {/* Estimated Value */}
                 <View style={styles.valueSection}>
-                  <View style={valueNotSure && styles.disabledInputContainer}>
+                  <View style={formData.valueNotSure && styles.disabledInputContainer}>
                     <CurrencyInput
                       label="Estimated Value"
                       placeholder="0"
-                      value={valueNotSure ? 0 : formData.estimatedValue}
+                      value={formData.valueNotSure ? 0 : formData.estimatedValue}
                       onValueChange={(value) => {
-                        setFormData(prev => ({ ...prev, estimatedValue: value }));
-                        setValueNotSure(false);
+                        setFormData(prev => ({ ...prev, estimatedValue: value, valueNotSure: false }));
                       }}
-                      disabled={valueNotSure}
+                      disabled={formData.valueNotSure}
                     />
                   </View>
                   <TouchableOpacity
                     onPress={() => {
-                      const newValue = !valueNotSure;
-                      setValueNotSure(newValue);
-                      if (newValue) {
-                        setFormData(prev => ({ ...prev, estimatedValue: 0 }));
-                      }
+                      setFormData(prev => ({
+                        ...prev,
+                        valueNotSure: !prev.valueNotSure,
+                        estimatedValue: !prev.valueNotSure ? 0 : prev.estimatedValue,
+                      }));
                     }}
                     style={styles.checkboxRow}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.checkboxCircle, valueNotSure && styles.checkboxCircleSelected]}>
-                      {valueNotSure && (
+                    <View style={[styles.checkboxCircle, formData.valueNotSure && styles.checkboxCircleSelected]}>
+                      {formData.valueNotSure && (
                         <IconButton
                           icon="check"
                           size={16}
