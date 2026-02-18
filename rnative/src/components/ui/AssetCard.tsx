@@ -44,6 +44,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete })
           style={styles.closeButton}
           accessibilityLabel={`Delete ${title}`}
           accessibilityRole="button"
+          testID={`asset-delete-${asset.id}`}
         >
           <MaterialCommunityIcons
             name="close-circle"
@@ -59,6 +60,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete })
         onPress={onEdit ? () => onEdit(asset.id) : undefined}
         accessibilityRole="button"
         accessibilityLabel={`${title}, ${isValueUnknown ? 'value unknown' : `£${value.toLocaleString()}`}${subline ? `, ${subline}` : ''}`}
+        testID={`asset-card-${asset.id}`}
       >
         {/* Green accent bar */}
         <View style={styles.accentBar} />

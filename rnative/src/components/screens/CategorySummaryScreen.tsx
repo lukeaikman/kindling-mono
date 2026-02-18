@@ -203,7 +203,7 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
               </View>
 
               {/* Add another — green, the primary action on this screen */}
-              <Button onPress={handleAddAsset} variant="secondary" icon="plus">
+              <Button onPress={handleAddAsset} variant="secondary" icon="plus" testID="add-another-button">
                 Add another
               </Button>
 
@@ -213,6 +213,7 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
                 variant="outline"
                 icon="check"
                 style={styles.completeButton}
+                testID="complete-button"
               >
                 {isComplete ? "All added" : "That's everything"}
               </Button>

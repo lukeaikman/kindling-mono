@@ -80,6 +80,8 @@ export interface SelectProps {
    * Optional ref to parent ScrollView for auto-scrolling (Menu mode only)
    */
   scrollViewRef?: React.RefObject<ScrollView | null>;
+
+  testID?: string;
 }
 
 /**
@@ -110,6 +112,7 @@ export const Select: React.FC<SelectProps> = ({
   errorMessage,
   style,
   scrollViewRef,
+  testID,
 }) => {
   const [visible, setVisible] = useState(false);
   const [menuKey, setMenuKey] = useState(0);
@@ -152,7 +155,7 @@ export const Select: React.FC<SelectProps> = ({
 
   // Render select button (same for both modes)
   const selectButton = (
-    <View ref={buttonRef} collapsable={false}>
+    <View ref={buttonRef} collapsable={false} testID={testID}>
       <Button
         mode="outlined"
         onPress={openMenu}

@@ -7,13 +7,14 @@
  * "Three short steps, then done"
  */
 
-import React, { useRef, useCallback, useMemo } from 'react';
+import React, { useRef, useCallback, useMemo, useState, useEffect } from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -207,6 +208,15 @@ export default function WillDashboardScreen() {
 
   const { willActions, personActions, estateRemainderActions, bequeathalActions } = useAppState();
 
+  const [detoxBypass, setDetoxBypass] = useState(false);
+  useEffect(() => {
+    if (__DEV__) {
+      AsyncStorage.getItem('detox_e2e_bypass').then((val) => {
+        if (val === 'true') setDetoxBypass(true);
+      });
+    }
+  }, []);
+
   const progressState: WillProgressState = useMemo(() => ({
     willMaker: willActions.getUser(),
     people: personActions.getPeople(),
@@ -224,7 +234,7 @@ export default function WillDashboardScreen() {
     let heroAssigned = false;
     return STAGES.map((stage) => {
       const status = getStageStatus(stage.id, progressState);
-      const disabled = isStageDisabled(stage.id, progressState);
+      const disabled = detoxBypass ? false : isStageDisabled(stage.id, progressState);
 
       let emphasis: CardEmphasis;
       if (status === 'Complete') {
@@ -243,7 +253,7 @@ export default function WillDashboardScreen() {
 
       return { stage, status, disabled, emphasis, statusLabel, subline };
     });
-  }, [progressState]);
+  }, [progressState, detoxBypass]);
 
   // Menu items (placeholders)
   const menuItems: MenuItem[] = useMemo(

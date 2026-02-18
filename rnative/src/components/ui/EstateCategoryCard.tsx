@@ -70,6 +70,8 @@ export interface EstateCategoryCardProps {
   hasUnknownValues?: boolean;
   /** Optional style override */
   style?: ViewStyle;
+  /** Test ID for Detox/E2E element selection */
+  testID?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,6 +112,7 @@ export const EstateCategoryCard: React.FC<EstateCategoryCardProps> = ({
   onPress,
   onDeselect,
   style,
+  testID,
 }) => {
   const hasAssets = assetCount > 0;
   const pill = getPillStyle(isComplete, hasAssets);
@@ -146,6 +149,7 @@ export const EstateCategoryCard: React.FC<EstateCategoryCardProps> = ({
         activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityLabel={`${title}${subline ? `, ${subline}` : ''}`}
+        testID={testID}
       >
         {/* Green accent bar — complete state only */}
         {isComplete && <View style={styles.accentBar} />}

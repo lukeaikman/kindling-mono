@@ -188,6 +188,8 @@ export default function BankAccountsEntryScreen() {
   const isISA = formData.accountType === 'isa';
 
   const handleSave = () => {
+    console.log('[D2-DEBUG] accountType:', formData.accountType, 'isISA:', isISA, 'bankName:', formData.bankName);
+
     // Validation
     if (!formData.bankName) return;
     if (isNonUkBank && !formData.nonUkBankName) return;
@@ -320,6 +322,7 @@ export default function BankAccountsEntryScreen() {
                 accountId: value === 'Non UK Bank' ? prev.accountId : '',
                 notes: value === 'Non UK Bank' ? prev.notes : ''
               }))}
+              testID="bank-select"
             />
 
             {isNonUkBank && (
@@ -329,6 +332,7 @@ export default function BankAccountsEntryScreen() {
                   placeholder="Enter bank name"
                   value={formData.nonUkBankName}
                   onChangeText={(value) => setFormData(prev => ({ ...prev, nonUkBankName: value }))}
+                  testID="non-uk-bank-name-input"
                 />
 
                 <Input
@@ -336,6 +340,7 @@ export default function BankAccountsEntryScreen() {
                   placeholder="Enter account identifier"
                   value={formData.accountId}
                   onChangeText={(value) => setFormData(prev => ({ ...prev, accountId: value }))}
+                  testID="non-uk-account-id-input"
                 />
 
                 <Input
@@ -345,6 +350,7 @@ export default function BankAccountsEntryScreen() {
                   onChangeText={(value) => setFormData(prev => ({ ...prev, notes: value }))}
                   multiline
                   numberOfLines={3}
+                  testID="non-uk-notes-input"
                 />
               </>
             )}
@@ -358,6 +364,7 @@ export default function BankAccountsEntryScreen() {
                 ...prev,
                 accountType: value as typeof formData.accountType
               }))}
+              testID="account-type-select"
             />
 
             {isISA && (
@@ -379,6 +386,7 @@ export default function BankAccountsEntryScreen() {
                   ...prev,
                   ownershipType: value as typeof formData.ownershipType
                 }))}
+                testID="ownership-select"
               />
             )}
 
@@ -393,6 +401,7 @@ export default function BankAccountsEntryScreen() {
                 }}
                 keyboardType="number-pad"
                 maxLength={8}
+                testID="account-number-input"
               />
             )}
 
@@ -406,6 +415,7 @@ export default function BankAccountsEntryScreen() {
                     setFormData(prev => ({ ...prev, estimatedBalance: value, balanceNotSure: false }));
                   }}
                   disabled={formData.balanceNotSure}
+                  testID="balance-input"
                 />
               </View>
               <TouchableOpacity
@@ -418,6 +428,7 @@ export default function BankAccountsEntryScreen() {
                 }}
                 style={styles.checkboxRow}
                 activeOpacity={0.7}
+                testID="unsure-checkbox"
               >
                 <View style={[styles.checkboxCircle, formData.balanceNotSure && styles.checkboxCircleSelected]}>
                   {formData.balanceNotSure && (
@@ -441,6 +452,7 @@ export default function BankAccountsEntryScreen() {
               onPress={handleSave}
               variant="primary"
               disabled={!canSubmit}
+              testID="save-button"
             >
               {editingAssetId ? 'Save changes' : 'Add this account'}
             </Button>

@@ -60,6 +60,11 @@ export interface ButtonProps {
    * Button mode (contained, outlined, text)
    */
   mode?: 'contained' | 'outlined' | 'text';
+
+  /**
+   * Test ID for E2E testing
+   */
+  testID?: string;
 }
 
 /**
@@ -85,6 +90,7 @@ export const Button: React.FC<ButtonProps> = ({
   icon,
   style,
   mode: modeProp,
+  testID,
 }) => {
   // Determine mode based on variant if not explicitly provided
   const mode = modeProp || (variant === 'outline' ? 'outlined' : 'contained');
@@ -120,6 +126,7 @@ export const Button: React.FC<ButtonProps> = ({
       contentStyle={styles.buttonContent}
       labelStyle={styles.buttonLabel}
       compact={false}
+      testID={testID}
     >
       {children}
     </PaperButton>
