@@ -76,16 +76,24 @@ export default function InvestmentsEntryScreen() {
   });
 
   useEffect(() => {
-    if (!editingAssetId || loadedIdRef.current === editingAssetId) return;
-    loadedIdRef.current = editingAssetId;
+    if (!editingAssetId) {
+      loadedIdRef.current = null;
+      return;
+    }
+
+    if (loadedIdRef.current === editingAssetId) return;
+
+    const allAssets = bequeathalActions.getAllAssets();
+    if (allAssets.length === 0) return;
 
     const investment = bequeathalActions.getAssetById(editingAssetId) as InvestmentAsset | undefined;
-    if (!investment) {
+    if (!investment || investment.type !== 'investment') {
       router.replace(SUMMARY_ROUTE as any);
       return;
     }
 
-    // Load beneficiaries array (handles both old single and new percentage formats)
+    loadedIdRef.current = editingAssetId;
+
     let beneficiaries: BeneficiaryAssignment[] = [];
     if (investment.beneficiaryAssignments?.beneficiaries) {
       beneficiaries = investment.beneficiaryAssignments.beneficiaries.map(b => ({
@@ -102,7 +110,7 @@ export default function InvestmentsEntryScreen() {
       estimatedValue: investment.estimatedValue || 0,
     });
     setBalanceNotSure(investment.estimatedValueUnknown === true);
-  }, [editingAssetId]);
+  }, [editingAssetId, bequeathalActions]);
 
   const handleBeneficiariesChange = (newBeneficiaries: BeneficiaryAssignment[]) => {
     setFormData(prev => ({ ...prev, beneficiaries: newBeneficiaries }));
