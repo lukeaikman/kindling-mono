@@ -123,7 +123,7 @@ export default function OnboardingWelcomeScreen() {
       console.log('✅ Updated existing will-maker:', existingUser.id);
     } else {
       // Create new user as Person
-      const userId = await personActions.addPerson({
+      const user = await personActions.addPerson({
         firstName,
         lastName,
         email: '',
@@ -134,8 +134,8 @@ export default function OnboardingWelcomeScreen() {
       });
       
       // Set userId in WillData
-      willActions.updateWillData({ userId });
-      console.log('✅ Created will-maker Person:', userId);
+      willActions.updateWillData({ userId: user.id });
+      console.log('✅ Created will-maker Person:', user.id);
     }
     
     // Navigate to next screen

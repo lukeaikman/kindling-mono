@@ -175,7 +175,7 @@ export default function GuardianWishesScreen() {
     
     if (!personId) {
       // Create new person
-      personId = await personActions.addPerson({
+      const newGuardian = await personActions.addPerson({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -183,6 +183,7 @@ export default function GuardianWishesScreen() {
         relationship: 'other',
         roles: ['guardian'],
       });
+      personId = newGuardian.id;
     } else {
       // Add guardian role to existing person
       personActions.addRoleToPerson(personId, 'guardian');

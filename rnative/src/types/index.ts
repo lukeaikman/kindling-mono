@@ -788,7 +788,7 @@ export interface WillActions {
  * Actions for managing people
  */
 export interface PersonActions {
-  addPerson: (person: Omit<Person, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
+  addPerson: (person: Omit<Person, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Person>;
   updatePerson: (id: string, updates: Partial<Person>) => void;
   removePerson: (id: string) => void;
   getPeople: () => Person[];
@@ -808,8 +808,8 @@ export interface PersonActions {
   sendExecutorInvitations: () => void;
   sendGuardianInvitations: () => void;
   getPersonData: () => Person[];
-  addBeneficiary: (beneficiaryData: { name: string; relationship: string }) => Promise<string>;
-  addExecutor: (executorData: any) => Promise<string>;
+  addBeneficiary: (beneficiaryData: { name: string; relationship: string }) => Promise<Person>;
+  addExecutor: (executorData: any) => Promise<Person>;
   clearOnboardingFamilyMembers: () => void;
   // Guardian management (current reality tracking)
   assignGuardian: (childId: string, guardianId: string) => void;
@@ -835,7 +835,7 @@ export interface ExecutorActions {
  * Actions for managing beneficiaries
  */
 export interface BeneficiaryActions {
-  addBeneficiary: (beneficiaryData: { name: string; relationship: string }) => Promise<string>;
+  addBeneficiary: (beneficiaryData: { name: string; relationship: string }) => Promise<Person>;
   removeBeneficiary: (id: string) => void;
   updateBeneficiary: (id: string, updates: { name?: string; relationship?: string }) => void;
   getBeneficiaries: () => any[];
@@ -926,8 +926,8 @@ export interface BeneficiaryGroup {
  * @interface BeneficiaryGroupActions
  */
 export interface BeneficiaryGroupActions {
-  /** Creates a new beneficiary group and returns its ID */
-  addGroup: (group: Omit<BeneficiaryGroup, 'id' | 'createdAt' | 'updatedAt'>) => string;
+  /** Creates a new beneficiary group and returns it */
+  addGroup: (group: Omit<BeneficiaryGroup, 'id' | 'createdAt' | 'updatedAt'>) => BeneficiaryGroup;
   /** Updates an existing group's properties */
   updateGroup: (id: string, updates: Partial<BeneficiaryGroup>) => void;
   /** Retrieves all groups (active and inactive) */

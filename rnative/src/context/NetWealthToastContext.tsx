@@ -91,14 +91,16 @@ export const NetWealthToastProvider = ({ children }: { children: React.ReactNode
         return;
       }
 
-      if (delta <= 0) {
-        console.log(`[NetWealthToast] delta ${delta} ≤ 0 (silent)`);
-        return;
-      }
+      if (delta === 0) return;
 
       const oldNet = lastNetValue.current;
       const newNet = oldNet + delta;
       lastNetValue.current = newNet;
+
+      if (delta < 0) {
+        console.log(`[NetWealthToast] net decreased: ${oldNet} → ${newNet} (delta: ${delta}, silent)`);
+        return;
+      }
 
       console.log(`[NetWealthToast] net increased: ${oldNet} → ${newNet} (delta: ${delta})`);
       showToast(oldNet, newNet);

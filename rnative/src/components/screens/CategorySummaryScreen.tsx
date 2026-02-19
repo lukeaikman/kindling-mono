@@ -22,6 +22,7 @@ import { router } from 'expo-router';
 
 import { BackButton, Button, AssetCard } from '../ui';
 import { useAppState } from '../../hooks/useAppState';
+import { useNetWealthToast } from '../../context/NetWealthToastContext';
 import { getCategoryLabel, getCategoryIcon, getCategoryEntryRoute } from '../../utils/categoryNavigation';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing, Typography, BorderRadius, Shadows } from '../../styles/constants';
@@ -33,6 +34,7 @@ export interface CategorySummaryScreenProps {
 
 export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ categoryId }) => {
   const { bequeathalActions } = useAppState();
+  const toast = useNetWealthToast();
 
   const categoryLabel = getCategoryLabel(categoryId);
   const categoryIcon = getCategoryIcon(categoryId);
@@ -66,7 +68,7 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
 
   // Navigation
   const handleBack = useCallback(() => {
-    router.push('/estate-dashboard' as any);
+    router.back();
   }, []);
 
   const handleAddAsset = useCallback(() => {
@@ -80,6 +82,8 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
   }, [categoryId]);
 
   const handleDeleteAsset = useCallback((assetId: string) => {
+    const asset = bequeathalActions.getAssetById(assetId);
+    const assetNetValue = asset?.netValue ?? asset?.estimatedValue ?? 0;
     Alert.alert(
       'Delete asset',
       'Are you sure you want to remove this asset?',
@@ -88,16 +92,21 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => bequeathalActions.removeAsset(assetId),
+          onPress: () => {
+            bequeathalActions.removeAsset(assetId);
+            if (assetNetValue > 0) {
+              toast.notifySave(-assetNetValue);
+            }
+          },
         },
       ],
     );
-  }, [bequeathalActions]);
+  }, [bequeathalActions, toast]);
 
   // Mark complete and navigate back to estate dashboard
   const handleMarkComplete = useCallback(() => {
     bequeathalActions.markCategoryComplete(categoryId);
-    router.push('/estate-dashboard' as any);
+    router.replace('/estate-dashboard' as any);
   }, [bequeathalActions, categoryId]);
 
   // Dev dashboard triple-tap

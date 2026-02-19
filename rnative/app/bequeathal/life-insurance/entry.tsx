@@ -439,19 +439,19 @@ export default function LifeInsuranceEntryScreen() {
         onDismiss={() => setShowAddPersonDialog(false)}
         personActions={personActions}
         roles={['beneficiary']}
-        onCreated={(personId) => {
+        onCreated={(person) => {
           if (addPersonContext === 'lifeAssured') {
-            setFormData(prev => ({ ...prev, lifeAssured: personId }));
+            setFormData(prev => ({ ...prev, lifeAssured: person.id }));
             return;
           }
           if (addPersonSelectionRef.current) {
-            addPersonSelectionRef.current(personId);
+            addPersonSelectionRef.current(person.id);
             addPersonSelectionRef.current = null;
             return;
           }
           setFormData(prev => ({
             ...prev,
-            beneficiaries: [...prev.beneficiaries, { id: personId, type: 'person' }]
+            beneficiaries: [...prev.beneficiaries, { id: person.id, type: 'person' }]
           }));
         }}
       />
@@ -459,8 +459,8 @@ export default function LifeInsuranceEntryScreen() {
       <GroupManagementDrawer
         visible={showGroupDrawer}
         onClose={() => setShowGroupDrawer(false)}
-        onSelectGroup={(groupId) => {
-          const group = beneficiaryGroupActions.getGroupById(groupId);
+        onSelectGroup={(groupId, groupObj) => {
+          const group = groupObj ?? beneficiaryGroupActions.getGroupById(groupId);
           if (group) {
             setFormData(prev => ({
               ...prev,

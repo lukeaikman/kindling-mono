@@ -238,7 +238,7 @@ export default function ExecutorSelectionScreen() {
     if (!validateForm()) return;
     
     // Create new person with executor role
-    const personId = await personActions.addPerson({
+    const newPerson = await personActions.addPerson({
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
@@ -248,7 +248,7 @@ export default function ExecutorSelectionScreen() {
     });
     
     // Add to will executors with level
-    const newExecutors = [...executorLevels, { executor: personId, level: formData.level }];
+    const newExecutors = [...executorLevels, { executor: newPerson.id, level: formData.level }];
     willActions.updateWillData({ executors: newExecutors });
     
     // Reset form

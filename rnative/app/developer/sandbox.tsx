@@ -901,14 +901,12 @@ export default function SandboxScreen() {
           onDismiss={() => setShowAddPersonDialog(false)}
           personActions={personActions}
           roles={['beneficiary']}
-          onCreated={(personId) => {
+          onCreated={(person) => {
             if (addPersonSelectionRef.current) {
-              addPersonSelectionRef.current(personId);
+              addPersonSelectionRef.current(person.id);
               addPersonSelectionRef.current = null;
               return;
             }
-            const person = personActions.getPersonById(personId);
-            if (!person) return;
             const selection: BeneficiarySelection = {
               id: person.id,
               type: 'person',

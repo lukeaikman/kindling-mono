@@ -210,7 +210,7 @@ export default function EstateRemainderSplitScreen() {
   const handleAddCharity = () => {
     if (charityName.trim()) {
       const willId = willActions.getWillData().userId;
-      const groupId = beneficiaryGroupActions.addGroup({
+      const group = beneficiaryGroupActions.addGroup({
         name: charityName.trim(),
         description: 'Charity',
         isPredefined: false,
@@ -219,7 +219,7 @@ export default function EstateRemainderSplitScreen() {
       });
 
       // Add to estate remainder state
-      const updatedGroupIds = [...selectedGroupIds, groupId];
+      const updatedGroupIds = [...selectedGroupIds, group.id];
       estateRemainderActions.updateSelectedBeneficiaries(
         selectedPeopleIds,
         updatedGroupIds

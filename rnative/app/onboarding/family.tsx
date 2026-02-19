@@ -473,7 +473,7 @@ export default function OnboardingFamilyScreen() {
           ? 'spouse'
           : 'partner';
 
-      const spouseId = await personActions.addPerson({
+      const spouse = await personActions.addPerson({
         firstName: spouseFirstName,
         lastName: spouseLastName,
         email: '',
@@ -483,17 +483,17 @@ export default function OnboardingFamilyScreen() {
         createdInOnboarding: true,
       });
 
-      if (spouseId) {
-        createdPersonIds.push(spouseId);
+      if (spouse) {
+        createdPersonIds.push(spouse.id);
         const relType = spouseRelationship === 'spouse' ? RelationshipType.SPOUSE : RelationshipType.PARTNER;
         pendingRelationships.push({
           aId: currentUser.id,
-          bId: spouseId,
+          bId: spouse.id,
           type: relType,
           opts: { phase: 'active' },
         });
-        actualSpouseId = spouseId; // Keep spouseId for children
-        console.log('Created spouse/partner:', spouseId);
+        actualSpouseId = spouse.id;
+        console.log('Created spouse/partner:', spouse.id);
       }
     }
 
@@ -517,7 +517,7 @@ export default function OnboardingFamilyScreen() {
           })
           .filter(Boolean) as string[];
 
-        const childId = await personActions.addPerson({
+        const childPerson = await personActions.addPerson({
           firstName: child.firstName,
           lastName: child.lastName,
           email: '',
@@ -533,15 +533,15 @@ export default function OnboardingFamilyScreen() {
           createdInOnboarding: true,
         });
 
-        if (childId) {
-          createdPersonIds.push(childId);
+        if (childPerson) {
+          createdPersonIds.push(childPerson.id);
           pendingRelationships.push({
             aId: currentUser.id,
-            bId: childId,
+            bId: childPerson.id,
             type: RelationshipType.PARENT_OF,
             opts: { qualifiers },
           });
-          console.log(`Created child ${childIndex}:`, childId, 'with guardians:', actualGuardianIds);
+          console.log(`Created child ${childIndex}:`, childPerson.id, 'with guardians:', actualGuardianIds);
         }
       }
     }

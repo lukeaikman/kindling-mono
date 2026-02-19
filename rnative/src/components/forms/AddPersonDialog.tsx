@@ -7,13 +7,13 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing, Typography } from '../../styles/constants';
-import type { PersonActions, PersonRelationshipType, PersonRole } from '../../types';
+import type { Person, PersonActions, PersonRelationshipType, PersonRole } from '../../types';
 import { RELATIONSHIP_OPTIONS } from '../../utils/relationshipOptions';
 
 export interface AddPersonDialogProps {
   visible: boolean;
   onDismiss: () => void;
-  onCreated: (personId: string) => void;
+  onCreated: (person: Person) => void;
   personActions: PersonActions;
   roles?: PersonRole[];
   title?: string;
@@ -61,7 +61,7 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({
   const handleSave = async () => {
     if (!canSubmit) return;
 
-    const personId = await personActions.addPerson({
+    const person = await personActions.addPerson({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
@@ -71,7 +71,7 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({
       roles,
     });
 
-    onCreated(personId);
+    onCreated(person);
     onDismiss();
   };
 

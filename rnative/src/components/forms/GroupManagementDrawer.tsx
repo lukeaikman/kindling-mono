@@ -45,7 +45,7 @@ export interface GroupManagementDrawerProps {
   /**
    * Handler when group is selected
    */
-  onSelectGroup: (groupId: string) => void;
+  onSelectGroup: (groupId: string, group?: BeneficiaryGroup) => void;
   
   /**
    * Beneficiary group actions
@@ -121,7 +121,7 @@ export const GroupManagementDrawer: React.FC<GroupManagementDrawerProps> = ({
   const handleCreateGroup = () => {
     if (!newGroupName.trim()) return;
 
-    const groupId = beneficiaryGroupActions.addGroup({
+    const group = beneficiaryGroupActions.addGroup({
       name: newGroupName.trim(),
       description: newGroupDescription.trim(),
       isPredefined: false,
@@ -135,8 +135,8 @@ export const GroupManagementDrawer: React.FC<GroupManagementDrawerProps> = ({
     setSelectedTemplate('');
     setShowCreateForm(false);
 
-    // Select the newly created group
-    onSelectGroup(groupId);
+    // Select the newly created group — pass object to avoid stale-closure lookup
+    onSelectGroup(group.id, group);
   };
 
   const handleCancelCreate = () => {

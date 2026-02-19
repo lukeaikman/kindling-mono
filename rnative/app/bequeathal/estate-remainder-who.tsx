@@ -98,14 +98,14 @@ export default function EstateRemainderWhoScreen() {
       const template = PREDEFINED_GROUP_TEMPLATES.find(
         (t) => t.name === groupName
       );
-      const groupId = beneficiaryGroupActions.addGroup({
+      const newGroup = beneficiaryGroupActions.addGroup({
         name: groupName,
         description: template?.description || 'Custom category',
         isPredefined,
         isActive: true,
         willId,
       });
-      setSelectedGroupIds((prev) => [...prev, groupId]);
+      setSelectedGroupIds((prev) => [...prev, newGroup.id]);
     } else {
       // Toggle existing group
       const newActive = !group.isActive;
@@ -122,14 +122,14 @@ export default function EstateRemainderWhoScreen() {
   const handleAddCategory = () => {
     if (newCategoryName.trim()) {
       const willId = willActions.getWillData().userId;
-      const groupId = beneficiaryGroupActions.addGroup({
+      const newCatGroup = beneficiaryGroupActions.addGroup({
         name: newCategoryName.trim(),
         description: 'Custom category',
         isPredefined: false,
         isActive: true,
         willId,
       });
-      setSelectedGroupIds((prev) => [groupId, ...prev]);
+      setSelectedGroupIds((prev) => [newCatGroup.id, ...prev]);
       setNewCategoryName('');
       setIsAddingCategory(false);
     }

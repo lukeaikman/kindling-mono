@@ -319,15 +319,15 @@ export default function PensionsEntryScreen() {
         onDismiss={() => setShowAddPersonDialog(false)}
         personActions={personActions}
         roles={['beneficiary']}
-        onCreated={(personId) => {
+        onCreated={(person) => {
           if (addPersonSelectionRef.current) {
-            addPersonSelectionRef.current(personId);
+            addPersonSelectionRef.current(person.id);
             addPersonSelectionRef.current = null;
             return;
           }
           setFormData(prev => ({
             ...prev,
-            beneficiaries: [...prev.beneficiaries, { id: personId, type: 'person' }]
+            beneficiaries: [...prev.beneficiaries, { id: person.id, type: 'person' }]
           }));
         }}
       />
@@ -336,8 +336,8 @@ export default function PensionsEntryScreen() {
       <GroupManagementDrawer
         visible={showGroupDrawer}
         onClose={() => setShowGroupDrawer(false)}
-        onSelectGroup={(groupId) => {
-          const group = beneficiaryGroupActions.getGroupById(groupId);
+        onSelectGroup={(groupId, groupObj) => {
+          const group = groupObj ?? beneficiaryGroupActions.getGroupById(groupId);
           if (group) {
             const groupSelection: BeneficiaryAssignment = {
               id: group.id,

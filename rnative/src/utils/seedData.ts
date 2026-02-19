@@ -21,7 +21,7 @@ export const seedUserData = async (personActions: PersonActions) => {
   console.log('🌱 SEEDING USER DATA - Luke Aikman Family');
   
   // Create Luke Aikman as the main user
-  const lukeId = await personActions.addPerson({
+  const luke = await personActions.addPerson({
     firstName: 'Luke',
     lastName: 'Aikman',
     email: 'luke.aikman@email.com',
@@ -32,7 +32,7 @@ export const seedUserData = async (personActions: PersonActions) => {
   });
   
   // Create Dawn Aikman as spouse
-  const dawnId = await personActions.addPerson({
+  const dawn = await personActions.addPerson({
     firstName: 'Dawn',
     lastName: 'Aikman',
     email: 'dawn.aikman@email.com',
@@ -42,7 +42,7 @@ export const seedUserData = async (personActions: PersonActions) => {
   });
   
   // Create Heidi Aikman as daughter (under 18)
-  const heidiId = await personActions.addPerson({
+  const heidi = await personActions.addPerson({
     firstName: 'Heidi',
     lastName: 'Aikman',
     email: 'heidi.aikman@email.com',
@@ -53,7 +53,7 @@ export const seedUserData = async (personActions: PersonActions) => {
   });
   
   // Create Dexter Aikman as son (under 18)
-  const dexterId = await personActions.addPerson({
+  const dexter = await personActions.addPerson({
     firstName: 'Dexter',
     lastName: 'Aikman',
     email: 'dexter.aikman@email.com',
@@ -138,24 +138,23 @@ export const seedInvestmentsData = async (personActions: PersonActions, bequeath
   
   if (existingPeople.length === 0) {
     console.log('📋 Creating sample people...');
-    samplePersonIds = [
-      await personActions.addPerson({ 
-        firstName: 'Sarah', 
-        lastName: 'Johnson', 
-        email: '',
-        phone: '',
-        relationship: 'biological-child',
-        roles: ['beneficiary']
-      }),
-      await personActions.addPerson({ 
-        firstName: 'Michael', 
-        lastName: 'Johnson', 
-        email: '',
-        phone: '',
-        relationship: 'biological-child',
-        roles: ['beneficiary']
-      }),
-    ];
+    const sarah = await personActions.addPerson({ 
+      firstName: 'Sarah', 
+      lastName: 'Johnson', 
+      email: '',
+      phone: '',
+      relationship: 'biological-child',
+      roles: ['beneficiary']
+    });
+    const michael = await personActions.addPerson({ 
+      firstName: 'Michael', 
+      lastName: 'Johnson', 
+      email: '',
+      phone: '',
+      relationship: 'biological-child',
+      roles: ['beneficiary']
+    });
+    samplePersonIds = [sarah.id, michael.id];
   } else {
     samplePersonIds = existingPeople.map(p => p.id);
   }
@@ -289,16 +288,15 @@ export const seedImportantItemsData = async (personActions: PersonActions, beque
   let samplePersonIds: string[] = [];
   
   if (existingPeople.length === 0) {
-    samplePersonIds = [
-      await personActions.addPerson({ 
-        firstName: 'James', 
-        lastName: 'Thompson', 
-        email: '',
-        phone: '',
-        relationship: 'biological-child',
-        roles: ['beneficiary', 'family-member']
-      }),
-    ];
+    const james = await personActions.addPerson({ 
+      firstName: 'James', 
+      lastName: 'Thompson', 
+      email: '',
+      phone: '',
+      relationship: 'biological-child',
+      roles: ['beneficiary', 'family-member']
+    });
+    samplePersonIds = [james.id];
   } else {
     samplePersonIds = existingPeople.map(p => p.id);
   }

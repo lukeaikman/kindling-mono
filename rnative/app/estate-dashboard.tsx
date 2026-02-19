@@ -369,7 +369,7 @@ export default function EstateDashboardScreen() {
 
   // ---- Handlers ----
   const handleBack = useCallback(() => {
-    router.push('/will-dashboard' as any);
+    router.back();
   }, []);
 
   const handleToggleCategory = useCallback(

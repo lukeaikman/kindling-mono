@@ -53,6 +53,20 @@ import {
 import { generateUUID, getPersonFullName, getPersonRelationshipDisplay } from '../utils/helpers';
 import { storage } from '../services/storage';
 
+// Cross-instance state sync: when one useAsyncStorageState instance writes,
+// all other instances with the same key receive the update synchronously.
+const stateSubscribers = new Map<string, Set<(value: any) => void>>();
+
+function subscribe(key: string, callback: (value: any) => void) {
+  if (!stateSubscribers.has(key)) stateSubscribers.set(key, new Set());
+  stateSubscribers.get(key)!.add(callback);
+  return () => { stateSubscribers.get(key)?.delete(callback); };
+}
+
+function broadcast(key: string, value: any, sender: (value: any) => void) {
+  stateSubscribers.get(key)?.forEach(cb => { if (cb !== sender) cb(value); });
+}
+
 /**
  * Load initial state from AsyncStorage
  * This is async, so we'll use a pattern with state initialization and useEffect
@@ -66,11 +80,24 @@ const useAsyncStorageState = <T>(
   const [isInitialized, setIsInitialized] = useState(false);
   const prevKeyRef = useRef<string | undefined>(undefined);
   const stateVersionRef = useRef(0);
+  const stateRef = useRef<T>(initialValue);
+  useEffect(() => { stateRef.current = state; }, [state]);
+
+  // Subscribe so other instances of the same key can push updates to us
+  useEffect(() => {
+    if (!storageKey) return;
+    return subscribe(storageKey, setStateInternal);
+  }, [storageKey]);
 
   const setState: React.Dispatch<React.SetStateAction<T>> = useCallback((value) => {
     stateVersionRef.current += 1;
     setStateInternal(value);
-  }, []);
+    const resolved = typeof value === 'function'
+      ? (value as (prev: T) => T)(stateRef.current)
+      : value;
+    stateRef.current = resolved;
+    if (storageKey) broadcast(storageKey, resolved, setStateInternal);
+  }, [storageKey]);
 
   // Load from storage on mount and when key changes
   useEffect(() => {
@@ -709,7 +736,7 @@ export const useAppState = () => {
 
       console.log('✅ Person added:', newPerson.id, newPerson.firstName, newPerson.lastName);
       
-      return newPerson.id;
+      return newPerson;
     },
 
     removePerson: (id) => {
@@ -1135,7 +1162,7 @@ export const useAppState = () => {
         updatedAt: new Date()
       };
       setBeneficiaryGroupData(prev => [...prev, newGroup]);
-      return newGroup.id;
+      return newGroup;
     },
 
     updateGroup: (id, updates) => {

@@ -2320,13 +2320,13 @@ export default function PropertyTrustDetailsScreen() {
         onDismiss={() => setShowAddPersonDialog(false)}
         personActions={personActions}
         roles={['beneficiary']}
-        onCreated={(personId) => {
+        onCreated={(person) => {
           if (addPersonSelectionRef.current) {
-            addPersonSelectionRef.current(personId);
+            addPersonSelectionRef.current(person.id);
             addPersonSelectionRef.current = null;
             return;
           }
-          setBareCoBeneficiaries((prev) => [...prev, { id: personId, type: 'person' }]);
+          setBareCoBeneficiaries((prev) => [...prev, { id: person.id, type: 'person' }]);
         }}
       />
 

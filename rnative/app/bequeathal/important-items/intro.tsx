@@ -28,11 +28,11 @@ export default function ImportantItemsIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.push('/bequeathal/important-items/entry');
+    router.replace('/bequeathal/important-items/summary' as any);
   };
 
   const handleSkip = () => {
-    router.push('/estate-dashboard' as any);
+    router.back();
   };
 
   return (

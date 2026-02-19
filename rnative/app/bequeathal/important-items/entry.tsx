@@ -75,7 +75,7 @@ export default function ImportantItemsEntryScreen() {
 
     const asset = bequeathalActions.getAssetById(editingAssetId);
     if (!asset || asset.type !== 'important-items') {
-      router.push(SUMMARY_ROUTE as any);
+      router.replace(SUMMARY_ROUTE as any);
       return;
     }
 
@@ -142,11 +142,11 @@ export default function ImportantItemsEntryScreen() {
       : 0;
     toast.notifySave(estimatedValue - oldAssetValue);
 
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const handleBack = () => {
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const canSubmit = formData.title.trim() && formData.beneficiaries.length > 0 && formData.estimatedValue > 0;
@@ -234,15 +234,12 @@ export default function ImportantItemsEntryScreen() {
         onDismiss={() => setShowAddPersonDialog(false)}
         personActions={personActions}
         roles={['beneficiary']}
-        onCreated={(personId) => {
-          const person = personActions.getPersonById(personId);
-          if (!person) return;
-          const relationship = getPersonRelationshipDisplay(person);
+        onCreated={(person) => {
           const selection: BeneficiarySelection = {
             id: person.id,
             type: 'person',
             name: getPersonFullName(person),
-            relationship: relationship || undefined,
+            relationship: getPersonRelationshipDisplay(person) || undefined,
           };
           setFormData(prev => ({
             ...prev,
@@ -255,8 +252,8 @@ export default function ImportantItemsEntryScreen() {
       <GroupManagementDrawer
         visible={showGroupDrawer}
         onClose={() => setShowGroupDrawer(false)}
-        onSelectGroup={(groupId) => {
-          const group = beneficiaryGroupActions.getGroupById(groupId);
+        onSelectGroup={(groupId, groupObj) => {
+          const group = groupObj ?? beneficiaryGroupActions.getGroupById(groupId);
           if (group) {
             const groupSelection: BeneficiarySelection = {
               id: group.id,
