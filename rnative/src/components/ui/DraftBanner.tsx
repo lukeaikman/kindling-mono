@@ -40,9 +40,9 @@ export function DraftBanner({ categoryLabel, isEditing, onDiscard, visible }: Dr
   const discardLabel = isEditing ? 'Revert changes' : 'Clear form';
 
   return (
-    <View style={styles.container} testID="draft-banner">
+    <View style={styles.container}>
       <Text style={styles.bannerText}>{bannerText}</Text>
-      <TouchableOpacity onPress={onDiscard} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} testID="draft-banner-discard">
+      <TouchableOpacity onPress={onDiscard} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <Text style={styles.discardText}>{discardLabel}</Text>
       </TouchableOpacity>
     </View>

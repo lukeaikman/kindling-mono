@@ -67,8 +67,6 @@ export interface SearchableSelectProps {
    * When false (default), selected value shows in the select button
    */
   showSelectedCards?: boolean;
-
-  testID?: string;
 }
 
 /**
@@ -96,7 +94,6 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   disabled = false,
   errorMessage,
   showSelectedCards = false,
-  testID,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -143,7 +140,6 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         onPress={() => !disabled && setModalVisible(true)}
         activeOpacity={0.7}
         disabled={disabled}
-        testID={testID}
       >
         <Text
           style={[
@@ -204,7 +200,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           {/* Modal Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{label || 'Select an option'}</Text>
-            <TouchableOpacity onPress={handleClose} testID="searchable-select-close">
+            <TouchableOpacity onPress={handleClose}>
               <IconButton
                 icon="close"
                 size={24}
@@ -230,7 +226,6 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               autoFocus
               autoCapitalize="none"
               autoCorrect={false}
-              testID="searchable-select-input"
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -248,6 +243,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           <FlatList
             data={filteredOptions}
             keyExtractor={(item) => item.value}
+            keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[

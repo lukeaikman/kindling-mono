@@ -26,11 +26,9 @@ import { router } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useFonts } from 'expo-font';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { getBiometricEnabled, setBiometricEnabled, validateSession, handleFreshInstallCleanup } from '../../hooks/useAuth';
 import { initializeAttribution, getNextOnboardingDestination } from '../../services/attribution';
-import { STORAGE_KEYS } from '../../constants';
 
 // ============================================================================
 // CONFIGURATION CONSTANTS
@@ -160,15 +158,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   // ============================================================================
 
   const initializeApp = useCallback(async (): Promise<AppInitResult> => {
-    // Detox E2E bypass: skip auth entirely when seed state is present
-    if (__DEV__) {
-      const bypassAuth = await AsyncStorage.getItem('detox_e2e_bypass');
-      if (bypassAuth === 'true') {
-        const scopeId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_WILLMAKER_ID);
-        return { destination: '/will-dashboard', requiresBiometric: false, scopeId, isOffline: false };
-      }
-    }
-
     // Clear stale Keychain data if this is a fresh install
     await handleFreshInstallCleanup();
     

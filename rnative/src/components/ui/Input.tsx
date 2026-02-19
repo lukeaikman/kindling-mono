@@ -158,11 +158,6 @@ export interface InputProps {
    * @default 'while-editing' (shows while editing, hides when not focused)
    */
   clearButtonMode?: 'never' | 'while-editing' | 'unless-editing' | 'always';
-
-  /**
-   * Test ID for Detox/E2E element selection
-   */
-  testID?: string;
 }
 
 /**
@@ -265,7 +260,6 @@ export const Input = forwardRef<RNTextInput, InputProps>(({
   returnKeyType: returnKeyTypeProp,
   onBeforeAutoFocus,
   clearButtonMode = 'while-editing',
-  testID,
 }, ref) => {
   const keyboardType = keyboardTypeProp || getKeyboardType(type);
   const autoCapitalize = autoCapitalizeProp || getAutoCapitalize(type);
@@ -342,7 +336,6 @@ export const Input = forwardRef<RNTextInput, InputProps>(({
       textColor={KindlingColors.navy}
       style={[styles.input, style]}
       contentStyle={[styles.inputContent, textStyle]}
-      testID={testID}
     />
   );
 });

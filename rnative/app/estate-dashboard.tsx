@@ -19,7 +19,6 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import { router } from 'expo-router';
@@ -235,7 +234,6 @@ const BalanceSheetMode: React.FC<ModeBProps> = ({
               hasUnknownValues={cat.hasUnknownValues}
               onPress={() => onCardPress(cat.id, cat.assetCount)}
               onDeselect={cat.assetCount === 0 ? () => onDeselect(cat.id) : undefined}
-              testID={`category-card-${cat.id}`}
             />
           </Animated.View>
         ))}
@@ -276,24 +274,13 @@ export default function EstateDashboardScreen() {
   const { bequeathalActions, willActions, personActions, estateRemainderActions, isBequeathalHydrated } = useAppState();
   const netWealthToast = useNetWealthToast();
 
-  const [detoxBypass, setDetoxBypass] = useState(false);
-  useEffect(() => {
-    if (__DEV__) {
-      AsyncStorage.getItem('detox_e2e_bypass').then((val) => {
-        if (val === 'true') setDetoxBypass(true);
-      });
-    }
-  }, []);
-
-  const isHydrated = isBequeathalHydrated || detoxBypass;
-
   // Seed the net wealth toast so first asset save is compared correctly
   const bd: BequeathalData = bequeathalActions.getBequeathalData();
   useEffect(() => {
-    if (isHydrated) {
+    if (isBequeathalHydrated) {
       netWealthToast.seedIfNeeded(bd);
     }
-  }, [isHydrated]);
+  }, [isBequeathalHydrated]);
 
   // Build progress state for willProgress helpers
   const progressState: WillProgressState = useMemo(
@@ -525,7 +512,7 @@ export default function EstateDashboardScreen() {
       </View>
 
       {/* Content — gated on AsyncStorage hydration to prevent Mode A flash */}
-      {isHydrated ? (
+      {isBequeathalHydrated ? (
         <>
           <ScrollView
             style={styles.scrollView}
