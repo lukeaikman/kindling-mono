@@ -101,6 +101,11 @@ export interface BeneficiaryWithPercentagesProps {
    * Default: true for percentage mode, false for amount mode
    */
   requireComplete?: boolean;
+
+  /**
+   * Whether to show error state for the add-beneficiaries control
+   */
+  error?: boolean;
 }
 
 /**
@@ -132,6 +137,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
   useSliders = false,
   showNormalizeButton = true,
   requireComplete,
+  error = false,
 }) => {
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   
@@ -346,7 +352,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
     const scaleFactor = 100 / currentTotal;
     const updated = value.map(b => ({
       ...b,
-      percentage: (b.percentage || 0) * scaleFactor,
+      percentage: Math.round((b.percentage || 0) * scaleFactor * 100) / 100,
     }));
 
     onChange(updated);
@@ -365,7 +371,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
       
       {/* Add Beneficiaries Button */}
       <TouchableOpacity
-        style={styles.addBeneficiariesButton}
+        style={[styles.addBeneficiariesButton, error && styles.addBeneficiariesButtonError]}
         onPress={handleOpenDrawer}
         activeOpacity={0.7}
       >
@@ -627,7 +633,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
                 const scaleFactor = 100 / currentTotal;
                 const updated = value.map(b => ({
                   ...b,
-                  percentage: (b.percentage || 0) * scaleFactor,
+                  percentage: Math.round((b.percentage || 0) * scaleFactor * 100) / 100,
                 }));
                 
                 onChange(updated);
@@ -892,6 +898,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
+  },
+  addBeneficiariesButtonError: {
+    borderColor: KindlingColors.destructive,
   },
   addIcon: {
     margin: 0,

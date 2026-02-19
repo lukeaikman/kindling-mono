@@ -184,6 +184,7 @@ export default function DeveloperDashboard() {
             
             <Button
               variant="destructive"
+              style={styles.dashboardDangerButton}
               onPress={handlePurgeAllData}
             >
               Purge All Data
@@ -191,6 +192,7 @@ export default function DeveloperDashboard() {
 
             <Button
               variant="destructive"
+              style={styles.dashboardDangerButton}
               onPress={async () => {
                 await clearAllAuthData();
                 setRefreshKey(prev => prev + 1);
@@ -201,6 +203,7 @@ export default function DeveloperDashboard() {
 
             <Button
               variant="destructive"
+              style={styles.dashboardDangerButton}
               onPress={async () => {
                 await SecureStore.deleteItemAsync('kindling_attribution');
                 await SecureStore.deleteItemAsync('kindling_onboarding_state');
@@ -610,6 +613,9 @@ const styles = StyleSheet.create({
   buttonGroup: {
     gap: Spacing.sm,
     marginTop: Spacing.md,
+  },
+  dashboardDangerButton: {
+    backgroundColor: KindlingColors.buttonRed,
   },
   authStatusText: {
     color: KindlingColors.mutedForeground,

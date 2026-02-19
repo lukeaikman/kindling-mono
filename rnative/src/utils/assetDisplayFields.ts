@@ -81,6 +81,7 @@ function formatAccountType(type: string): string {
 
 function formatInvestmentType(type: string): string {
   const map: Record<string, string> = {
+    'unknown': 'Unknown',
     'general-investment-account': 'General Investment Account',
     'aim-holdings': 'AIM holdings',
     'isa-stocks-shares': 'Stocks & Shares ISA',
@@ -203,7 +204,7 @@ export function getAssetTitle(asset: Asset): string {
 
 /**
  * Returns a compact, human-readable one-liner for an asset.
- * e.g. "Stocks & Shares ISA with HL", "Residential · London"
+ * e.g. "Stocks & Shares ISA", "Residential · London"
  */
 export function getAssetSubline(asset: Asset): string | null {
   switch (asset.type) {
@@ -222,9 +223,8 @@ export function getAssetSubline(asset: Asset): string | null {
     }
     case 'investment': {
       const i = asset as InvestmentAsset;
-      if (i.investmentType && i.provider) return `${formatInvestmentType(i.investmentType)} with ${i.provider}`;
       if (i.investmentType) return formatInvestmentType(i.investmentType);
-      return i.provider ? `Investment with ${i.provider}` : null;
+      return null;
     }
     case 'pensions': {
       const p = asset as PensionAsset;

@@ -16,7 +16,8 @@ export const KindlingColors = {
   
   // UI colors
   background: '#ffffff',
-  destructive: '#d4183d',
+  destructive: '#ec8686',
+  buttonRed: '#c70e0e',
   muted: '#f8f9fa',
   mutedForeground: '#6c757d',
   border: '#e9ecef',

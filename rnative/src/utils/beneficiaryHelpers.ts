@@ -117,6 +117,63 @@ export function getBeneficiaryDisplayName(
   return 'Unknown';
 }
 
+// ---------------------------------------------------------------------------
+// Zero-percent beneficiary guard (save-time validation)
+// ---------------------------------------------------------------------------
+// Rule: in percentage mode, persisted beneficiaries must have percentage > 0.
+// Anything else is removed or blocked at save time.
+// ---------------------------------------------------------------------------
+
+export interface ZeroPercentResult {
+  /** Beneficiaries with percentage > 0 — safe to persist */
+  cleaned: BeneficiaryAssignment[];
+  /** Beneficiaries with missing/0 percentage — candidates for removal */
+  zeroEntries: BeneficiaryAssignment[];
+  /** Pre-built dialog body copy (single or multi) */
+  dialogMessage: string | null;
+  /** Pre-built confirm button label */
+  confirmLabel: string | null;
+  /** Whether the guard detected any zero-percent entries */
+  hasZeroEntries: boolean;
+}
+
+/**
+ * Detect beneficiaries at 0% and build dialog copy for the confirm flow.
+ * Pure function — no side effects, no state.
+ */
+export function detectZeroPercentBeneficiaries(
+  beneficiaries: BeneficiaryAssignment[],
+  personActions: PersonActions,
+  beneficiaryGroupActions: BeneficiaryGroupActions,
+): ZeroPercentResult {
+  const zeroEntries = beneficiaries.filter(
+    b => b.percentage === undefined || b.percentage === null || b.percentage <= 0,
+  );
+  const cleaned = beneficiaries.filter(
+    b => b.percentage !== undefined && b.percentage !== null && b.percentage > 0,
+  );
+
+  if (zeroEntries.length === 0) {
+    return { cleaned, zeroEntries, dialogMessage: null, confirmLabel: null, hasZeroEntries: false };
+  }
+
+  const names = zeroEntries.map(b => getBeneficiaryDisplayName(b, personActions, beneficiaryGroupActions));
+
+  const dialogMessage = zeroEntries.length === 1
+    ? `You added "${names[0]}" as a beneficiary but allocated them a 0% share.`
+    : `You added ${zeroEntries.length} beneficiaries with a 0% share.`;
+
+  const shortName = zeroEntries.length === 1
+    ? (zeroEntries[0].type === 'person'
+        ? personActions.getPersonById(zeroEntries[0].id)?.firstName || names[0]
+        : names[0])
+    : `${zeroEntries.length} Beneficiaries`;
+
+  const confirmLabel = `Save & Remove ${shortName}`;
+
+  return { cleaned, zeroEntries, dialogMessage, confirmLabel, hasZeroEntries: true };
+}
+
 /**
  * Get all assets for a specific beneficiary
  * Useful for "Who inherits what?" visualization

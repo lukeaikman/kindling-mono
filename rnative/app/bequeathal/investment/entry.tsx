@@ -8,15 +8,15 @@ import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Select, Input, CurrencyInput, ValidationAttentionButton } from '../../../src/components/ui';
+import { Button, BackButton, Select, Input, CurrencyInput, ValidationAttentionButton, Dialog } from '../../../src/components/ui';
 import { AddPersonDialog, BeneficiaryWithPercentages, GroupManagementDrawer } from '../../../src/components/forms';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import { getPersonFullName, getPersonRelationshipDisplay } from '../../../src/utils/helpers';
-import { validatePercentageAllocation, getBeneficiaryDisplayName } from '../../../src/utils/beneficiaryHelpers';
+import { validatePercentageAllocation, detectZeroPercentBeneficiaries } from '../../../src/utils/beneficiaryHelpers';
+import type { ZeroPercentResult } from '../../../src/utils/beneficiaryHelpers';
 import type { InvestmentAsset, BeneficiaryAssignment } from '../../../src/types';
 
 const SUMMARY_ROUTE = '/bequeathal/investment/summary';
@@ -44,6 +44,7 @@ export default function InvestmentsEntryScreen() {
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
+  const [zeroPctGuard, setZeroPctGuard] = useState<ZeroPercentResult | null>(null);
 
   // Investment type options
   const investmentTypeOptions = [
@@ -96,7 +97,7 @@ export default function InvestmentsEntryScreen() {
 
     setFormData({
       provider: investment.provider,
-      investmentType: investment.investmentType || '',
+      investmentType: investment.investmentType === 'unknown' ? '' : (investment.investmentType || ''),
       beneficiaries,
       estimatedValue: investment.estimatedValue || 0,
     });
@@ -107,20 +108,11 @@ export default function InvestmentsEntryScreen() {
     setFormData(prev => ({ ...prev, beneficiaries: newBeneficiaries }));
   };
 
-  const handleSave = () => {
-    // Validation
-    if (!formData.provider.trim() || formData.beneficiaries.length === 0) return;
-
-    // Validate percentages total 100%
-    if (!validatePercentageAllocation({ beneficiaries: formData.beneficiaries })) {
-      return; // Component already shows error
-    }
-
-    // Round value to nearest £1 — undefined when unsure (not 0)
+  const commitSave = (beneficiariesToPersist: BeneficiaryAssignment[]) => {
     const estimatedValue = balanceNotSure ? undefined : Math.round(formData.estimatedValue);
 
-    const investmentType = formData.investmentType || 'other';
-    const investmentTypeLabel = investmentTypeOptions.find(opt => opt.value === investmentType)?.label || 'Other';
+    const investmentType = formData.investmentType || 'unknown';
+    const investmentTypeLabel = investmentTypeOptions.find(opt => opt.value === investmentType)?.label || 'Unknown';
 
     const investmentData = {
       title: formData.investmentType
@@ -129,7 +121,7 @@ export default function InvestmentsEntryScreen() {
       provider: formData.provider.trim(),
       investmentType,
       beneficiaryAssignments: {
-        beneficiaries: formData.beneficiaries.map(b => ({
+        beneficiaries: beneficiariesToPersist.map(b => ({
           id: b.id,
           type: b.type,
           percentage: b.percentage,
@@ -146,13 +138,33 @@ export default function InvestmentsEntryScreen() {
       bequeathalActions.addAsset('investment', investmentData);
     }
 
-    // Compute delta for net wealth toast (avoids reading stale batched state)
     const oldAssetValue = editingAssetId
       ? (bequeathalActions.getAssetById(editingAssetId)?.estimatedValue || 0)
       : 0;
     toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
     router.back();
+  };
+
+  const handleSave = () => {
+    if (!formData.provider.trim() || formData.beneficiaries.length === 0) return;
+
+    if (!validatePercentageAllocation({ beneficiaries: formData.beneficiaries })) {
+      return;
+    }
+
+    const guard = detectZeroPercentBeneficiaries(
+      formData.beneficiaries,
+      personActions,
+      beneficiaryGroupActions,
+    );
+
+    if (guard.hasZeroEntries) {
+      setZeroPctGuard(guard);
+      return;
+    }
+
+    commitSave(formData.beneficiaries);
   };
 
   const handleBack = () => {
@@ -201,6 +213,7 @@ export default function InvestmentsEntryScreen() {
               placeholder="e.g., AJ Bell, Hargreaves Lansdown"
               value={formData.provider}
               onChangeText={(value) => setFormData(prev => ({ ...prev, provider: value }))}
+              style={showErrors && fieldErrors.provider ? styles.inputErrorBorder : undefined}
             />
 
             <Select
@@ -220,6 +233,7 @@ export default function InvestmentsEntryScreen() {
               beneficiaryGroupActions={beneficiaryGroupActions}
               excludePersonIds={excludePersonIds}
               label="Who will receive this? *"
+              error={showErrors && fieldErrors.beneficiaries}
               onAddNewPerson={(onCreated) => {
                 addPersonSelectionRef.current = onCreated || null;
                 setShowAddPersonDialog(true);
@@ -271,7 +285,6 @@ export default function InvestmentsEntryScreen() {
                   onPress={handleSave}
                   variant="primary"
                   disabled={!canSubmit}
-                  style={styles.submitButton}
                 >
                   {editingAssetId ? 'Save changes' : 'Add this investment'}
                 </Button>
@@ -321,6 +334,37 @@ export default function InvestmentsEntryScreen() {
         beneficiaryGroupActions={beneficiaryGroupActions}
         willId={willActions.getUser()?.id || 'default-user'}
       />
+
+      {/* Zero-percent beneficiary confirmation dialog */}
+      <Dialog
+        visible={!!zeroPctGuard}
+        onDismiss={() => setZeroPctGuard(null)}
+        title="Beneficiary at 0%"
+        dismissable={false}
+        actions={[
+          {
+            label: zeroPctGuard?.confirmLabel ?? 'Save & Remove',
+            variant: 'primary',
+            onPress: () => {
+              if (zeroPctGuard) {
+                console.log(
+                  '[save-with-removal] Removed zero-percent beneficiaries:',
+                  zeroPctGuard.zeroEntries.map(b => b.id),
+                );
+                commitSave(zeroPctGuard.cleaned);
+              }
+              setZeroPctGuard(null);
+            },
+          },
+          {
+            label: 'Back',
+            variant: 'secondary',
+            onPress: () => setZeroPctGuard(null),
+          },
+        ]}
+      >
+        {zeroPctGuard?.dialogMessage ?? ''}
+      </Dialog>
     </SafeAreaView>
   );
 }
@@ -419,6 +463,11 @@ const styles = StyleSheet.create({
     color: KindlingColors.navy,
     marginBottom: Spacing.xs,
   },
+  inputErrorBorder: {
+    borderWidth: 1,
+    borderColor: KindlingColors.destructive,
+    borderRadius: 8,
+  },
   balanceSection: {
     gap: Spacing.xs,
   },
@@ -454,11 +503,7 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.sm,
   },
   formActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  submitButton: {
-    flex: 1,
+    marginTop: Spacing.sm,
   },
   dialogText: {
     fontSize: Typography.fontSize.md,
