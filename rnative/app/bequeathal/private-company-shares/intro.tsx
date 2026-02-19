@@ -29,11 +29,11 @@ export default function PrivateCompanySharesIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.push('/bequeathal/private-company-shares/entry');
+    router.replace('/bequeathal/private-company-shares/summary' as any);
   };
 
   const handleSkip = () => {
-    router.push('/estate-dashboard' as any);
+    router.back();
   };
 
   const handleLearnMore = () => {

@@ -74,18 +74,19 @@
 | D-4 | Edit saves beneficiary change   | Edit an item. Remove Jane Doe. Add Bob Smith. Save.                                                           | Beneficiary updated in data viewer. Jane's ID gone, Bob's ID present.                                                                         | Pass                    |
 | D-5 | Edit — add extra beneficiary   | Edit B-1 item (single beneficiary). Add The Estate as second beneficiary. Save.                               | Now two beneficiary entries. Both visible in data viewer.                                                                                     | Pass                    |
 | D-6 | Edit — beneficiary names fresh | Edit an item with John Smith. In another tab/session, rename John to "Jonathan". Return and re-edit the item. | Chip shows "Jonathan Smith" (looked up fresh from Person record, not cached from beneficiaryAssignments).                                     | Redundant Test - delete |
-| D-7 | Net wealth toast on edit        | Edit an item worth £2,500. Change to £5,000. Save.                                                          | Net wealth toast fires showing the updated estate total.                                                                                      | Fail                    |
+| D-7 | Net wealth toast on edit        | Edit an item worth £2,500. Change to £5,000. Save.                                                          | Net wealth toast fires showing the updated estate total.                                                                                      | Pass                    |
 
 ---
 
 ## E. Delete Flow
 
 
-| #   | Test                | Steps                                         | Pass criteria                                                                      | Pass? |
-| ----- | --------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ | ------- |
-| E-1 | Delete from summary | From summary, tap delete (X icon) on an item. | Confirmation alert: "Delete asset" / "Are you sure you want to remove this asset?" | Pass  |
-| E-2 | Delete confirmed    | Confirm deletion.                             | Item removed from list. Total recalculated. Data viewer confirms asset gone.       | Pass  |
-| E-3 | Delete cancelled    | Tap cancel on delete confirmation.            | Item still in list. No changes.                                                    | Pass  |
+| #   | Test                | Steps                                         | Pass criteria                                                                      | Pass? |   |
+| ----- | --------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ | ------- | --- |
+|     |                     |                                               |                                                                                    |       |   |
+| E-1 | Delete from summary | From summary, tap delete (X icon) on an item. | Confirmation alert: "Delete asset" / "Are you sure you want to remove this asset?" | Pass  |   |
+| E-2 | Delete confirmed    | Confirm deletion.                             | Item removed from list. Total recalculated. Data viewer confirms asset gone.       | Pass  |   |
+| E-3 | Delete cancelled    | Tap cancel on delete confirmation.            | Item still in list. No changes.                                                    | Pass  |   |
 
 ---
 
@@ -108,12 +109,12 @@
 
 | #   | Test                          | Steps                                                              | Pass criteria                                                                                             | Pass? |
 | ----- | ------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------- |
-| G-1 | Summary shows all items       | Add 3 items with different titles. Go to summary.                  | All 3 visible with correct titles and values.                                                             |       |
-| G-2 | Total value correct           | Add items worth £2,500 + £8,000 + £1,200. Check summary banner. | Total shows £11,700. Count shows "Value of 3 Important Items".                                           |       |
-| G-3 | Empty state                   | Clear all items. Go to summary.                                    | Shows empty state: diamond icon, "Nothing here yet", "Add important items" button.                        |       |
-| G-4 | Add from summary              | From summary, tap "Add another".                                   | Navigates to entry form. Fresh form (no ?id param).                                                       |       |
-| G-5 | "That's everything" completes | From summary with items, tap "That's everything".                  | Category marked complete. Navigates to estate dashboard. Estate dashboard card shows tick/complete state. |       |
-| G-6 | Edit from summary             | From summary, tap on an item card.                                 | Navigates to entry form with`?id=` param. Form pre-filled.                                                |       |
+| G-1 | Summary shows all items       | Add 3 items with different titles. Go to summary.                  | All 3 visible with correct titles and values.                                                             | Pass  |
+| G-2 | Total value correct           | Add items worth £2,500 + £8,000 + £1,200. Check summary banner. | Total shows £11,700. Count shows "Value of 3 Important Items".                                           | Pass  |
+| G-3 | Empty state                   | Clear all items. Go to summary.                                    | Shows empty state: diamond icon, "Nothing here yet", "Add important items" button.                        | Pass  |
+| G-4 | Add from summary              | From summary, tap "Add another".                                   | Navigates to entry form. Fresh form (no ?id param).                                                       | Pass  |
+| G-5 | "That's everything" completes | From summary with items, tap "That's everything".                  | Category marked complete. Navigates to estate dashboard. Estate dashboard card shows tick/complete state. | Pass  |
+| G-6 | Edit from summary             | From summary, tap on an item card.                                 | Navigates to entry form with`?id=` param. Form pre-filled.                                                | Pass  |
 
 ---
 
@@ -122,24 +123,24 @@
 
 | #   | Test                            | Steps                                                                | Pass criteria                                                                                                                                          | Pass? |
 | ----- | --------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| H-1 | Beneficiary stores id + type    | Add item with John Smith. Check data viewer.                         | `beneficiaryAssignments.beneficiaries[0]` has `id` (John's person ID) and `type: 'person'`. Name field may be present but is NOT the canonical source. |       |
-| H-2 | Estate beneficiary structure    | Add item with The Estate. Check data viewer.                         | Beneficiary:`id === 'estate'`, `type === 'estate'`.                                                                                                    |       |
-| H-3 | Group beneficiary structure     | Add item with a group. Check data viewer.                            | Beneficiary:`id` matches group ID, `type === 'group'`.                                                                                                 |       |
-| H-4 | Asset type correct              | Add any item. Check data viewer.                                     | `type === 'important-items'`. Not `important-item` (singular). Not `valuable-items` or similar.                                                        |       |
-| H-5 | Title trimmed on save           | Enter title "  Grandfather Clock  " (leading/trailing spaces). Save. | Data viewer:`title === 'Grandfather Clock'` (trimmed).                                                                                                 |       |
-| H-6 | netValue matches estimatedValue | Add item worth £5,000. Check data viewer.                           | `estimatedValue === 5000`, `netValue === 5000`. Both identical.                                                                                        |       |
+| H-1 | Beneficiary stores id + type    | Add item with John Smith. Check data viewer.                         | `beneficiaryAssignments.beneficiaries[0]` has `id` (John's person ID) and `type: 'person'`. Name field may be present but is NOT the canonical source. | Pass  |
+| H-2 | Estate beneficiary structure    | Add item with The Estate. Check data viewer.                         | Beneficiary:`id === 'estate'`, `type === 'estate'`.                                                                                                    | Pass  |
+| H-3 | Group beneficiary structure     | Add item with a group. Check data viewer.                            | Beneficiary:`id` matches group ID, `type === 'group'`.                                                                                                 | Pass  |
+| H-4 | Asset type correct              | Add any item. Check data viewer.                                     | `type === 'important-items'`. Not `important-item` (singular). Not `valuable-items` or similar.                                                        | Pass  |
+| H-5 | Title trimmed on save           | Enter title "  Grandfather Clock  " (leading/trailing spaces). Save. | Data viewer:`title === 'Grandfather Clock'` (trimmed).                                                                                                 | Pass  |
+| H-6 | netValue matches estimatedValue | Add item worth £5,000. Check data viewer.                           | `estimatedValue === 5000`, `netValue === 5000`. Both identical.                                                                                        | Pass  |
 
 ---
 
 ## I. Navigation Edge Cases
 
 
-| #   | Test                             | Steps                                                                                            | Pass criteria                                                         | Pass? |
-| ----- | ---------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------- |
-| I-1 | Back from entry goes to summary  | From entry form, tap back button.                                                                | Navigates to`/bequeathal/important-items/summary`.                    |       |
-| I-2 | Back from summary goes to estate | From summary, tap back button.                                                                   | Navigates to`/estate-dashboard`.                                      |       |
-| I-3 | Invalid edit ID redirects        | Navigate to`/bequeathal/important-items/entry?id=nonexistent-id`.                                | Redirects to summary (guard in useEffect).                            |       |
-| I-4 | Wrong asset type redirects       | Find a bank account asset ID. Navigate to`/bequeathal/important-items/entry?id={bankAccountId}`. | Redirects to summary (type guard:`asset.type !== 'important-items'`). |       |
+| #   | Test                             | Steps                                                                                            | Pass criteria                                                         | Pass?          |
+| ----- | ---------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ---------------- |
+| I-1 | Back from entry goes to summary  | From entry form, tap back button.                                                                | Navigates to`/bequeathal/important-items/summary`.                    | Pass           |
+| I-2 | Back from summary goes to estate | From summary, tap back button.                                                                   | Navigates to`/estate-dashboard`.                                      | Pass           |
+| I-3 | Invalid edit ID redirects        | Navigate to`/bequeathal/important-items/entry?id=nonexistent-id`.                                | Redirects to summary (guard in useEffect).                            | Redundant test |
+| I-4 | Wrong asset type redirects       | Find a bank account asset ID. Navigate to`/bequeathal/important-items/entry?id={bankAccountId}`. | Redirects to summary (type guard:`asset.type !== 'important-items'`). | Redundant test |
 
 ---
 

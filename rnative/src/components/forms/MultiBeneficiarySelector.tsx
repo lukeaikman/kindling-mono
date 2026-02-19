@@ -93,6 +93,11 @@ export interface MultiBeneficiarySelectorProps {
    * Beneficiary group actions for accessing groups
    */
   beneficiaryGroupActions: BeneficiaryGroupActions;
+
+  /**
+   * Whether to show error styling on the dropdown
+   */
+  error?: boolean;
 }
 
 /**
@@ -139,6 +144,7 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
   onAddNewGroup,
   personActions,
   beneficiaryGroupActions,
+  error = false,
 }) => {
   const selections = Array.isArray(value) ? value : (value ? [value] : []);
   const [dropdownValue, setDropdownValue] = React.useState('');
@@ -317,6 +323,7 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
           value={dropdownValue}
           options={options}
           onChange={handleSelect}
+          error={error}
         />
       )}
 

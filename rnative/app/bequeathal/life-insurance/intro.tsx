@@ -18,7 +18,7 @@ import { Spacing, Typography } from '../../../src/styles/constants';
 
 export default function LifeInsuranceIntroScreen() {
   const handleSkip = () => {
-    router.push('/estate-dashboard' as any);
+    router.back();
   };
 
   const handleLearnMore = () => {
@@ -80,7 +80,7 @@ export default function LifeInsuranceIntroScreen() {
 
           {/* Action Buttons */}
           <Button
-            onPress={() => router.push('/bequeathal/life-insurance/entry')}
+            onPress={() => router.replace('/bequeathal/life-insurance/summary' as any)}
             variant="primary"
             style={styles.startButton}
           >

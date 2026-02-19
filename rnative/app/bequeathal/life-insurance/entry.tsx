@@ -128,7 +128,7 @@ export default function LifeInsuranceEntryScreen() {
 
     const asset = bequeathalActions.getAssetById(editingAssetId) as LifeInsuranceAsset | undefined;
     if (!asset) {
-      router.push(SUMMARY_ROUTE as any);
+      router.replace(SUMMARY_ROUTE as any);
       return;
     }
 
@@ -267,7 +267,7 @@ export default function LifeInsuranceEntryScreen() {
     // Clear draft on successful save
     discardDraft();
 
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const canSubmit = formData.provider.trim() &&
@@ -288,7 +288,7 @@ export default function LifeInsuranceEntryScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <BackButton onPress={() => router.push(SUMMARY_ROUTE as any)} />
+        <BackButton onPress={() => router.back()} />
         <View style={styles.headerCenter}>
           <View style={styles.iconCircle}>
             <IconButton icon="shield-account" size={20} iconColor={KindlingColors.navy} />

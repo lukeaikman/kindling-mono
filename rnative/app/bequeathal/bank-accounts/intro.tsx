@@ -28,11 +28,11 @@ export default function BankAccountsIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.push('/bequeathal/bank-accounts/entry');
+    router.replace('/bequeathal/bank-accounts/summary' as any);
   };
 
   const handleSkip = () => {
-    router.push('/estate-dashboard' as any);
+    router.back();
   };
 
   const handleLearnMore = () => {

@@ -28,11 +28,11 @@ export default function InvestmentsIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.push('/bequeathal/investment/entry');
+    router.replace('/bequeathal/investment/summary' as any);
   };
 
   const handleSkip = () => {
-    router.push('/estate-dashboard' as any);
+    router.back();
   };
 
   const handleLearnMore = () => {

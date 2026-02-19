@@ -144,7 +144,7 @@ export default function PrivateCompanySharesEntryScreen() {
 
     const asset = bequeathalActions.getAssetById(editingAssetId);
     if (!asset || asset.type !== 'private-company-shares') {
-      router.push(SUMMARY_ROUTE as any);
+      router.replace(SUMMARY_ROUTE as any);
       return;
     }
 
@@ -337,11 +337,11 @@ export default function PrivateCompanySharesEntryScreen() {
     // Clear draft on successful save
     discardDraft();
 
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const handleBack = () => {
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const canSubmit = !!formData.companyName.trim()

@@ -734,7 +734,7 @@ export default function PropertyEntryScreen() {
     discardDraft();
 
     // Navigate to summary
-    router.push('/bequeathal/property/summary');
+    router.back();
   };
 
   return (

@@ -18,7 +18,7 @@ import { Spacing, Typography } from '../../../src/styles/constants';
 
 export default function PropertyIntroScreen() {
   const handleSkip = () => {
-    router.push('/estate-dashboard' as any);
+    router.back();
   };
 
   const handleLearnMore = () => {
@@ -76,7 +76,7 @@ export default function PropertyIntroScreen() {
 
           {/* Action Buttons */}
           <Button
-            onPress={() => router.push('/bequeathal/property/entry')}
+            onPress={() => router.replace('/bequeathal/property/summary' as any)}
             variant="primary"
             style={styles.startButton}
           >

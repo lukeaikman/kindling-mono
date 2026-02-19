@@ -28,11 +28,11 @@ export default function PensionsIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.push('/bequeathal/pensions/entry');
+    router.replace('/bequeathal/pensions/summary' as any);
   };
 
   const handleSkip = () => {
-    router.push('/estate-dashboard' as any);
+    router.back();
   };
 
   const handleLearnMore = () => {

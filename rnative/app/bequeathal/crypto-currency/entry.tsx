@@ -89,7 +89,7 @@ export default function CryptoCurrencyEntryScreen() {
 
     const asset = bequeathalActions.getAssetById(editingAssetId);
     if (!asset || asset.type !== 'crypto-currency') {
-      router.push(SUMMARY_ROUTE as any);
+      router.replace(SUMMARY_ROUTE as any);
       return;
     }
 
@@ -136,11 +136,11 @@ export default function CryptoCurrencyEntryScreen() {
       : 0;
     toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const handleBack = () => {
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const canSubmit = formData.platform;

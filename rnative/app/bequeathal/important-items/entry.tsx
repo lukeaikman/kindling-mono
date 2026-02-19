@@ -48,7 +48,7 @@ export default function ImportantItemsEntryScreen() {
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
 
-  const { attentionLabel, triggerValidation } = useFormValidation({
+  const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'title', label: 'Title', isValid: !!formData.title.trim() },
       { key: 'beneficiaries', label: 'Beneficiaries', isValid: formData.beneficiaries.length > 0 },
@@ -192,6 +192,7 @@ export default function ImportantItemsEntryScreen() {
               placeholder="e.g., Wedding ring, Painting, Car"
               value={formData.title}
               onChangeText={(value) => setFormData(prev => ({ ...prev, title: value }))}
+              error={showErrors && fieldErrors.title}
             />
 
             {/* Beneficiary Selector */}
@@ -208,6 +209,7 @@ export default function ImportantItemsEntryScreen() {
               beneficiaryGroupActions={beneficiaryGroupActions}
               onAddNewPerson={() => setShowAddPersonDialog(true)}
               onAddNewGroup={() => setShowGroupDrawer(true)}
+              error={showErrors && fieldErrors.beneficiaries}
             />
 
             <CurrencyInput
@@ -215,6 +217,7 @@ export default function ImportantItemsEntryScreen() {
               placeholder="0"
               value={formData.estimatedValue}
               onValueChange={(value) => setFormData(prev => ({ ...prev, estimatedValue: value }))}
+              error={showErrors && fieldErrors.estimatedValue}
             />
 
             <Button

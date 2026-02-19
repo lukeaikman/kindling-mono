@@ -2216,7 +2216,7 @@ export default function PropertyTrustDetailsScreen() {
     // Clear draft on successful save
     discardTrustDraft();
 
-    router.push('/bequeathal/property/summary');
+    router.back();
   };
 
   return (

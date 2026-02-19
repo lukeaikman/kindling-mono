@@ -30,11 +30,11 @@ export default function AssetsHeldThroughBusinessIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.push('/bequeathal/assets-held-through-business/entry');
+    router.replace('/bequeathal/assets-held-through-business/summary' as any);
   };
 
   const handleSkip = () => {
-    router.push('/estate-dashboard' as any);
+    router.back();
   };
 
   return (

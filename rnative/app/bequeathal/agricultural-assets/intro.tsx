@@ -29,11 +29,11 @@ export default function AgriculturalAssetsIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.push('/bequeathal/agricultural-assets/entry');
+    router.replace('/bequeathal/agricultural-assets/summary' as any);
   };
 
   const handleSkip = () => {
-    router.push('/estate-dashboard' as any);
+    router.back();
   };
 
   return (

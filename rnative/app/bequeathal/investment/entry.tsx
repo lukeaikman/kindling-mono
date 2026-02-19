@@ -80,7 +80,7 @@ export default function InvestmentsEntryScreen() {
 
     const investment = bequeathalActions.getAssetById(editingAssetId) as InvestmentAsset | undefined;
     if (!investment) {
-      router.push(SUMMARY_ROUTE as any);
+      router.replace(SUMMARY_ROUTE as any);
       return;
     }
 
@@ -152,11 +152,11 @@ export default function InvestmentsEntryScreen() {
       : 0;
     toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const handleBack = () => {
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const canSubmit = formData.provider.trim() &&

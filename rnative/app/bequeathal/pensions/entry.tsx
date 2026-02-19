@@ -97,7 +97,7 @@ export default function PensionsEntryScreen() {
 
     const asset = bequeathalActions.getAssetById(editingAssetId);
     if (!asset || asset.type !== 'pensions') {
-      router.push(SUMMARY_ROUTE as any);
+      router.replace(SUMMARY_ROUTE as any);
       return;
     }
 
@@ -168,11 +168,11 @@ export default function PensionsEntryScreen() {
       : 0;
     toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const handleBack = () => {
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const canSubmit = formData.provider.trim() &&

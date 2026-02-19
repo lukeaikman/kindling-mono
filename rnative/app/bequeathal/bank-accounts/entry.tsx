@@ -162,7 +162,7 @@ export default function BankAccountsEntryScreen() {
 
     const asset = bequeathalActions.getAssetById(editingAssetId);
     if (!asset || asset.type !== 'bank-accounts') {
-      router.push(SUMMARY_ROUTE as any);
+      router.replace(SUMMARY_ROUTE as any);
       return;
     }
 
@@ -268,11 +268,11 @@ export default function BankAccountsEntryScreen() {
       );
     }
 
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const handleBack = () => {
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const canSubmit = formData.bankName && (!isNonUkBank || formData.nonUkBankName);

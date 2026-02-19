@@ -28,11 +28,11 @@ export default function CryptoCurrencyIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.push('/bequeathal/crypto-currency/entry');
+    router.replace('/bequeathal/crypto-currency/summary' as any);
   };
 
   const handleSkip = () => {
-    router.push('/estate-dashboard' as any);
+    router.back();
   };
 
   const handleLearnMore = () => {

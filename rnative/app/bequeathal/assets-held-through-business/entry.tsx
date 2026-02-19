@@ -117,7 +117,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
 
     const asset = bequeathalActions.getAssetById(editingAssetId);
     if (!asset || asset.type !== 'assets-held-through-business') {
-      router.push(SUMMARY_ROUTE as any);
+      router.replace(SUMMARY_ROUTE as any);
       return;
     }
 
@@ -208,11 +208,11 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
       : 0;
     toast.notifySave((estimatedValue ?? 0) - oldAssetValue);
 
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const handleBack = () => {
-    router.push(SUMMARY_ROUTE as any);
+    router.back();
   };
 
   const canSubmit = selectedBusinessId && formData.assetType && formData.assetDescription.trim();
