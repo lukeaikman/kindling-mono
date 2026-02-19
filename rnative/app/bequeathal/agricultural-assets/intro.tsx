@@ -29,7 +29,7 @@ export default function AgriculturalAssetsIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.replace('/bequeathal/agricultural-assets/summary' as any);
+    router.replace('/bequeathal/agricultural-assets/entry' as any);
   };
 
   const handleSkip = () => {

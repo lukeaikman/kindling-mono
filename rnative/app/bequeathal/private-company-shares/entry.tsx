@@ -108,7 +108,7 @@ export default function PrivateCompanySharesEntryScreen() {
     draftRestoredRef.current = false;
   };
 
-  const { attentionLabel, triggerValidation } = useFormValidation({
+  const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'companyName', label: 'Company name', isValid: !!formData.companyName.trim() },
     ],
@@ -709,13 +709,15 @@ export default function PrivateCompanySharesEntryScreen() {
               </TouchableOpacity>
             </View>
 
-            <Button
-              onPress={handleSave}
-              variant="primary"
-              disabled={!canSubmit}
-            >
-              {editingAssetId ? 'Save changes' : 'Add this shareholding'}
-            </Button>
+            <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
+              <Button
+                onPress={handleSave}
+                variant="primary"
+                disabled={!canSubmit}
+              >
+                {editingAssetId ? 'Save changes' : 'Add this shareholding'}
+              </Button>
+            </View>
             <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
           </View>
         </View>

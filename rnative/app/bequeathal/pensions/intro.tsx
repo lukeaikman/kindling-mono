@@ -28,7 +28,7 @@ export default function PensionsIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.replace('/bequeathal/pensions/summary' as any);
+    router.replace('/bequeathal/pensions/entry' as any);
   };
 
   const handleSkip = () => {

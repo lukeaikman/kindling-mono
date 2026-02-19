@@ -105,7 +105,7 @@ export default function AgriculturalAssetsEntryScreen() {
     draftRestoredRef.current = false;
   };
 
-  const { attentionLabel, triggerValidation } = useFormValidation({
+  const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'aprOwnershipStructure', label: 'Ownership structure', isValid: !!formData.aprOwnershipStructure },
       { key: 'assetType', label: 'Asset type', isValid: !!formData.assetType },
@@ -642,13 +642,15 @@ export default function AgriculturalAssetsEntryScreen() {
 
                 {/* Form Actions */}
                 <View style={styles.formActions}>
-                  <Button
-                    onPress={handleSave}
-                    variant="primary"
-                    disabled={!canSubmit}
-                  >
-                    {editingAssetId ? 'Save changes' : 'Add this asset'}
-                  </Button>
+                  <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
+                    <Button
+                      onPress={handleSave}
+                      variant="primary"
+                      disabled={!canSubmit}
+                    >
+                      {editingAssetId ? 'Save changes' : 'Add this asset'}
+                    </Button>
+                  </View>
                   <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
                 </View>
               </>

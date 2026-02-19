@@ -110,7 +110,7 @@ export default function LifeInsuranceEntryScreen() {
     draftRestoredRef.current = false;
   };
 
-  const { attentionLabel, triggerValidation } = useFormValidation({
+  const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'provider', label: 'Provider', isValid: !!formData.provider.trim() },
       { key: 'lifeAssured', label: 'Life assured', isValid: !!formData.lifeAssured },
@@ -419,14 +419,16 @@ export default function LifeInsuranceEntryScreen() {
 
             {/* Form Button */}
             <View style={styles.formButtons}>
-              <Button
-                onPress={handleSave}
-                variant="primary"
-                disabled={!canSubmit}
-                style={styles.submitButton}
-              >
-                {editingAssetId ? 'Save changes' : 'Add this policy'}
-              </Button>
+              <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
+                <Button
+                  onPress={handleSave}
+                  variant="primary"
+                  disabled={!canSubmit}
+                  style={styles.submitButton}
+                >
+                  {editingAssetId ? 'Save changes' : 'Add this policy'}
+                </Button>
+              </View>
               <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
             </View>
           </View>

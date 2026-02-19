@@ -28,7 +28,7 @@ export default function InvestmentsIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.replace('/bequeathal/investment/summary' as any);
+    router.replace('/bequeathal/investment/entry' as any);
   };
 
   const handleSkip = () => {

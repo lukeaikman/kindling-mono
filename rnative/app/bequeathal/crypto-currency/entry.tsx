@@ -46,7 +46,7 @@ export default function CryptoCurrencyEntryScreen() {
   });
   const [balanceNotSure, setBalanceNotSure] = useState(false);
 
-  const { attentionLabel, triggerValidation } = useFormValidation({
+  const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'platform', label: 'Platform', isValid: !!formData.platform },
     ],
@@ -109,8 +109,9 @@ export default function CryptoCurrencyEntryScreen() {
     // Validation
     if (!formData.platform) return;
 
-    // Round value to nearest £1 — undefined when unsure (not 0)
-    const estimatedValue = balanceNotSure ? undefined : Math.round(formData.estimatedValue);
+    // Round value to nearest £1 — undefined when unsure or zero (crypto zero = unknown)
+    const isValueUnknown = balanceNotSure || formData.estimatedValue === 0;
+    const estimatedValue = isValueUnknown ? undefined : Math.round(formData.estimatedValue);
 
     const holdingData = {
       title: formData.accountUsername
@@ -120,7 +121,7 @@ export default function CryptoCurrencyEntryScreen() {
       accountUsername: formData.accountUsername || undefined,
       notes: formData.notes || undefined,
       estimatedValue,
-      estimatedValueUnknown: balanceNotSure || undefined,
+      estimatedValueUnknown: isValueUnknown || undefined,
       netValue: estimatedValue,
     };
 
@@ -184,6 +185,7 @@ export default function CryptoCurrencyEntryScreen() {
               value={formData.platform}
               options={platformOptions}
               onChange={(value) => setFormData(prev => ({ ...prev, platform: value }))}
+              error={showErrors && fieldErrors.platform}
             />
 
             <Input
@@ -244,13 +246,15 @@ export default function CryptoCurrencyEntryScreen() {
               numberOfLines={3}
             />
 
-            <Button
-              onPress={handleSave}
-              variant="primary"
-              disabled={!canSubmit}
-            >
-              {editingAssetId ? 'Save changes' : 'Add this holding'}
-            </Button>
+            <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
+              <Button
+                onPress={handleSave}
+                variant="primary"
+                disabled={!canSubmit}
+              >
+                {editingAssetId ? 'Save changes' : 'Add this holding'}
+              </Button>
+            </View>
             <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
           </View>
         </View>

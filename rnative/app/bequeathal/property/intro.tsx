@@ -76,7 +76,7 @@ export default function PropertyIntroScreen() {
 
           {/* Action Buttons */}
           <Button
-            onPress={() => router.replace('/bequeathal/property/summary' as any)}
+            onPress={() => router.replace('/bequeathal/property/entry' as any)}
             variant="primary"
             style={styles.startButton}
           >

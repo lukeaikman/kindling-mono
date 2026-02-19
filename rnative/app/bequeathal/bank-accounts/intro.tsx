@@ -28,7 +28,7 @@ export default function BankAccountsIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.replace('/bequeathal/bank-accounts/summary' as any);
+    router.replace('/bequeathal/bank-accounts/entry' as any);
   };
 
   const handleSkip = () => {

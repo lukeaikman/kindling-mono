@@ -54,7 +54,7 @@ export default function PensionsEntryScreen() {
   const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
 
-  const { attentionLabel, triggerValidation } = useFormValidation({
+  const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'provider', label: 'Provider', isValid: !!formData.provider.trim() },
       { key: 'pensionType', label: 'Pension Type', isValid: !!formData.pensionType },
@@ -302,13 +302,15 @@ export default function PensionsEntryScreen() {
               />
             )}
 
-            <Button
-              onPress={handleSave}
-              variant="primary"
-              disabled={!canSubmit}
-            >
-              {editingAssetId ? 'Save changes' : 'Add this pension'}
-            </Button>
+            <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
+              <Button
+                onPress={handleSave}
+                variant="primary"
+                disabled={!canSubmit}
+              >
+                {editingAssetId ? 'Save changes' : 'Add this pension'}
+              </Button>
+            </View>
             <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
           </View>
         </View>

@@ -28,7 +28,7 @@ export default function ImportantItemsIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.replace('/bequeathal/important-items/summary' as any);
+    router.replace('/bequeathal/important-items/entry' as any);
   };
 
   const handleSkip = () => {

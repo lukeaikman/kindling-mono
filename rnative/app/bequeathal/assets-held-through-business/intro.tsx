@@ -30,7 +30,7 @@ export default function AssetsHeldThroughBusinessIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.replace('/bequeathal/assets-held-through-business/summary' as any);
+    router.replace('/bequeathal/assets-held-through-business/entry' as any);
   };
 
   const handleSkip = () => {

@@ -80,7 +80,7 @@ export default function LifeInsuranceIntroScreen() {
 
           {/* Action Buttons */}
           <Button
-            onPress={() => router.replace('/bequeathal/life-insurance/summary' as any)}
+            onPress={() => router.replace('/bequeathal/life-insurance/entry' as any)}
             variant="primary"
             style={styles.startButton}
           >

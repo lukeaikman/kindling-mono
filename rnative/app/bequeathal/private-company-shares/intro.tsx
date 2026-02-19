@@ -29,7 +29,7 @@ export default function PrivateCompanySharesIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.replace('/bequeathal/private-company-shares/summary' as any);
+    router.replace('/bequeathal/private-company-shares/entry' as any);
   };
 
   const handleSkip = () => {

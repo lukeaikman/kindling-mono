@@ -28,7 +28,7 @@ export default function CryptoCurrencyIntroScreen() {
   };
 
   const handleContinue = () => {
-    router.replace('/bequeathal/crypto-currency/summary' as any);
+    router.replace('/bequeathal/crypto-currency/entry' as any);
   };
 
   const handleSkip = () => {

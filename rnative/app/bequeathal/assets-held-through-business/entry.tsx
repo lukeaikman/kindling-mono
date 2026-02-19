@@ -52,7 +52,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
   });
   const [valueNotSure, setValueNotSure] = useState(false);
 
-  const { attentionLabel, triggerValidation } = useFormValidation({
+  const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'businessId', label: 'Business', isValid: !!selectedBusinessId },
       { key: 'assetType', label: 'Asset Type', isValid: !!formData.assetType },
@@ -371,13 +371,15 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <Button
-                  onPress={handleSave}
-                  variant="primary"
-                  disabled={!canSubmit}
-                >
-                  {editingAssetId ? 'Save changes' : 'Add this asset'}
-                </Button>
+                <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
+                  <Button
+                    onPress={handleSave}
+                    variant="primary"
+                    disabled={!canSubmit}
+                  >
+                    {editingAssetId ? 'Save changes' : 'Add this asset'}
+                  </Button>
+                </View>
                 <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
               </View>
             </>

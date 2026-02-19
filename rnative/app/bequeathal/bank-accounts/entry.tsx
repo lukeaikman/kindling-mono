@@ -95,7 +95,7 @@ export default function BankAccountsEntryScreen() {
     draftRestoredRef.current = false;
   };
 
-  const { attentionLabel, triggerValidation } = useFormValidation({
+  const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'bankName', label: 'Bank name', isValid: !!formData.bankName },
       { key: 'nonUkBankName', label: 'Non-UK bank name', isValid: formData.bankName !== 'Non UK Bank' || !!formData.nonUkBankName },
@@ -447,13 +447,15 @@ export default function BankAccountsEntryScreen() {
               IMPORTANT: This is only stored on your phone and never on our servers - it allows us to estimate your inheritance tax and help structure your estate
             </Text>
 
-            <Button
-              onPress={handleSave}
-              variant="primary"
-              disabled={!canSubmit}
-            >
-              {editingAssetId ? 'Save changes' : 'Add this account'}
-            </Button>
+            <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
+              <Button
+                onPress={handleSave}
+                variant="primary"
+                disabled={!canSubmit}
+              >
+                {editingAssetId ? 'Save changes' : 'Add this account'}
+              </Button>
+            </View>
             <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
           </View>
         </View>

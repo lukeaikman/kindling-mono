@@ -220,13 +220,15 @@ export default function ImportantItemsEntryScreen() {
               error={showErrors && fieldErrors.estimatedValue}
             />
 
-            <Button
-              onPress={handleSave}
-              variant="primary"
-              disabled={!canSubmit}
-            >
-              {editingAssetId ? 'Save changes' : 'Add this item'}
-            </Button>
+            <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
+              <Button
+                onPress={handleSave}
+                variant="primary"
+                disabled={!canSubmit}
+              >
+                {editingAssetId ? 'Save changes' : 'Add this item'}
+              </Button>
+            </View>
             <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
           </View>
         </View>

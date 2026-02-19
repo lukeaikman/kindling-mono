@@ -31,7 +31,9 @@
 
 ---
 
-## Phase 5: Bank Accounts Testing
+## Phase 5: Bank Accounts Testing ✅ COMPLETE
+
+> Tested and passed — see `TEST_BANK_ACCOUNTS.md` for full results.
 
 ### Test 5.1: Bank Accounts Intro Screen
 **Path:** Assets & Bequests → Bank Accounts (Intro)
@@ -145,7 +147,9 @@
 
 ---
 
-## Phase 6: Important Items Testing
+## Phase 6: Important Items Testing ✅ COMPLETE
+
+> Tested and passed — see `TEST_IMPORTANT_ITEMS.md` for full results.
 
 ### Test 6.1: Important Items Entry
 **Path:** Important Items Entry
@@ -238,7 +242,9 @@
 
 ---
 
-## Phase 7: Cryptocurrency Testing
+## Phase 7: Cryptocurrency Testing ✅ COMPLETE
+
+> Tested and passed — see `TEST_CRYPTO_CURRENCY.md` for full results.
 
 ### Test 7.1: Add Crypto Account
 **Path:** Cryptocurrency Entry
@@ -270,7 +276,7 @@
 
 ---
 
-## Phase 8: Investments Testing
+## Phase 8: Investments Testing ← NEXT
 
 ### Test 8.1: ISA Integration
 **Path:** Investments Entry

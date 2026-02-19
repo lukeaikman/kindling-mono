@@ -66,7 +66,7 @@ export default function InvestmentsEntryScreen() {
   const loadedIdRef = useRef<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const { attentionLabel, triggerValidation } = useFormValidation({
+  const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'provider', label: 'Provider', isValid: !!formData.provider.trim() },
       { key: 'beneficiaries', label: 'Beneficiaries', isValid: formData.beneficiaries.length > 0 },
@@ -266,14 +266,16 @@ export default function InvestmentsEntryScreen() {
             </View>
 
             <View style={styles.formActions}>
-              <Button
-                onPress={handleSave}
-                variant="primary"
-                disabled={!canSubmit}
-                style={styles.submitButton}
-              >
-                {editingAssetId ? 'Save changes' : 'Add this investment'}
-              </Button>
+              <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
+                <Button
+                  onPress={handleSave}
+                  variant="primary"
+                  disabled={!canSubmit}
+                  style={styles.submitButton}
+                >
+                  {editingAssetId ? 'Save changes' : 'Add this investment'}
+                </Button>
+              </View>
               <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
             </View>
           </View>
