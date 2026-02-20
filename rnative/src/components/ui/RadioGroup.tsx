@@ -106,6 +106,11 @@ export interface RadioGroupProps {
    * Useful for custom logic after selection
    */
   onAfterSelect?: (value: string) => void;
+
+  /**
+   * Whether the group has a validation error
+   */
+  error?: boolean;
 }
 
 /**
@@ -174,6 +179,7 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
   scrollOffset = 0,
   scrollDelay = 400,
   onAfterSelect,
+  error = false,
 }) => {
   // Track whether the group is expanded (showing all options)
   // Start expanded if no value is selected, or if collapseOnSelect is false
@@ -233,7 +239,7 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
   const isCollapsed = collapseOnSelect && !isExpanded && value;
   
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, error && !value && styles.containerError]}>
       {label && <Text style={styles.label}>{label}</Text>}
       
       <RadioButton.Group onValueChange={handleSelect} value={value}>
@@ -300,6 +306,12 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginVertical: Spacing.md,
+  },
+  containerError: {
+    borderWidth: 1,
+    borderColor: KindlingColors.destructive,
+    borderRadius: 8,
+    padding: Spacing.xs,
   },
   label: {
     fontSize: 16,

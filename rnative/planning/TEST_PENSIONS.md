@@ -55,7 +55,7 @@
 | #   | Test                              | Steps                                              | Pass criteria                                                                          | Pass?                                                                                                               |
 | ----- | ----------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | C-1 | Type options listed               | Open "Pension Type" dropdown.                      | Includes Defined Benefit, Defined Contribution, SIPP, Workplace - Type Unsure, Unsure. | Pass                                                                                                                |
-| C-2 | Type is required                  | Leave type blank, fill other fields, attempt save. | Save blocked/disabled. Validation attention fires.                                     | Fail. Submit button is disabled, but validation alert styling is not being applied to required fields yet unfilled. |
+| C-2 | Type is required                  | Leave type blank, fill other fields, attempt save. | Save blocked/disabled. Validation attention fires. Type dropdown shows red error border. | Pass |
 | C-3 | Value label changes for DB        | Select "Defined Benefit".                          | Value field label shows "Annual Amount (£/year)".                                     | Pass                                                                                                                |
 | C-4 | Value label for non-DB types      | Select "SIPP" or "Defined Contribution".           | Value field label shows "Total Value".                                                 | Pass                                                                                                                |
 | C-5 | Value field hidden until type set | Open form, check value area before selecting type. | Value/unsure section is hidden until a pension type is selected.                       | Pass                                                                                                                |
@@ -67,7 +67,7 @@
 
 | #   | Test                                       | Steps                                                                           | Pass criteria                                                                                        | Pass?                                                                                                           |
 | ----- | -------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| D-1 | Nomination is required                     | Fill provider and type. Leave "Beneficiary Nominated" unselected. Attempt save. | Save blocked/disabled. Validation attention fires.                                                   | Fail - submission button disabled, but validation alert styling on required fields unsatisfied was not applied. |
+| D-1 | Nomination is required                     | Fill provider and type. Leave "Beneficiary Nominated" unselected. Attempt save. | Save blocked/disabled. Validation attention fires. RadioGroup shows red error border.                | Pass |
 | D-2 | "Yes" shows beneficiary section            | Select "Yes" for beneficiary nominated.                                         | `BeneficiaryWithPercentages` component appears with "Who are the beneficiaries?" label.              | Pass                                                                                                            |
 | D-3 | "No" hides beneficiary section             | Select "No" for beneficiary nominated.                                          | Beneficiary section hidden. No beneficiary data saved.                                               | Pass                                                                                                            |
 | D-4 | "Not Sure" hides beneficiary section       | Select "Not Sure" for beneficiary nominated.                                    | Beneficiary section hidden. No beneficiary data saved.                                               | Pass                                                                                                            |
@@ -100,7 +100,7 @@
 | F-1 | Checkbox disables value field | Select a pension type. Tick "Unsure of value".              | Currency field is disabled/dimmed.                                     | Pass                          |
 | F-2 | Toggling unsure resets value  | Enter value 50000, then tick unsure.                        | Value resets. Save uses`estimatedValueUnknown: true`.                  | Pass                          |
 | F-3 | Untick unsure re-enables      | Tick unsure, then untick. Type 75000.                       | Value field re-enables. Typed value is accepted and saved.             | Pass                          |
-| F-4 | Blank value saves as unknown  | Select type. Leave value blank (don't type anything). Save. | Save succeeds. Stored as`estimatedValueUnknown: true` (not value = 0). | FAIL - blank value saved as 0 |
+| F-4 | Blank value saves as unknown  | Select type. Leave value blank (don't type anything). Save. | Save succeeds. Stored as `estimatedValueUnknown: true` (not value = 0). | Pass |
 
 ---
 
@@ -135,13 +135,13 @@
 
 | #   | Test                              | Steps                                                                 | Pass criteria                                                                         | Pass?                                                             |
 | ----- | ----------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| I-1 | Provider required                 | Leave provider blank, fill other fields, attempt save.                | Save blocked/disabled until provider entered.                                         | Pass - But no validation border on required inputs not satisfied. |
-| I-2 | Pension type required             | Leave type blank, fill other fields, attempt save.                    | Save blocked/disabled until type selected.                                            | Pass - But no validation border on required inputs not satisfied. |
-| I-3 | Beneficiary nominated required    | Fill provider and type, leave nomination blank, attempt save.         | Save blocked/disabled until nomination answered.                                      | Pass - But no validation border on required inputs not satisfied. |
-| I-4 | Beneficiaries required when "Yes" | Select "Yes" for nomination. Leave beneficiaries empty. Attempt save. | Save blocked. Attention label shows missing beneficiaries.                            | Pass - But no validation border on required inputs not satisfied. |
-| I-5 | Percentage total required         | Select "Yes". Add Jane 60% + Bob 30% (90%). Attempt save.             | Save blocked. Attention fires. % inputs get red borders, total underlined in red.     | Pass - But no validation border on required inputs not satisfied. |
-| I-6 | Validation attention trigger      | Tap disabled save button or attention button when form invalid.       | Attention label shows count of invalid fields. Scrolls to top. Red highlights appear. | Fail                                                              |
-| I-7 | Value not required                | Fill required fields. Leave value blank. Save.                        | Save succeeds. Stored as`estimatedValueUnknown: true`.                                | Fail - stored as 0                                                |
+| I-1 | Provider required                 | Leave provider blank, fill other fields, attempt save.                | Save blocked/disabled. Provider input shows red error border.                         | Pass |
+| I-2 | Pension type required             | Leave type blank, fill other fields, attempt save.                    | Save blocked/disabled. Type dropdown shows red error border.                          | Pass |
+| I-3 | Beneficiary nominated required    | Fill provider and type, leave nomination blank, attempt save.         | Save blocked/disabled. RadioGroup shows red error border.                             | Pass |
+| I-4 | Beneficiaries required when "Yes" | Select "Yes" for nomination. Leave beneficiaries empty. Attempt save. | Save blocked. Attention label shows missing beneficiaries. Add button highlighted.    | Pass |
+| I-5 | Percentage total required         | Select "Yes". Add Jane 60% + Bob 30% (90%). Attempt save.             | Save blocked. Attention fires. % inputs get red borders, total underlined in red.     | Pass |
+| I-6 | Validation attention trigger      | Tap disabled save button or attention button when form invalid.       | Attention label shows count of invalid fields. Scrolls to top. Red highlights appear. | Pass |
+| I-7 | Value not required                | Fill required fields. Leave value blank. Save.                        | Save succeeds. Stored as `estimatedValueUnknown: true`.                               | Pass |
 
 ---
 
@@ -168,7 +168,7 @@
 | K-1 | Stored type is pensions      | Save any pension and inspect data explorer.       | `type === 'pensions'`.                                                                                          | Pass                                                  |
 | K-2 | Beneficiaries stored unified | Save with person/group/estate mix where possible. | Uses unified`beneficiaryAssignments.beneficiaries[]` with id/type/percentage only.                              | Pass                                                  |
 | K-3 | Title generation logic       | Save one pension and check stored title.          | Title format:`"Provider - PensionTypeLabel"` (e.g. "Scottish Widows - Defined Benefit").                        | Pass                                                  |
-| K-4 | Display title and subline    | View pension in summary card.                     | Card title: provider name. Subline: "Defined Benefit with Scottish Widows" (or type label only if no provider). | Incorect test- passes on actually expected behaviour. |
+| K-4 | Display title and subline    | View pension in summary card.                     | Card title: provider name. Subline: type label only (e.g. "Defined Benefit"), no provider repetition. | Pass |
 | K-5 | Back from entry              | Open entry, tap back.                             | Returns to prior summary/flow without duplicate screens.                                                        | Pass                                                  |
 | K-6 | Back from summary            | Open summary, tap back.                           | Returns to expected previous screen in estate flow.                                                             | Pass                                                  |
 
@@ -209,25 +209,29 @@
 
 ---
 
-# Part 2: Known Gaps to Address Before/During Testing
+# Part 2: Known Gaps — All Resolved
 
-These are features that exist in the investments entry but may be missing from the pensions entry. Check during testing and fix if needed.
+These gaps were identified pre-testing and have all been fixed.
 
-### 1. Percentage total in validation fields
+### 1. Percentage total in validation fields — ✅ FIXED
 
-The investments entry includes `percentages` as a tracked field in `useFormValidation`, so the attention button fires when the total != 100%. The pensions entry currently only tracks `provider`, `pensionType`, and `beneficiaryNominated`. If test I-5 fails (no attention for bad percentage total), add the percentage validation field.
+Added `beneficiaries` and `percentages` fields to `useFormValidation` (conditionally valid when nomination != "yes"). Attention button now fires for invalid totals.
 
-### 2. Zero-percent beneficiary guard
+### 2. Zero-percent beneficiary guard — ✅ Already present
 
-The investments entry imports `detectZeroPercentBeneficiaries` and shows a dialog before saving when beneficiaries have 0% allocation. The pensions entry does not appear to have this guard. If test L-2 fails, wire it in following the investments pattern.
+The pensions entry already had `detectZeroPercentBeneficiaries` wired in. Tests L-1 through L-4 all passed on first run.
 
-### 3. Blank value → unknown
+### 3. Blank value → unknown — ✅ FIXED
 
-The investments entry treats a blank (0) value with "unsure" unticked as `estimatedValueUnknown: true`. Verify the pensions entry does the same (test F-4). If not, add the same guard to `handleSave`.
+Added guard to `handleSave`: blank value (0) with "unsure" unticked now saves as `estimatedValueUnknown: true`.
 
-### 4. `alreadySelectedGroupIds` on GroupManagementDrawer
+### 4. `alreadySelectedGroupIds` on GroupManagementDrawer — ✅ Already present
 
-Verify the pensions entry passes `alreadySelectedGroupIds` to `GroupManagementDrawer` (already updated in this session — should be present).
+Confirmed present and working.
+
+### 5. Validation error styling on form fields — ✅ FIXED
+
+Added `error` prop to `RadioGroup` component. Wired `error` props to `Input`, `Select`, `RadioGroup`, and `BeneficiaryWithPercentages` in pensions entry.
 
 ---
 

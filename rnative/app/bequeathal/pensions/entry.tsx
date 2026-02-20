@@ -54,11 +54,16 @@ export default function PensionsEntryScreen() {
   const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
 
+  const beneficiariesRequired = formData.beneficiaryNominated === 'yes';
+  const percentagesValid = !beneficiariesRequired || formData.beneficiaries.length === 0 || validatePercentageAllocation({ beneficiaries: formData.beneficiaries });
+
   const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'provider', label: 'Provider', isValid: !!formData.provider.trim() },
       { key: 'pensionType', label: 'Pension Type', isValid: !!formData.pensionType },
       { key: 'beneficiaryNominated', label: 'Beneficiary Nominated', isValid: !!formData.beneficiaryNominated },
+      { key: 'beneficiaries', label: 'Beneficiaries', isValid: !beneficiariesRequired || formData.beneficiaries.length > 0 },
+      { key: 'percentages', label: 'Percentage total', isValid: percentagesValid },
     ],
     scrollViewRef,
   });
@@ -221,6 +226,7 @@ export default function PensionsEntryScreen() {
               placeholder="e.g., Scottish Widows, Aviva"
               value={formData.provider}
               onChangeText={(value) => setFormData(prev => ({ ...prev, provider: value }))}
+              error={showErrors && fieldErrors.provider}
             />
 
             <Select
@@ -229,6 +235,7 @@ export default function PensionsEntryScreen() {
               value={formData.pensionType}
               options={pensionTypeOptions}
               onChange={(value) => setFormData(prev => ({ ...prev, pensionType: value as PensionType }))}
+              error={showErrors && fieldErrors.pensionType}
             />
 
             {/* Conditional Value Field */}
@@ -284,6 +291,7 @@ export default function PensionsEntryScreen() {
                 }));
               }}
               options={beneficiaryNominatedOptions}
+              error={showErrors && fieldErrors.beneficiaryNominated}
             />
 
             {/* Conditional: Show beneficiary percentages if "Yes" selected */}
@@ -296,6 +304,7 @@ export default function PensionsEntryScreen() {
                 beneficiaryGroupActions={beneficiaryGroupActions}
                 excludePersonIds={excludePersonIds}
                 label="Who are the beneficiaries?"
+                error={showErrors && (fieldErrors.beneficiaries || fieldErrors.percentages)}
                 onAddNewPerson={(onCreated) => {
                   addPersonSelectionRef.current = onCreated || null;
                   setShowAddPersonDialog(true);
