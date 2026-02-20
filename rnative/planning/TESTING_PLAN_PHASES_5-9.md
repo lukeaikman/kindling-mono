@@ -276,7 +276,10 @@
 
 ---
 
-## Phase 8: Investments Testing ← NEXT
+## Phase 8: Investments Testing ✅ COMPLETE
+
+> Tested and passed — see `TEST_INVESTMENTS.md` for full results (101 manual tests).
+> Includes redesigned BeneficiaryWithPercentages component, 100% Wizard, and GroupManagementDrawer.
 
 ### Test 8.1: ISA Integration
 **Path:** Investments Entry
@@ -326,7 +329,7 @@
 
 ---
 
-## Phase 9: Pensions Testing
+## Phase 9: Pensions Testing ← NEXT
 
 ### Test 9.1: Add Defined Benefit Pension
 **Steps:**

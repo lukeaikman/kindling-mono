@@ -228,7 +228,6 @@ export function getAssetSubline(asset: Asset): string | null {
     }
     case 'pensions': {
       const p = asset as PensionAsset;
-      if (p.pensionType && p.provider) return `${formatPensionType(p.pensionType)} with ${p.provider}`;
       if (p.pensionType) return formatPensionType(p.pensionType);
       return p.linkedEmployer ? `Employer: ${p.linkedEmployer}` : null;
     }

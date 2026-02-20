@@ -46,7 +46,7 @@
 | ----- | -------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------- |
 | B-1 | Add investment - provider only | Provider = "AJ Bell". Leave investment type blank. Select one beneficiary. Value = 15000. Save.            | Asset saved with provider. Type defaults to "unknown". Value saved.                                  | Pass  |
 | B-2 | Add investment - with type     | Provider = "Hargreaves Lansdown". Type = "ISA (Stocks & Shares)". Beneficiary = Jane. Value = 50000. Save. | Asset saved and displayed with type label in title.                                                  | Pass  |
-| B-3 | Add investment - zero value    | Provider = "Vanguard". Type = "General Investment Account". Beneficiary = Bob. Leave value at 0. Save.     | Save succeeds.`estimatedValue` saved as `0`.                                                         | Pass  |
+| B-3 | Add investment - blank value   | Provider = "Vanguard". Type = "General Investment Account". Beneficiary = Bob. Leave value blank. Save.    | Save succeeds. `estimatedValueUnknown` saved as `true` (not `estimatedValue: 0`).                    | Pass  |
 | B-4 | Add investment - unsure value  | Provider = "Interactive Investor". Beneficiary = John. Tick "Unsure of balance". Save.                     | Save succeeds.`estimatedValueUnknown === true`; value stored as `undefined`; `netValue` `undefined`. | Pass  |
 | B-5 | ISA from bank accounts appears | Open Investments summary after creating ISA in Bank Accounts.                                              | ISA added in Bank Accounts is visible in Investments list.                                           | Pass  |
 | B-6 | Header/button text in add mode | Open entry with no`?id` param.                                                                             | Header is "Add Investment". Button is "Add this investment".                                         | Pass  |
@@ -67,27 +67,27 @@
 ## D. Beneficiaries + Percentages
 
 
-| #   | Test                               | Steps                                                                     | Pass criteria                                                      | Pass?                                                                                                                                                                                                                      |
-| ----- | ------------------------------------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D-1 | Beneficiary required               | Fill provider only; do not pick beneficiary.                              | Submit disabled. Validation attention shows beneficiaries missing. | Pass                                                                                                                                                                                                                       |
-| D-2 | Multi-beneficiary percentage split | Add Jane 60% + Bob 40%, then save.                                        | Save succeeds. Both beneficiaries stored with percentages.         | Pass                                                                                                                                                                                                                       |
-| D-3 | Invalid percentage total blocked   | Add Jane 60% + Bob 30% (90% total). Try save.                             | Save blocked until total is 100%.                                  | PASS BUT - we need to pop up a dialogue that says "Total distribution does not equal 100%. Would you like to:<br />(the three buttons)[Scale %s to 100%][give remained to estate (ONLY present if under 100%)[Edit myself] |
-| D-4 | Estate option available            | Open beneficiary selector.                                                | "The Estate" appears and can be selected.                          | Pass                                                                                                                                                                                                                       |
-| D-5 | Will-maker exclusion               | Open beneficiary selector with will-maker present in people list.         | Will-maker is excluded from selectable beneficiaries.              | Pass                                                                                                                                                                                                                       |
-| D-6 | Group selection flow               | Open group drawer, create/select group, save investment.                  | Group appears in selected beneficiaries and persists on save.      | PASS - BUT Group can be added twice. The already added group is excluded from the original selection drawer, but then if I clikc "+Create Manage Groups" I can add the already added group again from there.               |
-| D-7 | Add person inline flow             | Use "+ Add person" in beneficiary flow, create person, auto-select, save. | New person is created and selected without losing form state.      | Pass                                                                                                                                                                                                                       |
+| #   | Test                               | Steps                                                                     | Pass criteria                                                                                                                                  | Pass? |
+| ----- | ------------------------------------ | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
+| D-1 | Beneficiary required               | Fill provider only; do not pick beneficiary.                              | Submit disabled. Validation attention shows beneficiaries missing.                                                                             | Pass  |
+| D-2 | Multi-beneficiary percentage split | Add Jane 60% + Bob 40%, then save.                                        | Save succeeds. Both beneficiaries stored with percentages.                                                                                     | Pass  |
+| D-3 | Invalid percentage total blocked   | Add Jane 60% + Bob 30% (90% total). Try save.                             | Save blocked. "Just one more thing" attention appears. Tapping it highlights % inputs with red borders and underlines the red total. 100% Wizard available. | Pass  |
+| D-4 | Estate option available            | Open beneficiary selector.                                                | "The Estate" appears and can be selected.                                                                                                      | Pass  |
+| D-5 | Will-maker exclusion               | Open beneficiary selector with will-maker present in people list.         | Will-maker is excluded from selectable beneficiaries.                                                                                          | Pass  |
+| D-6 | Group selection flow               | Open group drawer, select group, save investment.                         | Group appears in selected beneficiaries and persists on save. Already-added groups show disabled checkbox in group drawer (cannot be re-added). | Pass  |
+| D-7 | Add person inline flow             | Use "+ Add person" in beneficiary flow, create person, auto-select, save. | New person is created and selected without losing form state.                                                                                  | Pass  |
 
 ---
 
 ## E. Unsure of Balance
 
 
-| #   | Test                          | Steps                                     | Pass criteria                                                              | Pass?                                                        |
-| ----- | ------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| E-1 | Checkbox disables value field | Tick "Unsure of balance".                 | Currency field is disabled/dimmed.                                         | Pass                                                         |
-| E-2 | Toggling unsure resets value  | Enter value, then tick unsure.            | Value resets and save uses`estimatedValueUnknown`.                         | Pass                                                         |
-| E-3 | Typing value unticks unsure   | Tick unsure, then untick and enter value. | Value becomes editable and unsure flag is removed on save.                 | Defunct - text box is disabled while unsure value is ticked. |
-| E-4 | Edit round-trip with unsure   | Save with unsure. Reopen edit.            | Unsure state is preloaded correctly and behaves consistently when changed. |                                                              |
+| #   | Test                          | Steps                                                              | Pass criteria                                                              | Pass? |
+| ----- | ------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------- |
+| E-1 | Checkbox disables value field | Tick "Unsure of balance".                                          | Currency field is disabled/dimmed.                                         | Pass  |
+| E-2 | Toggling unsure resets value  | Enter value, then tick unsure.                                     | Value resets and save uses`estimatedValueUnknown`.                         | Pass  |
+| E-3 | Untick unsure re-enables      | Tick unsure, then untick. Type a value.                            | Value field re-enables and typed value is accepted. Unsure flag removed on save. | TBD   |
+| E-4 | Edit round-trip with unsure   | Save with unsure ticked. Reopen for edit.                          | Unsure checkbox is pre-ticked. Value field is disabled. Behaves correctly when changed. | TBD   |
 
 ---
 
@@ -118,83 +118,83 @@
 ## H. Validation
 
 
-| #   | Test                         | Steps                                                   | Pass criteria                                                                                 | Pass?                                                                                                                                                                                                                                                                                                                                                              |
-| ----- | ------------------------------ | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| H-1 | Provider required            | Leave provider blank, fill beneficiaries, attempt save. | Save blocked/disabled until provider entered.                                                 | Pass                                                                                                                                                                                                                                                                                                                                                               |
-| H-2 | Beneficiaries required       | Fill provider, leave beneficiaries empty.               | Save blocked/disabled.                                                                        | Pass                                                                                                                                                                                                                                                                                                                                                               |
-| H-3 | Percentage total required    | Use non-100 split and attempt save.                     | Save blocked until total is exactly 100%.                                                     | Pass: Though we have a bug - we round to two decimal places when we "scale to 100%" which occassionally leaves us slightly off total. We therefore need a tollerance (on the validation, or to solve the scaling to account for uneven splits and give someone an extra iota). Your opinion should be expressed and I will then feedback before we build anything. |
-| H-4 | Validation attention trigger | Tap ValidationAttentionButton when form invalid.        | Attention label points to first invalid field and scrolls/focuses correctly where applicable. | Pass                                                                                                                                                                                                                                                                                                                                                               |
-| H-5 | Value not required           | Fill required fields; leave value at 0. Save.           | Save succeeds.                                                                                | Pass (NB there is no 0 as default, so leaving it is unknown - update text of test here, unless you think i'm mistaken)                                                                                                                                                                                                                                             |
+| #   | Test                         | Steps                                                   | Pass criteria                                                                                 | Pass? |
+| ----- | ------------------------------ | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------- |
+| H-1 | Provider required            | Leave provider blank, fill beneficiaries, attempt save. | Save blocked/disabled until provider entered.                                                 | Pass  |
+| H-2 | Beneficiaries required       | Fill provider, leave beneficiaries empty.               | Save blocked/disabled.                                                                        | Pass  |
+| H-3 | Percentage total required    | Use non-100 split and attempt save.                     | Save blocked. "Just one more thing" attention appears. % inputs get red borders, total underlined in red. Wizard rounding absorbs remainder (tolerance ≤ 0.01). | Pass  |
+| H-4 | Validation attention trigger | Tap disabled save button or attention button when form invalid. | Attention label shows count of invalid fields. Scrolls to top. Red highlights appear on invalid fields. | Pass  |
+| H-5 | Value not required           | Fill required fields; leave value blank (don't type anything). Save. | Save succeeds. Stored as `estimatedValueUnknown: true` (not `estimatedValue: 0`). | Pass  |
 
 ---
 
 ## I. Summary Screen
 
 
-| #   | Test                               | Steps                                                              | Pass criteria                                                              | Pass?                                                                                                                                                           |
-| ----- | ------------------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| I-1 | Summary shows all investments      | Add 3 investments with mixed types/beneficiaries and open summary. | All items show correctly with names, beneficiaries, and values.            | Pass - Summary does not show beneficiaries, but that's by design. Unless I'm mistaken, please amend the text here or come back to me with what you're expecting |
-| I-2 | Total value correct                | Add known values (e.g., 15000 + 50000 + 20000).                    | Summary total equals expected sum (excluding unknown values if present).   | Pass                                                                                                                                                            |
-| I-3 | Empty state                        | Remove all investments and open summary.                           | Empty state shown with add action.                                         | Pass                                                                                                                                                            |
-| I-4 | Add from summary                   | Tap "Add" from summary.                                            | Opens add form in create mode.                                             | Pass                                                                                                                                                            |
-| I-5 | Edit from summary                  | Tap an existing investment card.                                   | Opens edit form with`?id=` and pre-filled data.                            | Pass                                                                                                                                                            |
-| I-6 | Unknown balance handling in total  | Add one known value and one unsure value.                          | Total behavior is correct and unknown value item is visibly distinguished. | Pass                                                                                                                                                            |
-| I-7 | "That's everything" marks complete | From non-empty summary, tap completion CTA.                        | Category marked complete and returns to expected dashboard/category flow.  | Pass                                                                                                                                                            |
+| #   | Test                               | Steps                                                              | Pass criteria                                                              | Pass? |
+| ----- | ------------------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------- |
+| I-1 | Summary shows all investments      | Add 3 investments with mixed types and open summary.               | All items show correctly with names, types, and values.                    | Pass  |
+| I-2 | Total value correct                | Add known values (e.g., 15000 + 50000 + 20000).                    | Summary total equals expected sum (excluding unknown values if present).   | Pass  |
+| I-3 | Empty state                        | Remove all investments and open summary.                           | Empty state shown with add action.                                         | Pass  |
+| I-4 | Add from summary                   | Tap "Add" from summary.                                            | Opens add form in create mode.                                             | Pass  |
+| I-5 | Edit from summary                  | Tap an existing investment card.                                   | Opens edit form with`?id=` and pre-filled data.                            | Pass  |
+| I-6 | Unknown balance handling in total  | Add one known value and one unsure value.                          | Total behavior is correct and unknown value item is visibly distinguished. | Pass  |
+| I-7 | "That's everything" marks complete | From non-empty summary, tap completion CTA.                        | Category marked complete and returns to expected dashboard/category flow.  | Pass  |
 
 ---
 
 ## J. Data Integrity + Navigation Edges
 
 
-| #   | Test                         | Steps                                                | Pass criteria                                                                      | Pass?                                            |
-| ----- | ------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| J-1 | Stored type is investment    | Save any investment and inspect data explorer.       | `type === 'investment'`.                                                           | Pass                                             |
-| J-2 | Beneficiaries stored unified | Save with person/group/estate mix where possible.    | Uses unified`beneficiaryAssignments.beneficiaries[]` with id/type/percentage only. | Pass                                             |
-| J-3 | Title generation logic       | Save one with type and one without type.             | With type:`Provider - TypeLabel`; without type: `Provider`.                        | Thisis not how we generate titles I don't think? |
-| J-4 | Invalid edit id guarded      | Navigate to`/bequeathal/investment/entry?id=bad-id`. | Redirects safely to investments summary (no crash).                                | Redundant test - mobile app?                     |
-| J-5 | Back from entry              | Open entry, tap back.                                | Returns to prior summary/flow without duplicate screens.                           | Pass                                             |
-| J-6 | Back from summary            | Open summary, tap back.                              | Returns to expected previous screen in estate flow.                                | Pass                                             |
+| #   | Test                         | Steps                                             | Pass criteria                                                                      | Pass? |
+| ----- | ------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------ | ------- |
+| J-1 | Stored type is investment    | Save any investment and inspect data explorer.    | `type === 'investment'`.                                                           | Pass  |
+| J-2 | Beneficiaries stored unified | Save with person/group/estate mix where possible. | Uses unified`beneficiaryAssignments.beneficiaries[]` with id/type/percentage only. | Pass  |
+| J-3 | Title generation logic       | Save one with type and one without type.          | Title is provider name only (e.g. "AJ Bell"). Subline shows type label if present (e.g. "General Investment Account"), otherwise no subline. | TBD   |
+| J-4 | Back from entry              | Open entry, tap back.                             | Returns to prior summary/flow without duplicate screens.                           | Pass  |
+| J-5 | Back from summary            | Open summary, tap back.                           | Returns to expected previous screen in estate flow.                                | Pass  |
 
 ---
 
 ## K. Zero-Percent Beneficiary Guard
 
 
-| #   | Test                               | Steps                                                                                        | Pass criteria                                                                                                                        | Pass?                                                                                                          |
-| ----- | ------------------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| K-1 | Single 0% triggers dialog          | Add one beneficiary (Jane) at 0%. Fill provider. Tap save.                                   | Dialog appears: 'You added "Jane Doe (Daughter)" as a beneficiary but allocated them a 0% share.' Button reads "Save & Remove Jane". | Fail - button is diosabled. Validation should show the 'one last thing' and red border on beneficiary cards.   |
-| K-2 | Save & Remove persists without 0%  | From K-1 dialog, tap "Save & Remove Jane".                                                   | Asset saved. Stored`beneficiaryAssignments.beneficiaries` array does not include Jane. Console log shows `[save-with-removal]`.      | Redundant test                                                                                                 |
-| K-3 | Back dismisses dialog              | From K-1 dialog, tap "Back".                                                                 | Dialog closes. Form is still editable with beneficiary list unchanged.                                                               | Redundant test                                                                                                 |
-| K-4 | Multiple 0% triggers multi message | Add Jane at 0% and Bob at 0%, John at 100%. Fill provider. Tap save.                         | Dialog: "You added 2 beneficiaries with a 0% share." Button: "Save & Remove 2 Beneficiaries".                                        | Pass - BUT Change button copy to "Save & Remove 0% beneficiaries"                                              |
-| K-5 | Multi Save & Remove keeps valid    | From K-4, tap "Save & Remove 2 Beneficiaries".                                               | Asset saved with only John (100%). Jane and Bob are not in stored beneficiaries. Console log fires.                                  | Pass                                                                                                           |
-| K-6 | No dialog when all > 0%            | Add Jane 60% + Bob 40%. Fill provider. Tap save.                                             | Save succeeds immediately with no dialog.                                                                                            | Pass                                                                                                           |
-| K-7 | Guard runs after 100% validation   | Add Jane at 0% and Bob at 50% (total 50%). Tap save.                                         | Percentage total validation blocks first — zero-percent dialog does NOT appear until total is 100%.                                 | Button disabled as less than 100%. Which is fine, but need validation in as mentioned in a test comment above. |
-| K-8 | Edit mode with existing 0% entries | Save an investment with Jane 100%. Edit it, change Jane to 0% and add Bob at 100%. Tap save. | Zero-percent dialog appears for Jane. "Save & Remove" persists only Bob.                                                             | Pass                                                                                                           |
-| K-9 | Group beneficiary at 0%            | Add a group at 0% and a person at 100%. Fill provider. Tap save.                             | Dialog shows group name (not "Unknown"). "Save & Remove [GroupName]". Confirm removes group from persisted data.                     | Pass                                                                                                           |
+| #   | Test                               | Steps                                                                                        | Pass criteria                                                                                                                        | Pass? |
+| ----- | ------------------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| K-1 | Single 0% blocked by total check  | Add one beneficiary (Jane) at 0%. Fill provider. Tap save.                                   | Save blocked (total is 0%, not 100%). "Just one more thing" attention fires. % input gets red border, total underlined in red. Zero-percent dialog does NOT appear (total check catches it first). | TBD   |
+| K-2 | 0% dialog when total is 100%      | Add Jane at 0% and Bob at 100%. Fill provider. Tap save.                                    | Zero-percent dialog appears for Jane: "You added Jane as a beneficiary but allocated them a 0% share." Button: "Save & Remove Jane". | TBD   |
+| K-3 | Save & Remove persists without 0% | From K-2 dialog, tap "Save & Remove Jane".                                                   | Asset saved. Stored `beneficiaryAssignments.beneficiaries` array does not include Jane.                                              | TBD   |
+| K-4 | Back dismisses dialog              | From K-2 dialog, tap "Back".                                                                 | Dialog closes. Form is still editable with beneficiary list unchanged.                                                               | TBD   |
+| K-5 | Multiple 0% triggers multi message | Add Jane at 0% and Bob at 0%, John at 100%. Fill provider. Tap save.                         | Dialog: "You added 2 beneficiaries with a 0% share." Button: "Save & Remove 0% Beneficiaries".                                      | Pass (copy change pending) |
+| K-6 | Multi Save & Remove keeps valid    | From K-5, tap "Save & Remove 0% Beneficiaries".                                              | Asset saved with only John (100%). Jane and Bob are not in stored beneficiaries.                                                     | Pass  |
+| K-7 | No dialog when all > 0%            | Add Jane 60% + Bob 40%. Fill provider. Tap save.                                             | Save succeeds immediately with no dialog.                                                                                            | Pass  |
+| K-8 | Edit mode with existing 0% entries | Save an investment with Jane 100%. Edit it, change Jane to 0% and add Bob at 100%. Tap save. | Zero-percent dialog appears for Jane. "Save & Remove" persists only Bob.                                                             | Pass  |
+| K-9 | Group beneficiary at 0%            | Add a group at 0% and a person at 100%. Fill provider. Tap save.                             | Dialog shows group name (not "Unknown"). "Save & Remove [GroupName]". Confirm removes group from persisted data.                     | Pass  |
 
 ---
 
 ## L. Beneficiary Component (Redesigned)
 
 
-| #    | Test                                   | Steps                                                         | Pass criteria                                                                                                                                                    | Pass? |
-| ------ | ---------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
-| L-1  | Empty state shows prominent add button | Open add investment form (no beneficiaries yet).              | Large "Add Beneficiaries" button visible with icon. No rows, no total, no wizard.                                                                                | Pass  |
-| L-2  | Add first beneficiary                  | Tap "Add Beneficiaries", select Jane, confirm.                | Jane row appears with green accent bar, name on left, % input on right, open padlock icon, delete x top-right. Prominent add button replaced by "+ Add another". | Pass  |
-| L-3  | "+ Add another" opens drawer           | After first add, tap "+ Add another".                         | Beneficiary selection drawer opens. Previously selected beneficiaries are excluded.                                                                              | Pass  |
-| L-4  | Compact row layout                     | Add Jane 60% + Bob 40%.                                       | Two single-line rows: name left, padlock + % input right. No card bloat, no background fill bars.                                                                | Pass  |
-| L-5  | Inline total displays                  | Add Jane 60% + Bob 40%.                                       | Footer row shows "+ Add another" on left and "Total: 100.0% ✓" on right, green text.                                                                            | Pass  |
-| L-6  | Invalid total shown in red             | Add Jane 60% + Bob 30% (90% total).                           | Total shows "90.0%" in red. No checkmark.                                                                                                                        | Pass  |
-| L-7  | Delete beneficiary via x               | Add Jane + Bob. Tap x on Bob's row.                           | Bob removed. Only Jane remains. Total updates.                                                                                                                   | Pass  |
-| L-8  | Percentage input works                 | Tap Jane's % input, type "75".                                | Input accepts full number, displays "75", padlock locks (filled circle, white icon).                                                                             | Pass  |
-| L-9  | Padlock shows open by default          | Add a new beneficiary.                                        | Padlock icon is open (grey circle, grey icon).                                                                                                                   | Pass  |
-| L-10 | Padlock locks on manual % edit         | Type a percentage value into a beneficiary's input.           | Padlock icon switches to locked (navy filled circle, white lock icon).                                                                                           | Pass  |
-| L-11 | Tap locked padlock unlocks it          | After L-10, tap the locked padlock.                           | Padlock returns to open state.`isManuallyEdited` is false.                                                                                                       | Pass  |
-| L-12 | Tap unlocked padlock locks it          | Tap the open padlock on a beneficiary.                        | Padlock switches to locked.`isManuallyEdited` is true.                                                                                                           | Pass  |
-| L-13 | Error state on validation              | Leave beneficiaries empty, trigger validation (tap save).     | "Add Beneficiaries" button shows red border.                                                                                                                     | Pass  |
-| L-14 | Saved data has correct structure       | Add Jane 60% + Bob 40%. Save investment. Inspect stored data. | `beneficiaryAssignments.beneficiaries` array has 2 entries with correct id, type, percentage. No extra fields leaking (e.g. no `isManuallyEdited` persisted).    | Pass  |
-| L-15 | Edit round-trip preserves data         | Save investment with Jane 70% + Bob 30%. Re-open for edit.    | Rows show Jane at 70% and Bob at 30%. Padlocks are in expected state. Total shows 100.0% ✓.                                                                     | Pass  |
-| L-16 | Group/estate beneficiary display       | Add a group and "The Estate" as beneficiaries.                | Group row shows group emoji + name. Estate row shows estate emoji + "The Estate".                                                                                | Pass  |
+| #    | Test                                   | Steps                                                                     | Pass criteria                                                                                                                                                    | Pass? |
+| ------ | ---------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
+| L-1  | Empty state shows prominent add button | Open add investment form (no beneficiaries yet).                          | Large "Add Beneficiaries" button visible with icon. No rows, no total, no wizard.                                                                                | Pass  |
+| L-2  | Add first beneficiary                  | Tap "Add Beneficiaries", select Jane, confirm.                            | Jane row appears with green accent bar, name on left, % input on right, open padlock icon, delete x top-right. Prominent add button replaced by "+ Add another". | Pass  |
+| L-3  | "+ Add another" opens drawer           | After first add, tap "+ Add another".                                     | Beneficiary selection drawer opens. Previously selected beneficiaries are excluded.                                                                              | Pass  |
+| L-4  | Compact row layout                     | Add Jane 60% + Bob 40%.                                                   | Two single-line rows: name left, padlock + % input right. No card bloat, no background fill bars.                                                                | Pass  |
+| L-5  | Inline total displays                  | Add Jane 60% + Bob 40%.                                                   | Footer row shows "+ Add another" on left and "Total: 100.0% ✓" on right, green text.                                                                            | Pass  |
+| L-6  | Invalid total shown in red             | Add Jane 60% + Bob 30% (90% total).                                       | Total shows "90.0%" in red. No checkmark.                                                                                                                        | Pass  |
+| L-7  | Delete beneficiary via x               | Add Jane + Bob. Tap x on Bob's row.                                       | Bob removed. Only Jane remains. Total updates.                                                                                                                   | Pass  |
+| L-8  | Percentage input works                 | Tap Jane's % input, type "75".                                            | Input accepts full number, displays "75". Padlock remains open (unlocked) — typing does not auto-lock.                                                           | TBD   |
+| L-9  | Padlock shows open by default          | Add a new beneficiary.                                                    | Padlock icon is open (grey circle, grey icon).                                                                                                                   | Pass  |
+| L-10 | Padlock only locks via tap             | Type a percentage value into a beneficiary's input. Check padlock state.  | Padlock remains open after typing. Tap padlock — it switches to locked (navy filled circle, white lock icon).                                                    | TBD   |
+| L-11 | Tap locked padlock unlocks it          | After L-10, tap the locked padlock.                                       | Padlock returns to open state.`isManuallyEdited` is false.                                                                                                       | Pass  |
+| L-12 | Tap unlocked padlock locks it          | Tap the open padlock on a beneficiary.                                    | Padlock switches to locked.`isManuallyEdited` is true.                                                                                                           | Pass  |
+| L-13 | Error state on validation              | Leave beneficiaries empty, trigger validation (tap save).                 | "Add Beneficiaries" button shows red border.                                                                                                                     | Pass  |
+| L-14 | Percentage error state on validation   | Add beneficiary at 50% (invalid total). Tap disabled save button.        | "Just one more thing" attention appears. % input gets red border. Total text underlined in red.                                                                  | TBD   |
+| L-15 | Saved data has correct structure       | Add Jane 60% + Bob 40%. Save investment. Inspect stored data.             | `beneficiaryAssignments.beneficiaries` array has 2 entries with correct id, type, percentage. No extra fields leaking (e.g. no `isManuallyEdited` persisted).    | Pass  |
+| L-16 | Edit round-trip preserves data         | Save investment with Jane 70% + Bob 30%. Re-open for edit.               | Rows show Jane at 70% and Bob at 30%. Padlocks are open (edit mode doesn't lock). Total shows 100.0% ✓.                                                        | TBD   |
+| L-17 | Group/estate beneficiary display       | Add a group and "The Estate" as beneficiaries.                            | Group row shows group emoji + name. Estate row shows estate emoji + "The Estate".                                                                                | Pass  |
 
 ---
 
@@ -205,18 +205,36 @@
 | ------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ------- |
 | M-1  | Wizard hidden at 100%                 | Add Jane 60% + Bob 40%. Check footer.                                                                      | No "100% Wizard" button visible.                                                                                        | Pass  |
 | M-2  | Wizard visible when off 100%          | Add Jane 60% + Bob 30% (90% total).                                                                        | "100% Wizard" pill button appears.                                                                                      | Pass  |
-| M-3  | Rule 3: single unlocked auto-sets     | Add Jane (locked at 60%) + Bob (unlocked). Tap wizard.                                                     | Bob auto-set to 40%. No popup. Total = 100%. Haptic fires.                                                              | Pass  |
-| M-4  | Rule 4: all unlocked equal auto-evens | Add Jane 20% + Bob 20% + John 20% (all unlocked). Tap wizard.                                              | All three set to 33.33% (or 33.34% for last to absorb remainder). No popup. Total = 100%.                               | Fail  |
+| M-3  | Rule 3: single unlocked auto-sets     | Add Jane (lock via padlock at 60%) + Bob (unlocked). Tap wizard.                                           | Bob auto-set to 40%. No popup. Total = 100%. Haptic fires.                                                              | Pass  |
+| M-4  | Rule 4: all unlocked equal auto-evens | Add Jane 20% + Bob 20% + John 20% (all unlocked — do NOT tap padlocks). Tap wizard.                       | All three set to 33.33% (or 33.34% for last to absorb remainder). No popup. Total = 100%. Wizard button disappears.    | TBD   |
 | M-5  | Rule 4: all unlocked at 0% auto-evens | Add Jane + Bob + John, leave all at 0%. Lock none. Tap wizard.                                             | All three get even share (~33.33%). No popup. Total = 100%.                                                             | Pass  |
 | M-6  | Rule 5: uneven popup — scale         | Add Jane 60% + Bob 10% (unlocked, uneven). Tap wizard. Select "Scale proportionately".                     | Popup appears with three buttons. After "Scale proportionately": Jane ~85.71%, Bob ~14.29%. Total = 100%.               | Pass  |
 | M-7  | Rule 5: uneven popup — even          | Add Jane 60% + Bob 10% (unlocked, uneven). Tap wizard. Select "Even distribution".                         | After "Even distribution": Jane 50%, Bob 50%. Total = 100%.                                                             | Pass  |
 | M-8  | Rule 5: uneven popup — cancel        | Add Jane 60% + Bob 10%. Tap wizard. Tap "Cancel".                                                          | Dialog closes. Values unchanged.                                                                                        | Pass  |
-| M-9  | Rule 1: all locked popup              | Add Jane 60% + Bob 30%. Lock both. Tap wizard.                                                             | Popup: "All beneficiaries are locked. Shall we scale all proportionately to equal 100%?" [Yes please] / [No thanks].    | Pass  |
+| M-9  | Rule 1: all locked popup              | Add Jane 60% + Bob 30%. Lock both via padlock taps. Tap wizard.                                            | Popup: "All beneficiaries are locked. Shall we scale all proportionately to equal 100%?" [Yes please] / [No thanks].    | Pass  |
 | M-10 | Rule 1: all locked — yes please      | From M-9, tap "Yes please".                                                                                | Jane ~66.67%, Bob ~33.33%. Total = 100%. Haptic fires.                                                                  | Pass  |
 | M-11 | Rule 1: all locked — no thanks       | From M-9, tap "No thanks".                                                                                 | Dialog closes. Values unchanged.                                                                                        | Pass  |
 | M-12 | Rule 2: locked overcommit             | Add Jane (locked 70%) + Bob (locked 40%) + John (unlocked 0%). Tap wizard.                                 | Popup: "Locked allocations already total 110%. Unlock at least one beneficiary to proceed." [OK].                       | Pass  |
 | M-13 | Wizard respects lock boundaries       | Jane locked at 50%, Bob unlocked at 20%, John unlocked at 10%. Tap wizard. Select "Scale proportionately". | Jane stays at 50%. Bob and John scaled to fill remaining 50% proportionately (Bob ~33.33%, John ~16.67%). Total = 100%. | Pass  |
 | M-14 | Rounding to 2dp                       | Set up 3 unlocked beneficiaries at values that cause infinite decimals. Tap wizard.                        | All percentages shown to max 2 decimal places. Total is exactly 100%.                                                   | Pass  |
+| M-15 | Wizard visible at 0% total            | Add 3 beneficiaries, leave all at 0%. Check footer.                                                        | "100% Wizard" button is visible (not hidden by zero total).                                                             | Pass  |
+
+---
+
+## N. Group Management Drawer (Redesigned)
+
+
+| #   | Test                                      | Steps                                                                                              | Pass criteria                                                                                                                          | Pass? |
+| ----- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| N-1 | Already-added group shows disabled check  | Add "Children" group as beneficiary. Open "+ Create / Manage Groups" drawer.                       | "Children" card has a greyed-out, pre-checked checkbox. Card content (name, description, edit icon) is fully visible at normal opacity. | TBD   |
+| N-2 | Cannot deselect already-added group       | From N-1, tap the disabled checkbox on "Children".                                                 | Nothing happens. Checkbox stays checked and greyed.                                                                                    | TBD   |
+| N-3 | Unselected group has tappable checkbox    | From N-1, view a second group (e.g. "Bloodline Children") that is not yet added.                   | Green checkbox appears, tappable. Tapping checks it.                                                                                   | TBD   |
+| N-4 | Multi-select and confirm                  | Check two unselected groups. Tap "Select" footer button.                                           | Both groups added as beneficiaries on the form. Drawer closes.                                                                         | TBD   |
+| N-5 | Select button disabled when none checked  | Open drawer with one already-added group and no new selections.                                    | Footer shows "No new groups selected". "Select" button is disabled.                                                                    | TBD   |
+| N-6 | Edit group description from drawer        | Tap pencil icon on any group (including already-added). Edit description. Save.                    | Description updates. Edit form appears inline. Save persists change.                                                                   | TBD   |
+| N-7 | Create New Group adds and auto-selects    | Tap "Create New Group" at bottom of drawer. Create a group via template. Confirm.                  | New group appears in list with checkbox pre-checked. Tapping "Select" adds it as beneficiary.                                          | TBD   |
+| N-8 | Create New Group styling                  | View "Create New Group" button.                                                                    | Centered below groups list. Green plus-circle icon + green text. Matches estate dashboard "Add something else" style.                  | TBD   |
+| N-9 | Already-added label shown                 | Open drawer with an already-added group.                                                           | "Already added" label visible below the group name in italics.                                                                         | TBD   |
 
 ---
 
@@ -234,11 +252,12 @@
 | G - Delete flow                    | 3      | Confirmation + recalculation                      |
 | H - Validation                     | 5      | Required fields + attention                       |
 | I - Summary screen                 | 7      | Display + totals + completion                     |
-| J - Data + navigation edges        | 6      | Storage model + guard rails                       |
+| J - Data + navigation edges        | 5      | Storage model + guard rails                       |
 | K - Zero-percent beneficiary guard | 9      | 0% detection + dialog + persistence cleanup       |
-| L - Beneficiary component          | 16     | Compact rows, padlock, add states, data integrity |
-| M - 100% Wizard                    | 14     | Lock-aware rules, popups, rounding                |
-| **Total**                          | **91** |                                                   |
+| L - Beneficiary component          | 17     | Compact rows, padlock, add states, data integrity |
+| M - 100% Wizard                    | 15     | Lock-aware rules, popups, rounding                |
+| N - Group management drawer        | 9      | Checkbox selection, duplicates, create flow       |
+| **Total**                          | **101** |                                                   |
 
 ---
 
@@ -250,8 +269,8 @@
 
 Extract and test:
 
-- with type: ``${provider} - ${investmentTypeLabel}``
-- without type: `provider`
+- Title: provider name only (e.g. "AJ Bell")
+- Subline: investment type label if present (e.g. "General Investment Account"), otherwise `null`
 
 ### 2. canSubmit logic
 
@@ -259,7 +278,7 @@ Test: submit enabled only when:
 
 - `provider.trim()` is truthy
 - at least 1 beneficiary exists
-- percentage allocation validates to 100%
+- percentage allocation validates to 100% (tolerance ≤ 0.01)
 
 ### 3. Save data mapping
 
@@ -267,12 +286,12 @@ Extract and test: `investmentData` mapping includes:
 
 - default type to `'unknown'`
 - beneficiaries persisted as id/type/percentage
-- `estimatedValueUnknown` behavior
+- `estimatedValueUnknown` behavior (blank value → `true`, not `0`)
 - `netValue` mirrors `estimatedValue`
 
 ### 4. Percentage validation integration
 
-Test invalid totals (e.g., 90%, 110%) block save; valid 100% allows save.
+Test invalid totals (e.g., 90%, 110%) block save; valid 100% allows save. Tolerance of ≤ 0.01 accepted.
 
 ### 5. Unsure balance mapping
 
@@ -294,6 +313,7 @@ Test:
 Test:
 
 - All locked → `rule === 'all_locked'`, `proportionalResult` sums to 100%
+- All locked rounding → remainder absorbed into last beneficiary (not silently lost)
 - Locked sum ≥ 100% with unlocked → `rule === 'locked_overcommit'`, `lockedSum` correct
 - Single unlocked → `rule === 'single_unlocked'`, result gives remainder to that beneficiary
 - Multiple unlocked, all equal → `rule === 'even_auto'`, each unlocked gets equal share
@@ -304,4 +324,4 @@ Test:
 
 ### Estimated Jest scope
 
-~28-34 assertions across ~18-22 test cases (extended with wizard rule evaluation and rounding).
+~30-36 assertions across ~20-24 test cases (extended with wizard rule evaluation, rounding edge cases, and validation tolerance).
