@@ -228,3 +228,135 @@ export function calculateBeneficiaryInheritance(
   }, 0);
 }
 
+// ---------------------------------------------------------------------------
+// 100% Wizard — evaluation engine
+// ---------------------------------------------------------------------------
+
+export type WizardResult =
+  | { rule: 'all_locked'; proportionalResult: BeneficiaryAssignment[] }
+  | { rule: 'locked_overcommit'; lockedSum: number }
+  | { rule: 'single_unlocked'; result: BeneficiaryAssignment[] }
+  | { rule: 'even_auto'; result: BeneficiaryAssignment[] }
+  | { rule: 'uneven_popup'; proportionalResult: BeneficiaryAssignment[]; evenResult: BeneficiaryAssignment[] };
+
+function roundTo2dp(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+function applyWizardRounding(beneficiaries: BeneficiaryAssignment[]): BeneficiaryAssignment[] {
+  const result = beneficiaries.map(b => ({
+    ...b,
+    percentage: b.percentage !== undefined ? roundTo2dp(b.percentage) : b.percentage,
+  }));
+
+  const total = result.reduce((sum, b) => sum + (b.percentage || 0), 0);
+  const diff = roundTo2dp(100 - total);
+
+  if (Math.abs(diff) > 0.001) {
+    for (let i = result.length - 1; i >= 0; i--) {
+      if (!result[i].isManuallyEdited && result[i].percentage !== undefined) {
+        result[i] = { ...result[i], percentage: roundTo2dp((result[i].percentage || 0) + diff) };
+        break;
+      }
+    }
+  }
+
+  return result;
+}
+
+function scaleProportionately(
+  beneficiaries: BeneficiaryAssignment[],
+  locked: BeneficiaryAssignment[],
+  unlocked: BeneficiaryAssignment[],
+): BeneficiaryAssignment[] {
+  const lockedSum = locked.reduce((s, b) => s + (b.percentage || 0), 0);
+  const unlockedSum = unlocked.reduce((s, b) => s + (b.percentage || 0), 0);
+  const targetSum = 100 - lockedSum;
+
+  if (unlockedSum === 0) {
+    return evenDistribution(beneficiaries, locked, unlocked);
+  }
+
+  const factor = targetSum / unlockedSum;
+
+  const scaled = beneficiaries.map(b => {
+    if (b.isManuallyEdited) return b;
+    return { ...b, percentage: (b.percentage || 0) * factor };
+  });
+
+  return applyWizardRounding(scaled);
+}
+
+function evenDistribution(
+  beneficiaries: BeneficiaryAssignment[],
+  locked: BeneficiaryAssignment[],
+  unlocked: BeneficiaryAssignment[],
+): BeneficiaryAssignment[] {
+  const lockedSum = locked.reduce((s, b) => s + (b.percentage || 0), 0);
+  const available = 100 - lockedSum;
+  const share = available / unlocked.length;
+
+  const distributed = beneficiaries.map(b => {
+    if (b.isManuallyEdited) return b;
+    return { ...b, percentage: share };
+  });
+
+  return applyWizardRounding(distributed);
+}
+
+function areUnlockedEqual(unlocked: BeneficiaryAssignment[], tolerance = 0.01): boolean {
+  const pcts = unlocked.map(b => b.percentage || 0);
+  const min = Math.min(...pcts);
+  const max = Math.max(...pcts);
+  return (max - min) <= tolerance;
+}
+
+/**
+ * Evaluate which wizard rule applies and compute result(s).
+ * Pure function — returns a discriminated union the caller can act on.
+ */
+export function evaluateWizard(beneficiaries: BeneficiaryAssignment[]): WizardResult {
+  const locked = beneficiaries.filter(b => !!b.isManuallyEdited);
+  const unlocked = beneficiaries.filter(b => !b.isManuallyEdited);
+
+  // Rule 1: all locked
+  if (unlocked.length === 0) {
+    const lockedSum = locked.reduce((s, b) => s + (b.percentage || 0), 0);
+    const factor = 100 / lockedSum;
+    const scaled = beneficiaries.map(b => ({
+      ...b,
+      percentage: (b.percentage || 0) * factor,
+    }));
+    return { rule: 'all_locked', proportionalResult: applyWizardRounding(scaled) };
+  }
+
+  // Rule 2: locked sum >= 100 with unlocked present
+  const lockedSum = locked.reduce((s, b) => s + (b.percentage || 0), 0);
+  if (lockedSum >= 100) {
+    return { rule: 'locked_overcommit', lockedSum: roundTo2dp(lockedSum) };
+  }
+
+  // Rule 3: exactly 1 unlocked
+  if (unlocked.length === 1) {
+    const remainder = roundTo2dp(100 - lockedSum);
+    const result = beneficiaries.map(b => {
+      if (b.isManuallyEdited) return b;
+      return { ...b, percentage: remainder };
+    });
+    return { rule: 'single_unlocked', result };
+  }
+
+  // Rule 4: multiple unlocked, all equal (within tolerance) or all at 0%
+  const allZero = unlocked.every(b => !b.percentage || b.percentage === 0);
+  if (allZero || areUnlockedEqual(unlocked)) {
+    return { rule: 'even_auto', result: evenDistribution(beneficiaries, locked, unlocked) };
+  }
+
+  // Rule 5: multiple unlocked, uneven
+  return {
+    rule: 'uneven_popup',
+    proportionalResult: scaleProportionately(beneficiaries, locked, unlocked),
+    evenResult: evenDistribution(beneficiaries, locked, unlocked),
+  };
+}
+

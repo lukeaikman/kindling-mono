@@ -26,7 +26,9 @@ import { Button } from '../ui';
 import { BeneficiarySplitCard } from './BeneficiarySplitCard';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing, Typography, BorderRadius, Shadows } from '../../styles/constants';
-import { getBeneficiaryDisplayName, getTotalAllocated } from '../../utils/beneficiaryHelpers';
+import { getBeneficiaryDisplayName, getTotalAllocated, evaluateWizard } from '../../utils/beneficiaryHelpers';
+import type { WizardResult } from '../../utils/beneficiaryHelpers';
+import { Dialog } from '../ui/Dialog';
 import { getPersonFullName, getPersonRelationshipDisplay } from '../../utils/helpers';
 import type { BeneficiaryAssignment, PersonActions, BeneficiaryGroupActions } from '../../types';
 
@@ -144,6 +146,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
     : (allocationMode === 'percentage');
   const [showSelectionDrawer, setShowSelectionDrawer] = useState(false);
   const [tempSelections, setTempSelections] = useState<{id: string, type: 'person' | 'group' | 'estate'}[]>([]);
+  const [wizardDialog, setWizardDialog] = useState<WizardResult | null>(null);
 
   // Get available people/groups/estate (excluding already selected)
   const allPeople = personActions.getPeople();
@@ -291,18 +294,28 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
     onChange(cleared);
   };
 
-  const handleScaleToHundred = () => {
-    const currentTotal = getTotalAllocated({ beneficiaries: value });
-    if (allocationMode !== 'percentage' || currentTotal === 0) return;
-
-    const scaleFactor = 100 / currentTotal;
-    const updated = value.map(b => ({
-      ...b,
-      percentage: Math.round((b.percentage || 0) * scaleFactor * 100) / 100,
-    }));
-
-    onChange(updated);
+  const applyWizardResult = (result: BeneficiaryAssignment[]) => {
+    onChange(result);
+    setWizardDialog(null);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const handleWizard = () => {
+    if (allocationMode !== 'percentage' || value.length === 0) return;
+
+    const wizResult = evaluateWizard(value);
+
+    switch (wizResult.rule) {
+      case 'single_unlocked':
+      case 'even_auto':
+        applyWizardResult(wizResult.result);
+        break;
+      case 'all_locked':
+      case 'locked_overcommit':
+      case 'uneven_popup':
+        setWizardDialog(wizResult);
+        break;
+    }
   };
 
   // Calculate total and validation
@@ -556,12 +569,55 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
 
           {/* 100% Wizard CTA — below footer when needed */}
           {allocationMode === 'percentage' && !isValid && total > 0 && (
-            <TouchableOpacity onPress={handleScaleToHundred} style={styles.wizardButton}>
+            <TouchableOpacity onPress={handleWizard} style={styles.wizardButton}>
               <MaterialCommunityIcons name="auto-fix" size={14} color={KindlingColors.background} />
               <Text style={styles.wizardText}>100% Wizard</Text>
             </TouchableOpacity>
           )}
         </View>
+      )}
+
+      {/* Wizard Dialogs */}
+      {wizardDialog?.rule === 'all_locked' && (
+        <Dialog
+          visible
+          onDismiss={() => setWizardDialog(null)}
+          title="100% Wizard"
+          actions={[
+            { label: 'Yes please', onPress: () => applyWizardResult(wizardDialog.proportionalResult), variant: 'primary' },
+            { label: 'No thanks', onPress: () => setWizardDialog(null), variant: 'secondary' },
+          ]}
+        >
+          All beneficiaries are locked. Shall we scale all proportionately to equal 100%?
+        </Dialog>
+      )}
+
+      {wizardDialog?.rule === 'locked_overcommit' && (
+        <Dialog
+          visible
+          onDismiss={() => setWizardDialog(null)}
+          title="100% Wizard"
+          actions={[
+            { label: 'OK', onPress: () => setWizardDialog(null), variant: 'secondary' },
+          ]}
+        >
+          {`Locked allocations already total ${wizardDialog.lockedSum}%. Unlock at least one beneficiary to proceed.`}
+        </Dialog>
+      )}
+
+      {wizardDialog?.rule === 'uneven_popup' && (
+        <Dialog
+          visible
+          onDismiss={() => setWizardDialog(null)}
+          title="100% Wizard"
+          actions={[
+            { label: 'Scale proportionately', onPress: () => applyWizardResult(wizardDialog.proportionalResult), variant: 'primary' },
+            { label: 'Even distribution', onPress: () => applyWizardResult(wizardDialog.evenResult), variant: 'secondary' },
+            { label: 'Cancel', onPress: () => setWizardDialog(null), variant: 'secondary' },
+          ]}
+        >
+          How would you like to distribute?
+        </Dialog>
       )}
     </View>
   );
