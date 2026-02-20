@@ -17,14 +17,15 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, TextInput, Modal, FlatList, Pressable } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, TextInput, Modal, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Button, Select } from '../ui';
+import { Button } from '../ui';
 import { BeneficiarySplitCard } from './BeneficiarySplitCard';
 import { KindlingColors } from '../../styles/theme';
-import { Spacing, Typography } from '../../styles/constants';
+import { Spacing, Typography, BorderRadius, Shadows } from '../../styles/constants';
 import { getBeneficiaryDisplayName, getTotalAllocated } from '../../utils/beneficiaryHelpers';
 import { getPersonFullName, getPersonRelationshipDisplay } from '../../utils/helpers';
 import type { BeneficiaryAssignment, PersonActions, BeneficiaryGroupActions } from '../../types';
@@ -91,12 +92,6 @@ export interface BeneficiaryWithPercentagesProps {
   useSliders?: boolean;
   
   /**
-   * Show "Make Equal to 100%" button (slider mode only)
-   * Default: true for percentage mode with sliders
-   */
-  showNormalizeButton?: boolean;
-  
-  /**
    * Require complete allocation (100% for percentage, totalValue for amount)
    * Default: true for percentage mode, false for amount mode
    */
@@ -135,7 +130,6 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
   onAddNewPerson,
   onAddNewGroup,
   useSliders = false,
-  showNormalizeButton = true,
   requireComplete,
   error = false,
 }) => {
@@ -150,54 +144,6 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
     : (allocationMode === 'percentage');
   const [showSelectionDrawer, setShowSelectionDrawer] = useState(false);
   const [tempSelections, setTempSelections] = useState<{id: string, type: 'person' | 'group' | 'estate'}[]>([]);
-  const [showBackgroundForFocused, setShowBackgroundForFocused] = useState(false);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Show background bar after 2 seconds of no typing (when focused)
-  useEffect(() => {
-    if (focusedIndex !== null) {
-      // Clear any existing timeout
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      
-      // Hide background initially when focused
-      setShowBackgroundForFocused(false);
-      
-      // Set timeout to show background after 2 seconds
-      typingTimeoutRef.current = setTimeout(() => {
-        setShowBackgroundForFocused(true);
-      }, 2000);
-    } else {
-      // Clear timeout when unfocused
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      setShowBackgroundForFocused(false);
-    }
-
-    // Cleanup
-    return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-    };
-  }, [focusedIndex]);
-
-  // Reset timeout when value changes (user is typing)
-  useEffect(() => {
-    if (focusedIndex !== null) {
-      setShowBackgroundForFocused(false);
-      
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      
-      typingTimeoutRef.current = setTimeout(() => {
-        setShowBackgroundForFocused(true);
-      }, 2000);
-    }
-  }, [value]);
 
   // Get available people/groups/estate (excluding already selected)
   const allPeople = personActions.getPeople();
@@ -365,21 +311,25 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
     ? Math.abs(total - 100) < 0.01 
     : true; // Amount mode can be partial
 
+  const hasBeneficiaries = value.length > 0;
+
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
-      
-      {/* Add Beneficiaries Button */}
-      <TouchableOpacity
-        style={[styles.addBeneficiariesButton, error && styles.addBeneficiariesButtonError]}
-        onPress={handleOpenDrawer}
-        activeOpacity={0.7}
-      >
-        <IconButton icon="account-multiple-plus" size={20} iconColor={KindlingColors.navy} style={styles.addIcon} />
-        <Text style={styles.addBeneficiariesText}>Add Beneficiaries</Text>
-      </TouchableOpacity>
 
-      {/* Beneficiary Selection Drawer */}
+      {/* Add Beneficiaries: prominent when empty, subtle when populated */}
+      {!hasBeneficiaries ? (
+        <TouchableOpacity
+          style={[styles.addBeneficiariesButton, error && styles.addBeneficiariesButtonError]}
+          onPress={handleOpenDrawer}
+          activeOpacity={0.7}
+        >
+          <IconButton icon="account-multiple-plus" size={20} iconColor={KindlingColors.navy} style={styles.addIcon} />
+          <Text style={styles.addBeneficiariesText}>Add Beneficiaries</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {/* Beneficiary Selection Drawer (unchanged) */}
       <Modal
         visible={showSelectionDrawer}
         animationType="slide"
@@ -387,7 +337,6 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
         onRequestClose={() => setShowSelectionDrawer(false)}
       >
         <SafeAreaView style={styles.drawerContainer} edges={['top', 'bottom']}>
-          {/* Drawer Header */}
           <View style={styles.drawerHeader}>
             <Text style={styles.drawerTitle}>Select Beneficiaries</Text>
             <TouchableOpacity onPress={() => setShowSelectionDrawer(false)}>
@@ -395,7 +344,6 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
             </TouchableOpacity>
           </View>
 
-          {/* Beneficiary List */}
           <FlatList
             data={[
               ...(!estateSelected ? [{ id: 'estate', type: 'estate' as const, label: '🏛️ The Estate', isSpecial: true }] : []),
@@ -419,7 +367,6 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
             keyExtractor={(item) => `${item.type}-${item.id}`}
             renderItem={({ item }) => {
               const selected = isSelected(item.id, item.type);
-              
               return (
                 <TouchableOpacity
                   style={styles.drawerOption}
@@ -429,12 +376,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
                   <Text style={styles.drawerOptionText}>{item.label}</Text>
                   <View style={[styles.checkboxCircle, selected && styles.checkboxCircleSelected]}>
                     {selected && (
-                      <IconButton
-                        icon="check"
-                        size={16}
-                        iconColor={KindlingColors.background}
-                        style={styles.checkIcon}
-                      />
+                      <IconButton icon="check" size={16} iconColor={KindlingColors.background} style={styles.checkIcon} />
                     )}
                   </View>
                 </TouchableOpacity>
@@ -442,7 +384,6 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
             }}
             ListFooterComponent={
               <>
-                {/* Add New Options */}
                 {onAddNewPerson && (
                   <TouchableOpacity
                     style={styles.drawerOptionSpecial}
@@ -472,33 +413,26 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
             }
           />
 
-          {/* Confirm Button */}
           <View style={styles.drawerFooter}>
             <Text style={styles.selectedCount}>
               {`${tempSelections.length} beneficiar${tempSelections.length === 1 ? 'y' : 'ies'} selected`}
             </Text>
-            <Button
-              onPress={handleConfirmSelections}
-              variant="primary"
-              disabled={tempSelections.length === 0}
-            >
+            <Button onPress={handleConfirmSelections} variant="primary" disabled={tempSelections.length === 0}>
               Select
             </Button>
           </View>
         </SafeAreaView>
       </Modal>
 
-      {/* Selected Beneficiaries with Allocations */}
-      {value.length > 0 && (
+      {/* Selected Beneficiaries — compact rows */}
+      {hasBeneficiaries && (
         <View style={styles.beneficiariesList}>
           {showSliderMode ? (
-            // SLIDER MODE: Use BeneficiarySplitCard
             value.map((beneficiary, index) => {
               const currentValue = beneficiary.percentage || 0;
               const otherTotal = value.reduce((sum, b, idx) => {
                 return idx !== index ? sum + (b.percentage || 0) : sum;
               }, 0);
-
               return (
                 <BeneficiarySplitCard
                   key={`${beneficiary.id}-${index}`}
@@ -519,175 +453,119 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
               );
             })
           ) : (
-            // MANUAL MODE: Current implementation
             value.map((beneficiary, index) => {
-            const displayName = getBeneficiaryDisplayName(
-              beneficiary, 
-              personActions, 
-              beneficiaryGroupActions
-            );
-            const currentValue = allocationMode === 'percentage' 
-              ? beneficiary.percentage 
-              : beneficiary.amount;
-            const isFocused = focusedIndex === index;
+              const displayName = getBeneficiaryDisplayName(beneficiary, personActions, beneficiaryGroupActions);
+              const currentValue = allocationMode === 'percentage' ? beneficiary.percentage : beneficiary.amount;
+              const isFocused = focusedIndex === index;
+              const isLocked = !!beneficiary.isManuallyEdited;
 
-            return (
-              <View key={`${beneficiary.id}-${index}`} style={styles.beneficiaryCard}>
-                {/* Background fill bar (percentage visualization) */}
-                {allocationMode === 'percentage' && currentValue && (!isFocused || showBackgroundForFocused) && (
-                  <View 
-                    style={[
-                      styles.percentageBackground,
-                      Number(currentValue) === 100 
-                        ? { right: 0, borderTopRightRadius: 8, borderBottomRightRadius: 8 }
-                        : { width: `${Math.min(100, Number(currentValue) || 0)}%` }
-                    ]} 
-                  />
-                )}
-                
-                <View style={styles.beneficiaryHeader}>
-                  <View style={styles.beneficiaryNameRow}>
-                    {beneficiary.type === 'group' && (
-                      <IconButton icon="account-multiple" size={16} iconColor={KindlingColors.navy} style={styles.beneficiaryIcon} />
-                    )}
-                    {beneficiary.type === 'estate' && (
-                      <IconButton icon="bank" size={16} iconColor={KindlingColors.navy} style={styles.beneficiaryIcon} />
-                    )}
-                    <Text style={styles.beneficiaryName}>{displayName || 'Unknown'}</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => handleRemove(index)}>
-                    <IconButton icon="close" size={18} iconColor={KindlingColors.brown} style={styles.removeIcon} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Allocation Input */}
-                <View style={styles.allocationRow}>
-                  <Text style={styles.allocationLabel}>
-                    {allocationMode === 'percentage' ? 'Percentage:' : 'Amount:'}
-                  </Text>
-                  <View style={styles.allocationInputContainer}>
-                    {allocationMode === 'amount' && (
-                      <Text style={styles.currencySymbol}>£</Text>
-                    )}
-                    <TextInput
-                      style={styles.allocationInput}
-                      value={currentValue?.toString() || ''}
-                      onChangeText={(text) => {
-                        const num = parseFloat(text.replace(/[^\d.]/g, '')) || 0;
-                        const maxValue = allocationMode === 'percentage' ? 100 : 999999999;
-                        handleUpdateAllocation(index, Math.min(maxValue, num));
-                      }}
-                      onFocus={() => {
-                        setFocusedIndex(index);
-                        handleClearAllocation(index);
-                      }}
-                      onBlur={() => setFocusedIndex(null)}
-                      keyboardType="decimal-pad"
-                      placeholder="0"
-                      placeholderTextColor={`${KindlingColors.brown}80`}
-                    />
-                    {allocationMode === 'percentage' && (
-                      <Text style={styles.percentSymbol}>%</Text>
-                    )}
-                  </View>
-                </View>
-
-                {/* Equally Distribute Helper (shows when focused and there are empty beneficiaries) */}
-                {isFocused && value.some((b, idx) => {
-                  const val = allocationMode === 'percentage' ? b.percentage : b.amount;
-                  return idx !== index && (!val || val === 0);
-                }) && (
+              return (
+                <View key={`${beneficiary.id}-${index}`} style={styles.rowWrapper}>
+                  {/* Delete icon — top-right */}
                   <TouchableOpacity
-                    onPress={() => handleEquallyDistributeRest(index)}
-                    style={styles.helperButton}
+                    style={styles.rowDeleteButton}
+                    onPress={() => handleRemove(index)}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                   >
-                    <Text style={styles.helperButtonText}>↳ Equally distribute the rest</Text>
+                    <MaterialCommunityIcons name="close-circle" size={18} color={KindlingColors.mutedForeground} />
                   </TouchableOpacity>
-                )}
-              </View>
-            );
-          })
+
+                  {/* Card body */}
+                  <View style={styles.rowCard}>
+                    <View style={styles.rowAccent} />
+
+                    {/* Name (left) */}
+                    <View style={styles.rowNameSection}>
+                      {beneficiary.type === 'group' && <Text style={styles.rowTypePrefix}>👥 </Text>}
+                      {beneficiary.type === 'estate' && <Text style={styles.rowTypePrefix}>🏛️ </Text>}
+                      <Text style={styles.rowName} numberOfLines={1}>{displayName || 'Unknown'}</Text>
+                    </View>
+
+                    {/* Padlock + percentage input (right) */}
+                    <View style={styles.rowRightSection}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          const updated = [...value];
+                          updated[index] = { ...updated[index], isManuallyEdited: !isLocked };
+                          onChange(updated);
+                        }}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        activeOpacity={0.6}
+                      >
+                        <View style={isLocked ? styles.padlockLocked : styles.padlockUnlocked}>
+                          <MaterialCommunityIcons
+                            name={isLocked ? 'lock' : 'lock-open-variant'}
+                            size={13}
+                            color={isLocked ? KindlingColors.background : KindlingColors.mutedForeground}
+                          />
+                        </View>
+                      </TouchableOpacity>
+
+                      <View style={styles.rowInputSection}>
+                        {allocationMode === 'amount' && <Text style={styles.rowCurrency}>£</Text>}
+                        <TextInput
+                          style={styles.rowInput}
+                          value={currentValue?.toString() || ''}
+                          onChangeText={(text) => {
+                            const num = parseFloat(text.replace(/[^\d.]/g, '')) || 0;
+                            const maxValue = allocationMode === 'percentage' ? 100 : 999999999;
+                            handleUpdateAllocation(index, Math.min(maxValue, num));
+                          }}
+                          onFocus={() => {
+                            setFocusedIndex(index);
+                            handleClearAllocation(index);
+                          }}
+                          onBlur={() => setFocusedIndex(null)}
+                          keyboardType="decimal-pad"
+                          placeholder="0"
+                          placeholderTextColor={`${KindlingColors.brown}60`}
+                          textAlign="right"
+                        />
+                        {allocationMode === 'percentage' && <Text style={styles.rowPercent}>%</Text>}
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              );
+            })
+          )}
+
+          {/* Subtle "+ Add another" link */}
+          <TouchableOpacity
+            style={styles.addAnotherButton}
+            onPress={handleOpenDrawer}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="plus-circle-outline" size={18} color={KindlingColors.green} />
+            <Text style={styles.addAnotherText}>Add another</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Inline total + 100% Wizard (manual percentage mode only) */}
+      {hasBeneficiaries && allocationMode === 'percentage' && (
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>
+            Total: <Text style={isValid ? styles.totalValid : styles.totalInvalid}>
+              {`${total.toFixed(1)}%`}{isValid ? ' ✓' : ''}
+            </Text>
+          </Text>
+
+          {!isValid && total > 0 && (
+            <TouchableOpacity onPress={handleScaleToHundred} style={styles.wizardButton}>
+              <MaterialCommunityIcons name="auto-fix" size={14} color={KindlingColors.background} />
+              <Text style={styles.wizardText}>100% Wizard</Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
-      
-      {/* Make Equal to 100% Button (Slider Mode Only) */}
-      {showSliderMode && showNormalizeButton && value.length > 0 && (() => {
-        const currentTotal = getTotalAllocated({ beneficiaries: value });
-        const isOff = Math.abs(currentTotal - 100) > 0.1;
-        
-        if (!isOff) return null;
-        
-        return (
-          <View style={styles.normalizeCard}>
-            <Text style={styles.normalizeTitle}>
-              {currentTotal > 100 
-                ? `Over allocated by ${(currentTotal - 100).toFixed(1)}%`
-                : `Under allocated by ${(100 - currentTotal).toFixed(1)}%`}
-            </Text>
-            
-            <Pressable
-              onPress={() => {
-                if (currentTotal === 0) return;
-                
-                const scaleFactor = 100 / currentTotal;
-                const updated = value.map(b => ({
-                  ...b,
-                  percentage: Math.round((b.percentage || 0) * scaleFactor * 100) / 100,
-                }));
-                
-                onChange(updated);
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              }}
-              style={styles.normalizeButton}
-            >
-              <Text style={styles.normalizeButtonText}>
-                Adjust to 100%
-              </Text>
-            </Pressable>
-            
-            <Text style={styles.normalizeSubtext}>
-              Alter all proportionately to total 100%
-            </Text>
-          </View>
-        );
-      })()}
 
-      {/* Total Display */}
-      {value.length > 0 && (
-        <View style={styles.totalSection}>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total:</Text>
-            <Text style={[
-              styles.totalValue,
-              isValid ? styles.totalValid : styles.totalInvalid
-            ]}>
-              {allocationMode === 'percentage' ? `${total.toFixed(1)}%` : `£${Math.round(total).toLocaleString()}`}
-              {isValid && allocationMode === 'percentage' && ' ✓'}
-            </Text>
-          </View>
-          
-          {allocationMode === 'percentage' && (
-            <Text style={styles.remainingText}>
-              {isValid 
-                ? 'Fully allocated'
-                : `${(100 - total).toFixed(1)}% remaining`}
-            </Text>
-          )}
-          
-          {/* Scale to 100% */}
-          {value.some(b => b.percentage || b.amount) && (
-            <TouchableOpacity
-              onPress={allocationMode === 'percentage' ? handleScaleToHundred : handleClearAll}
-              style={styles.clearAllButton}
-            >
-              <Text style={styles.clearAllText}>
-                {allocationMode === 'percentage'
-                  ? 'Scale all percentages proportionately to equal 100%'
-                  : 'Clear All Amounts'}
-              </Text>
-            </TouchableOpacity>
-          )}
+      {/* Inline total for amount mode */}
+      {hasBeneficiaries && allocationMode === 'amount' && (
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>
+            Total: <Text style={styles.totalValid}>{`£${Math.round(total).toLocaleString()}`}</Text>
+          </Text>
         </View>
       )}
     </View>
@@ -697,7 +575,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
 const styles = StyleSheet.create({
   container: {
     marginVertical: Spacing.sm,
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   label: {
     fontSize: Typography.fontSize.sm,
@@ -705,67 +583,109 @@ const styles = StyleSheet.create({
     color: KindlingColors.navy,
     marginBottom: Spacing.xs,
   },
-  beneficiariesList: {
-    gap: Spacing.xs,
-    marginTop: Spacing.sm,
-  },
-  beneficiaryCard: {
-    position: 'relative',
+
+  // --- Empty-state prominent add button ---
+  addBeneficiariesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: KindlingColors.background,
-    borderRadius: 8,
-    padding: Spacing.md,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: KindlingColors.beige,
-    gap: Spacing.sm,
-    overflow: 'hidden',
+    borderRadius: 8,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
   },
-  percentageBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    backgroundColor: `${KindlingColors.green}15`,
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
-    zIndex: 0,
+  addBeneficiariesButtonError: {
+    borderColor: KindlingColors.destructive,
   },
-  beneficiaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    zIndex: 1,
-  },
-  beneficiaryNameRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  beneficiaryIcon: {
+  addIcon: {
     margin: 0,
     padding: 0,
     marginRight: -4,
   },
-  beneficiaryName: {
-    fontSize: Typography.fontSize.sm,
+  addBeneficiariesText: {
+    fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
   },
-  removeIcon: {
-    margin: 0,
-    padding: 0,
+
+  // --- Compact beneficiary rows ---
+  beneficiariesList: {
+    gap: Spacing.sm,
   },
-  allocationRow: {
+  rowWrapper: {
+    position: 'relative',
+  },
+  rowDeleteButton: {
+    position: 'absolute',
+    top: -6,
+    right: -4,
+    zIndex: 10,
+    backgroundColor: KindlingColors.background,
+    borderRadius: 10,
+    padding: 1,
+  },
+  padlockUnlocked: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: `${KindlingColors.border}60`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  padlockLocked: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: KindlingColors.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    zIndex: 1,
+    backgroundColor: KindlingColors.background,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: `${KindlingColors.navy}10`,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingLeft: Spacing.md + 4,
+    minHeight: 48,
+    overflow: 'hidden',
+    ...Shadows.small,
   },
-  allocationLabel: {
+  rowAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: KindlingColors.green,
+    borderTopLeftRadius: BorderRadius.lg,
+    borderBottomLeftRadius: BorderRadius.lg,
+  },
+  rowNameSection: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: Spacing.sm,
+  },
+  rowRightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  rowTypePrefix: {
     fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-    minWidth: 90,
   },
-  allocationInputContainer: {
+  rowName: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+  },
+  rowInputSection: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: KindlingColors.inputBackground,
@@ -773,86 +693,80 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: KindlingColors.border,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    flex: 1,
+    paddingVertical: 4,
+    minWidth: 70,
   },
-  currencySymbol: {
+  rowCurrency: {
     fontSize: Typography.fontSize.md,
     color: KindlingColors.navy,
-    marginRight: Spacing.xs,
+    marginRight: 2,
   },
-  allocationInput: {
-    flex: 1,
+  rowInput: {
     fontSize: Typography.fontSize.md,
     color: KindlingColors.navy,
     padding: 0,
-    minHeight: 24,
+    minHeight: 22,
+    minWidth: 30,
+    textAlign: 'right',
   },
-  percentSymbol: {
+  rowPercent: {
     fontSize: Typography.fontSize.md,
-    color: KindlingColors.navy,
-    marginLeft: Spacing.xs,
+    color: KindlingColors.brown,
+    marginLeft: 2,
   },
-  helperButton: {
+
+  // --- Subtle "add another" link ---
+  addAnotherButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingVertical: Spacing.xs,
-    paddingLeft: Spacing.md,
+    marginTop: 2,
   },
-  helperButtonText: {
+  addAnotherText: {
     fontSize: Typography.fontSize.sm,
-    color: KindlingColors.navy,
-    textDecorationLine: 'underline',
+    fontWeight: Typography.fontWeight.medium,
+    color: KindlingColors.green,
   },
-  totalSection: {
-    marginTop: Spacing.md,
-    padding: Spacing.md,
-    backgroundColor: `${KindlingColors.cream}40`,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: KindlingColors.beige,
-    gap: Spacing.xs,
-  },
+
+  // --- Inline total row ---
   totalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: Spacing.xs,
   },
   totalLabel: {
-    fontSize: Typography.fontSize.md,
+    fontSize: Typography.fontSize.sm,
     color: KindlingColors.brown,
     fontWeight: Typography.fontWeight.medium,
-  },
-  totalValue: {
-    fontSize: Typography.fontSize.lg,
-    fontWeight: Typography.fontWeight.bold,
   },
   totalValid: {
     color: KindlingColors.green,
+    fontWeight: Typography.fontWeight.bold,
   },
   totalInvalid: {
     color: KindlingColors.destructive,
+    fontWeight: Typography.fontWeight.bold,
   },
-  remainingText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.destructive,
-    textAlign: 'center',
-    fontWeight: Typography.fontWeight.medium,
-  },
-  clearAllButton: {
-    marginTop: Spacing.xs,
-    paddingVertical: Spacing.xs,
+
+  // --- 100% Wizard CTA ---
+  wizardButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    backgroundColor: KindlingColors.navy,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
-  clearAllText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.navy,
-    textDecorationLine: 'underline',
+  wizardText: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.background,
   },
-  // Normalize button styles (slider mode)
+
+  // --- Normalize card (slider mode, kept for BeneficiarySplitCard path) ---
   normalizeCard: {
     padding: 16,
     marginBottom: 16,
@@ -888,30 +802,8 @@ const styles = StyleSheet.create({
     color: KindlingColors.brown,
     textAlign: 'center',
   },
-  addBeneficiariesButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: KindlingColors.background,
-    borderWidth: 2,
-    borderColor: KindlingColors.beige,
-    borderRadius: 8,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-  },
-  addBeneficiariesButtonError: {
-    borderColor: KindlingColors.destructive,
-  },
-  addIcon: {
-    margin: 0,
-    padding: 0,
-    marginRight: -4,
-  },
-  addBeneficiariesText: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
-  },
+
+  // --- Drawer (unchanged) ---
   drawerContainer: {
     flex: 1,
     backgroundColor: KindlingColors.background,
