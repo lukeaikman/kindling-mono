@@ -11,6 +11,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Modal, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Input } from '../ui';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing, Typography } from '../../styles/constants';
@@ -56,6 +57,12 @@ export interface GroupManagementDrawerProps {
    * Current user/will ID for group ownership
    */
   willId: string;
+
+  /**
+   * IDs of groups already added as beneficiaries on the parent form.
+   * These appear pre-selected and disabled (can't be deselected).
+   */
+  alreadySelectedGroupIds?: string[];
 }
 
 /**
@@ -83,6 +90,7 @@ export const GroupManagementDrawer: React.FC<GroupManagementDrawerProps> = ({
   onSelectGroup,
   beneficiaryGroupActions,
   willId,
+  alreadySelectedGroupIds = [],
 }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [templateExpanded, setTemplateExpanded] = useState(false);
@@ -91,20 +99,24 @@ export const GroupManagementDrawer: React.FC<GroupManagementDrawerProps> = ({
   const [newGroupDescription, setNewGroupDescription] = useState('');
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingDescription, setEditingDescription] = useState('');
+  const [newSelections, setNewSelections] = useState<string[]>([]);
 
-  // Get all active groups
   const groups = beneficiaryGroupActions.getActiveGroups();
   const hasGroups = groups.length > 0;
 
-  // Auto-show form if no groups exist
   React.useEffect(() => {
     if (!hasGroups && visible) {
       setShowCreateForm(true);
-      setTemplateExpanded(true); // Auto-expand template selector on first use
+      setTemplateExpanded(true);
     }
   }, [hasGroups, visible]);
 
-  // Handle template selection
+  React.useEffect(() => {
+    if (visible) {
+      setNewSelections([]);
+    }
+  }, [visible]);
+
   const handleTemplateChange = (templateValue: string) => {
     setSelectedTemplate(templateValue);
     const template = GROUP_TEMPLATES.find(t => t.value === templateValue);
@@ -112,10 +124,9 @@ export const GroupManagementDrawer: React.FC<GroupManagementDrawerProps> = ({
       setNewGroupName(template.name);
       setNewGroupDescription(template.description);
     }
-    setTemplateExpanded(false); // Collapse after selection
+    setTemplateExpanded(false);
   };
 
-  // Get selected template label
   const selectedTemplateLabel = GROUP_TEMPLATES.find(t => t.value === selectedTemplate)?.label || 'Choose a Group template...';
 
   const handleCreateGroup = () => {
@@ -129,14 +140,12 @@ export const GroupManagementDrawer: React.FC<GroupManagementDrawerProps> = ({
       willId,
     });
 
-    // Reset form
     setNewGroupName('');
     setNewGroupDescription('');
     setSelectedTemplate('');
     setShowCreateForm(false);
 
-    // Select the newly created group — pass object to avoid stale-closure lookup
-    onSelectGroup(group.id, group);
+    setNewSelections(prev => [...prev, group.id]);
   };
 
   const handleCancelCreate = () => {
@@ -167,6 +176,28 @@ export const GroupManagementDrawer: React.FC<GroupManagementDrawerProps> = ({
     setEditingDescription('');
   };
 
+  const toggleGroupSelection = (groupId: string) => {
+    const isAlreadyOnForm = alreadySelectedGroupIds.includes(groupId);
+    if (isAlreadyOnForm) return;
+
+    setNewSelections(prev =>
+      prev.includes(groupId)
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
+
+  const handleConfirmSelections = () => {
+    for (const groupId of newSelections) {
+      const group = beneficiaryGroupActions.getGroupById(groupId);
+      onSelectGroup(groupId, group || undefined);
+    }
+    setNewSelections([]);
+    onClose();
+  };
+
+  const selectableCount = newSelections.length;
+
   return (
     <Modal
       visible={visible}
@@ -188,29 +219,16 @@ export const GroupManagementDrawer: React.FC<GroupManagementDrawerProps> = ({
           contentContainerStyle={styles.contentContainer}
         >
           <View style={styles.section}>
-            {/* Introduction (when no groups exist) */}
             {!hasGroups && (
               <Text style={styles.introText}>
                 Beneficiary groups make it easy to leave specific assets, or the residue of an estate to pre-defined groups of people, especially where the group may not be known yet (e.g. all my bloodline grandchildren at the moment of death).
               </Text>
             )}
 
-            {/* Add New Group Button (when groups exist) */}
-            {hasGroups && !showCreateForm && (
-              <TouchableOpacity
-                onPress={() => setShowCreateForm(true)}
-                style={styles.addNewButton}
-              >
-                <Text style={styles.addNewText}>+ Add New Group</Text>
-              </TouchableOpacity>
-            )}
-
             {/* Create New Group Form */}
             {showCreateForm && (
               <View style={styles.createForm}>
-                {/* Template Selection - Accordion/Collapsible */}
                 <View>
-                  {/* Accordion Header */}
                   <TouchableOpacity
                     style={styles.accordionHeader}
                     onPress={() => setTemplateExpanded(!templateExpanded)}
@@ -227,7 +245,6 @@ export const GroupManagementDrawer: React.FC<GroupManagementDrawerProps> = ({
                     />
                   </TouchableOpacity>
 
-                  {/* Accordion Content */}
                   {templateExpanded && (
                     <View style={styles.templateList}>
                       {GROUP_TEMPLATES.map((template) => (
@@ -260,7 +277,6 @@ export const GroupManagementDrawer: React.FC<GroupManagementDrawerProps> = ({
                   )}
                 </View>
 
-                {/* Name and Description (only show when template selected) */}
                 {selectedTemplate && (
                   <>
                     <Input
@@ -302,84 +318,136 @@ export const GroupManagementDrawer: React.FC<GroupManagementDrawerProps> = ({
             {/* Existing Groups List */}
             {hasGroups && (
               <View style={styles.groupsList}>
-                {groups.map((group) => (
-                  <View key={group.id} style={styles.groupCard}>
-                    {/* Group Header */}
-                    <View style={styles.groupHeader}>
-                      <TouchableOpacity
-                        style={styles.groupInfo}
-                        onPress={() => onSelectGroup(group.id)}
-                        activeOpacity={0.7}
-                      >
-                        <IconButton
-                          icon="account-multiple"
-                          size={20}
-                          iconColor={KindlingColors.navy}
-                          style={styles.groupIcon}
-                        />
-                        <Text style={styles.groupName}>{group.name}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => handleStartEdit(group)}
-                        style={styles.editButton}
-                      >
-                        <IconButton
-                          icon="pencil"
-                          size={18}
-                          iconColor={KindlingColors.navy}
-                          style={styles.editIcon}
-                        />
-                      </TouchableOpacity>
-                    </View>
+                {groups.map((group) => {
+                  const isAlreadyOnForm = alreadySelectedGroupIds.includes(group.id);
+                  const isNewlySelected = newSelections.includes(group.id);
+                  const isChecked = isAlreadyOnForm || isNewlySelected;
 
-                    {/* Group Description (always visible) */}
-                    {!editingGroupId || editingGroupId !== group.id ? (
-                      group.description && (
-                        <Text style={styles.groupDescription}>{group.description}</Text>
-                      )
-                    ) : (
-                      /* Edit Mode */
-                      <View style={styles.editForm}>
-                        <Input
-                          placeholder="Enter group description"
-                          value={editingDescription}
-                          onChangeText={setEditingDescription}
-                          multiline
-                          numberOfLines={2}
-                        />
-                        <View style={styles.editActions}>
-                          <Button
-                            onPress={() => handleUpdateGroup(group.id)}
-                            variant="primary"
-                            style={styles.editActionButton}
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            onPress={handleCancelEdit}
-                            variant="outline"
-                            style={styles.editActionButton}
-                          >
-                            Cancel
-                          </Button>
-                        </View>
+                  return (
+                    <View key={group.id} style={styles.groupCard}>
+                      <View style={styles.groupRow}>
+                        {/* Checkbox */}
+                        <TouchableOpacity
+                          onPress={() => toggleGroupSelection(group.id)}
+                          disabled={isAlreadyOnForm}
+                          activeOpacity={0.7}
+                          style={styles.checkboxTouchArea}
+                        >
+                          <View style={[
+                            styles.checkboxCircle,
+                            isChecked && styles.checkboxCircleSelected,
+                            isAlreadyOnForm && styles.checkboxCircleDisabled,
+                          ]}>
+                            {isChecked && (
+                              <IconButton icon="check" size={16} iconColor={KindlingColors.background} style={styles.checkIcon} />
+                            )}
+                          </View>
+                        </TouchableOpacity>
+
+                        {/* Group icon + name */}
+                        <TouchableOpacity
+                          style={styles.groupInfo}
+                          onPress={() => !isAlreadyOnForm && toggleGroupSelection(group.id)}
+                          disabled={isAlreadyOnForm}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.groupEmoji}>👥</Text>
+                          <View style={styles.groupNameBlock}>
+                            <Text style={styles.groupName}>
+                              {group.name}
+                            </Text>
+                            {group.description && editingGroupId !== group.id && (
+                              <Text style={styles.groupDescription} numberOfLines={1}>
+                                {group.description}
+                              </Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+
+                        {/* Edit icon */}
+                        <TouchableOpacity
+                          onPress={() => handleStartEdit(group)}
+                          style={styles.editButton}
+                          activeOpacity={0.7}
+                        >
+                          <IconButton
+                            icon="pencil"
+                            size={16}
+                            iconColor={KindlingColors.mutedForeground}
+                            style={styles.editIcon}
+                          />
+                        </TouchableOpacity>
                       </View>
-                    )}
 
-                    {/* Select Button */}
-                    <Button
-                      onPress={() => onSelectGroup(group.id)}
-                      variant="outline"
-                      style={styles.selectGroupButton}
-                    >
-                      Select This Group
-                    </Button>
-                  </View>
-                ))}
+                      {/* Inline edit form */}
+                      {editingGroupId === group.id && (
+                        <View style={styles.editForm}>
+                          <Input
+                            placeholder="Enter group description"
+                            value={editingDescription}
+                            onChangeText={setEditingDescription}
+                            multiline
+                            numberOfLines={2}
+                          />
+                          <View style={styles.editActions}>
+                            <Button
+                              onPress={() => handleUpdateGroup(group.id)}
+                              variant="primary"
+                              style={styles.editActionButton}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              onPress={handleCancelEdit}
+                              variant="outline"
+                              style={styles.editActionButton}
+                            >
+                              Cancel
+                            </Button>
+                          </View>
+                        </View>
+                      )}
+
+                      {isAlreadyOnForm && (
+                        <Text style={styles.alreadyAddedLabel}>Already added</Text>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
+            )}
+
+            {/* Create New Group — estate-dashboard "Add something else" style */}
+            {!showCreateForm && (
+              <TouchableOpacity
+                onPress={() => setShowCreateForm(true)}
+                style={styles.createNewButton}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="plus-circle-outline" size={20} color={KindlingColors.green} />
+                <Text style={styles.createNewText}>Create New Group</Text>
+              </TouchableOpacity>
             )}
           </View>
         </ScrollView>
+
+        {/* Footer with selection count + Select button */}
+        {hasGroups && (
+          <View style={styles.drawerFooter}>
+            <Text style={styles.selectedCount}>
+              {selectableCount === 0
+                ? 'No new groups selected'
+                : `${selectableCount} group${selectableCount === 1 ? '' : 's'} selected`}
+            </Text>
+            <Button
+              onPress={handleConfirmSelections}
+              variant="primary"
+              disabled={selectableCount === 0}
+            >
+              Select
+            </Button>
+          </View>
+        )}
       </SafeAreaView>
     </Modal>
   );
@@ -419,17 +487,18 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: Spacing.lg,
   },
-  addNewButton: {
-    alignSelf: 'flex-end',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.md,
+  createNewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.md,
   },
-  addNewText: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.navy,
-    textDecorationLine: 'underline',
-    fontWeight: Typography.fontWeight.semibold,
+  createNewText: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.medium,
+    color: KindlingColors.green,
   },
   createForm: {
     backgroundColor: `${KindlingColors.cream}33`,
@@ -504,48 +573,74 @@ const styles = StyleSheet.create({
   },
   groupCard: {
     backgroundColor: KindlingColors.background,
-    borderRadius: 12,
-    padding: Spacing.md,
+    borderRadius: 10,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     borderWidth: 1,
     borderColor: KindlingColors.beige,
-    gap: Spacing.sm,
   },
-  groupHeader: {
+  groupRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
+  checkboxTouchArea: {
+    padding: 2,
+  },
+  checkboxCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: `${KindlingColors.beige}80`,
+    backgroundColor: KindlingColors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxCircleSelected: {
+    backgroundColor: KindlingColors.green,
+    borderColor: KindlingColors.green,
+  },
+  checkboxCircleDisabled: {
+    backgroundColor: KindlingColors.mutedForeground,
+    borderColor: KindlingColors.mutedForeground,
+  },
+  checkIcon: {
+    margin: 0,
+    padding: 0,
   },
   groupInfo: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
-  groupIcon: {
-    margin: 0,
-    padding: 0,
-    marginRight: -4,
+  groupEmoji: {
+    fontSize: 16,
+  },
+  groupNameBlock: {
+    flex: 1,
   },
   groupName: {
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
   },
+  groupDescription: {
+    fontSize: Typography.fontSize.xs,
+    color: KindlingColors.brown,
+    lineHeight: 16,
+  },
   editButton: {
-    padding: Spacing.xs,
+    padding: 4,
   },
   editIcon: {
     margin: 0,
     padding: 0,
   },
-  groupDescription: {
-    fontSize: Typography.fontSize.sm,
-    color: KindlingColors.brown,
-    lineHeight: 20,
-    marginLeft: 28, // Align with group name (icon width)
-  },
   editForm: {
     gap: Spacing.sm,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.sm,
   },
   editActions: {
     flexDirection: 'row',
@@ -554,8 +649,23 @@ const styles = StyleSheet.create({
   editActionButton: {
     flex: 1,
   },
-  selectGroupButton: {
-    marginTop: Spacing.xs,
+  alreadyAddedLabel: {
+    fontSize: Typography.fontSize.xs,
+    color: KindlingColors.mutedForeground,
+    fontStyle: 'italic',
+    marginLeft: 38,
+    marginTop: 2,
+  },
+  drawerFooter: {
+    padding: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: KindlingColors.border,
+    gap: Spacing.sm,
+  },
+  selectedCount: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.brown,
+    textAlign: 'center',
   },
 });
 

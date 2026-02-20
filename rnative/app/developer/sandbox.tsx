@@ -890,7 +890,6 @@ export default function SandboxScreen() {
           onClose={() => setShowGroupDrawer(false)}
           onSelectGroup={(groupId) => {
             setSelectedGroupId(groupId);
-            setShowGroupDrawer(false);
           }}
           beneficiaryGroupActions={beneficiaryGroupActions}
           willId={willActions.getUser()?.id || 'default-user'}

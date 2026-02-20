@@ -469,10 +469,10 @@ export default function LifeInsuranceEntryScreen() {
               beneficiaries: [...prev.beneficiaries, { id: group.id, type: 'group' }]
             }));
           }
-          setShowGroupDrawer(false);
         }}
         beneficiaryGroupActions={beneficiaryGroupActions}
         willId={willActions.getUser()?.id || 'default-user'}
+        alreadySelectedGroupIds={formData.beneficiaries.filter(b => b.type === 'group').map(b => b.id)}
       />
     </SafeAreaView>
   );

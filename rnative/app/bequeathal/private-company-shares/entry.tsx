@@ -737,9 +737,19 @@ export default function PrivateCompanySharesEntryScreen() {
 
       <GroupManagementDrawer
         visible={showGroupDrawer}
-        onDismiss={() => setShowGroupDrawer(false)}
+        onClose={() => setShowGroupDrawer(false)}
+        onSelectGroup={(groupId, groupObj) => {
+          const group = groupObj ?? beneficiaryGroupActions.getGroupById(groupId);
+          if (group) {
+            setFormData(prev => ({
+              ...prev,
+              beneficiaries: [...prev.beneficiaries, { id: group.id, type: 'group' as const }]
+            }));
+          }
+        }}
         beneficiaryGroupActions={beneficiaryGroupActions}
-        personActions={personActions}
+        willId={willActions.getUser()?.id || 'default-user'}
+        alreadySelectedGroupIds={formData.beneficiaries.filter(b => b.type === 'group').map(b => b.id)}
       />
     </SafeAreaView>
   );
