@@ -117,7 +117,8 @@ export default function InvestmentsEntryScreen() {
   };
 
   const commitSave = (beneficiariesToPersist: BeneficiaryAssignment[]) => {
-    const estimatedValue = balanceNotSure ? undefined : Math.round(formData.estimatedValue);
+    const isValueUnknown = balanceNotSure || formData.estimatedValue === 0;
+    const estimatedValue = isValueUnknown ? undefined : Math.round(formData.estimatedValue);
 
     const investmentType = formData.investmentType || 'unknown';
     const investmentTypeLabel = investmentTypeOptions.find(opt => opt.value === investmentType)?.label || 'Unknown';
@@ -136,7 +137,7 @@ export default function InvestmentsEntryScreen() {
         }))
       },
       estimatedValue,
-      estimatedValueUnknown: balanceNotSure || undefined,
+      estimatedValueUnknown: isValueUnknown || undefined,
       netValue: estimatedValue,
     };
 
