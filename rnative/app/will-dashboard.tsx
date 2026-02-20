@@ -20,7 +20,6 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomSheet from '@gorhom/bottom-sheet';
-import { BackButton } from '../src/components/ui/BackButton';
 import { KindlingLogo } from '../src/components/ui/KindlingLogo';
 import { StageCard, type CardEmphasis } from '../src/components/ui/StageCard';
 import { GlassMenu, MenuItem } from '../src/components/ui/GlassMenu';
@@ -289,10 +288,6 @@ export default function WillDashboardScreen() {
     lastTapRef.current = now;
   };
 
-  const handleBack = () => {
-    router.back();
-  };
-
   const handleMenuPress = useCallback(() => {
     menuRef.current?.expand();
   }, []);
@@ -333,7 +328,7 @@ export default function WillDashboardScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <BackButton onPress={handleBack} />
+        <View style={styles.headerSpacer} />
         <TouchableOpacity onPress={handleHeaderPress} activeOpacity={0.9}>
           <KindlingLogo size="sm" variant="dark" showText={false} />
         </TouchableOpacity>
@@ -425,6 +420,9 @@ const styles = StyleSheet.create({
     backgroundColor: KindlingColors.background,
     borderBottomWidth: 0.5,
     borderBottomColor: KindlingColors.cream,
+  },
+  headerSpacer: {
+    width: 40,
   },
   menuButton: {
     padding: Spacing.xs,

@@ -137,23 +137,23 @@
 | I-2 | Total value correct                | Add known values (e.g., 15000 + 50000 + 20000).                    | Summary total equals expected sum (excluding unknown values if present).   | Pass                                                                                                                                                            |
 | I-3 | Empty state                        | Remove all investments and open summary.                           | Empty state shown with add action.                                         | Pass                                                                                                                                                            |
 | I-4 | Add from summary                   | Tap "Add" from summary.                                            | Opens add form in create mode.                                             | Pass                                                                                                                                                            |
-| I-5 | Edit from summary                  | Tap an existing investment card.                                   | Opens edit form with`?id=` and pre-filled data.                            |                                                                                                                                                                 |
-| I-6 | Unknown balance handling in total  | Add one known value and one unsure value.                          | Total behavior is correct and unknown value item is visibly distinguished. |                                                                                                                                                                 |
-| I-7 | "That's everything" marks complete | From non-empty summary, tap completion CTA.                        | Category marked complete and returns to expected dashboard/category flow.  |                                                                                                                                                                 |
+| I-5 | Edit from summary                  | Tap an existing investment card.                                   | Opens edit form with`?id=` and pre-filled data.                            | Pass                                                                                                                                                            |
+| I-6 | Unknown balance handling in total  | Add one known value and one unsure value.                          | Total behavior is correct and unknown value item is visibly distinguished. | Pass                                                                                                                                                            |
+| I-7 | "That's everything" marks complete | From non-empty summary, tap completion CTA.                        | Category marked complete and returns to expected dashboard/category flow.  | Pass                                                                                                                                                            |
 
 ---
 
 ## J. Data Integrity + Navigation Edges
 
 
-| #   | Test                         | Steps                                                | Pass criteria                                                                      | Pass? |
-| ----- | ------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------- |
-| J-1 | Stored type is investment    | Save any investment and inspect data explorer.       | `type === 'investment'`.                                                           |       |
-| J-2 | Beneficiaries stored unified | Save with person/group/estate mix where possible.    | Uses unified`beneficiaryAssignments.beneficiaries[]` with id/type/percentage only. |       |
-| J-3 | Title generation logic       | Save one with type and one without type.             | With type:`Provider - TypeLabel`; without type: `Provider`.                        |       |
-| J-4 | Invalid edit id guarded      | Navigate to`/bequeathal/investment/entry?id=bad-id`. | Redirects safely to investments summary (no crash).                                |       |
-| J-5 | Back from entry              | Open entry, tap back.                                | Returns to prior summary/flow without duplicate screens.                           |       |
-| J-6 | Back from summary            | Open summary, tap back.                              | Returns to expected previous screen in estate flow.                                |       |
+| #   | Test                         | Steps                                                | Pass criteria                                                                      | Pass?                                            |
+| ----- | ------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| J-1 | Stored type is investment    | Save any investment and inspect data explorer.       | `type === 'investment'`.                                                           | Pass                                             |
+| J-2 | Beneficiaries stored unified | Save with person/group/estate mix where possible.    | Uses unified`beneficiaryAssignments.beneficiaries[]` with id/type/percentage only. | Pass                                             |
+| J-3 | Title generation logic       | Save one with type and one without type.             | With type:`Provider - TypeLabel`; without type: `Provider`.                        | Thisis not how we generate titles I don't think? |
+| J-4 | Invalid edit id guarded      | Navigate to`/bequeathal/investment/entry?id=bad-id`. | Redirects safely to investments summary (no crash).                                | Redundant test - mobile app?                     |
+| J-5 | Back from entry              | Open entry, tap back.                                | Returns to prior summary/flow without duplicate screens.                           | Pass                                             |
+| J-6 | Back from summary            | Open summary, tap back.                              | Returns to expected previous screen in estate flow.                                | Pass                                             |
 
 ---
 
