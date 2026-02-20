@@ -133,15 +133,15 @@
 ## I. Validation
 
 
-| #   | Test                              | Steps                                                                 | Pass criteria                                                                         | Pass? |
-| ----- | ----------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------- |
-| I-1 | Provider required                 | Leave provider blank, fill other fields, attempt save.                | Save blocked/disabled until provider entered.                                         |       |
-| I-2 | Pension type required             | Leave type blank, fill other fields, attempt save.                    | Save blocked/disabled until type selected.                                            |       |
-| I-3 | Beneficiary nominated required    | Fill provider and type, leave nomination blank, attempt save.         | Save blocked/disabled until nomination answered.                                      |       |
-| I-4 | Beneficiaries required when "Yes" | Select "Yes" for nomination. Leave beneficiaries empty. Attempt save. | Save blocked. Attention label shows missing beneficiaries.                            |       |
-| I-5 | Percentage total required         | Select "Yes". Add Jane 60% + Bob 30% (90%). Attempt save.             | Save blocked. Attention fires. % inputs get red borders, total underlined in red.     |       |
-| I-6 | Validation attention trigger      | Tap disabled save button or attention button when form invalid.       | Attention label shows count of invalid fields. Scrolls to top. Red highlights appear. |       |
-| I-7 | Value not required                | Fill required fields. Leave value blank. Save.                        | Save succeeds. Stored as`estimatedValueUnknown: true`.                                |       |
+| #   | Test                              | Steps                                                                 | Pass criteria                                                                         | Pass?                                                             |
+| ----- | ----------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| I-1 | Provider required                 | Leave provider blank, fill other fields, attempt save.                | Save blocked/disabled until provider entered.                                         | Pass - But no validation border on required inputs not satisfied. |
+| I-2 | Pension type required             | Leave type blank, fill other fields, attempt save.                    | Save blocked/disabled until type selected.                                            | Pass - But no validation border on required inputs not satisfied. |
+| I-3 | Beneficiary nominated required    | Fill provider and type, leave nomination blank, attempt save.         | Save blocked/disabled until nomination answered.                                      | Pass - But no validation border on required inputs not satisfied. |
+| I-4 | Beneficiaries required when "Yes" | Select "Yes" for nomination. Leave beneficiaries empty. Attempt save. | Save blocked. Attention label shows missing beneficiaries.                            | Pass - But no validation border on required inputs not satisfied. |
+| I-5 | Percentage total required         | Select "Yes". Add Jane 60% + Bob 30% (90%). Attempt save.             | Save blocked. Attention fires. % inputs get red borders, total underlined in red.     | Pass - But no validation border on required inputs not satisfied. |
+| I-6 | Validation attention trigger      | Tap disabled save button or attention button when form invalid.       | Attention label shows count of invalid fields. Scrolls to top. Red highlights appear. | Fail                                                              |
+| I-7 | Value not required                | Fill required fields. Leave value blank. Save.                        | Save succeeds. Stored as`estimatedValueUnknown: true`.                                | Fail - stored as 0                                                |
 
 ---
 
@@ -150,27 +150,27 @@
 
 | #   | Test                               | Steps                                             | Pass criteria                                                             | Pass? |
 | ----- | ------------------------------------ | --------------------------------------------------- | --------------------------------------------------------------------------- | ------- |
-| J-1 | Summary shows all pensions         | Add 3 pensions with mixed types and open summary. | All items show correctly with names, types, and values.                   |       |
-| J-2 | Total value correct                | Add known values (e.g., 15000 + 200000 + 85000).  | Summary total equals expected sum (excluding unknown values if present).  |       |
-| J-3 | Empty state                        | Remove all pensions and open summary.             | Empty state shown: "No pensions yet" with add action.                     |       |
-| J-4 | Add from summary                   | Tap "Add another" from summary.                   | Opens add form in create mode.                                            |       |
-| J-5 | Edit from summary                  | Tap an existing pension card.                     | Opens edit form with`?id=` and pre-filled data.                           |       |
-| J-6 | Unknown balance handling in total  | Add one known value and one unsure value.         | Total shows known sum with`+` suffix if unknowns present.                 |       |
-| J-7 | "That's everything" marks complete | From non-empty summary, tap completion CTA.       | Category marked complete and returns to expected dashboard/category flow. |       |
+| J-1 | Summary shows all pensions         | Add 3 pensions with mixed types and open summary. | All items show correctly with names, types, and values.                   | Pass  |
+| J-2 | Total value correct                | Add known values (e.g., 15000 + 200000 + 85000).  | Summary total equals expected sum (excluding unknown values if present).  | Pass  |
+| J-3 | Empty state                        | Remove all pensions and open summary.             | Empty state shown: "No pensions yet" with add action.                     | Pass  |
+| J-4 | Add from summary                   | Tap "Add another" from summary.                   | Opens add form in create mode.                                            | Pass  |
+| J-5 | Edit from summary                  | Tap an existing pension card.                     | Opens edit form with`?id=` and pre-filled data.                           | Pass  |
+| J-6 | Unknown balance handling in total  | Add one known value and one unsure value.         | Total shows known sum with`+` suffix if unknowns present.                 | Pass  |
+| J-7 | "That's everything" marks complete | From non-empty summary, tap completion CTA.       | Category marked complete and returns to expected dashboard/category flow. | Pass  |
 
 ---
 
 ## K. Data Integrity + Navigation Edges
 
 
-| #   | Test                         | Steps                                             | Pass criteria                                                                                                   | Pass? |
-| ----- | ------------------------------ | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------- |
-| K-1 | Stored type is pensions      | Save any pension and inspect data explorer.       | `type === 'pensions'`.                                                                                          |       |
-| K-2 | Beneficiaries stored unified | Save with person/group/estate mix where possible. | Uses unified`beneficiaryAssignments.beneficiaries[]` with id/type/percentage only.                              |       |
-| K-3 | Title generation logic       | Save one pension and check stored title.          | Title format:`"Provider - PensionTypeLabel"` (e.g. "Scottish Widows - Defined Benefit").                        |       |
-| K-4 | Display title and subline    | View pension in summary card.                     | Card title: provider name. Subline: "Defined Benefit with Scottish Widows" (or type label only if no provider). |       |
-| K-5 | Back from entry              | Open entry, tap back.                             | Returns to prior summary/flow without duplicate screens.                                                        |       |
-| K-6 | Back from summary            | Open summary, tap back.                           | Returns to expected previous screen in estate flow.                                                             |       |
+| #   | Test                         | Steps                                             | Pass criteria                                                                                                   | Pass?                                                 |
+| ----- | ------------------------------ | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| K-1 | Stored type is pensions      | Save any pension and inspect data explorer.       | `type === 'pensions'`.                                                                                          | Pass                                                  |
+| K-2 | Beneficiaries stored unified | Save with person/group/estate mix where possible. | Uses unified`beneficiaryAssignments.beneficiaries[]` with id/type/percentage only.                              | Pass                                                  |
+| K-3 | Title generation logic       | Save one pension and check stored title.          | Title format:`"Provider - PensionTypeLabel"` (e.g. "Scottish Widows - Defined Benefit").                        | Pass                                                  |
+| K-4 | Display title and subline    | View pension in summary card.                     | Card title: provider name. Subline: "Defined Benefit with Scottish Widows" (or type label only if no provider). | Incorect test- passes on actually expected behaviour. |
+| K-5 | Back from entry              | Open entry, tap back.                             | Returns to prior summary/flow without duplicate screens.                                                        | Pass                                                  |
+| K-6 | Back from summary            | Open summary, tap back.                           | Returns to expected previous screen in estate flow.                                                             | Pass                                                  |
 
 ---
 
@@ -179,10 +179,10 @@
 
 | #   | Test                              | Steps                                                                    | Pass criteria                                                        | Pass? |
 | ----- | ----------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------- |
-| L-1 | Single 0% blocked by total check  | Select "Yes". Add Jane at 0%. Fill other fields. Tap save.               | Save blocked (total = 0%). Attention fires. % input gets red border. |       |
-| L-2 | 0% dialog when total is 100%      | Select "Yes". Add Jane at 0% + Bob at 100%. Fill other fields. Tap save. | Zero-percent dialog appears for Jane. Button: "Save & Remove Jane".  |       |
-| L-3 | Save & Remove persists without 0% | From L-2, tap "Save & Remove Jane".                                      | Asset saved. Beneficiaries contain only Bob.                         |       |
-| L-4 | No dialog when all > 0%           | Select "Yes". Add Jane 60% + Bob 40%. Fill other fields. Tap save.       | Save succeeds immediately with no dialog.                            |       |
+| L-1 | Single 0% blocked by total check  | Select "Yes". Add Jane at 0%. Fill other fields. Tap save.               | Save blocked (total = 0%). Attention fires. % input gets red border. | Pass  |
+| L-2 | 0% dialog when total is 100%      | Select "Yes". Add Jane at 0% + Bob at 100%. Fill other fields. Tap save. | Zero-percent dialog appears for Jane. Button: "Save & Remove Jane".  | Pass  |
+| L-3 | Save & Remove persists without 0% | From L-2, tap "Save & Remove Jane".                                      | Asset saved. Beneficiaries contain only Bob.                         | Pass  |
+| L-4 | No dialog when all > 0%           | Select "Yes". Add Jane 60% + Bob 40%. Fill other fields. Tap save.       | Save succeeds immediately with no dialog.                            | Pass  |
 
 **Note:** The zero-percent beneficiary guard may not yet be wired into the pensions entry form. If L-2 fails, it needs to be added (import `detectZeroPercentBeneficiaries` and add the guard to `handleSave`, matching the investments pattern).
 

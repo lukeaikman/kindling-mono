@@ -133,7 +133,9 @@ export default function PensionsEntryScreen() {
     }
 
     // Round value to nearest £1 — undefined when unsure (not 0)
-    const estimatedValue = balanceNotSure ? undefined : Math.round(formData.estimatedValue);
+    const estimatedValue = balanceNotSure || formData.estimatedValue === 0
+      ? undefined
+      : Math.round(formData.estimatedValue);
 
     const pensionTypeLabel = pensionTypeOptions.find(opt => opt.value === formData.pensionType)?.label || formData.pensionType;
 
@@ -152,7 +154,7 @@ export default function PensionsEntryScreen() {
           }
         : undefined,
       estimatedValue,
-      estimatedValueUnknown: balanceNotSure || undefined,
+      estimatedValueUnknown: (balanceNotSure || formData.estimatedValue === 0) || undefined,
       netValue: estimatedValue,
     };
 
