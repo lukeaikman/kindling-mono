@@ -530,42 +530,37 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
             })
           )}
 
-          {/* Subtle "+ Add another" link */}
-          <TouchableOpacity
-            style={styles.addAnotherButton}
-            onPress={handleOpenDrawer}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons name="plus-circle-outline" size={18} color={KindlingColors.green} />
-            <Text style={styles.addAnotherText}>Add another</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+          {/* Footer row: "+ Add another" left, total right */}
+          <View style={styles.footerRow}>
+            <TouchableOpacity
+              style={styles.addAnotherButton}
+              onPress={handleOpenDrawer}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="plus-circle-outline" size={18} color={KindlingColors.green} />
+              <Text style={styles.addAnotherText}>Add another</Text>
+            </TouchableOpacity>
 
-      {/* Inline total + 100% Wizard (manual percentage mode only) */}
-      {hasBeneficiaries && allocationMode === 'percentage' && (
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>
-            Total: <Text style={isValid ? styles.totalValid : styles.totalInvalid}>
-              {`${total.toFixed(1)}%`}{isValid ? ' ✓' : ''}
-            </Text>
-          </Text>
+            {allocationMode === 'percentage' ? (
+              <Text style={styles.totalLabel}>
+                Total: <Text style={isValid ? styles.totalValid : styles.totalInvalid}>
+                  {`${total.toFixed(1)}%`}{isValid ? ' ✓' : ''}
+                </Text>
+              </Text>
+            ) : (
+              <Text style={styles.totalLabel}>
+                Total: <Text style={styles.totalValid}>{`£${Math.round(total).toLocaleString()}`}</Text>
+              </Text>
+            )}
+          </View>
 
-          {!isValid && total > 0 && (
+          {/* 100% Wizard CTA — below footer when needed */}
+          {allocationMode === 'percentage' && !isValid && total > 0 && (
             <TouchableOpacity onPress={handleScaleToHundred} style={styles.wizardButton}>
               <MaterialCommunityIcons name="auto-fix" size={14} color={KindlingColors.background} />
               <Text style={styles.wizardText}>100% Wizard</Text>
             </TouchableOpacity>
           )}
-        </View>
-      )}
-
-      {/* Inline total for amount mode */}
-      {hasBeneficiaries && allocationMode === 'amount' && (
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>
-            Total: <Text style={styles.totalValid}>{`£${Math.round(total).toLocaleString()}`}</Text>
-          </Text>
         </View>
       )}
     </View>
@@ -721,7 +716,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingVertical: Spacing.xs,
-    marginTop: 2,
   },
   addAnotherText: {
     fontSize: Typography.fontSize.sm,
@@ -729,12 +723,12 @@ const styles = StyleSheet.create({
     color: KindlingColors.green,
   },
 
-  // --- Inline total row ---
-  totalRow: {
+  // --- Footer: add-another (left) + total (right) ---
+  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: Spacing.xs,
+    marginTop: 2,
   },
   totalLabel: {
     fontSize: Typography.fontSize.sm,
@@ -754,6 +748,7 @@ const styles = StyleSheet.create({
   wizardButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-end',
     gap: 4,
     backgroundColor: KindlingColors.navy,
     paddingHorizontal: Spacing.sm,
