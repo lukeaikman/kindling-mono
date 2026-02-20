@@ -160,37 +160,85 @@
 ## K. Zero-Percent Beneficiary Guard
 
 
-| #   | Test                               | Steps                                                                                        | Pass criteria                                                                                                                        | Pass? |
-| ----- | ------------------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| K-1 | Single 0% triggers dialog          | Add one beneficiary (Jane) at 0%. Fill provider. Tap save.                                   | Dialog appears: 'You added "Jane Doe (Daughter)" as a beneficiary but allocated them a 0% share.' Button reads "Save & Remove Jane". | TBD   |
-| K-2 | Save & Remove persists without 0%  | From K-1 dialog, tap "Save & Remove Jane".                                                   | Asset saved. Stored`beneficiaryAssignments.beneficiaries` array does not include Jane. Console log shows `[save-with-removal]`.      | TBD   |
-| K-3 | Back dismisses dialog              | From K-1 dialog, tap "Back".                                                                 | Dialog closes. Form is still editable with beneficiary list unchanged.                                                               | TBD   |
-| K-4 | Multiple 0% triggers multi message | Add Jane at 0% and Bob at 0%, John at 100%. Fill provider. Tap save.                         | Dialog: "You added 2 beneficiaries with a 0% share." Button: "Save & Remove 2 Beneficiaries".                                        | TBD   |
-| K-5 | Multi Save & Remove keeps valid    | From K-4, tap "Save & Remove 2 Beneficiaries".                                               | Asset saved with only John (100%). Jane and Bob are not in stored beneficiaries. Console log fires.                                  | TBD   |
-| K-6 | No dialog when all > 0%            | Add Jane 60% + Bob 40%. Fill provider. Tap save.                                             | Save succeeds immediately with no dialog.                                                                                            | TBD   |
-| K-7 | Guard runs after 100% validation   | Add Jane at 0% and Bob at 50% (total 50%). Tap save.                                         | Percentage total validation blocks first — zero-percent dialog does NOT appear until total is 100%.                                 | TBD   |
-| K-8 | Edit mode with existing 0% entries | Save an investment with Jane 100%. Edit it, change Jane to 0% and add Bob at 100%. Tap save. | Zero-percent dialog appears for Jane. "Save & Remove" persists only Bob.                                                             | TBD   |
-| K-9 | Group beneficiary at 0%            | Add a group at 0% and a person at 100%. Fill provider. Tap save.                             | Dialog shows group name (not "Unknown"). "Save & Remove [GroupName]". Confirm removes group from persisted data.                     | TBD   |
+| #   | Test                               | Steps                                                                                        | Pass criteria                                                                                                                        | Pass?                                                                                                          |
+| ----- | ------------------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| K-1 | Single 0% triggers dialog          | Add one beneficiary (Jane) at 0%. Fill provider. Tap save.                                   | Dialog appears: 'You added "Jane Doe (Daughter)" as a beneficiary but allocated them a 0% share.' Button reads "Save & Remove Jane". | Fail - button is diosabled. Validation should show the 'one last thing' and red border on beneficiary cards.   |
+| K-2 | Save & Remove persists without 0%  | From K-1 dialog, tap "Save & Remove Jane".                                                   | Asset saved. Stored`beneficiaryAssignments.beneficiaries` array does not include Jane. Console log shows `[save-with-removal]`.      | Redundant test                                                                                                 |
+| K-3 | Back dismisses dialog              | From K-1 dialog, tap "Back".                                                                 | Dialog closes. Form is still editable with beneficiary list unchanged.                                                               | Redundant test                                                                                                 |
+| K-4 | Multiple 0% triggers multi message | Add Jane at 0% and Bob at 0%, John at 100%. Fill provider. Tap save.                         | Dialog: "You added 2 beneficiaries with a 0% share." Button: "Save & Remove 2 Beneficiaries".                                        | Pass - BUT Change button copy to "Save & Remove 0% beneficiaries"                                              |
+| K-5 | Multi Save & Remove keeps valid    | From K-4, tap "Save & Remove 2 Beneficiaries".                                               | Asset saved with only John (100%). Jane and Bob are not in stored beneficiaries. Console log fires.                                  | Pass                                                                                                           |
+| K-6 | No dialog when all > 0%            | Add Jane 60% + Bob 40%. Fill provider. Tap save.                                             | Save succeeds immediately with no dialog.                                                                                            | Pass                                                                                                           |
+| K-7 | Guard runs after 100% validation   | Add Jane at 0% and Bob at 50% (total 50%). Tap save.                                         | Percentage total validation blocks first — zero-percent dialog does NOT appear until total is 100%.                                 | Button disabled as less than 100%. Which is fine, but need validation in as mentioned in a test comment above. |
+| K-8 | Edit mode with existing 0% entries | Save an investment with Jane 100%. Edit it, change Jane to 0% and add Bob at 100%. Tap save. | Zero-percent dialog appears for Jane. "Save & Remove" persists only Bob.                                                             | Pass                                                                                                           |
+| K-9 | Group beneficiary at 0%            | Add a group at 0% and a person at 100%. Fill provider. Tap save.                             | Dialog shows group name (not "Unknown"). "Save & Remove [GroupName]". Confirm removes group from persisted data.                     | Pass                                                                                                           |
+
+---
+
+## L. Beneficiary Component (Redesigned)
+
+
+| #    | Test                                   | Steps                                                         | Pass criteria                                                                                                                                                    | Pass? |
+| ------ | ---------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
+| L-1  | Empty state shows prominent add button | Open add investment form (no beneficiaries yet).              | Large "Add Beneficiaries" button visible with icon. No rows, no total, no wizard.                                                                                | Pass  |
+| L-2  | Add first beneficiary                  | Tap "Add Beneficiaries", select Jane, confirm.                | Jane row appears with green accent bar, name on left, % input on right, open padlock icon, delete x top-right. Prominent add button replaced by "+ Add another". | Pass  |
+| L-3  | "+ Add another" opens drawer           | After first add, tap "+ Add another".                         | Beneficiary selection drawer opens. Previously selected beneficiaries are excluded.                                                                              | Pass  |
+| L-4  | Compact row layout                     | Add Jane 60% + Bob 40%.                                       | Two single-line rows: name left, padlock + % input right. No card bloat, no background fill bars.                                                                | Pass  |
+| L-5  | Inline total displays                  | Add Jane 60% + Bob 40%.                                       | Footer row shows "+ Add another" on left and "Total: 100.0% ✓" on right, green text.                                                                            | Pass  |
+| L-6  | Invalid total shown in red             | Add Jane 60% + Bob 30% (90% total).                           | Total shows "90.0%" in red. No checkmark.                                                                                                                        | Pass  |
+| L-7  | Delete beneficiary via x               | Add Jane + Bob. Tap x on Bob's row.                           | Bob removed. Only Jane remains. Total updates.                                                                                                                   | Pass  |
+| L-8  | Percentage input works                 | Tap Jane's % input, type "75".                                | Input accepts full number, displays "75", padlock locks (filled circle, white icon).                                                                             | Pass  |
+| L-9  | Padlock shows open by default          | Add a new beneficiary.                                        | Padlock icon is open (grey circle, grey icon).                                                                                                                   | Pass  |
+| L-10 | Padlock locks on manual % edit         | Type a percentage value into a beneficiary's input.           | Padlock icon switches to locked (navy filled circle, white lock icon).                                                                                           | Pass  |
+| L-11 | Tap locked padlock unlocks it          | After L-10, tap the locked padlock.                           | Padlock returns to open state.`isManuallyEdited` is false.                                                                                                       | Pass  |
+| L-12 | Tap unlocked padlock locks it          | Tap the open padlock on a beneficiary.                        | Padlock switches to locked.`isManuallyEdited` is true.                                                                                                           | Pass  |
+| L-13 | Error state on validation              | Leave beneficiaries empty, trigger validation (tap save).     | "Add Beneficiaries" button shows red border.                                                                                                                     | Pass  |
+| L-14 | Saved data has correct structure       | Add Jane 60% + Bob 40%. Save investment. Inspect stored data. | `beneficiaryAssignments.beneficiaries` array has 2 entries with correct id, type, percentage. No extra fields leaking (e.g. no `isManuallyEdited` persisted).    | Pass  |
+| L-15 | Edit round-trip preserves data         | Save investment with Jane 70% + Bob 30%. Re-open for edit.    | Rows show Jane at 70% and Bob at 30%. Padlocks are in expected state. Total shows 100.0% ✓.                                                                     | Pass  |
+| L-16 | Group/estate beneficiary display       | Add a group and "The Estate" as beneficiaries.                | Group row shows group emoji + name. Estate row shows estate emoji + "The Estate".                                                                                | Pass  |
+
+---
+
+## M. 100% Wizard
+
+
+| #    | Test                                  | Steps                                                                                                      | Pass criteria                                                                                                           | Pass? |
+| ------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ------- |
+| M-1  | Wizard hidden at 100%                 | Add Jane 60% + Bob 40%. Check footer.                                                                      | No "100% Wizard" button visible.                                                                                        | Pass  |
+| M-2  | Wizard visible when off 100%          | Add Jane 60% + Bob 30% (90% total).                                                                        | "100% Wizard" pill button appears.                                                                                      | Pass  |
+| M-3  | Rule 3: single unlocked auto-sets     | Add Jane (locked at 60%) + Bob (unlocked). Tap wizard.                                                     | Bob auto-set to 40%. No popup. Total = 100%. Haptic fires.                                                              | Pass  |
+| M-4  | Rule 4: all unlocked equal auto-evens | Add Jane 20% + Bob 20% + John 20% (all unlocked). Tap wizard.                                              | All three set to 33.33% (or 33.34% for last to absorb remainder). No popup. Total = 100%.                               | Fail  |
+| M-5  | Rule 4: all unlocked at 0% auto-evens | Add Jane + Bob + John, leave all at 0%. Lock none. Tap wizard.                                             | All three get even share (~33.33%). No popup. Total = 100%.                                                             | Pass  |
+| M-6  | Rule 5: uneven popup — scale         | Add Jane 60% + Bob 10% (unlocked, uneven). Tap wizard. Select "Scale proportionately".                     | Popup appears with three buttons. After "Scale proportionately": Jane ~85.71%, Bob ~14.29%. Total = 100%.               | Pass  |
+| M-7  | Rule 5: uneven popup — even          | Add Jane 60% + Bob 10% (unlocked, uneven). Tap wizard. Select "Even distribution".                         | After "Even distribution": Jane 50%, Bob 50%. Total = 100%.                                                             | Pass  |
+| M-8  | Rule 5: uneven popup — cancel        | Add Jane 60% + Bob 10%. Tap wizard. Tap "Cancel".                                                          | Dialog closes. Values unchanged.                                                                                        | Pass  |
+| M-9  | Rule 1: all locked popup              | Add Jane 60% + Bob 30%. Lock both. Tap wizard.                                                             | Popup: "All beneficiaries are locked. Shall we scale all proportionately to equal 100%?" [Yes please] / [No thanks].    | Pass  |
+| M-10 | Rule 1: all locked — yes please      | From M-9, tap "Yes please".                                                                                | Jane ~66.67%, Bob ~33.33%. Total = 100%. Haptic fires.                                                                  | Pass  |
+| M-11 | Rule 1: all locked — no thanks       | From M-9, tap "No thanks".                                                                                 | Dialog closes. Values unchanged.                                                                                        | Pass  |
+| M-12 | Rule 2: locked overcommit             | Add Jane (locked 70%) + Bob (locked 40%) + John (unlocked 0%). Tap wizard.                                 | Popup: "Locked allocations already total 110%. Unlock at least one beneficiary to proceed." [OK].                       | Pass  |
+| M-13 | Wizard respects lock boundaries       | Jane locked at 50%, Bob unlocked at 20%, John unlocked at 10%. Tap wizard. Select "Scale proportionately". | Jane stays at 50%. Bob and John scaled to fill remaining 50% proportionately (Bob ~33.33%, John ~16.67%). Total = 100%. | Pass  |
+| M-14 | Rounding to 2dp                       | Set up 3 unlocked beneficiaries at values that cause infinite decimals. Tap wizard.                        | All percentages shown to max 2 decimal places. Total is exactly 100%.                                                   | Pass  |
 
 ---
 
 ## Summary - Manual Tests
 
 
-| Section                            | Tests  | Notes                                           |
-| ------------------------------------ | -------- | ------------------------------------------------- |
-| A - Intro screen                   | 6      | Navigation + educational content                |
-| B - Add flow                       | 6      | Happy path + ISA carry-over                     |
-| C - Type dropdown                  | 3      | Options + optional default behavior             |
-| D - Beneficiaries/percentages      | 7      | Required field + percentage validation + groups |
-| E - Unsure of balance              | 4      | Disabled field + storage behavior               |
-| F - Edit flow                      | 5      | Prefill + updates + toast                       |
-| G - Delete flow                    | 3      | Confirmation + recalculation                    |
-| H - Validation                     | 5      | Required fields + attention                     |
-| I - Summary screen                 | 7      | Display + totals + completion                   |
-| J - Data + navigation edges        | 6      | Storage model + guard rails                     |
-| K - Zero-percent beneficiary guard | 9      | 0% detection + dialog + persistence cleanup     |
-| **Total**                          | **61** |                                                 |
+| Section                            | Tests  | Notes                                             |
+| ------------------------------------ | -------- | --------------------------------------------------- |
+| A - Intro screen                   | 6      | Navigation + educational content                  |
+| B - Add flow                       | 6      | Happy path + ISA carry-over                       |
+| C - Type dropdown                  | 3      | Options + optional default behavior               |
+| D - Beneficiaries/percentages      | 7      | Required field + percentage validation + groups   |
+| E - Unsure of balance              | 4      | Disabled field + storage behavior                 |
+| F - Edit flow                      | 5      | Prefill + updates + toast                         |
+| G - Delete flow                    | 3      | Confirmation + recalculation                      |
+| H - Validation                     | 5      | Required fields + attention                       |
+| I - Summary screen                 | 7      | Display + totals + completion                     |
+| J - Data + navigation edges        | 6      | Storage model + guard rails                       |
+| K - Zero-percent beneficiary guard | 9      | 0% detection + dialog + persistence cleanup       |
+| L - Beneficiary component          | 16     | Compact rows, padlock, add states, data integrity |
+| M - 100% Wizard                    | 14     | Lock-aware rules, popups, rounding                |
+| **Total**                          | **91** |                                                   |
 
 ---
 
@@ -241,6 +289,19 @@ Test:
 - `undefined` and `null` percentage treated as 0%
 - `confirmLabel` uses first name for person, group name for group, count for multi
 
+### 7. 100% Wizard (`evaluateWizard`)
+
+Test:
+
+- All locked → `rule === 'all_locked'`, `proportionalResult` sums to 100%
+- Locked sum ≥ 100% with unlocked → `rule === 'locked_overcommit'`, `lockedSum` correct
+- Single unlocked → `rule === 'single_unlocked'`, result gives remainder to that beneficiary
+- Multiple unlocked, all equal → `rule === 'even_auto'`, each unlocked gets equal share
+- Multiple unlocked, all 0% → `rule === 'even_auto'`, even distribution applied
+- Multiple unlocked, uneven → `rule === 'uneven_popup'`, both `proportionalResult` and `evenResult` sum to 100%
+- Locked beneficiaries untouched in scale/even results (rules 3-5)
+- Rounding: all percentages ≤ 2dp, total exactly 100% after rounding
+
 ### Estimated Jest scope
 
-~16-20 assertions across ~10-12 test cases (extended from crypto due to beneficiary percentage logic and zero-percent guard).
+~28-34 assertions across ~18-22 test cases (extended with wizard rule evaluation and rounding).

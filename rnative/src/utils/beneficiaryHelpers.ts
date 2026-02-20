@@ -75,7 +75,7 @@ export function validatePercentageAllocation(
   if (getAllocationType(assignments) !== 'percentage') return true;
   
   const total = getTotalAllocated(assignments);
-  return Math.abs(total - 100) < 0.01; // 0.01 tolerance for floating point
+  return Math.abs(total - 100) <= 0.01;
 }
 
 /**
@@ -253,10 +253,20 @@ function applyWizardRounding(beneficiaries: BeneficiaryAssignment[]): Beneficiar
   const diff = roundTo2dp(100 - total);
 
   if (Math.abs(diff) > 0.001) {
+    let adjusted = false;
     for (let i = result.length - 1; i >= 0; i--) {
       if (!result[i].isManuallyEdited && result[i].percentage !== undefined) {
         result[i] = { ...result[i], percentage: roundTo2dp((result[i].percentage || 0) + diff) };
+        adjusted = true;
         break;
+      }
+    }
+    if (!adjusted) {
+      for (let i = result.length - 1; i >= 0; i--) {
+        if (result[i].percentage !== undefined) {
+          result[i] = { ...result[i], percentage: roundTo2dp((result[i].percentage || 0) + diff) };
+          break;
+        }
       }
     }
   }
@@ -319,15 +329,11 @@ export function evaluateWizard(beneficiaries: BeneficiaryAssignment[]): WizardRe
   const locked = beneficiaries.filter(b => !!b.isManuallyEdited);
   const unlocked = beneficiaries.filter(b => !b.isManuallyEdited);
 
-  // Rule 1: all locked
+  // Rule 1: all locked — reuse scaleProportionately treating all as unlocked
   if (unlocked.length === 0) {
-    const lockedSum = locked.reduce((s, b) => s + (b.percentage || 0), 0);
-    const factor = 100 / lockedSum;
-    const scaled = beneficiaries.map(b => ({
-      ...b,
-      percentage: (b.percentage || 0) * factor,
-    }));
-    return { rule: 'all_locked', proportionalResult: applyWizardRounding(scaled) };
+    const allAsUnlocked = beneficiaries.map(b => ({ ...b, isManuallyEdited: false }));
+    const scaled = scaleProportionately(allAsUnlocked, [], allAsUnlocked);
+    return { rule: 'all_locked', proportionalResult: scaled };
   }
 
   // Rule 2: locked sum >= 100 with unlocked present

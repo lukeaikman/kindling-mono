@@ -234,7 +234,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
   const handleUpdateAllocation = (index: number, allocationValue: number) => {
     const updated = [...value];
     if (allocationMode === 'percentage') {
-      updated[index] = { ...updated[index], percentage: allocationValue, isManuallyEdited: true };
+      updated[index] = { ...updated[index], percentage: allocationValue };
     } else {
       updated[index] = { ...updated[index], amount: allocationValue };
     }
@@ -321,7 +321,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
   // Calculate total and validation
   const total = getTotalAllocated({ beneficiaries: value });
   const isValid = allocationMode === 'percentage' 
-    ? Math.abs(total - 100) < 0.01 
+    ? Math.abs(total - 100) <= 0.01 
     : true; // Amount mode can be partial
 
   const hasBeneficiaries = value.length > 0;
@@ -514,7 +514,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
                         </View>
                       </TouchableOpacity>
 
-                      <View style={styles.rowInputSection}>
+                      <View style={[styles.rowInputSection, error && !isValid && styles.rowInputError]}>
                         {allocationMode === 'amount' && <Text style={styles.rowCurrency}>£</Text>}
                         <TextInput
                           style={styles.rowInput}
@@ -556,7 +556,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
 
             {allocationMode === 'percentage' ? (
               <Text style={styles.totalLabel}>
-                Total: <Text style={isValid ? styles.totalValid : styles.totalInvalid}>
+                Total: <Text style={[isValid ? styles.totalValid : styles.totalInvalid, error && !isValid && styles.totalUnderline]}>
                   {`${total.toFixed(1)}%`}{isValid ? ' ✓' : ''}
                 </Text>
               </Text>
@@ -568,7 +568,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
           </View>
 
           {/* 100% Wizard CTA — below footer when needed */}
-          {allocationMode === 'percentage' && !isValid && total > 0 && (
+          {allocationMode === 'percentage' && !isValid && (
             <TouchableOpacity onPress={handleWizard} style={styles.wizardButton}>
               <MaterialCommunityIcons name="auto-fix" size={14} color={KindlingColors.background} />
               <Text style={styles.wizardText}>100% Wizard</Text>
@@ -798,6 +798,12 @@ const styles = StyleSheet.create({
   totalInvalid: {
     color: KindlingColors.destructive,
     fontWeight: Typography.fontWeight.bold,
+  },
+  totalUnderline: {
+    textDecorationLine: 'underline',
+  },
+  rowInputError: {
+    borderColor: KindlingColors.destructive,
   },
 
   // --- 100% Wizard CTA ---

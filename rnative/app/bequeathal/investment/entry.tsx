@@ -67,10 +67,13 @@ export default function InvestmentsEntryScreen() {
   const loadedIdRef = useRef<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  const percentagesValid = formData.beneficiaries.length === 0 || validatePercentageAllocation({ beneficiaries: formData.beneficiaries });
+
   const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'provider', label: 'Provider', isValid: !!formData.provider.trim() },
       { key: 'beneficiaries', label: 'Beneficiaries', isValid: formData.beneficiaries.length > 0 },
+      { key: 'percentages', label: 'Percentage total', isValid: percentagesValid },
     ],
     scrollViewRef,
   });
@@ -242,7 +245,7 @@ export default function InvestmentsEntryScreen() {
               beneficiaryGroupActions={beneficiaryGroupActions}
               excludePersonIds={excludePersonIds}
               label="Who will receive this? *"
-              error={showErrors && fieldErrors.beneficiaries}
+              error={showErrors && (fieldErrors.beneficiaries || fieldErrors.percentages)}
               onAddNewPerson={(onCreated) => {
                 addPersonSelectionRef.current = onCreated || null;
                 setShowAddPersonDialog(true);
