@@ -234,12 +234,16 @@ export function getEstateNetValue(state: WillProgressState): number {
     for (const asset of assets) {
       if (asset.heldInTrust === 'yes') continue;
 
-      const value = asset.estimatedValue || 0;
-      if (asset.type === 'property') {
-        const mortgage = (asset as any).mortgage?.outstandingAmount || 0;
-        total += value - mortgage;
+      if (asset.netValue !== undefined) {
+        total += asset.netValue;
       } else {
-        total += value;
+        const value = asset.estimatedValue || 0;
+        if (asset.type === 'property') {
+          const mortgage = (asset as any).mortgage?.outstandingAmount || 0;
+          total += value - mortgage;
+        } else {
+          total += value;
+        }
       }
     }
   }

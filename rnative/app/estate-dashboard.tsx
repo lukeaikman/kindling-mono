@@ -318,12 +318,16 @@ export default function EstateDashboardScreen() {
       let catNet = 0;
       for (const asset of assets) {
         if (asset.heldInTrust === 'yes') continue;
-        const val = asset.estimatedValue || 0;
-        if (asset.type === 'property') {
-          const mortgage = (asset as any).mortgage?.outstandingAmount || 0;
-          catNet += val - mortgage;
+        if (asset.netValue !== undefined) {
+          catNet += asset.netValue;
         } else {
-          catNet += val;
+          const val = asset.estimatedValue || 0;
+          if (asset.type === 'property') {
+            const mortgage = (asset as any).mortgage?.outstandingAmount || 0;
+            catNet += val - mortgage;
+          } else {
+            catNet += val;
+          }
         }
       }
 
