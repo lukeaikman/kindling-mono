@@ -181,7 +181,9 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
     const businessName = business?.name || selectedBusinessName || 'Unknown Business';
 
     // Round value to nearest £1 — undefined when unsure (not 0)
-    const estimatedValue = valueNotSure ? undefined : Math.round(formData.estimatedValue);
+    const estimatedValue = valueNotSure || formData.estimatedValue === 0
+      ? undefined
+      : Math.round(formData.estimatedValue);
 
     const assetTypeLabel = assetTypeOptions.find(opt => opt.value === formData.assetType)?.label || formData.assetType;
 
@@ -192,7 +194,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
       assetType: formData.assetType,
       assetDescription: formData.assetDescription || undefined,
       estimatedValue,
-      estimatedValueUnknown: valueNotSure || undefined,
+      estimatedValueUnknown: (valueNotSure || formData.estimatedValue === 0) || undefined,
       netValue: estimatedValue,
     };
 

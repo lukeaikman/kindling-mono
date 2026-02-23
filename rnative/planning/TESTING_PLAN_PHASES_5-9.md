@@ -329,7 +329,10 @@
 
 ---
 
-## Phase 9: Pensions Testing ← NEXT
+## Phase 9: Pensions Testing ✅ COMPLETE
+
+> Tested and passed — see `TEST_PENSIONS.md` for full results (69 manual tests).
+> Includes validation error styling, blank value guard, and RadioGroup error prop.
 
 ### Test 9.1: Add Defined Benefit Pension
 **Steps:**
@@ -370,7 +373,7 @@
 
 ---
 
-## Phase 9.5: Unified Beneficiary Model Testing
+## Phase 9.5: Unified Beneficiary Model Testing ← NEXT
 
 ### Test 9.5.1: Helper Functions
 **Test in Developer Dashboard → Data Explorer or Console**

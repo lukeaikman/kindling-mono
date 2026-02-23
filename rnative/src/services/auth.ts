@@ -85,7 +85,7 @@ export type ApiErrorPayload = {
 };
 
 const API_BASE_URL = __DEV__
-  ? 'http://localhost:3000/api/v1'
+  ? 'http://localhost:3010/api/v1'
   : 'https://api.kindling.app/api/v1';
 
 const DEFAULT_HEADERS = {
