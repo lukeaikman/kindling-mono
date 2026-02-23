@@ -8,8 +8,8 @@
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     # Allow requests from web-prototype (Vite dev server) and native-app (Expo)
-    origins "localhost:5173", "localhost:3000", "localhost:8081", 
-            "127.0.0.1:5173", "127.0.0.1:3000", "127.0.0.1:8081"
+    origins "localhost:5173", "localhost:3010", "localhost:8081", 
+            "127.0.0.1:5173", "127.0.0.1:3010", "127.0.0.1:8081"
 
     resource "*",
       headers: :any,

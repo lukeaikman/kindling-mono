@@ -37,16 +37,17 @@ rails db:create db:migrate
 rails db:seed
 
 # Start server
-rails server -p 3001
+rails server
 ```
 
 ## Admin Interface
 
 ### Login
 
-**URL**: http://localhost:3001
+**URL**: `http://localhost:3010`
 
 **Default Credentials**:
+
 - Email: `admin@kindling.local`
 - Password: `password123`
 
@@ -64,16 +65,37 @@ rails server -p 3001
 
 ## API Endpoints
 
-API endpoints will be available at `/api/v1/` (coming soon).
+API endpoints are available at `/api/v1/`.
+
+### API Documentation (OpenAPI / Swagger)
+
+We use **Rswag** (OpenAPI) to document all `/api/v1` endpoints.
+
+- **Docs UI (dev/test only):** `http://localhost:3010/api-docs`
+- **Spec source:** `spec/requests/api/v1/auth_spec.rb`
+- **Generated output:** `swagger/v1/swagger.yaml`
+
+**Update workflow (required before committing API changes):**
+
+1. Update/extend the Rswag specs for any modified endpoints.
+2. Regenerate docs:
+
+   ```bash
+   bundle exec rake rswag:specs:swaggerize
+   ```
+
+3. Commit the updated `swagger/v1/swagger.yaml`.
 
 Currently configured CORS origins:
+
 - `localhost:5173` (web-prototype Vite dev server)
-- `localhost:3000`
+- `localhost:3010`
 - `localhost:8081` (React Native Expo)
 
 ## Database
 
 PostgreSQL with the following tables:
+
 - `users` - Admin users with authentication
 - `sessions` - User sessions
 - `motor_*` - Motor Admin tables for database viewer
@@ -83,11 +105,11 @@ PostgreSQL with the following tables:
 ### Running the Server
 
 ```bash
-# Default port 3000
+# Default port 3010
 rails server
 
-# Custom port (recommended if 3000 is in use)
-rails server -p 3001
+# Custom port (if 3010 is in use)
+rails server -p 3011
 ```
 
 ### Console
@@ -111,7 +133,7 @@ rails db:rollback
 
 ## Project Structure
 
-```
+```text
 kindling-api/
 ├── app/
 │   ├── controllers/
@@ -144,7 +166,7 @@ kindling-api/
 
 Create a `.env` file for local configuration:
 
-```
+```env
 DATABASE_HOST=localhost
 DATABASE_USERNAME=postgres
 DATABASE_PASSWORD=
@@ -154,6 +176,7 @@ RAILS_ENV=development
 ### CORS
 
 CORS is pre-configured in `config/initializers/cors.rb` for:
+
 - Web prototype (localhost:5173)
 - Native app (localhost:8081)
 
@@ -184,14 +207,14 @@ CORS is pre-configured in `config/initializers/cors.rb` for:
 ### Port Already in Use
 
 ```bash
-# Find process using port 3000
-lsof -i :3000
+# Find process using port 3010
+lsof -i :3010
 
 # Kill the process
 kill -9 PID
 
 # Or run on different port
-rails server -p 3001
+rails server -p 3011
 ```
 
 ### Database Connection Issues
