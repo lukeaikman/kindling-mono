@@ -39,7 +39,7 @@
 | B-3 | Partnership ownership       | Select "Owned through a partnership". | Rest of form appears.`aprOwnershipStructure: 'partnership'` saved. | Pass                                                                                          |
 | B-4 | Trust ownership             | Select "Held in trust".               | Rest of form appears. Trust Type field appears in APR section.     | PASS - BUT should this not be a drop down of trust type, tehn role? BUSINESS LOGIC QUESTION   |
 | B-5 | Company ownership - blocked | Select "Owned by a limited company".  | Warning card appears. Rest of form hidden. Cannot save.            | Pass                                                                                          |
-| B-6 | Not sure ownership          | Select "Not sure".                    | Rest of form appears.`aprOwnershipStructure: 'not-sure'` saved.    | Let's remove this option - if you're not sure who/how it's owned, how do you know you own it! |
+| B-6 | Not sure ownership          | N/A — option removed.                 | "Not sure" no longer appears in ownership options.                  | Resolved |
 
 ---
 
@@ -111,18 +111,17 @@
 | G-4  | Gateway "No" hides BPR section                  | Answer gateway "No".                                                           | BPR section does not appear. Form can be saved without BPR answers.                                                                                        | Pass  |
 | G-5  | Gateway NOT shown for partnership ownership     | Ownership = Partnership. Type = "Agricultural Equipment".                      | No gateway question. BPR section appears directly with trading + duration questions.                                                                       | Pass  |
 | G-6  | Gateway NOT shown for trust ownership           | Ownership = Trust. Type = "Agricultural Equipment".                            | No gateway question. BPR section appears directly with trading + duration questions.                                                                       | Pass  |
-| G-7  | Gateway NOT shown for not-sure ownership        | Ownership = Not sure. Type = "Agricultural Equipment".                         | No gateway question. BPR section appears directly with trading + duration questions.                                                                       | Pass  |
-| G-8  | Trading question shown for non-personal         | Ownership = Partnership. Type = "Agricultural Equipment".                      | Trading question appears in BPR section. Required for save.                                                                                                | Pass  |
-| G-9  | Ownership duration required                     | Gateway = Yes. Leave duration blank. Attempt save.                             | Save blocked.                                                                                                                                              | Pass  |
-| G-10 | BPR hidden for land/buildings                   | Select "Agricultural Land".                                                    | BPR section not shown (APR shown instead). No gateway question.                                                                                            | Pass  |
-| G-11 | Changing asset type clears gateway              | Answer gateway "Yes", then change asset type to "Standing Crops".              | Gateway and BPR section disappear. Changing back to equipment shows gateway unanswered.                                                                    | Pass  |
-| G-12 | Changing ownership from personal clears gateway | Personal + equipment, answer gateway "Yes". Change ownership to "Partnership". | Gateway disappears. BPR section shown directly with trading question.                                                                                      | Pass  |
-| G-13 | BPR copy - subtext                              | Answer gateway "Yes" (personal + equipment).                                   | BPR subtext reads: "Certain agricultural assets and farming activities may qualify for Business Property Relief rather than Agricultural Property Relief." | Pass  |
-| G-14 | BPR copy - duration question (equipment)        | Personal + equipment, gateway = Yes.                                           | Duration question reads: "How long have you owned this asset?"                                                                                             | Pass  |
-| G-15 | BPR copy - duration question (stud farm livery) | Personal + stud farm + livery, gateway = Yes.                                  | Duration question reads: "How long have you owned this business?"                                                                                          | Pass  |
-| G-16 | bprActiveTrading auto-set via gateway           | Personal + equipment, answer gateway "Yes". Save. Inspect stored data.         | `bprActiveTrading: 'yes'` saved automatically (not asked separately).                                                                                      | Pass  |
-| G-17 | Gateway shown for personal + other              | Ownership = Personal. Type = "Other". Describe = "Grain dryer".                | Gateway question appears. "Yes" shows BPR duration; "No" hides BPR section.                                                                                | Pass  |
-| G-18 | BPR copy - duration question (other)            | Personal + other, gateway = Yes.                                               | Duration question reads: "How long have you owned this asset?"                                                                                             | Pass  |
+| G-7  | Trading question shown for non-personal         | Ownership = Partnership. Type = "Agricultural Equipment".                      | Trading question appears in BPR section. Required for save.                                                                                                | Pass  |
+| G-8  | Ownership duration required                     | Gateway = Yes. Leave duration blank. Attempt save.                             | Save blocked.                                                                                                                                              | Pass  |
+| G-9  | BPR hidden for land/buildings                   | Select "Agricultural Land".                                                    | BPR section not shown (APR shown instead). No gateway question.                                                                                            | Pass  |
+| G-10 | Changing asset type clears gateway              | Answer gateway "Yes", then change asset type to "Standing Crops".              | Gateway and BPR section disappear. Changing back to equipment shows gateway unanswered.                                                                    | Pass  |
+| G-11 | Changing ownership from personal clears gateway | Personal + equipment, answer gateway "Yes". Change ownership to "Partnership". | Gateway disappears. BPR section shown directly with trading question.                                                                                      | Pass  |
+| G-12 | BPR copy - subtext                              | Answer gateway "Yes" (personal + equipment).                                   | BPR subtext reads: "Certain agricultural assets and farming activities may qualify for Business Property Relief rather than Agricultural Property Relief." | Pass  |
+| G-13 | BPR copy - duration question (equipment)        | Personal + equipment, gateway = Yes.                                           | Duration question reads: "How long have you owned this asset?"                                                                                             | Pass  |
+| G-14 | BPR copy - duration question (stud farm livery) | Personal + stud farm + livery, gateway = Yes.                                  | Duration question reads: "How long have you owned this business?"                                                                                          | Pass  |
+| G-15 | bprActiveTrading auto-set via gateway           | Personal + equipment, answer gateway "Yes". Save. Inspect stored data.         | `bprActiveTrading: 'yes'` saved automatically (not asked separately).                                                                                      | Pass  |
+| G-16 | Gateway shown for personal + other              | Ownership = Personal. Type = "Other". Describe = "Grain dryer".                | Gateway question appears. "Yes" shows BPR duration; "No" hides BPR section.                                                                                | Pass  |
+| G-17 | BPR copy - duration question (other)            | Personal + other, gateway = Yes.                                               | Duration question reads: "How long have you owned this asset?"                                                                                             | Pass  |
 
 ---
 
@@ -165,26 +164,26 @@
 ## K. Validation
 
 
-| #   | Test                         | Steps                                       | Pass criteria                                  | Pass? |
-| ----- | ------------------------------ | --------------------------------------------- | ------------------------------------------------ | ------- |
-| K-1 | Ownership required           | Leave ownership blank.                      | Save blocked.                                  |       |
-| K-2 | Asset type required          | Leave type blank.                           | Save blocked.                                  |       |
-| K-3 | Description required         | Leave description blank.                    | Save blocked.                                  |       |
-| K-4 | Debts required               | Leave debt question blank.                  | Save blocked.                                  |       |
-| K-5 | Validation attention trigger | Tap disabled save button when form invalid. | Attention label shows count of invalid fields. |       |
+| #   | Test                         | Steps                                       | Pass criteria                                  | Pass?                                                                                                                                                                                                                                                |
+| ----- | ------------------------------ | --------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| K-1 | Ownership required           | Leave ownership blank.                      | Save blocked.                                  | Pass                                                                                                                                                                                                                                                 |
+| K-2 | Asset type required          | Leave type blank.                           | Save blocked.                                  | Pass                                                                                                                                                                                                                                                 |
+| K-3 | Description required         | Leave description blank.                    | Save blocked.                                  | Pass                                                                                                                                                                                                                                                 |
+| K-4 | Debts required               | Leave debt question blank.                  | Save blocked.                                  | Pass                                                                                                                                                                                                                                                 |
+| K-5 | Validation attention trigger | Tap disabled save button when form invalid. | Attention label shows count of invalid fields. | FAIL - While attention label below submit is working and autoscrolling to first invalid field, we have not implemented the attention styling (red border on inputs etc) that we have implemented in other asset categories. This must be replicated. |
 
 ---
 
 ## L. Summary Screen
 
 
-| #   | Test                     | Steps                                    | Pass criteria                                | Pass? |
-| ----- | -------------------------- | ------------------------------------------ | ---------------------------------------------- | ------- |
-| L-1 | Summary shows all assets | Add 3 agricultural assets, open summary. | All show with descriptions, types, values.   |       |
-| L-2 | Total value correct      | Add known values.                        | Total equals expected sum.                   |       |
-| L-3 | Empty state              | Remove all, open summary.                | Empty state with add button.                 |       |
-| L-4 | Edit from summary        | Tap existing card.                       | Opens edit form with pre-filled data.        |       |
-| L-5 | Net value reflects debts | Add asset with debts. Check summary.     | Card shows net value (after debt deduction). |       |
+| #   | Test                     | Steps                                    | Pass criteria                                | Pass?                                       |
+| ----- | -------------------------- | ------------------------------------------ | ---------------------------------------------- | --------------------------------------------- |
+| L-1 | Summary shows all assets | Add 3 agricultural assets, open summary. | All show with descriptions, types, values.   | Pass                                        |
+| L-2 | Total value correct      | Add known values.                        | Total equals expected sum.                   | Pass                                        |
+| L-3 | Empty state              | Remove all, open summary.                | Empty state with add button.                 | Pass                                        |
+| L-4 | Edit from summary        | Tap existing card.                       | Opens edit form with pre-filled data.        | Pass                                        |
+| L-5 | Net value reflects debts | Add asset with debts. Check summary.     | Card shows net value (after debt deduction). | FAIL - and this i guess will impact totals? |
 
 ---
 
@@ -193,10 +192,10 @@
 
 | #   | Test                  | Steps                                   | Pass criteria                                                      | Pass? |
 | ----- | ----------------------- | ----------------------------------------- | -------------------------------------------------------------------- | ------- |
-| M-1 | Stored type           | Save, inspect data.                     | `type === 'agricultural-assets'`.                                  |       |
-| M-2 | Title generation      | Save and check stored title.            | Title is the asset description (or formatted type label fallback). |       |
-| M-3 | Display subline       | View in summary card.                   | Subline shows formatted asset type (e.g. "Agricultural land").     |       |
-| M-4 | Net value calculation | Save with value 500000 and debt 100000. | `estimatedValue: 500000`, `netValue: 400000`.                      |       |
+| M-1 | Stored type           | Save, inspect data.                     | `type === 'agricultural-assets'`.                                  | Pass  |
+| M-2 | Title generation      | Save and check stored title.            | Title is the asset description (or formatted type label fallback). | Pass  |
+| M-3 | Display subline       | View in summary card.                   | Subline shows formatted asset type (e.g. "Agricultural land").     | Pass  |
+| M-4 | Net value calculation | Save with value 500000 and debt 100000. | `estimatedValue: 500000`, `netValue: 400000`.                      | Pass  |
 
 ---
 
@@ -211,14 +210,14 @@
 | D - Conditional fields | 8      | Farm worker, woodland, stud farm, other   |
 | E - Debts              | 4      | Debt amount reduces net value             |
 | F - APR section        | 5      | Duration, trust type, qualification       |
-| G - BPR section        | 18     | Gateway question, trading, duration, copy |
+| G - BPR section        | 17     | Gateway question, trading, duration, copy |
 | H - Unsure of value    | 3      | Disabled field + storage                  |
 | I - Edit flow          | 6      | Round-trips for all sections              |
 | J - Delete flow        | 3      | Confirmation + recalculation              |
 | K - Validation         | 5      | Required fields + attention               |
 | L - Summary            | 5      | Display + net value with debts            |
 | M - Data integrity     | 4      | Storage + net value calculation           |
-| **Total**              | **80** |                                           |
+| **Total**              | **79** |                                           |
 
 ---
 

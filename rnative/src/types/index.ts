@@ -693,7 +693,7 @@ export interface AgriculturalAsset extends BaseAsset {
   studFarmActivity?: 'breeding' | 'livery' | 'not-sure';
   otherAssetTypeDetail?: string;
   aprOwnershipDuration?: 'year-1' | 'year-2' | 'year-3' | 'year-4' | 'year-5' | 'year-6' | 'gt-7' | 'not-sure';
-  aprOwnershipStructure?: 'personal' | 'partnership' | 'company' | 'trust' | 'not-sure';
+  aprOwnershipStructure?: 'personal' | 'partnership' | 'company' | 'trust';
   aprTrustType?: string;
   bprUsedInOwnBusiness?: 'yes' | 'no';
   bprActiveTrading?: 'yes' | 'no' | 'not-sure';

@@ -32,7 +32,6 @@ interface AssetForm {
   estimatedValue: number;
   valueNotSure: boolean;
   aprOwnershipDuration: string;
-  aprTrustType: string;
   bprUsedInOwnBusiness: string;
   bprActiveTrading: string;
   bprOwnershipDuration: string;
@@ -61,7 +60,6 @@ export default function AgriculturalAssetsEntryScreen() {
     estimatedValue: 0,
     valueNotSure: false,
     aprOwnershipDuration: '',
-    aprTrustType: '',
     bprUsedInOwnBusiness: '',
     bprActiveTrading: '',
     bprOwnershipDuration: '',
@@ -137,7 +135,6 @@ export default function AgriculturalAssetsEntryScreen() {
     { label: 'Owned through a partnership', value: 'partnership' },
     { label: 'Held in trust', value: 'trust' },
     { label: 'Owned by a limited company', value: 'company' },
-    { label: 'Not sure', value: 'not-sure' },
   ];
 
   // APR ownership duration options
@@ -223,7 +220,6 @@ export default function AgriculturalAssetsEntryScreen() {
       estimatedValue: agAsset.estimatedValue || 0,
       valueNotSure: agAsset.estimatedValueUnknown === true,
       aprOwnershipDuration: agAsset.aprOwnershipDuration || '',
-      aprTrustType: agAsset.aprTrustType || '',
       bprUsedInOwnBusiness: agAsset.bprUsedInOwnBusiness || '',
       bprActiveTrading: agAsset.bprActiveTrading || '',
       bprOwnershipDuration: agAsset.bprOwnershipDuration || '',
@@ -309,7 +305,7 @@ export default function AgriculturalAssetsEntryScreen() {
       title: formData.assetDescription || assetTypeLabel,
       assetType: formData.assetType,
       assetDescription: formData.assetDescription || undefined,
-      aprOwnershipStructure: formData.aprOwnershipStructure as 'personal' | 'partnership' | 'trust' | 'not-sure',
+      aprOwnershipStructure: formData.aprOwnershipStructure as 'personal' | 'partnership' | 'trust',
       hasDebtsEncumbrances: formData.hasDebtsEncumbrances as 'yes' | 'no',
       estimatedValue,
       estimatedValueUnknown: formData.valueNotSure || undefined,
@@ -323,7 +319,7 @@ export default function AgriculturalAssetsEntryScreen() {
       debtDescription: formData.hasDebtsEncumbrances === 'yes' ? formData.debtDescription : undefined,
       // APR fields
       aprOwnershipDuration: showAprSection ? formData.aprOwnershipDuration as any : undefined,
-      aprTrustType: showAprSection && formData.aprOwnershipStructure === 'trust' ? formData.aprTrustType : undefined,
+      // TODO: Backend — flag trust-held agricultural assets for manual estate planner review
       // BPR fields
       bprUsedInOwnBusiness: bprAssetQualifies ? formData.bprUsedInOwnBusiness as any || undefined : undefined,
       bprActiveTrading: showBprSection ? formData.bprActiveTrading as any : undefined,
@@ -413,6 +409,7 @@ export default function AgriculturalAssetsEntryScreen() {
               value={formData.aprOwnershipStructure}
               onChange={handleOwnershipChange}
               options={ownershipOptions}
+              error={showErrors && fieldErrors.aprOwnershipStructure}
             />
 
             {/* Company Warning Card */}
@@ -466,6 +463,7 @@ export default function AgriculturalAssetsEntryScreen() {
                       };
                     });
                   }}
+                  error={showErrors && fieldErrors.assetType}
                 />
 
                 <Input
@@ -473,6 +471,7 @@ export default function AgriculturalAssetsEntryScreen() {
                   placeholder="e.g. North field, Cow barn, Main farmhouse"
                   value={formData.assetDescription}
                   onChangeText={(value) => setFormData(prev => ({ ...prev, assetDescription: value }))}
+                  error={showErrors && fieldErrors.assetDescription}
                 />
 
                 {/* Asset-Type Conditional Fields */}
@@ -517,6 +516,7 @@ export default function AgriculturalAssetsEntryScreen() {
                   value={formData.hasDebtsEncumbrances}
                   onChange={(value) => setFormData(prev => ({ ...prev, hasDebtsEncumbrances: value }))}
                   options={debtsOptions}
+                  error={showErrors && fieldErrors.hasDebtsEncumbrances}
                 />
 
                 {formData.hasDebtsEncumbrances === 'yes' && (
@@ -553,19 +553,11 @@ export default function AgriculturalAssetsEntryScreen() {
                     />
 
                     {formData.aprOwnershipStructure === 'trust' && (
-                      <>
-                        <Input
-                          label="Trust Type"
-                          placeholder="e.g. discretionary, life interest"
-                          value={formData.aprTrustType}
-                          onChangeText={(value) => setFormData(prev => ({ ...prev, aprTrustType: value }))}
-                        />
-                        <View style={styles.infoBox}>
-                          <Text style={styles.infoText}>
-                            Trust-held assets often need additional evidence to qualify for APR.
-                          </Text>
-                        </View>
-                      </>
+                      <InformationCard title="Specialist review needed">
+                        <Text style={styles.infoText}>
+                          Trust-held agricultural assets need specialist review. Our estate planners will review this with you once all your assets are entered.
+                        </Text>
+                      </InformationCard>
                     )}
                   </View>
                 )}
