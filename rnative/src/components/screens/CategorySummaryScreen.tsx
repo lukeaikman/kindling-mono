@@ -12,7 +12,7 @@
  * @module components/screens/CategorySummaryScreen
  */
 
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
@@ -36,6 +36,8 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
   const { bequeathalActions } = useAppState();
   const toast = useNetWealthToast();
 
+  const [showGrossOnCards, setShowGrossOnCards] = useState(false);
+
   const categoryLabel = getCategoryLabel(categoryId);
   const categoryIcon = getCategoryIcon(categoryId);
   const assets = bequeathalActions.getAssetsByType(categoryId as any) as Asset[];
@@ -50,6 +52,7 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
   const totalNet = useMemo(() => {
     if (!Array.isArray(assets)) return 0;
     return assets.reduce((sum, a) => {
+      if (a.netValue !== undefined) return sum + a.netValue;
       const value = a.estimatedValue || 0;
       if (a.type === 'property') {
         const mortgage = (a as any).mortgage?.outstandingAmount || 0;
@@ -178,18 +181,30 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
                   />
                 </View>
                 <Text style={styles.summaryTotal}>
-                  £{(totalValue ?? 0).toLocaleString()}{hasUnknownValues ? '\u2009+' : ''}
+                  £{(showNet ? totalNet ?? 0 : totalValue ?? 0).toLocaleString()}{hasUnknownValues ? '\u2009+' : ''}
                 </Text>
-                {showNet && (
-                  <Text style={styles.summaryNet}>
-                    Net: £{(totalNet ?? 0).toLocaleString()}{hasUnknownValues ? '\u2009+' : ''}
+                {showNet ? (
+                  <TouchableOpacity
+                    style={styles.grossToggleRow}
+                    onPress={() => setShowGrossOnCards(prev => !prev)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons
+                      name={showGrossOnCards ? 'eye' : 'eye-off-outline'}
+                      size={14}
+                      color={KindlingColors.brown}
+                    />
+                    <Text style={styles.summaryNet}>
+                      Gross Value: £{(totalValue ?? 0).toLocaleString()}{hasUnknownValues ? '\u2009+' : ''}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={styles.summaryCount}>
+                    Value of {assets.length} {assets.length === 1
+                      ? categoryLabel.replace(/s$/, '')
+                      : categoryLabel}
                   </Text>
                 )}
-                <Text style={styles.summaryCount}>
-                  Value of {assets.length} {assets.length === 1
-                    ? categoryLabel.replace(/s$/, '')
-                    : categoryLabel}
-                </Text>
               </View>
 
               {/* Asset cards */}
@@ -200,6 +215,7 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
                     asset={asset}
                     onEdit={handleEditAsset}
                     onDelete={handleDeleteAsset}
+                    showGross={showGrossOnCards}
                   />
                 ))}
               </View>
@@ -341,10 +357,15 @@ const styles = StyleSheet.create({
     color: KindlingColors.navy,
     letterSpacing: -0.5,
   },
+  grossToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   summaryNet: {
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.medium,
-    color: KindlingColors.green,
+    color: KindlingColors.brown,
   },
   summaryCount: {
     fontSize: Typography.fontSize.xs,

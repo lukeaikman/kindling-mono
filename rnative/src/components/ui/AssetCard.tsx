@@ -26,13 +26,16 @@ export interface AssetCardProps {
   asset: Asset;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  showGross?: boolean;
 }
 
-export const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete }) => {
+export const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete, showGross = false }) => {
   const title = getAssetTitle(asset);
   const subline = getAssetSubline(asset);
   const isValueUnknown = asset.estimatedValueUnknown === true;
-  const value = asset.estimatedValue || 0;
+  const grossValue = asset.estimatedValue || 0;
+  const netValue = asset.netValue ?? grossValue;
+  const hasDebt = netValue < grossValue && grossValue > 0;
 
   return (
     <View style={styles.cardWrapper}>
@@ -58,7 +61,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete })
         activeOpacity={onEdit ? 0.7 : 1}
         onPress={onEdit ? () => onEdit(asset.id) : undefined}
         accessibilityRole="button"
-        accessibilityLabel={`${title}, ${isValueUnknown ? 'value unknown' : `£${value.toLocaleString()}`}${subline ? `, ${subline}` : ''}`}
+        accessibilityLabel={`${title}, ${isValueUnknown ? 'value unknown' : `£${netValue.toLocaleString()}`}${subline ? `, ${subline}` : ''}`}
       >
         {/* Green accent bar */}
         <View style={styles.accentBar} />
@@ -73,7 +76,12 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset, onEdit, onDelete })
 
         {/* Right: value + chevron */}
         <View style={styles.rightSection}>
-          <Text style={styles.value}>{isValueUnknown ? '?' : `£${value.toLocaleString()}`}</Text>
+          <View style={styles.valueContainer}>
+            <Text style={styles.value}>{isValueUnknown ? '?' : `£${netValue.toLocaleString()}`}</Text>
+            {hasDebt && !isValueUnknown && showGross && (
+              <Text style={styles.grossValue}>Gross: £{grossValue.toLocaleString()}</Text>
+            )}
+          </View>
           {onEdit && (
             <MaterialCommunityIcons
               name="chevron-right"
@@ -145,9 +153,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
   },
+  valueContainer: {
+    alignItems: 'flex-end',
+  },
   value: {
     fontSize: Typography.fontSize.md,
     fontWeight: Typography.fontWeight.bold,
     color: KindlingColors.navy,
+  },
+  grossValue: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.normal,
+    color: KindlingColors.brown,
+    marginTop: 2,
   },
 });
