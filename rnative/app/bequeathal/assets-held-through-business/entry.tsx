@@ -10,8 +10,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Select, Input, CurrencyInput, SearchableSelect, ValidationAttentionButton } from '../../../src/components/ui';
+import { Button, BackButton, Select, Input, CurrencyInput, ValidationAttentionButton } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
@@ -90,18 +91,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
     return placeholders[assetType] || 'e.g., Office building, Delivery van';
   };
 
-  // Create business options from business registry
-  const businessOptions = [
-    ...businessActions.getBusinesses().map(business => ({
-      label: business.name,
-      value: business.id,
-    })),
-    {
-      label: '📝 Add New Business',
-      sublabel: undefined,
-      value: '__ADD_NEW__',
-    },
-  ];
+  const businesses = businessActions.getBusinesses();
 
   // Load existing asset when editing
   useEffect(() => {
@@ -251,16 +241,49 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
           {!selectedBusinessId && !showNewBusinessForm && (
             <View style={styles.businessSelectorCard}>
               <Text style={styles.sectionTitle}>Select Business</Text>
-              <SearchableSelect
-                label="Which Business?"
-                placeholder="Select business..."
-                value={selectedBusinessId}
-                options={businessOptions}
-                onChange={handleBusinessSelect}
-              />
-              <Text style={styles.helperText}>
-                Businesses from your private company shares will appear here
-              </Text>
+
+              {businesses.length > 0 ? (
+                <View style={styles.businessList}>
+                  {businesses.map((business) => (
+                    <TouchableOpacity
+                      key={business.id}
+                      style={styles.businessCard}
+                      onPress={() => handleBusinessSelect(business.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.businessCardIcon}>
+                        <MaterialCommunityIcons name="office-building" size={20} color={KindlingColors.navy} />
+                      </View>
+                      <View style={styles.businessCardInfo}>
+                        <Text style={styles.businessCardName}>{business.name}</Text>
+                        {business.businessType ? (
+                          <Text style={styles.businessCardSub}>{business.businessType}</Text>
+                        ) : null}
+                      </View>
+                      <MaterialCommunityIcons name="chevron-right" size={20} color={`${KindlingColors.navy}40`} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.emptyBusinessText}>
+                  No businesses yet. Create one below to get started.
+                </Text>
+              )}
+
+              <TouchableOpacity
+                style={styles.addBusinessRow}
+                onPress={() => handleBusinessSelect('__ADD_NEW__')}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="plus-circle-outline" size={22} color={KindlingColors.green} />
+                <Text style={styles.addBusinessText}>Add New Business</Text>
+              </TouchableOpacity>
+
+              {businesses.length > 0 && (
+                <Text style={styles.helperText}>
+                  Businesses from your private company shares will appear here
+                </Text>
+              )}
             </View>
           )}
 
@@ -484,6 +507,59 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
+  },
+  businessList: {
+    gap: Spacing.sm,
+  },
+  businessCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: KindlingColors.background,
+    borderRadius: 10,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderColor: KindlingColors.beige,
+    gap: Spacing.sm,
+  },
+  businessCardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: `${KindlingColors.navy}0D`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  businessCardInfo: {
+    flex: 1,
+  },
+  businessCardName: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.navy,
+  },
+  businessCardSub: {
+    fontSize: Typography.fontSize.xs,
+    color: KindlingColors.brown,
+    marginTop: 2,
+  },
+  emptyBusinessText: {
+    fontSize: Typography.fontSize.sm,
+    color: KindlingColors.brown,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  addBusinessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  addBusinessText: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.medium,
+    color: KindlingColors.green,
   },
   helperText: {
     fontSize: Typography.fontSize.xs,
