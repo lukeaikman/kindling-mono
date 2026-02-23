@@ -148,7 +148,7 @@ export const CATEGORY_META: CategoryMeta[] = [
   { id: 'investment', label: 'Investments', icon: 'trending-up', description: 'Stocks, shares, bonds, funds' },
   { id: 'life-insurance', label: 'Life Insurance', icon: 'shield-account', description: 'Life insurance policies and payouts' },
   { id: 'private-company-shares', label: 'Private Company Shares', icon: 'office-building', description: 'Shares in private companies' },
-  { id: 'assets-held-through-business', label: 'Assets Held Through Business', icon: 'domain', description: 'Assets owned by your business' },
+  { id: 'assets-held-through-business', label: 'Assets Through Business', icon: 'domain', description: 'Assets owned by your business' },
   { id: 'important-items', label: 'Important Items', icon: 'diamond', description: 'Jewellery, art, collectibles, heirlooms' },
   { id: 'crypto-currency', label: 'Cryptocurrency', icon: 'bitcoin', description: 'Bitcoin, Ethereum, and other crypto' },
   { id: 'agricultural-assets', label: 'Agricultural Assets', icon: 'nature', description: 'Farmland, livestock, equipment' },

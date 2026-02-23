@@ -185,7 +185,7 @@ export function getAssetTypeLabel(type: AssetType): string {
     'pensions': 'Pensions',
     'life-insurance': 'Life Insurance',
     'private-company-shares': 'Private Company Shares',
-    'assets-held-through-business': 'Assets Held Through Business',
+    'assets-held-through-business': 'Assets Through Business',
     'agricultural-assets': 'Agricultural Assets',
     'crypto-currency': 'Cryptocurrency',
     'important-items': 'Important Items',

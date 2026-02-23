@@ -140,13 +140,6 @@ export const CategorySummaryScreen: React.FC<CategorySummaryScreenProps> = ({ ca
       <View style={styles.header}>
         <BackButton onPress={handleBack} />
         <TouchableOpacity style={styles.headerCenter} onPress={handleHeaderPress} activeOpacity={1}>
-          <View style={styles.headerIconCircle}>
-            <MaterialCommunityIcons
-              name={categoryIcon as any}
-              size={18}
-              color={KindlingColors.navy}
-            />
-          </View>
           <Text style={styles.headerTitle}>{categoryLabel}</Text>
         </TouchableOpacity>
         <View style={styles.headerRight} />
