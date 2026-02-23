@@ -64,6 +64,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: KindlingColors.border,
   },
   title: {
     fontSize: 18,

@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Select, Input, CurrencyInput, ValidationAttentionButton } from '../../../src/components/ui';
+import { Button, BackButton, Input, CurrencyInput, ValidationAttentionButton } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
@@ -62,19 +62,33 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
     scrollViewRef,
   });
 
-  // Asset type options (grouped)
-  const assetTypeOptions = [
-    { label: 'Property', value: 'property' },
-    { label: 'Equipment', value: 'equipment' },
-    { label: 'Vehicles', value: 'vehicles' },
-    { label: '────────────────', value: 'separator1', disabled: true },
-    { label: 'Bank Accounts', value: 'bank-accounts' },
-    { label: 'Investments', value: 'investments' },
-    { label: '────────────────', value: 'separator2', disabled: true },
-    { label: 'Inventory', value: 'inventory' },
-    { label: 'Intellectual Property', value: 'intellectual-property' },
-    { label: 'Other', value: 'other' },
+  const assetTypeGroups: { heading: string; items: { label: string; value: string; icon: string }[] }[] = [
+    {
+      heading: 'Physical Assets',
+      items: [
+        { label: 'Property', value: 'property', icon: 'home-city' },
+        { label: 'Equipment', value: 'equipment', icon: 'wrench' },
+        { label: 'Vehicles', value: 'vehicles', icon: 'truck' },
+      ],
+    },
+    {
+      heading: 'Financial',
+      items: [
+        { label: 'Bank Accounts', value: 'bank-accounts', icon: 'bank' },
+        { label: 'Investments', value: 'investments', icon: 'chart-line' },
+      ],
+    },
+    {
+      heading: 'Other',
+      items: [
+        { label: 'Inventory', value: 'inventory', icon: 'package-variant' },
+        { label: 'Intellectual Property', value: 'intellectual-property', icon: 'lightbulb-on' },
+        { label: 'Other', value: 'other', icon: 'dots-horizontal-circle' },
+      ],
+    },
   ];
+
+  const allAssetTypeItems = assetTypeGroups.flatMap(g => g.items);
 
   // Get contextual placeholder based on asset type
   const getPlaceholder = (assetType: string): string => {
@@ -92,6 +106,13 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
   };
 
   const businesses = businessActions.getBusinesses();
+
+  // Skip business selector if no businesses exist yet (new asset only)
+  useEffect(() => {
+    if (!editingAssetId && businesses.length === 0) {
+      setShowNewBusinessForm(true);
+    }
+  }, []);
 
   // Load existing asset when editing
   useEffect(() => {
@@ -175,7 +196,7 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
       ? undefined
       : Math.round(formData.estimatedValue);
 
-    const assetTypeLabel = assetTypeOptions.find(opt => opt.value === formData.assetType)?.label || formData.assetType;
+    const assetTypeLabel = allAssetTypeItems.find(opt => opt.value === formData.assetType)?.label || formData.assetType;
 
     const assetData = {
       title: `${businessName} - ${formData.assetDescription || assetTypeLabel}`,
@@ -325,31 +346,72 @@ export default function AssetsHeldThroughBusinessEntryScreen() {
           {/* STEP 2: Asset Entry (shown after business selected) */}
           {selectedBusinessId && (
             <>
-              {/* Selected Business Display */}
-              <View style={styles.selectedBusinessCard}>
-                <View style={styles.selectedBusinessHeader}>
-                  <View style={styles.selectedBusinessInfo}>
-                    <Text style={styles.selectedBusinessName}>{selectedBusinessName}</Text>
+              {/* Asset Entry Form */}
+              <View style={styles.formCard}>
+                <Text style={styles.formTitle}>
+                  {editingAssetId ? 'Update the details below.' : 'Add an asset held through'}
+                </Text>
+
+                {/* Selected business — styled like selected asset type */}
+                <View style={[styles.assetTypeCard, styles.assetTypeCardSelected]}>
+                  <View style={[styles.assetTypeIcon, styles.assetTypeIconSelected]}>
+                    <MaterialCommunityIcons name="office-building" size={18} color={KindlingColors.background} />
                   </View>
+                  <Text style={[styles.assetTypeLabel, styles.assetTypeLabelSelected]}>
+                    {selectedBusinessName}
+                  </Text>
                   <TouchableOpacity onPress={handleChangeBusiness}>
                     <Text style={styles.changeBusinessText}>Change</Text>
                   </TouchableOpacity>
                 </View>
-              </View>
 
-              {/* Asset Entry Form */}
-              <View style={styles.formCard}>
-                <Text style={styles.formTitle}>
-                  {editingAssetId ? 'Update the details below.' : 'Add an asset held through a business.'}
-                </Text>
-
-                <Select
-                  label="Asset Type *"
-                  placeholder="Select asset type..."
-                  value={formData.assetType}
-                  options={assetTypeOptions}
-                  onChange={(value) => setFormData(prev => ({ ...prev, assetType: value, assetDescription: '' }))}
-                />
+                <View>
+                  <Text style={styles.fieldLabel}>Asset Type *</Text>
+                  {formData.assetType ? (
+                    <View style={[styles.assetTypeCard, styles.assetTypeCardSelected]}>
+                      <View style={[styles.assetTypeIcon, styles.assetTypeIconSelected]}>
+                        <MaterialCommunityIcons
+                          name={(allAssetTypeItems.find(i => i.value === formData.assetType)?.icon || 'dots-horizontal-circle') as any}
+                          size={18}
+                          color={KindlingColors.background}
+                        />
+                      </View>
+                      <Text style={[styles.assetTypeLabel, styles.assetTypeLabelSelected]}>
+                        {allAssetTypeItems.find(i => i.value === formData.assetType)?.label || formData.assetType}
+                      </Text>
+                      <TouchableOpacity onPress={() => setFormData(prev => ({ ...prev, assetType: '', assetDescription: '' }))}>
+                        <Text style={styles.changeBusinessText}>Change</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    assetTypeGroups.map((group) => (
+                      <View key={group.heading} style={styles.assetTypeGroup}>
+                        <Text style={styles.assetTypeGroupHeading}>{group.heading}</Text>
+                        <View style={styles.assetTypeCards}>
+                          {group.items.map((item) => (
+                            <TouchableOpacity
+                              key={item.value}
+                              style={styles.assetTypeCard}
+                              onPress={() => setFormData(prev => ({ ...prev, assetType: item.value, assetDescription: '' }))}
+                              activeOpacity={0.7}
+                            >
+                              <View style={styles.assetTypeIcon}>
+                                <MaterialCommunityIcons
+                                  name={item.icon as any}
+                                  size={18}
+                                  color={KindlingColors.navy}
+                                />
+                              </View>
+                              <Text style={styles.assetTypeLabel}>
+                                {item.label}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
 
                 <Input
                   label="Asset Description *"
@@ -582,33 +644,69 @@ const styles = StyleSheet.create({
     color: KindlingColors.navy,
     marginBottom: Spacing.xs,
   },
+  fieldLabel: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.medium,
+    color: KindlingColors.navy,
+    marginBottom: Spacing.xs,
+  },
+  assetTypeGroup: {
+    marginBottom: Spacing.sm,
+  },
+  assetTypeGroupHeading: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.brown,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  assetTypeCards: {
+    gap: Spacing.xs,
+  },
+  assetTypeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: KindlingColors.background,
+    borderRadius: 10,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderColor: `${KindlingColors.beige}80`,
+    gap: Spacing.sm,
+  },
+  assetTypeCardSelected: {
+    borderColor: KindlingColors.green,
+    backgroundColor: `${KindlingColors.green}0A`,
+  },
+  assetTypeIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: `${KindlingColors.navy}0D`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assetTypeIconSelected: {
+    backgroundColor: KindlingColors.green,
+  },
+  assetTypeLabel: {
+    flex: 1,
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.medium,
+    color: KindlingColors.navy,
+  },
+  assetTypeLabelSelected: {
+    fontWeight: Typography.fontWeight.semibold,
+    color: KindlingColors.green,
+  },
   buttonRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
   },
   halfButton: {
     flex: 1,
-  },
-  selectedBusinessCard: {
-    backgroundColor: `${KindlingColors.navy}0D`,
-    borderRadius: 8,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: `${KindlingColors.navy}26`,
-    marginBottom: Spacing.lg,
-  },
-  selectedBusinessHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  selectedBusinessInfo: {
-    flex: 1,
-  },
-  selectedBusinessName: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.navy,
   },
   changeBusinessText: {
     fontSize: Typography.fontSize.sm,

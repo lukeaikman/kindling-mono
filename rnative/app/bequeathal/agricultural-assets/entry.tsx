@@ -8,7 +8,7 @@ import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Button, BackButton, Select, Input, CurrencyInput, RadioGroup, SearchableSelect, DraftBanner, ValidationAttentionButton } from '../../../src/components/ui';
+import { Button, BackButton, Select, Input, CurrencyInput, RadioGroup, SearchableSelect, DraftBanner, ValidationAttentionButton, InformationCard } from '../../../src/components/ui';
 import { useAppState } from '../../../src/hooks/useAppState';
 import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
@@ -26,7 +26,6 @@ interface AssetForm {
   farmWorkerOccupied: string;
   woodlandPurpose: string;
   studFarmActivity: string;
-  otherAssetTypeDetail: string;
   hasDebtsEncumbrances: string;
   debtAmount: number;
   debtDescription: string;
@@ -34,6 +33,7 @@ interface AssetForm {
   valueNotSure: boolean;
   aprOwnershipDuration: string;
   aprTrustType: string;
+  bprUsedInOwnBusiness: string;
   bprActiveTrading: string;
   bprOwnershipDuration: string;
   notes: string;
@@ -55,7 +55,6 @@ export default function AgriculturalAssetsEntryScreen() {
     farmWorkerOccupied: '',
     woodlandPurpose: '',
     studFarmActivity: '',
-    otherAssetTypeDetail: '',
     hasDebtsEncumbrances: '',
     debtAmount: 0,
     debtDescription: '',
@@ -63,6 +62,7 @@ export default function AgriculturalAssetsEntryScreen() {
     valueNotSure: false,
     aprOwnershipDuration: '',
     aprTrustType: '',
+    bprUsedInOwnBusiness: '',
     bprActiveTrading: '',
     bprOwnershipDuration: '',
     notes: '',
@@ -217,7 +217,6 @@ export default function AgriculturalAssetsEntryScreen() {
       farmWorkerOccupied: agAsset.farmWorkerOccupied || '',
       woodlandPurpose: agAsset.woodlandPurpose || '',
       studFarmActivity: agAsset.studFarmActivity || '',
-      otherAssetTypeDetail: agAsset.otherAssetTypeDetail || '',
       hasDebtsEncumbrances: agAsset.hasDebtsEncumbrances || '',
       debtAmount: agAsset.debtAmount || 0,
       debtDescription: agAsset.debtDescription || '',
@@ -225,6 +224,7 @@ export default function AgriculturalAssetsEntryScreen() {
       valueNotSure: agAsset.estimatedValueUnknown === true,
       aprOwnershipDuration: agAsset.aprOwnershipDuration || '',
       aprTrustType: agAsset.aprTrustType || '',
+      bprUsedInOwnBusiness: agAsset.bprUsedInOwnBusiness || '',
       bprActiveTrading: agAsset.bprActiveTrading || '',
       bprOwnershipDuration: agAsset.bprOwnershipDuration || '',
       notes: agAsset.notes || '',
@@ -240,7 +240,7 @@ export default function AgriculturalAssetsEntryScreen() {
     studFarmActivity?: string;
   }) => {
     // Always qualifies
-    if (['agricultural-land', 'farm-buildings', 'farmhouse', 'fish-farming', 'other'].includes(assetType)) {
+    if (['agricultural-land', 'farm-buildings', 'farmhouse', 'fish-farming'].includes(assetType)) {
       return true;
     }
     
@@ -261,26 +261,32 @@ export default function AgriculturalAssetsEntryScreen() {
     return false;
   };
 
-  // BPR qualification logic
-  const shouldShowBprSection = (assetType: string, studFarmActivity: string) => {
-    return assetType === 'agricultural-equipment' ||
-           (assetType === 'stud-farm' && studFarmActivity === 'livery');
-  };
-
   const showAprSection = qualifiesForApr(formData.assetType, {
     farmWorkerOccupied: formData.farmWorkerOccupied,
     woodlandPurpose: formData.woodlandPurpose,
     studFarmActivity: formData.studFarmActivity,
   });
 
-  const showBprSection = shouldShowBprSection(formData.assetType, formData.studFarmActivity);
+  const bprAssetQualifies = formData.assetType === 'agricultural-equipment' ||
+    (formData.assetType === 'stud-farm' && formData.studFarmActivity === 'livery') ||
+    formData.assetType === 'other';
+
+  const needsBprGateway = bprAssetQualifies && formData.aprOwnershipStructure === 'personal';
+
+  const showBprSection = bprAssetQualifies &&
+    (!needsBprGateway || formData.bprUsedInOwnBusiness === 'yes');
 
   const handleOwnershipChange = (value: string) => {
     if (value === 'company') {
       setShowCompanyWarning(true);
+      setFormData(prev => ({ ...prev, aprOwnershipStructure: 'company' }));
     } else {
       setShowCompanyWarning(false);
-      setFormData(prev => ({ ...prev, aprOwnershipStructure: value }));
+      setFormData(prev => ({
+        ...prev,
+        aprOwnershipStructure: value,
+        bprUsedInOwnBusiness: value === 'personal' ? prev.bprUsedInOwnBusiness : '',
+      }));
     }
   };
 
@@ -312,7 +318,6 @@ export default function AgriculturalAssetsEntryScreen() {
       farmWorkerOccupied: formData.assetType === 'farm-worker-cottage' ? formData.farmWorkerOccupied as any : undefined,
       woodlandPurpose: formData.assetType === 'woodland' ? formData.woodlandPurpose as any : undefined,
       studFarmActivity: formData.assetType === 'stud-farm' ? formData.studFarmActivity as any : undefined,
-      otherAssetTypeDetail: formData.assetType === 'other' ? formData.otherAssetTypeDetail : undefined,
       // Debts
       debtAmount: debtAmount > 0 ? debtAmount : undefined,
       debtDescription: formData.hasDebtsEncumbrances === 'yes' ? formData.debtDescription : undefined,
@@ -320,6 +325,7 @@ export default function AgriculturalAssetsEntryScreen() {
       aprOwnershipDuration: showAprSection ? formData.aprOwnershipDuration as any : undefined,
       aprTrustType: showAprSection && formData.aprOwnershipStructure === 'trust' ? formData.aprTrustType : undefined,
       // BPR fields
+      bprUsedInOwnBusiness: bprAssetQualifies ? formData.bprUsedInOwnBusiness as any || undefined : undefined,
       bprActiveTrading: showBprSection ? formData.bprActiveTrading as any : undefined,
       bprOwnershipDuration: showBprSection ? formData.bprOwnershipDuration as any : undefined,
       // Notes
@@ -353,8 +359,8 @@ export default function AgriculturalAssetsEntryScreen() {
                     formData.assetDescription.trim() &&
                     formData.hasDebtsEncumbrances &&
                     (!showAprSection || formData.aprOwnershipDuration) &&
+                    (!needsBprGateway || !!formData.bprUsedInOwnBusiness) &&
                     (!showBprSection || (formData.bprActiveTrading && formData.bprOwnershipDuration)) &&
-                    (formData.assetType !== 'other' || formData.otherAssetTypeDetail.trim()) &&
                     (formData.assetType !== 'farm-worker-cottage' || !!formData.farmWorkerOccupied) &&
                     (formData.assetType !== 'woodland' || !!formData.woodlandPurpose) &&
                     (formData.assetType !== 'stud-farm' || !!formData.studFarmActivity);
@@ -411,61 +417,62 @@ export default function AgriculturalAssetsEntryScreen() {
 
             {/* Company Warning Card */}
             {showCompanyWarning && (
-              <View style={styles.warningCard}>
-                <View style={styles.warningHeader}>
-                  <Text style={styles.warningIcon}>⚠️</Text>
-                  <Text style={styles.warningTitle}>Company Property</Text>
-                </View>
-                <Text style={styles.warningText}>
-                  This belongs to your company, not you personally.
+              <InformationCard title="This is a company asset">
+                <Text style={styles.companyWarningText}>
+                  Company-owned property should be recorded under Business Assets, where the correct tax relief will be applied.
                 </Text>
-                <View style={styles.warningDetails}>
-                  <Text style={styles.warningLabel}>Save under:</Text>
-                  <Text style={styles.warningValue}>Business Assets →</Text>
-                </View>
-                <View style={styles.warningDetails}>
-                  <Text style={styles.warningLabel}>Tax Relief:</Text>
-                  <Text style={styles.warningValue}>BPR on shares (not APR on property)</Text>
-                </View>
-                <View style={styles.warningActions}>
+                <View style={styles.companyWarningActions}>
+                  <Button
+                    onPress={handleRouteToBusinessAssets}
+                    variant="primary"
+                  >
+                    Go to Business Assets
+                  </Button>
                   <Button
                     onPress={() => {
                       setShowCompanyWarning(false);
                       setFormData(prev => ({ ...prev, aprOwnershipStructure: '' }));
                     }}
                     variant="outline"
-                    style={styles.warningCancelButton}
                   >
-                    Go Back
-                  </Button>
-                  <Button
-                    onPress={handleRouteToBusinessAssets}
-                    variant="primary"
-                    style={styles.warningContinueButton}
-                  >
-                    Continue to Business Assets
+                    Choose a different owner
                   </Button>
                 </View>
-              </View>
+              </InformationCard>
             )}
 
             {/* Only show rest of form if not routing to company */}
             {!showCompanyWarning && formData.aprOwnershipStructure && (
               <>
                 {/* SECTION 1: Base Fields */}
-                <Input
-                  label="What is this asset? *"
-                  placeholder="e.g. North field, Cow barn, Main farmhouse"
-                  value={formData.assetDescription}
-                  onChangeText={(value) => setFormData(prev => ({ ...prev, assetDescription: value }))}
-                />
-
                 <SearchableSelect
                   label="Asset Type *"
                   placeholder="Select asset type..."
                   value={formData.assetType}
                   options={assetTypeOptions}
-                  onChange={(value) => setFormData(prev => ({ ...prev, assetType: value }))}
+                  onChange={(value) => {
+                    setFormData(prev => {
+                      const nowBpr = value === 'agricultural-equipment' ||
+                        (value === 'stud-farm' && prev.studFarmActivity === 'livery') ||
+                        value === 'other';
+                      return {
+                        ...prev,
+                        assetType: value,
+                        ...(!nowBpr ? {
+                          bprUsedInOwnBusiness: '',
+                          bprActiveTrading: '',
+                          bprOwnershipDuration: '',
+                        } : {}),
+                      };
+                    });
+                  }}
+                />
+
+                <Input
+                  label="What is this asset? *"
+                  placeholder="e.g. North field, Cow barn, Main farmhouse"
+                  value={formData.assetDescription}
+                  onChangeText={(value) => setFormData(prev => ({ ...prev, assetDescription: value }))}
                 />
 
                 {/* Asset-Type Conditional Fields */}
@@ -491,19 +498,16 @@ export default function AgriculturalAssetsEntryScreen() {
                   <RadioGroup
                     label="Stud farm activity *"
                     value={formData.studFarmActivity}
-                    onChange={(value) => setFormData(prev => ({ ...prev, studFarmActivity: value }))}
+                    onChange={(value) => setFormData(prev => ({
+                      ...prev,
+                      studFarmActivity: value,
+                      ...(value !== 'livery' ? {
+                        bprUsedInOwnBusiness: '',
+                        bprActiveTrading: '',
+                        bprOwnershipDuration: '',
+                      } : {}),
+                    }))}
                     options={studFarmActivityOptions}
-                  />
-                )}
-
-                {formData.assetType === 'other' && (
-                  <Input
-                    label="Describe asset type *"
-                    placeholder="Provide detail about this agricultural asset type"
-                    value={formData.otherAssetTypeDetail}
-                    onChangeText={(value) => setFormData(prev => ({ ...prev, otherAssetTypeDetail: value }))}
-                    multiline
-                    numberOfLines={3}
                   />
                 )}
 
@@ -566,25 +570,49 @@ export default function AgriculturalAssetsEntryScreen() {
                   </View>
                 )}
 
+                {/* BPR Gateway (personal ownership + BPR-eligible asset only) */}
+                {needsBprGateway && (
+                  <View style={styles.reliefSection}>
+                    <RadioGroup
+                      label="Do you use this in your own actively trading farming business?"
+                      value={formData.bprUsedInOwnBusiness}
+                      onChange={(value) => setFormData(prev => ({
+                        ...prev,
+                        bprUsedInOwnBusiness: value,
+                        bprActiveTrading: value === 'yes' ? 'yes' : '',
+                      }))}
+                      options={[
+                        { label: 'Yes', value: 'yes' },
+                        { label: 'No', value: 'no' },
+                      ]}
+                    />
+                  </View>
+                )}
+
                 {/* BPR Section (Conditional on equipment or livery) */}
                 {showBprSection && (
                   <View style={styles.reliefSection}>
                     <Text style={styles.reliefTitle}>BPR Qualification</Text>
                     <Text style={styles.reliefSubtext}>
-                      These answers help us understand whether Business Property Relief might apply.
+                      Certain agricultural assets and farming activities may qualify for Business Property Relief rather than Agricultural Property Relief.
                     </Text>
 
-                    <RadioGroup
-                      label={formData.assetType === 'stud-farm' 
-                        ? "Is the stud farm business actively trading?"
-                        : "Is the business actively trading?"}
-                      value={formData.bprActiveTrading}
-                      onChange={(value) => setFormData(prev => ({ ...prev, bprActiveTrading: value }))}
-                      options={yesNoNotSureOptions}
-                    />
+                    {/* Trading question only when gateway wasn't used (non-personal ownership) */}
+                    {!needsBprGateway && (
+                      <RadioGroup
+                        label={formData.assetType === 'stud-farm' 
+                          ? "Is the stud farm business actively trading?"
+                          : "Is this asset used in an actively trading farming business?"}
+                        value={formData.bprActiveTrading}
+                        onChange={(value) => setFormData(prev => ({ ...prev, bprActiveTrading: value }))}
+                        options={yesNoNotSureOptions}
+                      />
+                    )}
 
                     <RadioGroup
-                      label="How long have you owned this business?"
+                      label={formData.assetType === 'stud-farm'
+                        ? "How long have you owned this business?"
+                        : "How long have you owned this asset?"}
                       value={formData.bprOwnershipDuration}
                       onChange={(value) => setFormData(prev => ({ ...prev, bprOwnershipDuration: value }))}
                       options={bprDurationOptions}
@@ -756,55 +784,14 @@ const styles = StyleSheet.create({
     color: KindlingColors.navy,
     marginBottom: Spacing.xs,
   },
-  warningCard: {
-    backgroundColor: '#FFF3E0',
-    borderRadius: 8,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: '#FFB74D',
-    gap: Spacing.sm,
-  },
-  warningHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  warningIcon: {
-    fontSize: 20,
-  },
-  warningTitle: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
-    color: '#E65100',
-  },
-  warningText: {
+  companyWarningText: {
     fontSize: Typography.fontSize.sm,
-    color: '#5D4037',
+    color: KindlingColors.navy,
     lineHeight: 20,
   },
-  warningDetails: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-  },
-  warningLabel: {
-    fontSize: Typography.fontSize.sm,
-    color: '#5D4037',
-    fontWeight: Typography.fontWeight.medium,
-  },
-  warningValue: {
-    fontSize: Typography.fontSize.sm,
-    color: '#5D4037',
-  },
-  warningActions: {
-    flexDirection: 'row',
+  companyWarningActions: {
     gap: Spacing.sm,
     marginTop: Spacing.xs,
-  },
-  warningCancelButton: {
-    flex: 1,
-  },
-  warningContinueButton: {
-    flex: 2,
   },
   debtsSection: {
     gap: Spacing.md,
