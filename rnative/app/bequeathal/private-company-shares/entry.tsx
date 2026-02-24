@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -26,19 +26,21 @@ interface ShareForm {
   businessId: string;
   companyCountryOfRegistration: string;
   companyShareClass: string;
-  companyNotes: string;
+  shareClassNotes: string;
   companyArticlesConfident: string;
+  ownershipMode: 'percentage' | 'shares';
   ownershipValue: string;
   heldForTwoPlusYears: 'yes' | 'no' | 'not_sure' | '';
   acquisitionMonth: string;
   acquisitionYear: string;
   beneficiaries: BeneficiaryAssignment[];
   estimatedValue: number;
+  sharesNotSure: boolean;
   valueNotSure: boolean;
   notes: string;
-  excludeFromNetWorth: boolean;
-  isActivelyTrading: boolean;
-  isNotHoldingCompany: boolean;
+  excludeFromNetWorth: string;
+  isActivelyTrading: string;
+  isHoldingCompany: string;
 }
 
 export default function PrivateCompanySharesEntryScreen() {
@@ -49,27 +51,28 @@ export default function PrivateCompanySharesEntryScreen() {
   const loadedIdRef = useRef<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const [ownershipMode, setOwnershipMode] = useState<'percentage' | 'shares'>('percentage');
   const [formData, setFormData] = useState<ShareForm>({
     companyName: '',
     businessId: '',
     companyCountryOfRegistration: 'uk',
-    companyShareClass: 'ordinary',
-    companyNotes: '',
+    companyShareClass: '',
+    shareClassNotes: '',
     companyArticlesConfident: '',
+    ownershipMode: 'percentage',
     ownershipValue: '',
     heldForTwoPlusYears: '',
     acquisitionMonth: '',
     acquisitionYear: '',
     beneficiaries: [],
     estimatedValue: 0,
+    sharesNotSure: false,
     valueNotSure: false,
     notes: '',
-    excludeFromNetWorth: false,
-    isActivelyTrading: false,
-    isNotHoldingCompany: false,
+    excludeFromNetWorth: 'no',
+    isActivelyTrading: '',
+    isHoldingCompany: '',
   });
-  const [companySelection, setCompanySelection] = useState<string>('__NEW__');
+  const [companySelection, setCompanySelection] = useState<string>('');
 
   // Draft auto-save — mutable ref so we can update baseline after loading an existing asset
   const initialFormRef = useRef<ShareForm>(formData);
@@ -88,9 +91,14 @@ export default function PrivateCompanySharesEntryScreen() {
     if (hasDraft && !draftRestoredRef.current) {
       const draft = restoreDraft();
       if (draft) {
+        if (!draft.ownershipMode) {
+          draft.ownershipMode = 'percentage';
+        }
+        if ((draft as any).companyNotes && !draft.shareClassNotes) {
+          draft.shareClassNotes = (draft as any).companyNotes;
+        }
         setFormData(draft);
         draftRestoredRef.current = true;
-        // Prevent the load-from-store effect from overwriting the restored draft
         if (editingAssetId) {
           loadedIdRef.current = editingAssetId;
         }
@@ -108,13 +116,22 @@ export default function PrivateCompanySharesEntryScreen() {
     draftRestoredRef.current = false;
   };
 
+  const needsAcquisitionDate = formData.heldForTwoPlusYears === 'no';
   const { attentionLabel, triggerValidation, showErrors, fieldErrors } = useFormValidation({
     fields: [
       { key: 'companyName', label: 'Company name', isValid: !!formData.companyName.trim() },
+      { key: 'isActivelyTrading', label: 'Actively trading', isValid: !!formData.isActivelyTrading, scrollToEnd: true },
+      { key: 'heldForTwoPlusYears', label: 'Held for 2+ years', isValid: !!formData.heldForTwoPlusYears, scrollToEnd: true },
+      ...(needsAcquisitionDate ? [
+        { key: 'acquisitionMonth', label: 'Acquisition month', isValid: !!formData.acquisitionMonth, scrollToEnd: true },
+        { key: 'acquisitionYear', label: 'Acquisition year', isValid: !!formData.acquisitionYear, scrollToEnd: true },
+      ] : []),
+      { key: 'isHoldingCompany', label: 'Holding company', isValid: !!formData.isHoldingCompany, scrollToEnd: true },
     ],
     scrollViewRef,
   });
 
+  const [sharesError, setSharesError] = useState('');
   const [showAddPersonDialog, setShowAddPersonDialog] = useState(false);
   const addPersonSelectionRef = useRef<((personId: string) => void) | null>(null);
   const [showGroupDrawer, setShowGroupDrawer] = useState(false);
@@ -122,12 +139,15 @@ export default function PrivateCompanySharesEntryScreen() {
   const willMaker = willActions.getUser();
   const excludePersonIds = willMaker?.id ? [willMaker.id] : [];
 
+  const businesses = businessActions.getBusinesses();
+  const hasExistingBusinesses = businesses.length > 0;
+  const [showCompanyPicker, setShowCompanyPicker] = useState(false);
   const companyOptions = [
-    ...businessActions.getBusinesses().map(business => ({
+    { label: 'Add new company', value: '__NEW__', accent: true },
+    ...businesses.map(business => ({
       label: business.name,
       value: business.id,
     })),
-    { label: 'Add new company', value: '__NEW__' },
   ];
 
   // Load existing asset when editing
@@ -151,34 +171,31 @@ export default function PrivateCompanySharesEntryScreen() {
     const share = asset as PrivateCompanySharesAsset;
     loadedIdRef.current = editingAssetId;
 
-    // Determine ownership mode
-    if (share.numberOfShares) {
-      setOwnershipMode('shares');
-    } else {
-      setOwnershipMode('percentage');
-    }
-
-    // Determine company selection
     if (share.businessId) {
       setCompanySelection(share.businessId);
+      setShowCompanyPicker(true);
     } else {
       setCompanySelection('__NEW__');
     }
 
-    // Convert heldForTwoPlusYears boolean to string
     const heldForTwoPlusYears = share.heldForTwoPlusYears === true
       ? 'yes'
       : share.heldForTwoPlusYears === false
         ? 'no'
         : '';
 
+    const articlesVal = share.companyArticlesConfident === 'customized'
+      ? 'customised'
+      : (share.companyArticlesConfident || '');
+
     const loaded: ShareForm = {
       companyName: share.companyName || '',
       businessId: share.businessId || '',
       companyCountryOfRegistration: share.companyCountryOfRegistration || 'uk',
       companyShareClass: share.shareClass || 'ordinary',
-      companyNotes: share.companyNotes || '',
-      companyArticlesConfident: share.companyArticlesConfident || '',
+      shareClassNotes: (share as any).shareClassNotes || share.companyNotes || '',
+      companyArticlesConfident: articlesVal,
+      ownershipMode: share.numberOfShares ? 'shares' : 'percentage',
       ownershipValue: share.numberOfShares
         ? share.numberOfShares.toString()
         : share.percentageOwnership
@@ -189,11 +206,12 @@ export default function PrivateCompanySharesEntryScreen() {
       acquisitionYear: share.acquisitionYear || '',
       beneficiaries: share.beneficiaryAssignments?.beneficiaries || [],
       estimatedValue: share.estimatedValue || 0,
+      sharesNotSure: share.ownershipUnknown === true,
       valueNotSure: share.estimatedValueUnknown === true,
       notes: share.notes || '',
-      excludeFromNetWorth: share.excludeFromNetWorth || false,
-      isActivelyTrading: share.isActivelyTrading || false,
-      isNotHoldingCompany: share.isNotHoldingCompany || false,
+      excludeFromNetWorth: share.excludeFromNetWorth === true ? 'yes' : share.excludeFromNetWorth === false ? 'no' : '',
+      isActivelyTrading: share.isActivelyTrading === true ? 'yes' : share.isActivelyTrading === false ? 'no' : '',
+      isHoldingCompany: share.isNotHoldingCompany === true ? 'no' : share.isNotHoldingCompany === false ? 'yes' : '',
     };
     setFormData(loaded);
     initialFormRef.current = loaded;
@@ -225,44 +243,49 @@ export default function PrivateCompanySharesEntryScreen() {
     setFormData(prev => ({ ...prev, beneficiaries: newBeneficiaries }));
   };
 
+  function validateSharesInput(value: string, mode: 'percentage' | 'shares'): string | null {
+    if (!value) return null;
+    const num = parseFloat(value);
+    if (isNaN(num)) return null;
+    if (num < 0) return 'Value cannot be negative';
+    if (mode === 'percentage' && num > 100) return 'Percentage cannot exceed 100%';
+    if (mode === 'shares' && num !== Math.floor(num)) return 'Shares must be a whole number';
+    return null;
+  }
+
   const handleToggleMode = (newMode: 'percentage' | 'shares') => {
-    if (newMode === ownershipMode) return;
-    setOwnershipMode(newMode);
-    setFormData(prev => ({ ...prev, ownershipValue: '' })); // Clear input when switching
+    if (newMode === formData.ownershipMode) return;
+    setFormData(prev => ({ ...prev, ownershipMode: newMode }));
+    const error = validateSharesInput(formData.ownershipValue, newMode);
+    setSharesError(error || '');
   };
 
   const handleSave = () => {
-    // Validation
-    if (!formData.companyName.trim()) return;
-    if (formData.heldForTwoPlusYears === 'no' && (!formData.acquisitionMonth || !formData.acquisitionYear)) {
-      Alert.alert('Missing acquisition date', 'Please add the acquisition month and year.');
-      return;
-    }
+    if (!canSubmit) return;
     if (formData.beneficiaries.length > 0 && !validatePercentageAllocation({ beneficiaries: formData.beneficiaries })) {
       return; // Component already shows error state
     }
 
-    // Round value to nearest £1 — undefined when unsure (not 0)
-    const estimatedValue = formData.valueNotSure ? undefined : Math.round(formData.estimatedValue);
+    // Round value to nearest £1 — undefined when unsure or left blank
+    const isValueUnknown = formData.valueNotSure || formData.estimatedValue === 0;
+    const estimatedValue = isValueUnknown ? undefined : Math.round(formData.estimatedValue);
 
     // Build share data with ownership field
     let percentageOwnership: number | undefined;
     let numberOfShares: number | undefined;
 
-    if (ownershipMode === 'percentage' && formData.ownershipValue) {
-      const rawPercentage = parseFloat(formData.ownershipValue);
-      if (isNaN(rawPercentage) || rawPercentage < 0 || rawPercentage > 100) {
-        Alert.alert('Invalid ownership', 'Percentage must be between 0 and 100.');
-        return;
+    if (!formData.sharesNotSure) {
+      if (formData.ownershipMode === 'percentage' && formData.ownershipValue) {
+        const rawPercentage = parseFloat(formData.ownershipValue);
+        if (!isNaN(rawPercentage)) {
+          percentageOwnership = Math.round(rawPercentage * 100) / 100;
+        }
+      } else if (formData.ownershipMode === 'shares' && formData.ownershipValue) {
+        const parsedShares = parseInt(formData.ownershipValue);
+        if (!isNaN(parsedShares) && parsedShares > 0) {
+          numberOfShares = parsedShares;
+        }
       }
-      percentageOwnership = Math.round(rawPercentage * 100) / 100; // Round to 2dp
-    } else if (ownershipMode === 'shares' && formData.ownershipValue) {
-      const parsedShares = parseInt(formData.ownershipValue);
-      if (isNaN(parsedShares) || parsedShares <= 0) {
-        Alert.alert('Invalid ownership', 'Number of shares must be a positive whole number.');
-        return;
-      }
-      numberOfShares = parsedShares;
     }
 
     const resolveBusinessId = (): string | undefined => {
@@ -295,18 +318,19 @@ export default function PrivateCompanySharesEntryScreen() {
       businessId: resolvedBusinessId,
       percentageOwnership,
       numberOfShares,
+      ownershipUnknown: formData.sharesNotSure || undefined,
       shareClass: formData.companyShareClass || undefined,
-      companyNotes: formData.companyNotes || undefined,
+      shareClassNotes: formData.shareClassNotes || undefined,
       companyArticlesConfident: formData.companyArticlesConfident || undefined,
       companyCountryOfRegistration: formData.companyCountryOfRegistration || undefined,
       estimatedValue,
-      estimatedValueUnknown: formData.valueNotSure || undefined,
+      estimatedValueUnknown: isValueUnknown || undefined,
       netValue: estimatedValue,
       notes: formData.notes || undefined,
-      excludeFromNetWorth: formData.excludeFromNetWorth,
-      isActivelyTrading: formData.isActivelyTrading,
+      excludeFromNetWorth: formData.excludeFromNetWorth === 'yes' ? true : formData.excludeFromNetWorth === 'no' ? false : undefined,
+      isActivelyTrading: formData.isActivelyTrading === 'yes' ? true : formData.isActivelyTrading === 'no' ? false : undefined,
       heldForTwoPlusYears,
-      isNotHoldingCompany: formData.isNotHoldingCompany,
+      isNotHoldingCompany: formData.isHoldingCompany === 'no' ? true : formData.isHoldingCompany === 'yes' ? false : undefined,
       acquisitionMonth: formData.heldForTwoPlusYears === 'no'
         ? formData.acquisitionMonth
         : formData.acquisitionMonth || undefined,
@@ -345,7 +369,11 @@ export default function PrivateCompanySharesEntryScreen() {
   };
 
   const canSubmit = !!formData.companyName.trim()
-    && (formData.heldForTwoPlusYears !== 'no' || (formData.acquisitionMonth && formData.acquisitionYear));
+    && !sharesError
+    && !!formData.isActivelyTrading
+    && !!formData.heldForTwoPlusYears
+    && (!needsAcquisitionDate || (!!formData.acquisitionMonth && !!formData.acquisitionYear))
+    && !!formData.isHoldingCompany;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -389,22 +417,42 @@ export default function PrivateCompanySharesEntryScreen() {
               {editingAssetId ? 'Update the details below.' : 'Add company shares.'}
             </Text>
             
-            <Select
-              label="Company"
-              placeholder="Select company..."
-              value={companySelection}
-              options={companyOptions}
-              onChange={handleCompanySelection}
-            />
-
-            {/* Company Name (only for new) */}
-            {companySelection === '__NEW__' && (
-              <Input
-                label="Company Name *"
-                placeholder="e.g., Acme Ltd, Smith & Co"
-                value={formData.companyName}
-                onChangeText={(value) => setFormData(prev => ({ ...prev, companyName: value }))}
+            {showCompanyPicker ? (
+              <Select
+                label="Company"
+                placeholder="Select a company"
+                value={companySelection}
+                options={companyOptions}
+                onChange={(value) => {
+                  handleCompanySelection(value);
+                  if (value === '__NEW__') {
+                    setCompanySelection('');
+                    setShowCompanyPicker(false);
+                  }
+                }}
               />
+            ) : (
+              <View>
+                <Input
+                  label="Company Name *"
+                  placeholder="e.g., Acme Ltd, Smith & Co"
+                  value={formData.companyName}
+                  onChangeText={(value) => setFormData(prev => ({ ...prev, companyName: value }))}
+                  error={showErrors && fieldErrors.companyName}
+                />
+                {hasExistingBusinesses && !editingAssetId && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setCompanySelection('');
+                      setShowCompanyPicker(true);
+                    }}
+                    style={styles.selectExistingLink}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.selectExistingText}>Select existing company</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
 
             <Select
@@ -438,6 +486,11 @@ export default function PrivateCompanySharesEntryScreen() {
                   value: 'other',
                   helperText: 'Custom share class or special arrangement'
                 },
+                { 
+                  label: 'Not sure', 
+                  value: 'unknown',
+                  helperText: "I don't know the share class"
+                },
               ]}
               value={formData.companyShareClass}
               onChange={(value) => setFormData(prev => ({ ...prev, companyShareClass: value }))}
@@ -447,8 +500,8 @@ export default function PrivateCompanySharesEntryScreen() {
               <Input
                 label="Notes on share class (optional)"
                 placeholder="Restrictions, special terms, etc (optional)..."
-                value={formData.companyNotes}
-                onChangeText={(value) => setFormData(prev => ({ ...prev, companyNotes: value }))}
+                value={formData.shareClassNotes}
+                onChangeText={(value) => setFormData(prev => ({ ...prev, shareClassNotes: value }))}
                 multiline
               />
             )}
@@ -463,8 +516,8 @@ export default function PrivateCompanySharesEntryScreen() {
                 },
                 { 
                   label: 'No', 
-                  value: 'customized',
-                  helperText: 'We customized the setup'
+                  value: 'customised',
+                  helperText: 'We customised the setup'
                 },
                 { 
                   label: 'Not sure', 
@@ -476,55 +529,91 @@ export default function PrivateCompanySharesEntryScreen() {
               onChange={(value) => setFormData(prev => ({ ...prev, companyArticlesConfident: value }))}
             />
 
-            {/* Shares - Inline Toggle (INNOVATIVE UI) */}
+            {/* Shares - Inline Toggle */}
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Shares</Text>
-              <View style={styles.ownershipRow}>
-                <TextInput
-                  style={styles.ownershipInput}
-                  placeholder={ownershipMode === 'percentage' ? 'e.g., 25.5' : 'e.g., 1000'}
-                  value={formData.ownershipValue}
-                  onChangeText={(value) => setFormData(prev => ({ ...prev, ownershipValue: value }))}
-                  keyboardType={ownershipMode === 'percentage' ? 'decimal-pad' : 'number-pad'}
-                />
-                
-                {/* Segmented Toggle */}
-                <View style={styles.segmentedToggle}>
-                  <TouchableOpacity
-                    style={[
-                      styles.toggleButton,
-                      styles.toggleButtonLeft,
-                      ownershipMode === 'percentage' && styles.toggleButtonActive
-                    ]}
-                    onPress={() => handleToggleMode('percentage')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.toggleButtonText,
-                      ownershipMode === 'percentage' && styles.toggleButtonTextActive
-                    ]}>
-                      %
-                    </Text>
-                  </TouchableOpacity>
+              <Text style={styles.fieldLabel}>Shares (can be approximate)</Text>
+              <View style={formData.sharesNotSure ? styles.disabledInputContainer : undefined}>
+                <View style={styles.ownershipRow}>
+                  <TextInput
+                    style={[styles.ownershipInput, !!sharesError && styles.ownershipInputError]}
+                    placeholder={formData.ownershipMode === 'percentage' ? 'e.g., 25.5' : 'e.g., 1000'}
+                    value={formData.sharesNotSure ? '' : formData.ownershipValue}
+                    onChangeText={(value) => {
+                      setFormData(prev => ({ ...prev, ownershipValue: value, sharesNotSure: false }));
+                      if (sharesError) setSharesError('');
+                    }}
+                    onBlur={() => {
+                      const error = validateSharesInput(formData.ownershipValue, formData.ownershipMode);
+                      setSharesError(error || '');
+                    }}
+                    keyboardType={formData.ownershipMode === 'percentage' ? 'decimal-pad' : 'number-pad'}
+                    editable={!formData.sharesNotSure}
+                  />
                   
-                  <TouchableOpacity
-                    style={[
-                      styles.toggleButton,
-                      styles.toggleButtonRight,
-                      ownershipMode === 'shares' && styles.toggleButtonActive
-                    ]}
-                    onPress={() => handleToggleMode('shares')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.toggleButtonText,
-                      ownershipMode === 'shares' && styles.toggleButtonTextActive
-                    ]}>
-                      123
-                    </Text>
-                  </TouchableOpacity>
+                  {/* Segmented Toggle */}
+                  <View style={styles.segmentedToggle}>
+                    <TouchableOpacity
+                      style={[
+                        styles.toggleButton,
+                        styles.toggleButtonLeft,
+                        formData.ownershipMode === 'percentage' && styles.toggleButtonActive
+                      ]}
+                      onPress={() => handleToggleMode('percentage')}
+                      activeOpacity={0.7}
+                      disabled={formData.sharesNotSure}
+                    >
+                      <Text style={[
+                        styles.toggleButtonText,
+                        formData.ownershipMode === 'percentage' && styles.toggleButtonTextActive
+                      ]}>
+                        %
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[
+                        styles.toggleButton,
+                        styles.toggleButtonRight,
+                        formData.ownershipMode === 'shares' && styles.toggleButtonActive
+                      ]}
+                      onPress={() => handleToggleMode('shares')}
+                      activeOpacity={0.7}
+                      disabled={formData.sharesNotSure}
+                    >
+                      <Text style={[
+                        styles.toggleButtonText,
+                        formData.ownershipMode === 'shares' && styles.toggleButtonTextActive
+                      ]}>
+                        123
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
+              {!!sharesError && <Text style={styles.sharesErrorText}>{sharesError}</Text>}
+              <TouchableOpacity
+                onPress={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    sharesNotSure: !prev.sharesNotSure,
+                    ownershipValue: !prev.sharesNotSure ? '' : prev.ownershipValue,
+                  }));
+                }}
+                style={styles.checkboxRow}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkboxCircle, formData.sharesNotSure && styles.checkboxCircleSelected]}>
+                  {formData.sharesNotSure && (
+                    <IconButton
+                      icon="check"
+                      size={16}
+                      iconColor={KindlingColors.background}
+                      style={styles.checkIcon}
+                    />
+                  )}
+                </View>
+                <Text style={styles.checkboxLabel}>Not sure</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Estimated Holding Value */}
@@ -563,7 +652,6 @@ export default function PrivateCompanySharesEntryScreen() {
                 </View>
                 <Text style={styles.checkboxLabel}>Not sure</Text>
               </TouchableOpacity>
-              <Text style={styles.helperText}>Total value of your shareholding</Text>
             </View>
 
             {/* Notes */}
@@ -595,49 +683,23 @@ export default function PrivateCompanySharesEntryScreen() {
               onAddNewGroup={() => setShowGroupDrawer(true)}
             />
 
-            {/* Exclude from Net Worth */}
-            <TouchableOpacity
-              onPress={() => setFormData(prev => ({ ...prev, excludeFromNetWorth: !prev.excludeFromNetWorth }))}
-              style={styles.checkboxRow}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.checkboxCircle, formData.excludeFromNetWorth && styles.checkboxCircleSelected]}>
-                {formData.excludeFromNetWorth && (
-                  <IconButton
-                    icon="check"
-                    size={16}
-                    iconColor={KindlingColors.background}
-                    style={styles.checkIcon}
-                  />
-                )}
-              </View>
-              <Text style={styles.checkboxLabel}>Don't include in net worth (illiquid or speculative)</Text>
-            </TouchableOpacity>
-
             {/* IHT Planning Section */}
             <View style={styles.ihtSection}>
               <Text style={styles.ihtTitle}>Relevant to Inheritance Tax</Text>
               
-              <TouchableOpacity
-                onPress={() => setFormData(prev => ({ ...prev, isActivelyTrading: !prev.isActivelyTrading }))}
-                style={styles.checkboxRow}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkboxCircle, formData.isActivelyTrading && styles.checkboxCircleSelected]}>
-                  {formData.isActivelyTrading && (
-                    <IconButton
-                      icon="check"
-                      size={16}
-                      iconColor={KindlingColors.background}
-                      style={styles.checkIcon}
-                    />
-                  )}
-                </View>
-                <Text style={styles.checkboxLabel}>The business is actively trading</Text>
-              </TouchableOpacity>
+              <RadioGroup
+                label="Is the business actively trading? *"
+                options={[
+                  { label: 'Yes', value: 'yes' },
+                  { label: 'No', value: 'no' },
+                ]}
+                value={formData.isActivelyTrading}
+                onChange={(value) => setFormData(prev => ({ ...prev, isActivelyTrading: value }))}
+                error={showErrors && fieldErrors.isActivelyTrading}
+              />
 
               <Select
-                label="Have you owned the shares for 2+ years?"
+                label="Have you owned the shares for 2+ years? *"
                 placeholder="Select..."
                 value={formData.heldForTwoPlusYears}
                 options={[
@@ -645,13 +707,18 @@ export default function PrivateCompanySharesEntryScreen() {
                   { label: 'No', value: 'no' },
                   { label: 'Not sure', value: 'not_sure' },
                 ]}
-                onChange={(value) => setFormData(prev => ({ ...prev, heldForTwoPlusYears: value as 'yes' | 'no' | 'not_sure' }))}
+                onChange={(value) => setFormData(prev => ({
+                  ...prev,
+                  heldForTwoPlusYears: value as 'yes' | 'no' | 'not_sure',
+                  ...(value !== 'no' ? { acquisitionMonth: '', acquisitionYear: '' } : {}),
+                }))}
+                error={showErrors && fieldErrors.heldForTwoPlusYears}
               />
 
-              {(formData.heldForTwoPlusYears === 'no' || formData.heldForTwoPlusYears === 'not_sure') && (
+              {formData.heldForTwoPlusYears === 'no' && (
                 <>
                   <Text style={styles.helperText}>
-                    Acquisition date (month and year){formData.heldForTwoPlusYears === 'no' ? ' *' : ' (optional)'}
+                    Acquisition date (month and year){needsAcquisitionDate ? ' *' : ' (optional)'}
                   </Text>
                   <View style={styles.dateRow}>
                     <View style={styles.dateField}>
@@ -673,41 +740,46 @@ export default function PrivateCompanySharesEntryScreen() {
                           { label: 'December', value: '12' },
                         ]}
                         onChange={(value) => setFormData(prev => ({ ...prev, acquisitionMonth: value }))}
+                        error={showErrors && fieldErrors.acquisitionMonth}
                       />
                     </View>
                     <View style={styles.dateField}>
                       <Select
                         placeholder="Year..."
                         value={formData.acquisitionYear}
-                        options={Array.from({ length: 100 }, (_, i) => {
+                        options={Array.from({ length: 3 }, (_, i) => {
                           const year = new Date().getFullYear() - i;
                           return { label: year.toString(), value: year.toString() };
                         })}
                         onChange={(value) => setFormData(prev => ({ ...prev, acquisitionYear: value }))}
+                        error={showErrors && fieldErrors.acquisitionYear}
                       />
                     </View>
                   </View>
                 </>
               )}
 
-              <TouchableOpacity
-                onPress={() => setFormData(prev => ({ ...prev, isNotHoldingCompany: !prev.isNotHoldingCompany }))}
-                style={styles.checkboxRow}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkboxCircle, formData.isNotHoldingCompany && styles.checkboxCircleSelected]}>
-                  {formData.isNotHoldingCompany && (
-                    <IconButton
-                      icon="check"
-                      size={16}
-                      iconColor={KindlingColors.background}
-                      style={styles.checkIcon}
-                    />
-                  )}
-                </View>
-                <Text style={styles.checkboxLabel}>It is NOT a holding company for cash, property or assets</Text>
-              </TouchableOpacity>
+              <RadioGroup
+                label="Is this a holding company for property, cash or assets? *"
+                options={[
+                  { label: 'Yes', value: 'yes' },
+                  { label: 'No', value: 'no' },
+                ]}
+                value={formData.isHoldingCompany}
+                onChange={(value) => setFormData(prev => ({ ...prev, isHoldingCompany: value }))}
+                error={showErrors && fieldErrors.isHoldingCompany}
+              />
             </View>
+
+            <RadioGroup
+              label="Are these shares speculative or illiquid and therefore should be ignored from net worth?"
+              options={[
+                { label: 'Yes', value: 'yes' },
+                { label: 'No', value: 'no' },
+              ]}
+              value={formData.excludeFromNetWorth}
+              onChange={(value) => setFormData(prev => ({ ...prev, excludeFromNetWorth: value }))}
+            />
 
             <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
               <Button
@@ -863,6 +935,15 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: 'flex-start',
   },
+  selectExistingLink: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+  },
+  selectExistingText: {
+    fontSize: Typography.fontSize.xs,
+    color: KindlingColors.navy,
+    textDecorationLine: 'underline',
+  },
   ownershipInput: {
     flex: 1,
     borderWidth: 1,
@@ -873,6 +954,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: KindlingColors.navy,
     backgroundColor: KindlingColors.background,
+  },
+  ownershipInputError: {
+    borderColor: '#D32F2F',
+    borderWidth: 2,
+  },
+  sharesErrorText: {
+    fontSize: Typography.fontSize.xs,
+    color: '#D32F2F',
+    marginTop: 2,
   },
   segmentedToggle: {
     width: 80,

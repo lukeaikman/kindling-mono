@@ -25,6 +25,7 @@ export interface SelectOption {
   label: string;
   value: string;
   disabled?: boolean;
+  accent?: boolean;
 }
 
 /**
@@ -189,13 +190,23 @@ export const Select: React.FC<SelectProps> = ({
             contentStyle={styles.menuContent}
           >
             {options.map((option) => (
-              <Menu.Item
-                key={option.value || option.label}
-                onPress={() => !option.disabled && handleSelect(option.value)}
-                title={option.label}
-                disabled={option.disabled}
-                titleStyle={value === option.value ? styles.selectedItem : undefined}
-              />
+              option.accent ? (
+                <TouchableOpacity
+                  key={option.value || option.label}
+                  onPress={() => handleSelect(option.value)}
+                  style={styles.accentMenuItem}
+                >
+                  <Text style={styles.accentMenuItemText}>+ {option.label}</Text>
+                </TouchableOpacity>
+              ) : (
+                <Menu.Item
+                  key={option.value || option.label}
+                  onPress={() => !option.disabled && handleSelect(option.value)}
+                  title={option.label}
+                  disabled={option.disabled}
+                  titleStyle={value === option.value ? styles.selectedItem : undefined}
+                />
+              )
             ))}
           </Menu>
         </>
@@ -227,6 +238,7 @@ export const Select: React.FC<SelectProps> = ({
                   <TouchableOpacity
                     style={[
                       styles.modalOption,
+                      item.accent && styles.modalOptionAccent,
                       item.value === value && styles.modalOptionSelected,
                       item.disabled && styles.modalOptionDisabled,
                     ]}
@@ -237,17 +249,18 @@ export const Select: React.FC<SelectProps> = ({
                     <Text
                       style={[
                         styles.modalOptionText,
+                        item.accent && styles.accentMenuItemText,
                         item.value === value && styles.modalOptionTextSelected,
                         item.disabled && styles.modalOptionTextDisabled,
                       ]}
                     >
-                      {item.label}
+                      {item.accent ? `+ ${item.label}` : item.label}
                     </Text>
                     {item.value === value && (
                       <IconButton
                         icon="check"
                         size={20}
-                        iconColor={KindlingColors.green}
+                        iconColor={KindlingColors.navy}
                         style={styles.modalCheckIcon}
                       />
                     )}
@@ -307,6 +320,17 @@ const styles = StyleSheet.create({
   },
   selectedItem: {
     fontWeight: '600',
+    color: KindlingColors.navy,
+  },
+  accentMenuItem: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: `${KindlingColors.border}30`,
+  },
+  accentMenuItemText: {
+    fontSize: Typography.fontSize.md,
+    fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.green,
   },
   errorText: {
@@ -342,8 +366,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: `${KindlingColors.border}40`,
   },
+  modalOptionAccent: {
+    borderBottomWidth: 1,
+    borderBottomColor: `${KindlingColors.border}60`,
+  },
   modalOptionSelected: {
-    backgroundColor: `${KindlingColors.green}15`,
+    backgroundColor: `${KindlingColors.navy}10`,
   },
   modalOptionDisabled: {
     opacity: 0.4,
@@ -355,7 +383,7 @@ const styles = StyleSheet.create({
   },
   modalOptionTextSelected: {
     fontWeight: Typography.fontWeight.semibold,
-    color: KindlingColors.green,
+    color: KindlingColors.navy,
   },
   modalOptionTextDisabled: {
     color: KindlingColors.brown,

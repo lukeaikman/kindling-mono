@@ -642,9 +642,11 @@ export interface PrivateCompanySharesAsset extends BaseAsset {
   businessId?: string;
   numberOfShares?: number;
   percentageOwnership?: number;
+  ownershipUnknown?: boolean;
   shareClass?: string;
+  shareClassNotes?: string;
   companyNotes?: string;
-  companyArticlesConfident?: 'standard' | 'customized' | 'not_sure';
+  companyArticlesConfident?: 'standard' | 'customized' | 'customised' | 'not_sure';
   companyCountryOfRegistration?: string;
   notes?: string;
   excludeFromNetWorth?: boolean;

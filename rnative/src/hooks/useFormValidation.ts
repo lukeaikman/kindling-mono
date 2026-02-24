@@ -30,6 +30,8 @@ export interface ValidationField {
   label: string;
   /** Whether this field currently satisfies its requirement */
   isValid: boolean;
+  /** When true, scroll to end instead of top when this is the first invalid field */
+  scrollToEnd?: boolean;
 }
 
 interface UseFormValidationOptions {
@@ -76,11 +78,15 @@ export function useFormValidation(
     return { fieldErrors: errors, invalidCount: count };
   }, [fields]);
 
-  // Trigger validation: show errors + scroll to top
   const triggerValidation = useCallback(() => {
     setShowErrors(true);
-    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-  }, [scrollViewRef]);
+    const firstInvalid = fields.find(f => !f.isValid);
+    if (firstInvalid?.scrollToEnd) {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    } else {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }
+  }, [scrollViewRef, fields]);
 
   // Attention button copy
   const attentionLabel = useMemo(() => {

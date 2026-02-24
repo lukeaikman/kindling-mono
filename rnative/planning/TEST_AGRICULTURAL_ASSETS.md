@@ -37,7 +37,7 @@
 | B-1 | Ownership required          | Leave ownership blank. Attempt save.  | Save blocked.                                                      | Pass                                                                                          |
 | B-2 | Personal ownership          | Select "I own it personally".         | Rest of form appears.`aprOwnershipStructure: 'personal'` saved.    | Pass                                                                                          |
 | B-3 | Partnership ownership       | Select "Owned through a partnership". | Rest of form appears.`aprOwnershipStructure: 'partnership'` saved. | Pass                                                                                          |
-| B-4 | Trust ownership             | Select "Held in trust".               | Rest of form appears. Trust Type field appears in APR section.     | PASS - BUT should this not be a drop down of trust type, tehn role? BUSINESS LOGIC QUESTION   |
+| B-4 | Trust ownership             | Select "Held in trust".               | Rest of form appears. InformationCard shows specialist review notice (no trust type field). | Pass |
 | B-5 | Company ownership - blocked | Select "Owned by a limited company".  | Warning card appears. Rest of form hidden. Cannot save.            | Pass                                                                                          |
 | B-6 | Not sure ownership          | N/A — option removed.                 | "Not sure" no longer appears in ownership options.                  | Resolved |
 
@@ -95,7 +95,7 @@
 | F-1 | APR shown for qualifying types | Select agricultural land (personal ownership).                 | APR section appears with ownership duration dropdown. | Pass  |
 | F-2 | Ownership duration options     | Open duration dropdown.                                        | Shows 1 year through Over 7 years + Not sure.         | Pass  |
 | F-3 | Duration required              | Leave duration blank when APR visible. Attempt save.           | Save blocked.                                         | Pass  |
-| F-4 | Trust type field               | Select "Held in trust" ownership.                              | Trust Type input appears in APR section.              | Pass  |
+| F-4 | Trust specialist review notice | Select "Held in trust" ownership.                              | InformationCard appears: "Trust-held agricultural assets need specialist review." No free-text trust type field. | Pass  |
 | F-5 | APR hidden for non-qualifying  | Select "Standing Crops", "Agricultural Equipment", or "Other". | APR section not shown.                                | Pass  |
 
 ---
@@ -170,7 +170,7 @@
 | K-2 | Asset type required          | Leave type blank.                           | Save blocked.                                  | Pass                                                                                                                                                                                                                                                 |
 | K-3 | Description required         | Leave description blank.                    | Save blocked.                                  | Pass                                                                                                                                                                                                                                                 |
 | K-4 | Debts required               | Leave debt question blank.                  | Save blocked.                                  | Pass                                                                                                                                                                                                                                                 |
-| K-5 | Validation attention trigger | Tap disabled save button when form invalid. | Attention label shows count of invalid fields. | FAIL - While attention label below submit is working and autoscrolling to first invalid field, we have not implemented the attention styling (red border on inputs etc) that we have implemented in other asset categories. This must be replicated. |
+| K-5 | Validation attention trigger | Tap disabled save button when form invalid. | Attention label shows count of invalid fields. Red border highlighting appears on invalid fields. | Pass |
 
 ---
 
@@ -183,7 +183,7 @@
 | L-2 | Total value correct      | Add known values.                        | Total equals expected sum.                   | Pass                                        |
 | L-3 | Empty state              | Remove all, open summary.                | Empty state with add button.                 | Pass                                        |
 | L-4 | Edit from summary        | Tap existing card.                       | Opens edit form with pre-filled data.        | Pass                                        |
-| L-5 | Net value reflects debts | Add asset with debts. Check summary.     | Card shows net value (after debt deduction). | FAIL - and this i guess will impact totals? |
+| L-5 | Net value reflects debts | Add asset with debts. Check summary.     | Card shows net value (after debt deduction). Gross visible via eye toggle. Totals reflect net. | Pass |
 
 ---
 
@@ -223,18 +223,18 @@
 
 # Known Gaps
 
-### 1. No error props wired to form fields
+### 1. ~~No error props wired to form fields~~ — RESOLVED
 
-`useFormValidation` tracks 4 fields (ownership, type, description, debts) but `error` props are not passed to form components. Red border highlighting will not appear.
+Error props from `useFormValidation` are now wired to all form components (ownership, asset type, description, debts). Red border highlighting appears on invalid fields.
 
 ### 2. No beneficiaries
 
 This asset type does not support beneficiary assignment.
 
-### 3. Blank value handling
+### 3. ~~Blank value handling~~ — RESOLVED
 
-May save blank value as 0 rather than `estimatedValueUnknown: true`. Test H-3 will verify.
+Blank values now correctly save as `estimatedValueUnknown: true` (verified by test H-3).
 
-### 4. Display title uses `location` field
+### 4. ~~Display title uses `location` field~~ — RESOLVED
 
-`getAssetTitle` returns `asset.location` first, but the form doesn't have a location field — it saves `assetDescription` as `title`. The subline uses `assetType`. Verify the display chain works correctly (tests M-2, M-3).
+Display chain verified working correctly via tests M-2 and M-3.

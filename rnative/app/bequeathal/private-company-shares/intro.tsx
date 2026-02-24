@@ -53,9 +53,6 @@ export default function PrivateCompanySharesIntroScreen() {
       <View style={styles.header}>
         <BackButton onPress={handleBack} />
         <View style={styles.headerCenter}>
-          <View style={styles.iconCircle}>
-            <IconButton icon="office-building" size={20} iconColor={KindlingColors.navy} />
-          </View>
           <Text style={styles.headerTitle}>Private Company Shares</Text>
         </View>
         <View style={styles.headerRight} />
@@ -208,15 +205,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-  },
-  iconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: `${KindlingColors.navy}1a`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: -8,
   },
   headerRight: {
     width: 48,
