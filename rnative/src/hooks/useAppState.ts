@@ -96,7 +96,10 @@ const useAsyncStorageState = <T>(
       ? (value as (prev: T) => T)(stateRef.current)
       : value;
     stateRef.current = resolved;
-    if (storageKey) broadcast(storageKey, resolved, setStateInternal);
+    if (storageKey) {
+      broadcast(storageKey, resolved, setStateInternal);
+      storage.save(storageKey, resolved);
+    }
   }, [storageKey]);
 
   // Load from storage on mount and when key changes
@@ -106,6 +109,7 @@ const useAsyncStorageState = <T>(
 
     if (!storageKey) {
       prevKeyRef.current = storageKey;
+      setIsInitialized(true);
       return () => {
         isMounted = false;
       };
@@ -147,13 +151,6 @@ const useAsyncStorageState = <T>(
       isMounted = false;
     };
   }, [storageKey]);
-
-  // Save to storage whenever state changes (but only after initialization)
-  useEffect(() => {
-    if (isInitialized && storageKey) {
-      storage.save(storageKey, state);
-    }
-  }, [state, isInitialized, storageKey]);
 
   return [state, setState, isInitialized];
 };
@@ -215,19 +212,19 @@ export const useAppState = () => {
   }, [activeWillMakerId, setActiveWillMakerId]);
 
   // Initialize states with AsyncStorage persistence
-  const [willData, setWillData] = useAsyncStorageState<WillData>(
+  const [willData, setWillData, isWillHydrated] = useAsyncStorageState<WillData>(
     getScopedKey(STORAGE_KEYS.WILL_DATA),
     getInitialWillData(),
     ['createdAt', 'updatedAt']
   );
 
-  const [personData, setPersonData] = useAsyncStorageState<Person[]>(
+  const [personData, setPersonData, isPersonHydrated] = useAsyncStorageState<Person[]>(
     getScopedKey(STORAGE_KEYS.PERSON_DATA),
     getInitialPersonData(),
     []
   );
 
-  const [businessData, setBusinessData] = useAsyncStorageState<Business[]>(
+  const [businessData, setBusinessData, isBusinessHydrated] = useAsyncStorageState<Business[]>(
     getScopedKey(STORAGE_KEYS.BUSINESS_DATA),
     getInitialBusinessData(),
     []
@@ -239,35 +236,46 @@ export const useAppState = () => {
     ['lastUpdated']
   );
 
-  const [trustData, setTrustData] = useAsyncStorageState<Trust[]>(
+  const [trustData, setTrustData, isTrustHydrated] = useAsyncStorageState<Trust[]>(
     getScopedKey(STORAGE_KEYS.TRUST_DATA),
     getInitialTrustData(),
     []
   );
 
-  const [beneficiaryGroupData, setBeneficiaryGroupData] = useAsyncStorageState<BeneficiaryGroup[]>(
+  const [beneficiaryGroupData, setBeneficiaryGroupData, isBeneficiaryGroupHydrated] = useAsyncStorageState<BeneficiaryGroup[]>(
     getScopedKey(STORAGE_KEYS.BENEFICIARY_GROUP_DATA),
     [],
     []
   );
 
-  const [estateRemainderState, setEstateRemainderState] = useAsyncStorageState<EstateRemainderState>(
+  const [estateRemainderState, setEstateRemainderState, isEstateRemainderHydrated] = useAsyncStorageState<EstateRemainderState>(
     getScopedKey(STORAGE_KEYS.ESTATE_REMAINDER_DATA),
     getInitialEstateRemainderState(''), // Empty userId at init, populated on first use
     ['lastUpdated']
   );
 
-  const [relationshipData, setRelationshipData] = useAsyncStorageState<RelationshipEdge[]>(
+  const [relationshipData, setRelationshipData, isRelationshipHydrated] = useAsyncStorageState<RelationshipEdge[]>(
     getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA),
     [],
     []
   );
 
-  const [bequestData, setBequestData] = useAsyncStorageState<Bequest[]>(
+  const [bequestData, setBequestData, isBequestHydrated] = useAsyncStorageState<Bequest[]>(
     getScopedKey(STORAGE_KEYS.BEQUEST_DATA),
     [],
     []
   );
+
+  const isAppStateReady =
+    isWillHydrated &&
+    isPersonHydrated &&
+    isBusinessHydrated &&
+    isBequeathalHydrated &&
+    isTrustHydrated &&
+    isBeneficiaryGroupHydrated &&
+    isEstateRemainderHydrated &&
+    isRelationshipHydrated &&
+    isBequestHydrated;
 
   // =============================================================================
   // Migration: Multi-User + Bequest Separation
@@ -444,17 +452,20 @@ export const useAppState = () => {
       }
     }
 
-    // 7. Add userId to EstateRemainderState
-    if (!(estateRemainderState as any).userId) {
+    // 7. Add userId to EstateRemainderState — only once hydrated to avoid
+    // overwriting stored data with empty initial state (race condition)
+    if (isEstateRemainderHydrated && !(estateRemainderState as any).userId) {
       setEstateRemainderState({
         ...estateRemainderState,
         userId: currentUserId,
       } as any);
     }
     
-    migrationCompletedRef.current = true;
-    console.log('✅ Multi-user + bequest migration complete');
-  }, [willData, trustData, businessData, bequeathalData, bequestData, estateRemainderState]);
+    if (isEstateRemainderHydrated) {
+      migrationCompletedRef.current = true;
+      console.log('✅ Multi-user + bequest migration complete');
+    }
+  }, [willData, trustData, businessData, bequeathalData, bequestData, estateRemainderState, isEstateRemainderHydrated]);
 
   // =============================================================================
   // Will Actions
@@ -2144,6 +2155,7 @@ export const useAppState = () => {
     relationshipActions,
     estateRemainderActions,
     isBequeathalHydrated,
+    isAppStateReady,
     purgeAllData,
     clearInMemoryState
   };

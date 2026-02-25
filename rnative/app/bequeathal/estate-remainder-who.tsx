@@ -43,6 +43,7 @@ export default function EstateRemainderWhoScreen() {
     beneficiaryGroupActions,
     estateRemainderActions,
     willActions,
+    isAppStateReady,
   } = useAppState();
 
   // Local state
@@ -51,12 +52,15 @@ export default function EstateRemainderWhoScreen() {
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
-  // Load existing selections on mount
+  // Load existing selections on mount (safe: runs after hydration gate below)
   useEffect(() => {
+    if (!isAppStateReady) return;
     const estateState = estateRemainderActions.getEstateRemainderState();
     setSelectedPeopleIds(estateState.selectedPeopleIds || []);
     setSelectedGroupIds(estateState.selectedGroupIds || []);
-  }, []);
+  }, [isAppStateReady]);
+
+  if (!isAppStateReady) return null;
 
   // Get will-maker to exclude from list
   const willMaker = willActions.getUser();

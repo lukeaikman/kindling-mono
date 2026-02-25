@@ -204,7 +204,7 @@ export default function WillDashboardScreen() {
   const lastTapRef = useRef<number>(0);
   const menuRef = useRef<BottomSheet>(null);
 
-  const { willActions, personActions, estateRemainderActions, bequeathalActions } = useAppState();
+  const { willActions, personActions, estateRemainderActions, bequeathalActions, isAppStateReady } = useAppState();
 
   const progressState: WillProgressState = useMemo(() => ({
     willMaker: willActions.getUser(),
@@ -341,60 +341,62 @@ export default function WillDashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Title Block */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>Your Will</Text>
-          <Text style={styles.subtitle}>About 16 minutes start to finish</Text>
-        </View>
-
-        {/* Stage Cards */}
-        <View style={styles.stagesContainer}>
-          {stageData.map(({ stage, status, disabled, emphasis, statusLabel, subline }) => (
-            <StageCard
-              key={stage.id}
-              title={stage.title}
-              status={status}
-              statusLabel={statusLabel}
-              subline={subline}
-              emphasis={emphasis}
-              onPress={() => handleStagePress(stage.id)}
-              disabled={disabled}
-              testID={`stage-card-${stage.id}`}
-              style={styles.stageCard}
-            />
-          ))}
-        </View>
-
-        {/* Warm progress sentence — replaces Ready to Sign card */}
-        <TouchableOpacity
-          style={[
-            styles.progressRow,
-            signingReady && styles.progressRowReady,
-          ]}
-          onPress={handleSigningPress}
-          activeOpacity={0.7}
+      {/* Content — gated on AsyncStorage hydration to prevent status flash */}
+      {isAppStateReady ? (
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
         >
-          <MaterialCommunityIcons
-            name={signingReady ? 'check-circle' : 'flag-checkered'}
-            size={20}
-            color={signingReady ? KindlingColors.green : KindlingColors.mutedForeground}
-          />
-          <Text
+          {/* Title Block */}
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Your Will</Text>
+            <Text style={styles.subtitle}>About 16 minutes start to finish</Text>
+          </View>
+
+          {/* Stage Cards */}
+          <View style={styles.stagesContainer}>
+            {stageData.map(({ stage, status, disabled, emphasis, statusLabel, subline }) => (
+              <StageCard
+                key={stage.id}
+                title={stage.title}
+                status={status}
+                statusLabel={statusLabel}
+                subline={subline}
+                emphasis={emphasis}
+                onPress={() => handleStagePress(stage.id)}
+                disabled={disabled}
+                testID={`stage-card-${stage.id}`}
+                style={styles.stageCard}
+              />
+            ))}
+          </View>
+
+          {/* Warm progress sentence — replaces Ready to Sign card */}
+          <TouchableOpacity
             style={[
-              styles.progressText,
-              signingReady && styles.progressTextReady,
+              styles.progressRow,
+              signingReady && styles.progressRowReady,
             ]}
+            onPress={handleSigningPress}
+            activeOpacity={0.7}
           >
-            {progressSentence}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+            <MaterialCommunityIcons
+              name={signingReady ? 'check-circle' : 'flag-checkered'}
+              size={20}
+              color={signingReady ? KindlingColors.green : KindlingColors.mutedForeground}
+            />
+            <Text
+              style={[
+                styles.progressText,
+                signingReady && styles.progressTextReady,
+              ]}
+            >
+              {progressSentence}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      ) : null}
 
       {/* Glass Menu */}
       <GlassMenu ref={menuRef} items={menuItems} />

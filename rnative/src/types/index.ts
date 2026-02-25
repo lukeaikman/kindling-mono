@@ -361,17 +361,6 @@ export interface Executor {
 }
 
 /**
- * Beneficiary entity
- */
-export interface Beneficiary {
-  id: string;
-  personId: string;
-  shareType: 'percentage' | 'specific-amount' | 'residual';
-  shareValue?: number;
-  specificInstructions?: string;
-}
-
-/**
  * Bequest - Disposition instructions for an asset in a will
  * 
  * Separates ownership facts (Asset) from will instructions (Bequest).

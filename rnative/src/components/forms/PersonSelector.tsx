@@ -17,7 +17,6 @@ import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Modal, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
-import { Button } from '../ui';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing, Typography } from '../../styles/constants';
 import { getPersonFullName, getPersonRelationshipDisplay } from '../../utils/helpers';
@@ -60,6 +59,11 @@ export interface PersonSelectorProps {
   excludePersonIds?: string[];
   
   /**
+   * Person IDs to show first in the list
+   */
+  prioritizePersonIds?: string[];
+  
+  /**
    * Callback for adding new person
    */
   onAddNewPerson?: () => void;
@@ -87,16 +91,20 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({
   placeholder = 'Tap to select',
   allowUnknown = false,
   excludePersonIds = [],
+  prioritizePersonIds = [],
   onAddNewPerson,
 }) => {
   const [showDrawer, setShowDrawer] = useState(false);
-  const [tempSelection, setTempSelection] = useState<string>('');
 
-  // Get available people
   const allPeople = personActions.getPeople();
-  const availablePeople = allPeople.filter(person => !excludePersonIds.includes(person.id));
+  const filtered = allPeople.filter(person => !excludePersonIds.includes(person.id));
+  const availablePeople = prioritizePersonIds.length > 0
+    ? [
+        ...filtered.filter(p => prioritizePersonIds.includes(p.id)),
+        ...filtered.filter(p => !prioritizePersonIds.includes(p.id)),
+      ]
+    : filtered;
 
-  // Get display name for selected person
   const getDisplayName = () => {
     if (!value) return placeholder;
     
@@ -108,22 +116,14 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({
     if (!person) return 'Unknown';
     
     const fullName = getPersonFullName(person);
+    if (prioritizePersonIds.includes(value)) return fullName;
     const relationship = getPersonRelationshipDisplay(person);
     return relationship ? `${fullName} (${relationship})` : fullName;
   };
 
-  const handleOpenDrawer = () => {
-    setTempSelection(value);
-    setShowDrawer(true);
-  };
-
-  const handleConfirm = () => {
-    onChange(tempSelection);
-    setShowDrawer(false);
-  };
-
   const handleSelect = (personId: string) => {
-    setTempSelection(personId);
+    onChange(personId);
+    setShowDrawer(false);
   };
 
   return (
@@ -133,7 +133,7 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({
       {/* Selection Button */}
       <TouchableOpacity
         style={styles.selectionButton}
-        onPress={handleOpenDrawer}
+        onPress={() => setShowDrawer(true)}
         activeOpacity={0.7}
       >
         <Text style={[styles.selectionText, !value && styles.placeholderText]}>
@@ -161,16 +161,18 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({
           {/* Person List */}
           <FlatList
             data={[
-              ...(allowUnknown ? [{ id: 'unknown', label: '🔍 Unknown Person', isSpecial: true }] : []),
-              ...availablePeople.map(p => ({ 
-                id: p.id, 
-                label: `${getPersonFullName(p)} (${getPersonRelationshipDisplay(p)})`,
-                isSpecial: false
-              })),
+              ...(allowUnknown ? [{ id: 'unknown', label: '🔍 Unknown Person', isSpecial: true, isPrioritized: false }] : []),
+              ...availablePeople.map(p => {
+                const isPrioritized = prioritizePersonIds.includes(p.id);
+                const fullName = getPersonFullName(p);
+                const relationship = getPersonRelationshipDisplay(p);
+                const label = isPrioritized ? fullName : (relationship ? `${fullName} (${relationship})` : fullName);
+                return { id: p.id, label, isSpecial: false, isPrioritized };
+              }),
             ]}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
-              const selected = tempSelection === item.id;
+              const selected = value === item.id;
               
               return (
                 <TouchableOpacity
@@ -178,7 +180,7 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({
                   onPress={() => handleSelect(item.id)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.drawerOptionText}>{item.label}</Text>
+                  <Text style={[styles.drawerOptionText, item.isPrioritized && styles.drawerOptionTextBold]}>{item.label}</Text>
                   <View style={[styles.checkboxCircle, selected && styles.checkboxCircleSelected]}>
                     {selected && (
                       <IconButton
@@ -206,17 +208,6 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({
               ) : null
             }
           />
-
-          {/* Confirm Button */}
-          <View style={styles.drawerFooter}>
-            <Button
-              onPress={handleConfirm}
-              variant="primary"
-              disabled={!tempSelection}
-            >
-              Select
-            </Button>
-          </View>
         </SafeAreaView>
       </Modal>
     </View>
@@ -288,6 +279,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.md,
     color: KindlingColors.navy,
   },
+  drawerOptionTextBold: {
+    fontWeight: Typography.fontWeight.semibold,
+  },
   drawerOptionSpecial: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
@@ -316,11 +310,6 @@ const styles = StyleSheet.create({
   checkIcon: {
     margin: 0,
     padding: 0,
-  },
-  drawerFooter: {
-    padding: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: KindlingColors.border,
   },
 });
 

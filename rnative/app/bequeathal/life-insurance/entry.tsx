@@ -123,14 +123,23 @@ export default function LifeInsuranceEntryScreen() {
   });
 
   useEffect(() => {
-    if (!editingAssetId || loadedIdRef.current === editingAssetId) return;
-    loadedIdRef.current = editingAssetId;
+    if (!editingAssetId) {
+      loadedIdRef.current = null;
+      return;
+    }
+
+    if (loadedIdRef.current === editingAssetId) return;
+
+    const allAssets = bequeathalActions.getAllAssets();
+    if (allAssets.length === 0) return;
 
     const asset = bequeathalActions.getAssetById(editingAssetId) as LifeInsuranceAsset | undefined;
     if (!asset) {
       router.replace(SUMMARY_ROUTE as any);
       return;
     }
+
+    loadedIdRef.current = editingAssetId;
 
     const loaded: LifeInsuranceForm = {
       provider: asset.provider,
@@ -144,11 +153,11 @@ export default function LifeInsuranceEntryScreen() {
     };
     setFormData(loaded);
     initialFormRef.current = loaded;
-  }, [editingAssetId]);
+  }, [editingAssetId, bequeathalActions]);
 
-  // Get will-maker ID to exclude
   const willMaker = willActions.getUser();
   const excludePersonIds = willMaker?.id ? [willMaker.id] : [];
+  const prioritizePersonIds = willMaker?.id ? [willMaker.id] : [];
 
   // Provider options (19 UK life insurance providers)
   const providerOptions = [
@@ -331,8 +340,7 @@ export default function LifeInsuranceEntryScreen() {
               value={formData.lifeAssured}
               onChange={(value) => setFormData(prev => ({ ...prev, lifeAssured: value }))}
               personActions={personActions}
-              allowUnknown={true}
-              excludePersonIds={excludePersonIds}
+              prioritizePersonIds={prioritizePersonIds}
               onAddNewPerson={() => {
                 setAddPersonContext('lifeAssured');
                 addPersonSelectionRef.current = null;
@@ -417,20 +425,16 @@ export default function LifeInsuranceEntryScreen() {
               </>
             )}
 
-            {/* Form Button */}
-            <View style={styles.formButtons}>
-              <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
-                <Button
-                  onPress={handleSave}
-                  variant="primary"
-                  disabled={!canSubmit}
-                  style={styles.submitButton}
-                >
-                  {editingAssetId ? 'Save changes' : 'Add this policy'}
-                </Button>
-              </View>
-              <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
+            <View onTouchEnd={canSubmit ? undefined : triggerValidation}>
+              <Button
+                onPress={handleSave}
+                variant="primary"
+                disabled={!canSubmit}
+              >
+                {editingAssetId ? 'Save changes' : 'Add this policy'}
+              </Button>
             </View>
+            <ValidationAttentionButton label={attentionLabel} onPress={triggerValidation} />
           </View>
         </View>
       </ScrollView>
@@ -544,13 +548,5 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.semibold,
     color: KindlingColors.navy,
     marginBottom: Spacing.sm,
-  },
-  formButtons: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  submitButton: {
-    flex: 1,
   },
 });

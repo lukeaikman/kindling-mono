@@ -32,8 +32,6 @@ import { Select } from '../../src/components/ui/Select';
 import { KindlingLogo } from '../../src/components/ui/KindlingLogo';
 import { Tooltip } from '../../src/components/ui/Tooltip';
 import { useAppState } from '../../src/hooks/useAppState';
-import { storage } from '../../src/services/storage';
-import { STORAGE_KEYS } from '../../src/constants';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
 import { RelationshipType, PersonRelationshipType } from '../../src/types';
@@ -236,14 +234,11 @@ export default function OnboardingFamilyScreen() {
    * Add a new child - matches prototype logic
    */
   const addChild = useCallback(() => {
-    // Get actual person IDs from the system
-    const userId = user?.id || '';
+    const userId = user?.id || 'user-placeholder';
     const spouse = user ? relationshipActions.getSpouse(user.id, 'active') : undefined;
-    const spouseId = spouse?.id || '';
+    const spouseId = spouse?.id || 'spouse-placeholder';
     
-    // Default guardians based on relationship status
-    // Only include spouse if they exist
-    const defaultGuardianIds = hasPartner(relationshipStatus) && spouseId
+    const defaultGuardianIds = hasPartner(relationshipStatus)
       ? [userId, spouseId]
       : [userId];
     
@@ -546,23 +541,7 @@ export default function OnboardingFamilyScreen() {
       }
     }
 
-    // Confirm people exist in storage before writing relationships
-    const peopleStorageKey = `kindling:${activeWillMakerId}:${STORAGE_KEYS.PERSON_DATA}`;
-    const storedPeople = await storage.load(peopleStorageKey, []);
-    const storedIds = new Set((storedPeople || []).map((person: any) => person.id));
-    const relationshipIds = Array.from(
-      new Set(pendingRelationships.flatMap(rel => [rel.aId, rel.bId]))
-    );
-    const missingIds = relationshipIds.filter(id => !storedIds.has(id));
-    if (missingIds.length > 0) {
-      console.error('❌ Relationship write blocked: missing people in storage', {
-        missingIds,
-        createdPersonIds,
-      });
-      return;
-    }
-
-    // Write relationship edges only after people have been created
+    // Write relationship edges
     for (const { aId, bId, type, opts } of pendingRelationships) {
       await relationshipActions.addRelationship(aId, bId, type, opts);
     }
