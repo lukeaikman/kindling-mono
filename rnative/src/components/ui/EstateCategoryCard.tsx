@@ -58,8 +58,10 @@ export interface EstateCategoryCardProps {
   title: string;
   /** Number of assets in this category */
   assetCount: number;
-  /** Net value of assets in this category */
+  /** Net value of assets in this category (excludes trust-held) */
   netValue: number;
+  /** Value of trust-held assets in this category */
+  trustValue?: number;
   /** Whether the category has been marked complete */
   isComplete: boolean;
   /** Tap handler — navigates into the category */
@@ -88,12 +90,16 @@ const formatShortValue = (value: number): string => {
   return `£${value}`;
 };
 
-/** Build the subline text based on asset count and value */
-const getSubline = (assetCount: number, netValue: number, hasUnknownValues?: boolean): string | null => {
+/** Build the subline text: "X item(s) · £Y net · £Z in trust" */
+const getSubline = (assetCount: number, netValue: number, trustValue: number, hasUnknownValues?: boolean): string | null => {
   if (assetCount === 0) return null;
   const items = assetCount === 1 ? '1 item' : `${assetCount} items`;
   const suffix = hasUnknownValues ? '\u2009+' : '';
-  return `${items} · ${formatShortValue(netValue)}${suffix} net`;
+  let line = `${items} · ${formatShortValue(netValue)}${suffix} net`;
+  if (trustValue > 0) {
+    line += ` · ${formatShortValue(trustValue)} in trust`;
+  }
+  return line;
 };
 
 // ---------------------------------------------------------------------------
@@ -105,6 +111,7 @@ export const EstateCategoryCard: React.FC<EstateCategoryCardProps> = ({
   title,
   assetCount,
   netValue,
+  trustValue = 0,
   isComplete,
   hasUnknownValues,
   onPress,
@@ -113,7 +120,7 @@ export const EstateCategoryCard: React.FC<EstateCategoryCardProps> = ({
 }) => {
   const hasAssets = assetCount > 0;
   const pill = getPillStyle(isComplete, hasAssets);
-  const subline = getSubline(assetCount, netValue, hasUnknownValues);
+  const subline = getSubline(assetCount, netValue, trustValue, hasUnknownValues);
   const showPill = isComplete || !hasAssets;
   const showCloseIcon = !hasAssets && !!onDeselect;
 

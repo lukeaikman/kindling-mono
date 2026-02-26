@@ -58,11 +58,11 @@
 ## D. Life Assured
 
 
-| #   | Test                  | Steps                                        | Pass criteria                                                                          | Pass? |
-| ----- | ----------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------- | ------- |
-| D-1 | Life assured required | Leave life assured unselected. Attempt save. | Save blocked/disabled.                                                                 |       |
-| D-2 | Select person         | Select Jane as life assured.                 | Jane shown as selected.                                                                |       |
-| D-3 | Will-maker first      | Open life assured selector.                  | Will-maker appears first, displayed bold with no relationship label in parentheses.    |       |
+| #   | Test                  | Steps                                        | Pass criteria                                                                       | Pass? |
+| ----- | ----------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------- | ------- |
+| D-1 | Life assured required | Leave life assured unselected. Attempt save. | Save blocked/disabled.                                                              |       |
+| D-2 | Select person         | Select Jane as life assured.                 | Jane shown as selected.                                                             |       |
+| D-3 | Will-maker first      | Open life assured selector.                  | Will-maker appears first, displayed bold with no relationship label in parentheses. |       |
 
 ---
 

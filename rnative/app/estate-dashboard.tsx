@@ -149,6 +149,7 @@ interface CategoryCardData {
   icon: string;
   assetCount: number;
   netValue: number;
+  trustValue: number;
   isComplete: boolean;
   hasUnknownValues?: boolean;
 }
@@ -230,6 +231,7 @@ const BalanceSheetMode: React.FC<ModeBProps> = ({
               title={cat.label}
               assetCount={cat.assetCount}
               netValue={cat.netValue}
+              trustValue={cat.trustValue}
               isComplete={cat.isComplete}
               hasUnknownValues={cat.hasUnknownValues}
               onPress={() => onCardPress(cat.id, cat.assetCount)}
@@ -314,20 +316,19 @@ export default function EstateDashboardScreen() {
       const assetCount = bequeathalActions.getAssetCountByType(catId);
       const assets = bequeathalActions.getAssetsByType(catId as any);
 
-      // Compute per-category net value
       let catNet = 0;
+      let catTrust = 0;
       for (const asset of assets) {
-        if (asset.heldInTrust === 'yes') continue;
-        if (asset.netValue !== undefined) {
-          catNet += asset.netValue;
+        const val = asset.netValue !== undefined
+          ? asset.netValue
+          : asset.type === 'property'
+            ? (asset.estimatedValue || 0) - ((asset as any).mortgage?.outstandingAmount || 0)
+            : (asset.estimatedValue || 0);
+
+        if (asset.heldInTrust === 'yes') {
+          catTrust += val;
         } else {
-          const val = asset.estimatedValue || 0;
-          if (asset.type === 'property') {
-            const mortgage = (asset as any).mortgage?.outstandingAmount || 0;
-            catNet += val - mortgage;
-          } else {
-            catNet += val;
-          }
+          catNet += val;
         }
       }
 
@@ -339,6 +340,7 @@ export default function EstateDashboardScreen() {
         icon: meta?.icon || 'folder',
         assetCount,
         netValue: catNet,
+        trustValue: catTrust,
         isComplete: bequeathalActions.isCategoryComplete(catId),
         hasUnknownValues: hasUnknown,
       };
