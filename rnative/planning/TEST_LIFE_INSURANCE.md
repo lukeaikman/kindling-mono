@@ -34,13 +34,13 @@
 * [ ] B. Add Flow - Basic
 
 
-| #   | Test                                  | Steps                                                                                                                                                                                         | Pass criteria                                                                              | Pass? |
-| ----- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------- |
-| B-1 | Add term policy - not in trust        | Provider = "Legal & General". Life Assured = Jane. Sum = 250000. Type = "Term Life Insurance". Held in Trust = "No". Premium = "Active". Save.                                                | Asset saved. No beneficiary section shown.`policyType: 'term'`.                            |       |
-| B-2 | Add whole life - in trust with %      | Provider = "Aviva". Life Assured = John. Sum = 500000. Type = "Whole Life Insurance". Held in Trust = "Yes". Split by %. Add Jane 60% + Bob 40%. Premium = "Paid Up". Save.                   | Asset saved with beneficiaries.`policyType: 'whole-life'`. `allocationMode: 'percentage'`. |       |
-| B-3 | Add policy - in trust with £ amounts | Provider = "Prudential". Life Assured = John. Sum = 300000. Type = "Term Life Insurance". Held in Trust = "Yes". Split by Amount. Add Jane £200000 + Bob £100000. Premium = "Active". Save. | Asset saved.`allocationMode: 'amount'`. Beneficiaries have `amount` not `percentage`.      |       |
-| B-4 | Add policy - not sure about trust     | Provider = "Scottish Widows". Life Assured = Jane. Sum = 150000. Type = "Whole Life Insurance". Held in Trust = "Not Sure". Add John 100%. Premium = "Suspended". Save.                       | Beneficiary section shown (same as "Yes"). Asset saved with beneficiary.                   |       |
-| B-5 | Header/button text in add mode        | Open entry with no`?id` param.                                                                                                                                                                | Header is "Add Policy". Button is "Add this policy".                                       |       |
+| #   | Test                                  | Steps                                                                                                                                                                                         | Pass criteria                                                                              | Pass?   |
+| ----- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------- |
+| B-1 | Add term policy - not in trust        | Provider = "Legal & General". Life Assured = Jane. Sum = 250000. Type = "Term Life Insurance". Held in Trust = "No". Premium = "Active". Save.                                                | Asset saved. No beneficiary section shown.`policyType: 'term'`.                            | Pass    |
+| B-2 | Add whole life - in trust with %      | Provider = "Aviva". Life Assured = John. Sum = 500000. Type = "Whole Life Insurance". Held in Trust = "Yes". Split by %. Add Jane 60% + Bob 40%. Premium = "Paid Up". Save.                   | Asset saved with beneficiaries.`policyType: 'whole-life'`. `allocationMode: 'percentage'`. | Pass    |
+| B-3 | Add policy - in trust with £ amounts | Provider = "Prudential". Life Assured = John. Sum = 300000. Type = "Term Life Insurance". Held in Trust = "Yes". Split by Amount. Add Jane £200000 + Bob £100000. Premium = "Active". Save. | Asset saved.`allocationMode: 'amount'`. Beneficiaries have `amount` not `percentage`.      | Pass    |
+| B-4 | Add policy - not sure about trust     | Provider = "Scottish Widows". Life Assured = Jane. Sum = 150000. Type = "Whole Life Insurance". Held in Trust = "Not Sure". Add John 100%. Premium = "Suspended". Save.                       | Beneficiary section shown (same as "Yes"). Asset saved with beneficiary.                   | Pass    |
+| B-5 | Header/button text in add mode        | Open entry with no`?id` param.                                                                                                                                                                | Header is "Add Policy". Button is "Add this policy".                                       | Defunct |
 
 ---
 
@@ -49,9 +49,9 @@
 
 | #   | Test                    | Steps                                                  | Pass criteria                                                                    | Pass? |
 | ----- | ------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------- |
-| C-1 | Provider options listed | Open Provider SearchableSelect.                        | Shows 19 providers including Legal & General, Aviva, Prudential, etc. + "Other". |       |
-| C-2 | Provider is required    | Leave provider blank, fill other fields, attempt save. | Save blocked/disabled.                                                           |       |
-| C-3 | Provider search works   | Type "Avi" in search.                                  | Filters to show "Aviva".                                                         |       |
+| C-1 | Provider options listed | Open Provider SearchableSelect.                        | Shows 19 providers including Legal & General, Aviva, Prudential, etc. + "Other". | Pass  |
+| C-2 | Provider is required    | Leave provider blank, fill other fields, attempt save. | Save blocked/disabled.                                                           | Pass  |
+| C-3 | Provider search works   | Type "Avi" in search.                                  | Filters to show "Aviva".                                                         | Pass  |
 
 ---
 
@@ -60,9 +60,9 @@
 
 | #   | Test                  | Steps                                        | Pass criteria                                                                       | Pass? |
 | ----- | ----------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------- | ------- |
-| D-1 | Life assured required | Leave life assured unselected. Attempt save. | Save blocked/disabled.                                                              |       |
-| D-2 | Select person         | Select Jane as life assured.                 | Jane shown as selected.                                                             |       |
-| D-3 | Will-maker first      | Open life assured selector.                  | Will-maker appears first, displayed bold with no relationship label in parentheses. |       |
+| D-1 | Life assured required | Leave life assured unselected. Attempt save. | Save blocked/disabled.                                                              | Pass  |
+| D-2 | Select person         | Select Jane as life assured.                 | Jane shown as selected.                                                             | Pass  |
+| D-3 | Will-maker first      | Open life assured selector.                  | Will-maker appears first, displayed bold with no relationship label in parentheses. | Pass  |
 
 ---
 
@@ -71,26 +71,26 @@
 
 | #   | Test             | Steps                                              | Pass criteria                                           | Pass? |
 | ----- | ------------------ | ---------------------------------------------------- | --------------------------------------------------------- | ------- |
-| E-1 | Type options     | Open Policy Type dropdown.                         | Shows "Term Life Insurance" and "Whole Life Insurance". |       |
-| E-2 | Type is required | Leave type blank, fill other fields, attempt save. | Save blocked/disabled.                                  |       |
+| E-1 | Type options     | Open Policy Type dropdown.                         | Shows "Term Life Insurance" and "Whole Life Insurance". | Pass  |
+| E-2 | Type is required | Leave type blank, fill other fields, attempt save. | Save blocked/disabled.                                  | Pass  |
 
 ---
 
 ## F. Held in Trust + Beneficiaries
 
 
-| #    | Test                                 | Steps                                                                  | Pass criteria                                                   | Pass? |
-| ------ | -------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------- | ------- |
-| F-1  | Held in trust required               | Leave held in trust unselected. Attempt save.                          | Save blocked/disabled.                                          |       |
-| F-2  | "Yes" shows beneficiary section      | Select "Yes - Held in Trust".                                          | Allocation mode selector and BeneficiaryWithPercentages appear. |       |
-| F-3  | "No" hides beneficiary section       | Select "No - Part of Estate".                                          | Beneficiary section hidden. No beneficiary data saved.          |       |
-| F-4  | "Not Sure" shows beneficiary section | Select "Not Sure".                                                     | Beneficiary section appears (same as "Yes").                    |       |
-| F-5  | Switching to No clears beneficiaries | Add beneficiaries while "Yes" selected. Switch to "No".                | Beneficiary section hides. Beneficiaries cleared.               |       |
-| F-6  | Allocation mode - percentage         | Select "Split by Percentage (%)". Add Jane 60% + Bob 40%. Save.        | Beneficiaries stored with`percentage` values.                   |       |
-| F-7  | Allocation mode - amount             | Select "Split by Amount (£)". Add Jane £200000 + Bob £100000. Save. | Beneficiaries stored with`amount` values (no percentage).       |       |
-| F-8  | Mode switch clears beneficiaries     | Add beneficiaries in % mode. Switch to £ mode.                        | Beneficiaries cleared on mode change.                           |       |
-| F-9  | Beneficiaries required when trust    | Select "Yes". Don't add beneficiaries. Attempt save.                   | Save blocked.                                                   |       |
-| F-10 | Percentage total required            | Select "Yes" + % mode. Add Jane 60% + Bob 30% (90%). Attempt save.     | Save blocked until total = 100%.                                |       |
+| #    | Test                                 | Steps                                                                  | Pass criteria                                                   | Pass?                                                                                       |
+| ------ | -------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| F-1  | Held in trust required               | Leave held in trust unselected. Attempt save.                          | Save blocked/disabled.                                          | Pass                                                                                        |
+| F-2  | "Yes" shows beneficiary section      | Select "Yes - Held in Trust".                                          | Allocation mode selector and BeneficiaryWithPercentages appear. | Pass                                                                                        |
+| F-3  | "No" hides beneficiary section       | Select "No - Part of Estate".                                          | Beneficiary section hidden. No beneficiary data saved.          | Pass                                                                                        |
+| F-4  | "Not Sure" shows beneficiary section | Select "Not Sure".                                                     | Beneficiary section appears (same as "Yes").                    | Pass                                                                                        |
+| F-5  | Switching to No clears beneficiaries | Add beneficiaries while "Yes" selected. Switch to "No".                | Beneficiary section hides. Beneficiaries cleared.               | Pass                                                                                        |
+| F-6  | Allocation mode - percentage         | Select "Split by Percentage (%)". Add Jane 60% + Bob 40%. Save.        | Beneficiaries stored with`percentage` values.                   | Pass                                                                                        |
+| F-7  | Allocation mode - amount             | Select "Split by Amount (£)". Add Jane £200000 + Bob £100000. Save. | Beneficiaries stored with`amount` values (no percentage).       | Pass                                                                                        |
+| F-8  | Mode switch clears beneficiaries     | Add beneficiaries in % mode. Switch to £ mode.                        | Beneficiaries cleared on mode change.                           | Pass - but is this a good idea, should we not keep the ebeneficiaries but change the mode ? |
+| F-9  | Beneficiaries required when trust    | Select "Yes". Don't add beneficiaries. Attempt save.                   | Save blocked.                                                   | Pass                                                                                        |
+| F-10 | Percentage total required            | Select "Yes" + % mode. Add Jane 60% + Bob 30% (90%). Attempt save.     | Save blocked until total = 100%.                                | Pass                                                                                        |
 
 ---
 
@@ -99,8 +99,8 @@
 
 | #   | Test             | Steps                                                 | Pass criteria                             | Pass? |
 | ----- | ------------------ | ------------------------------------------------------- | ------------------------------------------- | ------- |
-| G-1 | Premium options  | Open Premium Status dropdown.                         | Shows Active, Paid Up, Lapsed, Suspended. |       |
-| G-2 | Premium required | Leave premium blank, fill other fields, attempt save. | Save blocked/disabled.                    |       |
+| G-1 | Premium options  | Open Premium Status dropdown.                         | Shows Active, Paid Up, Lapsed, Suspended. | Pass  |
+| G-2 | Premium required | Leave premium blank, fill other fields, attempt save. | Save blocked/disabled.                    | Pass  |
 
 ---
 
@@ -109,11 +109,11 @@
 
 | #   | Test                               | Steps                                                 | Pass criteria                                                             | Pass? |
 | ----- | ------------------------------------ | ------------------------------------------------------- | --------------------------------------------------------------------------- | ------- |
-| H-1 | Edit loads existing data           | From summary, open existing policy for edit.          | All fields pre-filled. Header is "Edit Policy". Button is "Save changes". |       |
-| H-2 | Edit saves changes                 | Change provider and sum insured, save.                | Updated values shown in summary.                                          |       |
-| H-3 | Edit round-trip with beneficiaries | Save policy with Jane 70% + Bob 30%. Reopen for edit. | Rows show correct percentages. Total 100.0% ✓.                           |       |
-| H-4 | Edit round-trip with amount mode   | Save policy with amount allocation. Reopen for edit.  | Amount mode selected. Beneficiaries show £ values.                       |       |
-| H-5 | Net wealth toast on edit           | Edit a policy's sum insured and save.                 | Toast reflects delta.                                                     |       |
+| H-1 | Edit loads existing data           | From summary, open existing policy for edit.          | All fields pre-filled. Header is "Edit Policy". Button is "Save changes". | Pass  |
+| H-2 | Edit saves changes                 | Change provider and sum insured, save.                | Updated values shown in summary.                                          | Pass  |
+| H-3 | Edit round-trip with beneficiaries | Save policy with Jane 70% + Bob 30%. Reopen for edit. | Rows show correct percentages. Total 100.0% ✓.                           | Pass  |
+| H-4 | Edit round-trip with amount mode   | Save policy with amount allocation. Reopen for edit.  | Amount mode selected. Beneficiaries show £ values.                       | Pass  |
+| H-5 | Net wealth toast on edit           | Edit a policy's sum insured and save.                 | Toast reflects delta.                                                     | Pass  |
 
 ---
 
@@ -122,20 +122,20 @@
 
 | #   | Test                | Steps                                 | Pass criteria                       | Pass? |
 | ----- | --------------------- | --------------------------------------- | ------------------------------------- | ------- |
-| I-1 | Delete from summary | From summary, tap delete on a policy. | Confirmation appears.               |       |
-| I-2 | Delete confirmed    | Confirm deletion.                     | Policy removed. Total recalculates. |       |
-| I-3 | Delete cancelled    | Cancel delete dialog.                 | Policy unchanged.                   |       |
+| I-1 | Delete from summary | From summary, tap delete on a policy. | Confirmation appears.               | Pass  |
+| I-2 | Delete confirmed    | Confirm deletion.                     | Policy removed. Total recalculates. | Pass  |
+| I-3 | Delete cancelled    | Cancel delete dialog.                 | Policy unchanged.                   | Pass  |
 
 ---
 
 ## J. Validation
 
 
-| #   | Test                         | Steps                                       | Pass criteria                                                                                           | Pass? |
-| ----- | ------------------------------ | --------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------- |
-| J-1 | All 6 required fields        | Leave each required field blank in turn.    | Save blocked for each: Provider, Life Assured, Sum Insured, Policy Type, Held in Trust, Premium Status. |       |
-| J-2 | Sum insured must be > 0      | Enter 0 for sum insured.                    | Save blocked.                                                                                           |       |
-| J-3 | Validation attention trigger | Tap disabled save button when form invalid. | Attention label shows count of invalid fields.                                                          |       |
+| #   | Test                         | Steps                                       | Pass criteria                                                                                           | Pass?                                                                                                 |
+| ----- | ------------------------------ | --------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| J-1 | All 6 required fields        | Leave each required field blank in turn.    | Save blocked for each: Provider, Life Assured, Sum Insured, Policy Type, Held in Trust, Premium Status. | Pass                                                                                                  |
+| J-2 | Sum insured must be > 0      | Enter 0 for sum insured.                    | Save blocked.                                                                                           | Pass                                                                                                  |
+| J-3 | Validation attention trigger | Tap disabled save button when form invalid. | Attention label shows count of invalid fields.                                                          | Pass - BUT we're nto showing the validation attention styling on fields that are yet to be satisfied. |
 
 ---
 
