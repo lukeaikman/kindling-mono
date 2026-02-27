@@ -1640,26 +1640,18 @@ export const useAppState = () => {
       const key = uniquenessKey(aId, bId, type);
       const existing = edgeIndex[key];
       
-      // Idempotency: return existing edge if already exists
       if (existing) {
-        console.log('🔗 [REL] Relationship already exists:', { edgeId: existing, aId, bId, type });
         return existing;
       }
 
-      const generateId = () => {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          const r = Math.random() * 16 | 0;
-          const v = c === 'x' ? r : (r & 0x3 | 0x8);
-          return v.toString(16);
-        });
-      };
+      const id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
 
       const now = new Date();
       const edge: RelationshipEdge = {
-        id: generateId(),
-        aId,
-        bId,
-        type,
+        id, aId, bId, type,
         phase: opts?.phase,
         qualifiers: opts?.qualifiers,
         startedAt: opts?.startedAt,
@@ -1669,29 +1661,15 @@ export const useAppState = () => {
         updatedAt: now
       };
 
-      // Update state
-      const nextEdges = await updateStateAsync(setRelationshipData, prev => [...prev, edge]);
-      const relationshipKey = getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA);
-      if (relationshipKey) {
-        await storage.save(relationshipKey, nextEdges);
-      }
-
-      // Update index
+      setRelationshipData(prev => [...prev, edge]);
       edgeIndex[key] = edge.id;
-
-      console.log('✅ [REL] Added relationship:', { edgeId: edge.id, aId, bId, type, qualifiers: opts?.qualifiers });
       return edge.id;
     },
 
     updateRelationship: async (edgeId, updates) => {
-      const nextEdges = await updateStateAsync(setRelationshipData, prev => prev.map(edge =>
+      setRelationshipData(prev => prev.map(edge =>
         edge.id === edgeId ? { ...edge, ...updates, updatedAt: new Date() } : edge
       ));
-      const relationshipKey = getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA);
-      if (relationshipKey) {
-        await storage.save(relationshipKey, nextEdges);
-      }
-      console.log('🔄 [REL] Updated relationship:', { edgeId, updates });
     },
 
     removeRelationship: async (edgeId) => {
@@ -1700,15 +1678,7 @@ export const useAppState = () => {
         const key = uniquenessKey(edge.aId, edge.bId, edge.type);
         delete edgeIndex[key];
       }
-
-      const nextEdges = await updateStateAsync(setRelationshipData, prev =>
-        prev.filter(e => e.id !== edgeId)
-      );
-      const relationshipKey = getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA);
-      if (relationshipKey) {
-        await storage.save(relationshipKey, nextEdges);
-      }
-      console.log('🗑️ [REL] Removed relationship:', { edgeId });
+      setRelationshipData(prev => prev.filter(e => e.id !== edgeId));
     },
 
     getRelationships: (personId, filters) => {
