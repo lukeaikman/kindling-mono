@@ -35,12 +35,13 @@ import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
 import { getDisplayRoleLabel, getDropdownRoleLabel, getAvailableLevels } from '../../src/utils/executorHelpers';
 import { getNextYourPeopleRoute, type WillProgressState } from '../../src/utils/willProgress';
+import { RelationshipType } from '../../src/types';
 import type { Person } from '../../src/types';
 
 type GuardianAssignment = { guardian: string; level: number };
 
 export default function GuardianWishesScreen() {
-  const { personActions, willActions, estateRemainderActions, bequeathalActions } = useAppState();
+  const { personActions, willActions, estateRemainderActions, bequeathalActions, relationshipActions, activeWillMakerId } = useAppState();
 
   // Celebration state
   const [showCelebration, setShowCelebration] = useState(false);
@@ -94,7 +95,7 @@ export default function GuardianWishesScreen() {
       const guardians = willActions.getGuardians(dep.id);
       // Filter out parents (current guardians) - they'll be dead
       const nominatedOnly = guardians.filter(g => {
-        const isParent = dep.guardianIds?.includes(g.guardian);
+        const isParent = personActions.getGuardians(dep.id).some(p => p.id === g.guardian);
         return !isParent;
       });
       initialData[dep.id] = nominatedOnly;
@@ -120,9 +121,9 @@ export default function GuardianWishesScreen() {
       excluded.push(user.id);
     }
     
-    // Exclude current guardians (parents) from Person.guardianIds
-    if (child.guardianIds && child.guardianIds.length > 0) {
-      excluded.push(...child.guardianIds);
+    const guardians = personActions.getGuardians(child.id);
+    if (guardians.length > 0) {
+      excluded.push(...guardians.map(g => g.id));
     }
     
     // Exclude already nominated guardians (from local state)
@@ -180,10 +181,12 @@ export default function GuardianWishesScreen() {
         lastName: formData.lastName,
         email: formData.email,
         phone: formData.phone,
-        relationship: 'other',
         roles: ['guardian'],
       });
       personId = newGuardian.id;
+      if (activeWillMakerId) {
+        await relationshipActions.addRelationship(activeWillMakerId, personId, RelationshipType.OTHER_TIE);
+      }
     } else {
       // Add guardian role to existing person
       personActions.addRoleToPerson(personId, 'guardian');

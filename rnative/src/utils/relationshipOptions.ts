@@ -1,7 +1,6 @@
-import type { PersonRelationshipType } from '../types';
 import type { SelectOption } from '../components/ui/Select';
 
-const RELATIONSHIP_LABELS: Record<PersonRelationshipType, string> = {
+const RELATIONSHIP_LABELS: Record<string, string> = {
   'spouse': 'Spouse',
   'partner': 'Partner',
   'ex-spouse': 'Ex-spouse',
@@ -23,7 +22,7 @@ const RELATIONSHIP_LABELS: Record<PersonRelationshipType, string> = {
   'other': 'Other',
 };
 
-const RELATIONSHIP_ORDER: PersonRelationshipType[] = [
+const RELATIONSHIP_ORDER: string[] = [
   'spouse',
   'partner',
   'ex-spouse',
@@ -50,6 +49,6 @@ export const RELATIONSHIP_OPTIONS: SelectOption[] = RELATIONSHIP_ORDER.map((valu
   value,
 }));
 
-export const getRelationshipLabel = (value: PersonRelationshipType): string => {
+export const getRelationshipLabel = (value: string): string => {
   return RELATIONSHIP_LABELS[value] || 'Other';
 };

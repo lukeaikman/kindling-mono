@@ -32,7 +32,7 @@ export default function InvestmentsEntryScreen() {
   const params = useLocalSearchParams();
   const editingAssetId = params.id as string | undefined;
 
-  const { bequeathalActions, personActions, beneficiaryGroupActions, willActions } = useAppState();
+  const { bequeathalActions, personActions, beneficiaryGroupActions, willActions, relationshipActions } = useAppState();
   const toast = useNetWealthToast();
   const [formData, setFormData] = useState<InvestmentForm>({
     provider: '',
@@ -169,6 +169,7 @@ export default function InvestmentsEntryScreen() {
       formData.beneficiaries,
       personActions,
       beneficiaryGroupActions,
+      relationshipActions,
     );
 
     if (guard.hasZeroEntries) {

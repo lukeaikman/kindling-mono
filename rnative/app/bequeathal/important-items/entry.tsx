@@ -21,7 +21,7 @@ import { useFormValidation } from '../../../src/hooks/useFormValidation';
 import { useNetWealthToast } from '../../../src/context/NetWealthToastContext';
 import { KindlingColors } from '../../../src/styles/theme';
 import { Spacing, Typography } from '../../../src/styles/constants';
-import { getPersonFullName, getPersonRelationshipDisplay } from '../../../src/utils/helpers';
+import { getPersonFullName } from '../../../src/utils/helpers';
 import type { ImportantItemAsset } from '../../../src/types';
 
 const SUMMARY_ROUTE = '/bequeathal/important-items/summary';
@@ -33,7 +33,7 @@ interface ImportantItemForm {
 }
 
 export default function ImportantItemsEntryScreen() {
-  const { bequeathalActions, personActions, beneficiaryGroupActions, willActions } = useAppState();
+  const { bequeathalActions, personActions, beneficiaryGroupActions, willActions, relationshipActions } = useAppState();
   const toast = useNetWealthToast();
   const params = useLocalSearchParams();
   const editingAssetId = params.id as string | undefined;
@@ -92,7 +92,7 @@ export default function ImportantItemsEntryScreen() {
           id: b.id,
           type: 'person',
           name: person ? getPersonFullName(person) : b.name || 'Unknown',
-          relationship: person ? getPersonRelationshipDisplay(person) : undefined,
+          relationship: person ? relationshipActions.getDisplayLabel(b.id) : undefined,
         };
       }
       return { id: b.id, type: b.type, name: b.name || 'Unknown' };
@@ -244,7 +244,7 @@ export default function ImportantItemsEntryScreen() {
             id: person.id,
             type: 'person',
             name: getPersonFullName(person),
-            relationship: getPersonRelationshipDisplay(person) || undefined,
+            relationship: relationshipActions.getDisplayLabel(person.id) || undefined,
           };
           setFormData(prev => ({
             ...prev,

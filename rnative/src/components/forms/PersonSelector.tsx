@@ -19,7 +19,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton } from 'react-native-paper';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing, Typography } from '../../styles/constants';
-import { getPersonFullName, getPersonRelationshipDisplay } from '../../utils/helpers';
+import { getPersonFullName } from '../../utils/helpers';
+import { useAppState } from '../../hooks/useAppState';
 import type { PersonActions } from '../../types';
 
 export interface PersonSelectorProps {
@@ -94,6 +95,7 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({
   prioritizePersonIds = [],
   onAddNewPerson,
 }) => {
+  const { relationshipActions } = useAppState();
   const [showDrawer, setShowDrawer] = useState(false);
 
   const allPeople = personActions.getPeople();
@@ -117,7 +119,7 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({
     
     const fullName = getPersonFullName(person);
     if (prioritizePersonIds.includes(value)) return fullName;
-    const relationship = getPersonRelationshipDisplay(person);
+    const relationship = relationshipActions.getDisplayLabel(person.id);
     return relationship ? `${fullName} (${relationship})` : fullName;
   };
 
@@ -165,7 +167,7 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({
               ...availablePeople.map(p => {
                 const isPrioritized = prioritizePersonIds.includes(p.id);
                 const fullName = getPersonFullName(p);
-                const relationship = getPersonRelationshipDisplay(p);
+                const relationship = relationshipActions.getDisplayLabel(p.id);
                 const label = isPrioritized ? fullName : (relationship ? `${fullName} (${relationship})` : fullName);
                 return { id: p.id, label, isSpecial: false, isPrioritized };
               }),

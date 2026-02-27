@@ -36,7 +36,7 @@ import { Spacing, Typography } from '../../src/styles/constants';
  * Provides tools for development and debugging
  */
 export default function DeveloperDashboard() {
-  const { personActions, bequeathalActions, willActions, purgeAllData, activeWillMakerId, setActiveWillMakerId } = useAppState();
+  const { personActions, bequeathalActions, willActions, relationshipActions, purgeAllData, activeWillMakerId, setActiveWillMakerId } = useAppState();
   const { logout, status } = useAuth();
   const netWealthToast = useNetWealthToast();
   const [storageData, setStorageData] = useState<Record<string, any>>({});
@@ -119,7 +119,7 @@ export default function DeveloperDashboard() {
   );
   
   const handleSeedAllData = async () => {
-    await seedAllData(personActions, bequeathalActions);
+    await seedAllData(personActions, bequeathalActions, relationshipActions, activeWillMakerId);
     setRefreshKey(prev => prev + 1);
     console.log('✅ All data seeded');
   };

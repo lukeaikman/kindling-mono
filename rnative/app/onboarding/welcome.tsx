@@ -129,7 +129,6 @@ export default function OnboardingWelcomeScreen() {
         email: '',
         phone: '',
         dateOfBirth,
-        relationship: 'other', // Will-maker doesn't have a relationship to themselves
         roles: ['will-maker']
       });
       

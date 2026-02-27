@@ -5,7 +5,7 @@
  * @module utils/helpers
  */
 
-import { Person, PersonRelationshipType, RelationshipType } from '../types';
+import { Person, RelationshipType, PartnershipPhase, RelationshipEdge } from '../types';
 
 /**
  * Get the full name of a person (first name + last name)
@@ -17,85 +17,65 @@ export const getPersonFullName = (person: Person): string => {
   return `${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Unknown';
 };
 
-/**
- * Get the display label for a person's relationship type
- * @param {Person} person - The person object
- * @returns {string} The display label for the relationship (e.g., "Spouse", "Biological child")
- */
-export const getPersonRelationshipDisplay = (person: Person): string => {
-  if (!person || !person.relationship) {
-    return '';
-  }
-
-  if (person.relationship === 'other' && person.customRelationship) {
-    return person.customRelationship;
-  }
-  
-  // Convert relationship type to display string
-  const relationshipMap: Record<PersonRelationshipType, string> = {
-    'spouse': 'Spouse',
-    'partner': 'Partner',
-    'ex-spouse': 'Ex-Spouse',
-    'ex-partner': 'Ex-Partner',
-    'biological-child': 'Biological child',
-    'adopted-child': 'Adopted child',
-    'stepchild': 'Stepchild',
-    'parent': 'Parent',
-    'sibling': 'Sibling',
-    'grandparent': 'Grandparent',
-    'grandchild': 'Grandchild',
-    'uncle-aunt': 'Uncle/Aunt',
-    'nephew-niece': 'Nephew/Niece',
-    'cousin': 'Cousin',
-    'friend': 'Friend',
-    'colleague': 'Colleague',
-    'solicitor': 'Solicitor',
-    'accountant': 'Accountant',
-    'other': 'Other'
-  };
-  
-  return relationshipMap[person.relationship] || person.relationship || '';
-};
-
 // =============================================================================
 // New RelationshipType System Helpers (aligned with relationship edge store)
 // =============================================================================
 
+export interface LegacyConversionResult {
+  type: RelationshipType;
+  qualifiers?: Record<string, boolean>;
+  phase?: PartnershipPhase;
+  reverseDirection?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
 /**
- * Convert legacy PersonRelationshipType to new RelationshipType + qualifiers
- * Used when migrating data or interfacing with old forms
+ * Convert legacy relationship string to new RelationshipType + qualifiers/phase/metadata.
+ * Handles all legacy types — never returns null.
  */
 export const legacyToRelationshipType = (
-  legacy: PersonRelationshipType
-): { type: RelationshipType; qualifiers?: Record<string, boolean> } | null => {
+  legacy: string
+): LegacyConversionResult => {
   switch (legacy) {
     case 'spouse':
+      return { type: RelationshipType.SPOUSE, phase: 'active' };
     case 'ex-spouse':
-      return { type: RelationshipType.SPOUSE };
+      return { type: RelationshipType.SPOUSE, phase: 'divorced' };
     case 'partner':
+      return { type: RelationshipType.PARTNER, phase: 'active' };
     case 'ex-partner':
-      return { type: RelationshipType.PARTNER };
+      return { type: RelationshipType.PARTNER, phase: 'divorced' };
     case 'biological-child':
       return { type: RelationshipType.PARENT_OF, qualifiers: { biological: true } };
     case 'adopted-child':
       return { type: RelationshipType.PARENT_OF, qualifiers: { adoptive: true } };
     case 'stepchild':
       return { type: RelationshipType.PARENT_OF, qualifiers: { step: true } };
+    case 'parent':
+      return { type: RelationshipType.PARENT_OF, reverseDirection: true };
     case 'sibling':
       return { type: RelationshipType.SIBLING_OF };
+    case 'uncle-aunt':
+      return { type: RelationshipType.AUNT_UNCLE_OF };
+    case 'nephew-niece':
+      return { type: RelationshipType.AUNT_UNCLE_OF, reverseDirection: true };
+    case 'cousin':
+      return { type: RelationshipType.COUSIN_OF };
     case 'friend':
       return { type: RelationshipType.FRIEND };
-    // Professional/non-kinship relationships not tracked in edge store
-    case 'solicitor':
-    case 'accountant':
-    case 'colleague':
-    case 'parent':
     case 'grandparent':
+      return { type: RelationshipType.OTHER_TIE, metadata: { legacyType: 'grandparent' } };
     case 'grandchild':
+      return { type: RelationshipType.OTHER_TIE, metadata: { legacyType: 'grandchild' } };
+    case 'solicitor':
+      return { type: RelationshipType.OTHER_TIE, metadata: { legacyType: 'solicitor' } };
+    case 'accountant':
+      return { type: RelationshipType.OTHER_TIE, metadata: { legacyType: 'accountant' } };
+    case 'colleague':
+      return { type: RelationshipType.OTHER_TIE, metadata: { legacyType: 'colleague' } };
     case 'other':
-      return null;
     default:
-      return null;
+      return { type: RelationshipType.OTHER_TIE };
   }
 };
 
@@ -209,6 +189,74 @@ export const getQualifiersFromLegacyType = (legacy: string): Record<string, bool
   if (legacy === 'stepchild') qualifiers.step = true;
   if (legacy === 'foster-child') qualifiers.foster = true;
   return qualifiers;
+};
+
+/**
+ * Derive a human-readable label from a RelationshipEdge.
+ * `viewerPersonId` is the person *looking at* the edge (determines direction-based labels).
+ * For example, a PARENT_OF edge where viewer is aId means "this person is my child".
+ */
+export const edgeToDisplayLabel = (
+  edge: RelationshipEdge,
+  viewerPersonId: string
+): string => {
+  const direction: 'out' | 'in' = edge.aId === viewerPersonId ? 'out' : 'in';
+  const { type, qualifiers, phase, metadata } = edge;
+
+  if (type === RelationshipType.OTHER_TIE) {
+    const custom = metadata?.customLabel as string | undefined;
+    if (custom) return custom;
+    const legacy = metadata?.legacyType as string | undefined;
+    if (legacy) {
+      const legacyMap: Record<string, string> = {
+        'grandparent': 'Grandparent',
+        'grandchild': 'Grandchild',
+        'solicitor': 'Solicitor',
+        'accountant': 'Accountant',
+        'colleague': 'Colleague',
+      };
+      return legacyMap[legacy] || legacy.charAt(0).toUpperCase() + legacy.slice(1);
+    }
+    return 'Other';
+  }
+
+  if (type === RelationshipType.SPOUSE) {
+    if (phase === 'divorced') return 'Ex-Spouse';
+    return 'Spouse';
+  }
+  if (type === RelationshipType.PARTNER) {
+    if (phase === 'divorced') return 'Ex-Partner';
+    return 'Partner';
+  }
+
+  if (type === RelationshipType.PARENT_OF) {
+    if (direction === 'out') {
+      if (qualifiers?.biological) return 'Biological child';
+      if (qualifiers?.adoptive) return 'Adopted child';
+      if (qualifiers?.step) return 'Stepchild';
+      if (qualifiers?.foster) return 'Foster child';
+      return 'Child';
+    }
+    return 'Parent';
+  }
+
+  if (type === RelationshipType.SIBLING_OF) {
+    if (qualifiers?.half) return 'Half-sibling';
+    if (qualifiers?.step) return 'Step-sibling';
+    return 'Sibling';
+  }
+
+  if (type === RelationshipType.AUNT_UNCLE_OF) {
+    return direction === 'out' ? 'Nephew/Niece' : 'Uncle/Aunt';
+  }
+
+  if (type === RelationshipType.COUSIN_OF) return 'Cousin';
+  if (type === RelationshipType.GUARDIAN_OF) {
+    return direction === 'out' ? 'Ward' : 'Guardian';
+  }
+  if (type === RelationshipType.FRIEND) return 'Friend';
+
+  return 'Other';
 };
 
 /**

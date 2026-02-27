@@ -34,7 +34,7 @@ import { useAppState } from '../../src/hooks/useAppState';
 import { getDisplayRoleLabel, getDropdownRoleLabel, getAvailableLevels, isUnder18 } from '../../src/utils';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
-import { Person } from '../../src/types';
+import { Person, RelationshipType } from '../../src/types';
 
 interface ExecutorFormData {
   firstName: string;
@@ -50,7 +50,7 @@ interface ExecutorFormData {
  * Allows user to add, edit, and manage executors for their will.
  */
 export default function ExecutorSelectionScreen() {
-  const { personActions, willActions } = useAppState();
+  const { personActions, willActions, relationshipActions, activeWillMakerId } = useAppState();
   
   // UI State
   const [showVideo, setShowVideo] = useState(false);
@@ -243,9 +243,11 @@ export default function ExecutorSelectionScreen() {
       lastName: formData.lastName,
       email: formData.email,
       phone: formData.phone,
-      relationship: 'other',
       roles: ['executor'],
     });
+    if (activeWillMakerId) {
+      await relationshipActions.addRelationship(activeWillMakerId, newPerson.id, RelationshipType.OTHER_TIE);
+    }
     
     // Add to will executors with level
     const newExecutors = [...executorLevels, { executor: newPerson.id, level: formData.level }];

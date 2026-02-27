@@ -29,7 +29,8 @@ import { Spacing, Typography, BorderRadius, Shadows } from '../../styles/constan
 import { getBeneficiaryDisplayName, getTotalAllocated, evaluateWizard } from '../../utils/beneficiaryHelpers';
 import type { WizardResult } from '../../utils/beneficiaryHelpers';
 import { Dialog } from '../ui/Dialog';
-import { getPersonFullName, getPersonRelationshipDisplay } from '../../utils/helpers';
+import { getPersonFullName } from '../../utils/helpers';
+import { useAppState } from '../../hooks/useAppState';
 import type { BeneficiaryAssignment, PersonActions, BeneficiaryGroupActions } from '../../types';
 
 /**
@@ -135,6 +136,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
   requireComplete,
   error = false,
 }) => {
+  const { relationshipActions } = useAppState();
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   
   // Determine if we should use slider mode
@@ -362,7 +364,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
               ...(!estateSelected ? [{ id: 'estate', type: 'estate' as const, label: '🏛️ The Estate', isSpecial: true }] : []),
               ...availablePeople.map(p => { 
                 const fullName = getPersonFullName(p);
-                const relationship = getPersonRelationshipDisplay(p);
+                const relationship = relationshipActions.getDisplayLabel(p.id);
                 return {
                   id: p.id, 
                   type: 'person' as const, 
@@ -467,7 +469,7 @@ export const BeneficiaryWithPercentages: React.FC<BeneficiaryWithPercentagesProp
             })
           ) : (
             value.map((beneficiary, index) => {
-              const displayName = getBeneficiaryDisplayName(beneficiary, personActions, beneficiaryGroupActions);
+              const displayName = getBeneficiaryDisplayName(beneficiary, personActions, beneficiaryGroupActions, relationshipActions);
               const currentValue = allocationMode === 'percentage' ? beneficiary.percentage : beneficiary.amount;
               const isFocused = focusedIndex === index;
               const isLocked = !!beneficiary.isManuallyEdited;

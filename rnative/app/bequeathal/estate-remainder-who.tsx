@@ -43,6 +43,7 @@ export default function EstateRemainderWhoScreen() {
     beneficiaryGroupActions,
     estateRemainderActions,
     willActions,
+    relationshipActions,
     isAppStateReady,
   } = useAppState();
 
@@ -154,12 +155,6 @@ export default function EstateRemainderWhoScreen() {
     return `${person.firstName} ${person.lastName}`.trim();
   };
 
-  const getRelationshipLabel = (relationship: string) => {
-    return relationship
-      .replace(/-/g, ' ')
-      .replace(/\b\w/g, (l) => l.toUpperCase());
-  };
-
   // Get active custom groups for this will
   const willId = willActions.getWillData().userId;
   const activeCustomGroups = beneficiaryGroupActions
@@ -249,7 +244,7 @@ export default function EstateRemainderWhoScreen() {
                         {getPersonFullName(person)}
                       </Text>
                       <Text style={styles.personRelationship}>
-                        {getRelationshipLabel(person.relationship)}
+                        {relationshipActions.getDisplayLabel(person.id)}
                       </Text>
                     </View>
                   </Pressable>

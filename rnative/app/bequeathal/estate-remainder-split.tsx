@@ -57,6 +57,7 @@ export default function EstateRemainderSplitScreen() {
     estateRemainderActions,
     willActions,
     bequeathalActions,
+    relationshipActions,
   } = useAppState();
 
   // Celebration state
@@ -243,7 +244,7 @@ export default function EstateRemainderSplitScreen() {
   const recipientsFromPeople: SharingRecipient[] = selectedPeople.map((person) => ({
     splitId: `person-${person.id}`,
     label: getPersonFullName(person),
-    subLabel: person.relationship?.replace(/-/g, ' '),
+    subLabel: relationshipActions.getDisplayLabel(person.id),
     avatarText: `${person.firstName?.[0]}${person.lastName?.[0]}`,
     isGroup: false,
   }));

@@ -103,35 +103,6 @@ export type CareCategory =
   | 'special-circumstances';
 
 /**
- * @deprecated Use RelationshipEdge system with RelationshipType enum and qualifiers for new code.
- * This type is kept for backward compatibility during transition.
- * 
- * Migration notes:
- * - 'spouse' | 'ex-spouse' → RelationshipType.SPOUSE with phase: 'active' | 'divorced'
- * - 'biological-child' | 'adopted-child' | 'stepchild' → RelationshipType.PARENT_OF with qualifiers
- */
-export type PersonRelationshipType = 
-  | 'spouse'
-  | 'partner'
-  | 'ex-spouse'
-  | 'ex-partner'
-  | 'biological-child'
-  | 'adopted-child'
-  | 'stepchild'
-  | 'parent'
-  | 'sibling'
-  | 'grandparent'
-  | 'grandchild'
-  | 'uncle-aunt'
-  | 'nephew-niece'
-  | 'cousin'
-  | 'friend'
-  | 'colleague'
-  | 'solicitor'
-  | 'accountant'
-  | 'other';
-
-/**
  * Relationship Edge System - Normalized kinship tracking
  * This is the modern approach for relationship management
  */
@@ -181,7 +152,6 @@ export interface Person {
   lastName: string;
   email: string;
   phone: string;
-  relationship: PersonRelationshipType;
   roles: PersonRole[];
   dateOfBirth?: string;
   address?: AddressData;
@@ -191,10 +161,8 @@ export interface Person {
   // Care-related fields
   inCare?: boolean; // Flag indicating this person is in the user's care
   careCategory?: CareCategory; // Type of care relationship
-  guardianIds?: string[]; // Array of person IDs who are guardians for this person
   // Legacy field for backward compatibility
   capacityStatus?: 'under-18' | 'over-18-lacks-capacity' | 'over-18-full-capacity' | 'special-circumstances';
-  customRelationship?: string;
   guardianDetails?: {
     isFirstChoice?: boolean;
     isSecondChoice?: boolean;
@@ -800,12 +768,12 @@ export interface PersonActions {
   sendExecutorInvitations: () => void;
   sendGuardianInvitations: () => void;
   getPersonData: () => Person[];
-  addBeneficiary: (beneficiaryData: { name: string; relationship: string }) => Promise<Person>;
+  addBeneficiary: (beneficiaryData: { name: string; relationship?: string }) => Promise<Person>;
   addExecutor: (executorData: any) => Promise<Person>;
   clearOnboardingFamilyMembers: () => void;
   // Guardian management (current reality tracking)
-  assignGuardian: (childId: string, guardianId: string) => void;
-  removeGuardian: (childId: string, guardianId: string) => void;
+  assignGuardian: (childId: string, guardianId: string) => Promise<void>;
+  removeGuardian: (childId: string, guardianId: string) => Promise<void>;
   getGuardians: (childId: string) => Person[];
 }
 
@@ -827,7 +795,7 @@ export interface ExecutorActions {
  * Actions for managing beneficiaries
  */
 export interface BeneficiaryActions {
-  addBeneficiary: (beneficiaryData: { name: string; relationship: string }) => Promise<Person>;
+  addBeneficiary: (beneficiaryData: { name: string; relationship?: string }) => Promise<Person>;
   removeBeneficiary: (id: string) => void;
   updateBeneficiary: (id: string, updates: { name?: string; relationship?: string }) => void;
   getBeneficiaries: () => any[];
@@ -1171,9 +1139,9 @@ export interface RelationshipActions {
   updateRelationship: (
     edgeId: string,
     updates: Partial<Pick<RelationshipEdge, 'type' | 'phase' | 'qualifiers' | 'startedAt' | 'endedAt' | 'metadata'>>
-  ) => void;
+  ) => Promise<void>;
 
-  removeRelationship: (edgeId: string) => void;
+  removeRelationship: (edgeId: string) => Promise<void>;
 
   // Person-centric reads (both directions, single normalized output)
   getRelationships: (
@@ -1207,6 +1175,9 @@ export interface RelationshipActions {
   getChildren: (personId: string, qualifiersFilter?: string[]) => Person[];
   getParents: (personId: string, qualifiersFilter?: string[]) => Person[];
   getSiblings: (personId: string, qualifiersFilter?: string[]) => Person[];
+
+  // Display
+  getDisplayLabel: (personId: string) => string;
 }
 
 /**

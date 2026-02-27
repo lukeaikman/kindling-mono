@@ -17,7 +17,8 @@ import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing, Typography } from '../../styles/constants';
-import { getPersonFullName, getPersonRelationshipDisplay } from '../../utils/helpers';
+import { getPersonFullName } from '../../utils/helpers';
+import { useAppState } from '../../hooks/useAppState';
 import type { Person, PersonActions, BeneficiaryGroupActions, BeneficiaryGroup } from '../../types';
 
 /**
@@ -146,6 +147,7 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
   beneficiaryGroupActions,
   error = false,
 }) => {
+  const { relationshipActions } = useAppState();
   const selections = Array.isArray(value) ? value : (value ? [value] : []);
   const [dropdownValue, setDropdownValue] = React.useState('');
 
@@ -187,7 +189,7 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
   // People options
   availablePeople.forEach(person => {
     options.push({
-      label: `${getPersonFullName(person)} (${getPersonRelationshipDisplay(person)})`,
+      label: `${getPersonFullName(person)} (${relationshipActions.getDisplayLabel(person.id)})`,
       value: `person:${person.id}`,
     });
   });
@@ -226,7 +228,7 @@ export const MultiBeneficiarySelector: React.FC<MultiBeneficiarySelectorProps> =
       id: person.id,
       type: 'person',
       name: getPersonFullName(person),
-      relationship: getPersonRelationshipDisplay(person),
+      relationship: relationshipActions.getDisplayLabel(person.id),
     };
   };
 

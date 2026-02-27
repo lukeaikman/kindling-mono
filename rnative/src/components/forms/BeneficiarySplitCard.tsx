@@ -24,6 +24,7 @@ import { Spacing, Typography } from '../../styles/constants';
 import type { BeneficiaryAssignment, PersonActions, BeneficiaryGroupActions } from '../../types';
 import { getBeneficiaryDisplayName } from '../../utils/beneficiaryHelpers';
 import { getPersonFullName } from '../../utils/helpers';
+import { useAppState } from '../../hooks/useAppState';
 
 export interface BeneficiarySplitCardProps {
   /**
@@ -112,6 +113,7 @@ export const BeneficiarySplitCard: React.FC<BeneficiarySplitCardProps> = ({
   showMagicWand = true,
   style,
 }) => {
+  const { relationshipActions } = useAppState();
   const [manualInput, setManualInput] = useState('');
 
   // Get display name WITHOUT relationship (we show that separately)
@@ -131,8 +133,7 @@ export const BeneficiarySplitCard: React.FC<BeneficiarySplitCardProps> = ({
     if (beneficiary.type === 'group') return 'Category';
     if (beneficiary.type === 'estate') return 'Estate';
     
-    const person = personActions.getPersonById(beneficiary.id);
-    return person?.relationship?.replace(/-/g, ' ');
+    return relationshipActions.getDisplayLabel(beneficiary.id);
   };
   
   const displayName = getDisplayName();

@@ -8,7 +8,7 @@
  * @module utils/seedData
  */
 
-import { PersonActions, BequeathalActions } from '../types';
+import { PersonActions, BequeathalActions, RelationshipActions, RelationshipType } from '../types';
 import { getPersonFullName } from './helpers';
 
 /**
@@ -16,8 +16,10 @@ import { getPersonFullName } from './helpers';
  * Creates Luke Aikman family with realistic data
  * 
  * @param {PersonActions} personActions - Person actions interface
+ * @param {RelationshipActions} relationshipActions - Relationship actions interface
+ * @param {string} willMakerId - The active will-maker's person ID
  */
-export const seedUserData = async (personActions: PersonActions) => {
+export const seedUserData = async (personActions: PersonActions, relationshipActions: RelationshipActions, willMakerId: string) => {
   console.log('🌱 SEEDING USER DATA - Luke Aikman Family');
   
   // Create Luke Aikman as the main user
@@ -26,7 +28,6 @@ export const seedUserData = async (personActions: PersonActions) => {
     lastName: 'Aikman',
     email: 'luke.aikman@email.com',
     phone: '+44 7890 123456',
-    relationship: 'spouse',
     roles: ['will-maker', 'family-member'],
     dateOfBirth: '1983-10-05'
   });
@@ -37,7 +38,6 @@ export const seedUserData = async (personActions: PersonActions) => {
     lastName: 'Aikman',
     email: 'dawn.aikman@email.com',
     phone: '+44 7890 123457',
-    relationship: 'spouse',
     roles: ['family-member', 'beneficiary', 'executor']
   });
   
@@ -47,7 +47,6 @@ export const seedUserData = async (personActions: PersonActions) => {
     lastName: 'Aikman',
     email: 'heidi.aikman@email.com',
     phone: '',
-    relationship: 'biological-child',
     roles: ['family-member', 'beneficiary', 'dependent'],
     isDependent: true
   });
@@ -58,10 +57,14 @@ export const seedUserData = async (personActions: PersonActions) => {
     lastName: 'Aikman',
     email: 'dexter.aikman@email.com',
     phone: '',
-    relationship: 'biological-child',
     roles: ['family-member', 'beneficiary', 'dependent'],
     isDependent: true
   });
+  
+  // Create relationship edges
+  await relationshipActions.addRelationship(willMakerId, dawn.id, RelationshipType.SPOUSE, { phase: 'active' });
+  await relationshipActions.addRelationship(willMakerId, heidi.id, RelationshipType.PARENT_OF, { qualifiers: { biological: true } });
+  await relationshipActions.addRelationship(willMakerId, dexter.id, RelationshipType.PARENT_OF, { qualifiers: { biological: true } });
   
   console.log('✅ Successfully seeded Luke Aikman family:');
   console.log(`  - Luke Aikman (Will Maker, DOB: 05/10/1983)`);
@@ -128,8 +131,10 @@ export const seedPropertyData = (bequeathalActions: BequeathalActions) => {
  * 
  * @param {PersonActions} personActions - Person actions interface
  * @param {BequeathalActions} bequeathalActions - Bequeathal actions interface
+ * @param {RelationshipActions} relationshipActions - Relationship actions interface
+ * @param {string} willMakerId - The active will-maker's person ID
  */
-export const seedInvestmentsData = async (personActions: PersonActions, bequeathalActions: BequeathalActions) => {
+export const seedInvestmentsData = async (personActions: PersonActions, bequeathalActions: BequeathalActions, relationshipActions: RelationshipActions, willMakerId: string) => {
   console.log('🌱 SEEDING INVESTMENTS DATA - Development Action');
   
   // First, create some sample people if none exist
@@ -143,7 +148,6 @@ export const seedInvestmentsData = async (personActions: PersonActions, bequeath
       lastName: 'Johnson', 
       email: '',
       phone: '',
-      relationship: 'biological-child',
       roles: ['beneficiary']
     });
     const michael = await personActions.addPerson({ 
@@ -151,9 +155,10 @@ export const seedInvestmentsData = async (personActions: PersonActions, bequeath
       lastName: 'Johnson', 
       email: '',
       phone: '',
-      relationship: 'biological-child',
       roles: ['beneficiary']
     });
+    await relationshipActions.addRelationship(willMakerId, sarah.id, RelationshipType.PARENT_OF, { qualifiers: { biological: true } });
+    await relationshipActions.addRelationship(willMakerId, michael.id, RelationshipType.PARENT_OF, { qualifiers: { biological: true } });
     samplePersonIds = [sarah.id, michael.id];
   } else {
     samplePersonIds = existingPeople.map(p => p.id);
@@ -279,8 +284,10 @@ export const seedBankAccountsData = (bequeathalActions: BequeathalActions) => {
  * 
  * @param {PersonActions} personActions - Person actions interface
  * @param {BequeathalActions} bequeathalActions - Bequeathal actions interface
+ * @param {RelationshipActions} relationshipActions - Relationship actions interface
+ * @param {string} willMakerId - The active will-maker's person ID
  */
-export const seedImportantItemsData = async (personActions: PersonActions, bequeathalActions: BequeathalActions) => {
+export const seedImportantItemsData = async (personActions: PersonActions, bequeathalActions: BequeathalActions, relationshipActions: RelationshipActions, willMakerId: string) => {
   console.log('🌱 SEEDING IMPORTANT ITEMS DATA - Development Action');
   
   // Get or create beneficiaries
@@ -293,9 +300,9 @@ export const seedImportantItemsData = async (personActions: PersonActions, beque
       lastName: 'Thompson', 
       email: '',
       phone: '',
-      relationship: 'biological-child',
       roles: ['beneficiary', 'family-member']
     });
+    await relationshipActions.addRelationship(willMakerId, james.id, RelationshipType.PARENT_OF, { qualifiers: { biological: true } });
     samplePersonIds = [james.id];
   } else {
     samplePersonIds = existingPeople.map(p => p.id);
@@ -336,16 +343,18 @@ export const seedImportantItemsData = async (personActions: PersonActions, beque
  * 
  * @param {PersonActions} personActions - Person actions interface
  * @param {BequeathalActions} bequeathalActions - Bequeathal actions interface
+ * @param {RelationshipActions} relationshipActions - Relationship actions interface
+ * @param {string} willMakerId - The active will-maker's person ID
  */
-export const seedAllData = async (personActions: PersonActions, bequeathalActions: BequeathalActions) => {
+export const seedAllData = async (personActions: PersonActions, bequeathalActions: BequeathalActions, relationshipActions: RelationshipActions, willMakerId: string) => {
   console.log('🌱🌱🌱 SEEDING ALL DATA 🌱🌱🌱');
   
-  await seedUserData(personActions);
+  await seedUserData(personActions, relationshipActions, willMakerId);
   seedPropertyData(bequeathalActions);
-  await seedInvestmentsData(personActions, bequeathalActions);
+  await seedInvestmentsData(personActions, bequeathalActions, relationshipActions, willMakerId);
   seedPensionsData(bequeathalActions);
   seedBankAccountsData(bequeathalActions);
-  await seedImportantItemsData(personActions, bequeathalActions);
+  await seedImportantItemsData(personActions, bequeathalActions, relationshipActions, willMakerId);
   
   console.log('✅✅✅ ALL SEED DATA LOADED ✅✅✅');
 };

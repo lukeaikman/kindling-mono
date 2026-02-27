@@ -9,8 +9,8 @@
  * @module utils/beneficiaryHelpers
  */
 
-import type { BeneficiaryAssignments, BeneficiaryAssignment, Asset, PersonActions, BeneficiaryGroupActions } from '../types';
-import { getPersonFullName, getPersonRelationshipDisplay } from './helpers';
+import type { BeneficiaryAssignments, BeneficiaryAssignment, Asset, PersonActions, BeneficiaryGroupActions, RelationshipActions } from '../types';
+import { getPersonFullName } from './helpers';
 
 /**
  * Get allocation type by inspecting data
@@ -90,7 +90,8 @@ export function validatePercentageAllocation(
 export function getBeneficiaryDisplayName(
   beneficiary: BeneficiaryAssignment,
   personActions: PersonActions,
-  beneficiaryGroupActions: BeneficiaryGroupActions
+  beneficiaryGroupActions: BeneficiaryGroupActions,
+  relationshipActions: RelationshipActions
 ): string {
   if (!beneficiary || !beneficiary.type) {
     return 'Unknown Beneficiary';
@@ -110,7 +111,7 @@ export function getBeneficiaryDisplayName(
     if (!person) return 'Unknown Person';
     
     const fullName = getPersonFullName(person);
-    const relationship = getPersonRelationshipDisplay(person);
+    const relationship = relationshipActions.getDisplayLabel(person.id);
     return relationship ? `${fullName} (${relationship})` : fullName;
   }
   
@@ -145,6 +146,7 @@ export function detectZeroPercentBeneficiaries(
   beneficiaries: BeneficiaryAssignment[],
   personActions: PersonActions,
   beneficiaryGroupActions: BeneficiaryGroupActions,
+  relationshipActions: RelationshipActions,
 ): ZeroPercentResult {
   const zeroEntries = beneficiaries.filter(
     b => b.percentage === undefined || b.percentage === null || b.percentage <= 0,
@@ -157,7 +159,7 @@ export function detectZeroPercentBeneficiaries(
     return { cleaned, zeroEntries, dialogMessage: null, confirmLabel: null, hasZeroEntries: false };
   }
 
-  const names = zeroEntries.map(b => getBeneficiaryDisplayName(b, personActions, beneficiaryGroupActions));
+  const names = zeroEntries.map(b => getBeneficiaryDisplayName(b, personActions, beneficiaryGroupActions, relationshipActions));
 
   const dialogMessage = zeroEntries.length === 1
     ? `You added "${names[0]}" as a beneficiary but allocated them a 0% share.`

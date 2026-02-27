@@ -34,7 +34,7 @@ import { Tooltip } from '../../src/components/ui/Tooltip';
 import { useAppState } from '../../src/hooks/useAppState';
 import { KindlingColors } from '../../src/styles/theme';
 import { Spacing, Typography } from '../../src/styles/constants';
-import { RelationshipType, PersonRelationshipType } from '../../src/types';
+import { RelationshipType } from '../../src/types';
 
 /**
  * Relationship status options - matches prototype exactly
@@ -185,7 +185,7 @@ export default function OnboardingFamilyScreen() {
         lastName: child.lastName,
         dateOfBirth: child.dateOfBirth,
         relationship: child.relationship || 'biological-child',
-        guardianIds: child.guardianIds || [],
+        guardianIds: personActions.getGuardians(child.id).map(g => g.id),
         capacityStatus: (child.capacityStatus as Child['capacityStatus']) || 'under-18',
       })));
     }
@@ -463,7 +463,7 @@ export default function OnboardingFamilyScreen() {
     // Save spouse/partner first, then queue relationship edge
     let actualSpouseId: string | undefined;
     if (hasPartner(relationshipStatus) && spouseFirstName && spouseLastName) {
-      const spouseRelationship: PersonRelationshipType =
+      const spouseRelationship =
         relationshipStatus === 'married' || relationshipStatus === 'civil-partnership'
           ? 'spouse'
           : 'partner';
@@ -473,7 +473,6 @@ export default function OnboardingFamilyScreen() {
         lastName: spouseLastName,
         email: '',
         phone: '',
-        relationship: spouseRelationship,
         roles: ['family-member', 'beneficiary'],
         createdInOnboarding: true,
       });
@@ -518,18 +517,19 @@ export default function OnboardingFamilyScreen() {
           email: '',
           phone: '',
           dateOfBirth: child.dateOfBirth,
-          relationship: child.relationship as PersonRelationshipType,
           roles: ['family-member', 'beneficiary'],
           isUnder18: child.capacityStatus === 'under-18',
           inCare: child.capacityStatus === 'under-18' || child.capacityStatus === 'over-18-lacks-capacity',
           careCategory: child.capacityStatus === 'under-18' ? 'child-under-18' : undefined,
           capacityStatus: child.capacityStatus,
-          guardianIds: actualGuardianIds,
           createdInOnboarding: true,
         });
 
         if (childPerson) {
           createdPersonIds.push(childPerson.id);
+          for (const guardianId of actualGuardianIds) {
+            await personActions.assignGuardian(childPerson.id, guardianId);
+          }
           pendingRelationships.push({
             aId: currentUser.id,
             bId: childPerson.id,

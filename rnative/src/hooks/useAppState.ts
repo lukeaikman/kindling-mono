@@ -40,7 +40,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   WillData, BequeathalData, Bequest,
   WillActions, PersonActions, BeneficiaryActions, BusinessActions, BequeathalActions, TrustActions, BequestActions,
-  Person, PersonRole, PersonRelationshipType, AssetType, Asset, AssetSummary, Trust, TrustType, Business,
+  Person, PersonRole, AssetType, Asset, AssetSummary, Trust, TrustType, Business,
   GuardianLevel, GuardianHierarchy, AlignmentStatus, AlignmentInfo,
   RelationshipEdge, RelationshipType, PartnershipPhase, RelationshipActions,
   BeneficiaryGroup, BeneficiaryGroupActions, EstateRemainderState
@@ -50,7 +50,7 @@ import {
   getInitialBusinessData, getInitialBequeathalData, getInitialTrustData,
   STORAGE_KEYS
 } from '../constants';
-import { generateUUID, getPersonFullName, getPersonRelationshipDisplay } from '../utils/helpers';
+import { generateUUID, getPersonFullName, edgeToDisplayLabel, legacyToRelationshipType } from '../utils/helpers';
 import { storage } from '../services/storage';
 
 // Cross-instance state sync: when one useAsyncStorageState instance writes,
@@ -461,11 +461,84 @@ export const useAppState = () => {
       } as any);
     }
     
-    if (isEstateRemainderHydrated) {
+    // 8. Migrate Person.relationship and Person.guardianIds to RelationshipEdge
+    if (isRelationshipHydrated && isPersonHydrated) {
+      const needsRelationshipMigration = personData.some((p: any) =>
+        p.relationship !== undefined || p.guardianIds !== undefined
+      );
+
+      if (needsRelationshipMigration) {
+        const newEdges: RelationshipEdge[] = [...relationshipData];
+        const existingKeys = new Set(
+          newEdges.map(e => {
+            const symmetric = [RelationshipType.SPOUSE, RelationshipType.PARTNER, RelationshipType.SIBLING_OF, RelationshipType.COUSIN_OF, RelationshipType.FRIEND];
+            return symmetric.includes(e.type)
+              ? [e.aId, e.bId].sort().join('|') + '|' + e.type
+              : `${e.aId}|${e.bId}|${e.type}`;
+          })
+        );
+
+        const makeId = () =>
+          'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+          });
+
+        const addEdge = (aId: string, bId: string, type: RelationshipType, opts?: { phase?: PartnershipPhase; qualifiers?: Record<string, boolean>; metadata?: Record<string, unknown> }) => {
+          const symmetric = [RelationshipType.SPOUSE, RelationshipType.PARTNER, RelationshipType.SIBLING_OF, RelationshipType.COUSIN_OF, RelationshipType.FRIEND];
+          const key = symmetric.includes(type)
+            ? [aId, bId].sort().join('|') + '|' + type
+            : `${aId}|${bId}|${type}`;
+          if (existingKeys.has(key)) return;
+          existingKeys.add(key);
+          const now = new Date();
+          newEdges.push({
+            id: makeId(), aId, bId, type,
+            phase: opts?.phase, qualifiers: opts?.qualifiers, metadata: opts?.metadata,
+            createdAt: now, updatedAt: now
+          });
+        };
+
+        for (const person of personData) {
+          const rel = (person as any).relationship;
+          if (rel && person.id !== currentUserId) {
+            const converted = legacyToRelationshipType(rel);
+            const aId = converted.reverseDirection ? person.id : currentUserId;
+            const bId = converted.reverseDirection ? currentUserId : person.id;
+            addEdge(aId, bId, converted.type, {
+              phase: converted.phase,
+              qualifiers: converted.qualifiers,
+              metadata: converted.metadata,
+            });
+          }
+
+          const gIds = (person as any).guardianIds as string[] | undefined;
+          if (gIds && gIds.length > 0) {
+            for (const guardianId of gIds) {
+              addEdge(guardianId, person.id, RelationshipType.GUARDIAN_OF);
+            }
+          }
+        }
+
+        if (newEdges.length !== relationshipData.length) {
+          setRelationshipData(newEdges);
+          console.log(`✅ Migrated ${newEdges.length - relationshipData.length} relationship edges from legacy fields`);
+        }
+
+        // Strip legacy fields from Person records
+        setPersonData(prev => prev.map((person: any) => {
+          const { relationship, customRelationship, guardianIds, ...clean } = person;
+          return clean;
+        }));
+        console.log('✅ Stripped deprecated Person fields (relationship, customRelationship, guardianIds)');
+      }
+    }
+
+    if (isEstateRemainderHydrated && isRelationshipHydrated) {
       migrationCompletedRef.current = true;
       console.log('✅ Multi-user + bequest migration complete');
     }
-  }, [willData, trustData, businessData, bequeathalData, bequestData, estateRemainderState, isEstateRemainderHydrated]);
+  }, [willData, trustData, businessData, bequeathalData, bequestData, estateRemainderState, isEstateRemainderHydrated, isRelationshipHydrated, personData, isPersonHydrated]);
 
   // =============================================================================
   // Will Actions
@@ -752,6 +825,11 @@ export const useAppState = () => {
 
     removePerson: (id) => {
       setPersonData(prev => prev.filter(person => person.id !== id));
+
+      // Cleanup: remove relationship edges for this person
+      setRelationshipData(prevRel =>
+        prevRel.filter(edge => edge.aId !== id && edge.bId !== id)
+      );
       
       // Cleanup: remove from estate remainder if they were selected
       setEstateRemainderState(prevState => {
@@ -813,11 +891,9 @@ export const useAppState = () => {
     },
 
     getChildren: () => {
-      const childRelationships: PersonRelationshipType[] = ['biological-child', 'adopted-child', 'stepchild'];
-      return personData.filter(person => 
-        person.roles.includes('family-member') && 
-        childRelationships.includes(person.relationship)
-      );
+      const willMakerId = willData.userId;
+      if (!willMakerId) return [];
+      return relationshipActions.getChildren(willMakerId);
     },
 
     getPeopleInCare: () => {
@@ -896,34 +972,50 @@ export const useAppState = () => {
 
     // Legacy compatibility methods
     addBeneficiary: async (beneficiaryData) => {
-      // Parse name into first and last name
       const nameParts = beneficiaryData.name.trim().split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
       
-      // Map relationship string to PersonRelationshipType
-      const relationshipMap: Record<string, PersonRelationshipType> = {
-        'Spouse': 'spouse',
-        'Partner': 'partner',
-        'Daughter': 'biological-child',
-        'Son': 'biological-child',
-        'Child': 'biological-child',
-        'Parent': 'parent',
-        'Friend': 'friend',
-      };
-      
-      const relationship = relationshipMap[beneficiaryData.relationship] || 'other';
-      const customRelationship = relationship === 'other' ? beneficiaryData.relationship : undefined;
-      
-      return personActions.addPerson({
+      const newPerson = await personActions.addPerson({
         firstName,
         lastName,
         email: '',
         phone: '',
-        relationship,
-        customRelationship,
         roles: ['beneficiary']
       });
+
+      const willMakerId = willData.userId;
+      if (willMakerId && beneficiaryData.relationship) {
+        const relationshipMap: Record<string, string> = {
+          'Spouse': 'spouse',
+          'Partner': 'partner',
+          'Daughter': 'biological-child',
+          'Son': 'biological-child',
+          'Child': 'biological-child',
+          'Parent': 'parent',
+          'Friend': 'friend',
+        };
+
+        const legacyType = relationshipMap[beneficiaryData.relationship] || 'other';
+        
+        if (legacyType === 'other') {
+          await relationshipActions.addRelationship(
+            willMakerId, newPerson.id, RelationshipType.OTHER_TIE,
+            { metadata: { customLabel: beneficiaryData.relationship } }
+          );
+        } else {
+          const converted = legacyToRelationshipType(legacyType);
+          const aId = converted.reverseDirection ? newPerson.id : willMakerId;
+          const bId = converted.reverseDirection ? willMakerId : newPerson.id;
+          await relationshipActions.addRelationship(aId, bId, converted.type, {
+            phase: converted.phase,
+            qualifiers: converted.qualifiers,
+            metadata: converted.metadata,
+          });
+        }
+      }
+
+      return newPerson;
     },
 
     clearOnboardingFamilyMembers: () => {
@@ -950,58 +1042,30 @@ export const useAppState = () => {
     },
 
     addExecutor: async (executorData: any) => {
-      return personActions.addPerson(executorData);
+      const { relationship, ...rest } = executorData;
+      return personActions.addPerson(rest);
     },
 
     // Guardian management methods (current reality tracking)
-    assignGuardian: (childId, guardianId) => {
-      setPersonData(prev => {
-        const childIndex = prev.findIndex(p => p.id === childId);
-        if (childIndex === -1) {
-          console.warn('⚠️ Cannot assign guardian: child not found', { childId, guardianId });
-          return prev;
-        }
-
-        const child = prev[childIndex];
-        const currentGuardians = child.guardianIds || [];
-        
-        if (currentGuardians.includes(guardianId)) {
-          console.log('ℹ️ Guardian already assigned:', { childId, guardianId });
-          return prev;
-        }
-
-        const updatedPeople = [...prev];
-        updatedPeople[childIndex] = {
-          ...child,
-          guardianIds: [...currentGuardians, guardianId],
-          updatedAt: new Date()
-        };
-
-        return updatedPeople;
-      });
-      console.log('✅ Assigned guardian:', { childId, guardianId });
+    assignGuardian: async (childId, guardianId) => {
+      await relationshipActions.addRelationship(guardianId, childId, RelationshipType.GUARDIAN_OF);
+      console.log('✅ Assigned guardian via edge:', { childId, guardianId });
     },
 
-    removeGuardian: (childId, guardianId) => {
-      const child = personActions.getPersonById(childId);
-      if (!child) {
-        console.warn('⚠️ Cannot remove guardian: child not found', { childId, guardianId });
-        return;
+    removeGuardian: async (childId, guardianId) => {
+      const edges = relationshipActions.getRelationships(childId, { type: RelationshipType.GUARDIAN_OF });
+      const edge = edges.find(e => e.aId === guardianId && e.bId === childId);
+      if (edge) {
+        await relationshipActions.removeRelationship(edge.id);
       }
-
-      const currentGuardians = child.guardianIds || [];
-      personActions.updatePerson(childId, {
-        guardianIds: currentGuardians.filter(id => id !== guardianId)
-      });
-      console.log('✅ Removed guardian:', { childId, guardianId });
+      console.log('✅ Removed guardian via edge:', { childId, guardianId });
     },
 
     getGuardians: (childId) => {
-      const child = personActions.getPersonById(childId);
-      if (!child || !child.guardianIds) return [];
-
-      return child.guardianIds
-        .map(guardianId => personActions.getPersonById(guardianId))
+      const people = personActions.getPeople();
+      return relationshipData
+        .filter(edge => edge.bId === childId && edge.type === RelationshipType.GUARDIAN_OF)
+        .map(edge => people.find(p => p.id === edge.aId))
         .filter(Boolean) as Person[];
     }
   };
@@ -1022,27 +1086,19 @@ export const useAppState = () => {
     updateBeneficiary: (id, updates) => {
       const person = personActions.getPersonById(id);
       if (person && updates.name) {
-        // Parse name update
         const nameParts = updates.name.trim().split(' ');
         const firstName = nameParts[0] || person.firstName;
         const lastName = nameParts.slice(1).join(' ') || person.lastName;
         
-        personActions.updatePerson(id, {
-          firstName,
-          lastName,
-          customRelationship: updates.relationship && updates.relationship !== getPersonRelationshipDisplay(person) ? 
-            updates.relationship : 
-            person.customRelationship
-        });
+        personActions.updatePerson(id, { firstName, lastName });
       }
     },
 
     getBeneficiaries: () => {
-      // Convert Person objects to legacy Beneficiary format
       return personActions.getBeneficiaries().map(person => ({
         id: person.id,
         name: getPersonFullName(person),
-        relationship: getPersonRelationshipDisplay(person),
+        relationship: relationshipActions.getDisplayLabel(person.id),
         createdAt: person.createdAt,
         updatedAt: person.updatedAt
       }));
@@ -1054,7 +1110,7 @@ export const useAppState = () => {
         return {
           id: person.id,
           name: getPersonFullName(person),
-          relationship: getPersonRelationshipDisplay(person),
+          relationship: relationshipActions.getDisplayLabel(person.id),
           createdAt: person.createdAt,
           updatedAt: person.updatedAt
         };
@@ -1570,11 +1626,14 @@ export const useAppState = () => {
   };
 
   // Build uniqueness index from edges (edgeIndex: uniquenessKey -> edgeId)
-  const edgeIndex: Record<string, string> = {};
-  relationshipData.forEach(edge => {
-    const key = uniquenessKey(edge.aId, edge.bId, edge.type);
-    edgeIndex[key] = edge.id;
-  });
+  const edgeIndex = useMemo(() => {
+    const index: Record<string, string> = {};
+    relationshipData.forEach(edge => {
+      const key = uniquenessKey(edge.aId, edge.bId, edge.type);
+      index[key] = edge.id;
+    });
+    return index;
+  }, [relationshipData]);
 
   const relationshipActions: RelationshipActions = {
     addRelationship: async (aId, bId, type, opts) => {
@@ -1624,24 +1683,31 @@ export const useAppState = () => {
       return edge.id;
     },
 
-    updateRelationship: (edgeId, updates) => {
-      setRelationshipData(prev => prev.map(edge =>
+    updateRelationship: async (edgeId, updates) => {
+      const nextEdges = await updateStateAsync(setRelationshipData, prev => prev.map(edge =>
         edge.id === edgeId ? { ...edge, ...updates, updatedAt: new Date() } : edge
       ));
+      const relationshipKey = getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA);
+      if (relationshipKey) {
+        await storage.save(relationshipKey, nextEdges);
+      }
       console.log('🔄 [REL] Updated relationship:', { edgeId, updates });
     },
 
-    removeRelationship: (edgeId) => {
-      setRelationshipData(prev => {
-        // Remove from index
-        const edge = prev.find(e => e.id === edgeId);
-        if (edge) {
-          const key = uniquenessKey(edge.aId, edge.bId, edge.type);
-          delete edgeIndex[key];
-        }
+    removeRelationship: async (edgeId) => {
+      const edge = relationshipData.find(e => e.id === edgeId);
+      if (edge) {
+        const key = uniquenessKey(edge.aId, edge.bId, edge.type);
+        delete edgeIndex[key];
+      }
 
-        return prev.filter(e => e.id !== edgeId);
-      });
+      const nextEdges = await updateStateAsync(setRelationshipData, prev =>
+        prev.filter(e => e.id !== edgeId)
+      );
+      const relationshipKey = getScopedKey(STORAGE_KEYS.RELATIONSHIP_DATA);
+      if (relationshipKey) {
+        await storage.save(relationshipKey, nextEdges);
+      }
       console.log('🗑️ [REL] Removed relationship:', { edgeId });
     },
 
@@ -1709,10 +1775,27 @@ export const useAppState = () => {
     },
 
     getChildren: (personId, qualifiersFilter) => {
-      return relationshipActions.getRelatedPeople(personId, {
-        type: RelationshipType.PARENT_OF,
-        qualifierKeysAll: qualifiersFilter
-      });
+      const people = personActions.getPeople();
+      return relationshipData
+        .filter(edge => {
+          if (edge.aId !== personId) return false;
+          if (edge.type !== RelationshipType.PARENT_OF) return false;
+          if (qualifiersFilter && !qualifiersFilter.every(k => edge.qualifiers?.[k])) return false;
+          return true;
+        })
+        .map(edge => {
+          const child = people.find(p => p.id === edge.bId);
+          if (!child) return undefined;
+          return {
+            ...child,
+            type: edge.type,
+            phase: edge.phase,
+            qualifiers: edge.qualifiers,
+            direction: 'out' as 'out',
+            edgeId: edge.id
+          };
+        })
+        .filter(Boolean) as Person[];
     },
 
     getParents: (personId, qualifiersFilter) => {
@@ -1745,6 +1828,15 @@ export const useAppState = () => {
         type: RelationshipType.SIBLING_OF,
         qualifierKeysAll: qualifiersFilter
       });
+    },
+
+    getDisplayLabel: (personId) => {
+      const willMakerId = willData.userId;
+      if (!willMakerId) return '';
+      const edges = relationshipActions.getRelationships(personId);
+      const primaryEdge = edges.find(e => e.aId === willMakerId || e.bId === willMakerId);
+      if (!primaryEdge) return '';
+      return edgeToDisplayLabel(primaryEdge, willMakerId);
     }
   };
 

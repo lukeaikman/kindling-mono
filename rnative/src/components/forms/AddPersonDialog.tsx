@@ -7,7 +7,10 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { KindlingColors } from '../../styles/theme';
 import { Spacing, Typography } from '../../styles/constants';
-import type { Person, PersonActions, PersonRelationshipType, PersonRole } from '../../types';
+import type { Person, PersonActions, PersonRole } from '../../types';
+import { RelationshipType } from '../../types';
+import { useAppState } from '../../hooks/useAppState';
+import { legacyToRelationshipType } from '../../utils/helpers';
 import { RELATIONSHIP_OPTIONS } from '../../utils/relationshipOptions';
 
 export interface AddPersonDialogProps {
@@ -29,9 +32,10 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({
   roles = DEFAULT_ROLES,
   title = 'Add New Person',
 }) => {
+  const { relationshipActions, activeWillMakerId } = useAppState();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [relationship, setRelationship] = useState<PersonRelationshipType | ''>('');
+  const [relationship, setRelationship] = useState('');
   const [customRelationship, setCustomRelationship] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -66,10 +70,26 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({
       lastName: lastName.trim(),
       email: email.trim(),
       phone: phone.trim(),
-      relationship: relationship as PersonRelationshipType,
-      customRelationship: requiresCustomRelationship ? customRelationship.trim() : undefined,
       roles,
     });
+
+    if (relationship === 'other' && customRelationship.trim()) {
+      await relationshipActions.addRelationship(
+        activeWillMakerId,
+        person.id,
+        RelationshipType.OTHER_TIE,
+        { metadata: { customLabel: customRelationship.trim() } },
+      );
+    } else {
+      const conversion = legacyToRelationshipType(relationship);
+      const aId = conversion.reverseDirection ? person.id : activeWillMakerId;
+      const bId = conversion.reverseDirection ? activeWillMakerId : person.id;
+      await relationshipActions.addRelationship(aId, bId, conversion.type, {
+        phase: conversion.phase,
+        qualifiers: conversion.qualifiers,
+        metadata: conversion.metadata,
+      });
+    }
 
     onCreated(person);
     onDismiss();
@@ -103,7 +123,7 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({
           placeholder="Select relationship"
           value={relationship}
           options={RELATIONSHIP_OPTIONS}
-          onChange={(value) => setRelationship(value as PersonRelationshipType)}
+          onChange={(value) => setRelationship(value)}
         />
 
         {requiresCustomRelationship && (

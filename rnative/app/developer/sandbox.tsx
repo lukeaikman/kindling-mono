@@ -22,11 +22,11 @@ import type { BeneficiaryAssignment } from '../../src/types';
 import { useAppState } from '../../src/hooks/useAppState';
 import * as Haptics from 'expo-haptics';
 import { KindlingColors } from '../../src/styles/theme';
-import { getPersonFullName, getPersonRelationshipDisplay } from '../../src/utils/helpers';
+import { getPersonFullName } from '../../src/utils/helpers';
 import { Spacing, Typography } from '../../src/styles/constants';
 
 export default function SandboxScreen() {
-  const { beneficiaryGroupActions, willActions, personActions, estateRemainderActions } = useAppState();
+  const { beneficiaryGroupActions, willActions, personActions, estateRemainderActions, relationshipActions } = useAppState();
   const scrollViewRef = useRef<ScrollView>(null);
   const [selectedBank, setSelectedBank] = useState('');
   const [selectedBankWithCard, setSelectedBankWithCard] = useState('');
@@ -910,7 +910,7 @@ export default function SandboxScreen() {
               id: person.id,
               type: 'person',
               name: getPersonFullName(person),
-              relationship: getPersonRelationshipDisplay(person) || undefined,
+              relationship: relationshipActions.getDisplayLabel(person.id) || undefined,
             };
             if (addPersonContext === 'single') {
               setSingleBeneficiary(selection);
