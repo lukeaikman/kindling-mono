@@ -63,3 +63,6 @@ export { DraftBanner } from './DraftBanner';
 export { ValidationAttentionButton } from './ValidationAttentionButton';
 
 export { FieldError, FIELD_ERROR_BORDER_COLOR } from './FieldError';
+
+export { StepCard } from './StepCard';
+export type { StepCardProps } from './StepCard';

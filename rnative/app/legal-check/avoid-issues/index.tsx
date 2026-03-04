@@ -95,6 +95,7 @@ export default function AvoidIssuesDashboardScreen() {
             subline="Key details that protect your wishes"
             emphasis={preliminaryComplete ? 'hero' : 'future'}
             disabled={!preliminaryComplete}
+            onPress={() => router.push('/legal-check/avoid-issues/extra-details' as any)}
           />
 
           <StageCard
