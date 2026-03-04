@@ -1,13 +1,13 @@
 /**
- * Legal Check Dashboard
+ * Avoid Issues Dashboard
  *
- * Hub screen for all legal check activities. Mirrors the estate dashboard's
- * visual language: morphic background blobs, centered icon header, hero card,
- * section dividers, and StageCard items.
+ * Hub screen for the "Avoid Common Issues" legal check section.
+ * Shows progress through sub-stages: preliminary questions, critical
+ * information, and risk avoidance.
  *
- * Front-end only for now — status is hardcoded.
+ * Same visual language as the Legal Check and Estate dashboards.
  *
- * @module screens/legal-check
+ * @module screens/legal-check/avoid-issues
  */
 
 import React from 'react';
@@ -18,12 +18,15 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { BackButton } from '../../src/components/ui';
-import { StageCard } from '../../src/components/ui/StageCard';
-import { KindlingColors } from '../../src/styles/theme';
-import { Spacing, Typography, BorderRadius, Shadows } from '../../src/styles/constants';
+import { BackButton } from '../../../src/components/ui';
+import { StageCard } from '../../../src/components/ui/StageCard';
+import { KindlingColors } from '../../../src/styles/theme';
+import { Spacing, Typography, BorderRadius, Shadows } from '../../../src/styles/constants';
 
-export default function LegalCheckDashboardScreen() {
+export default function AvoidIssuesDashboardScreen() {
+  // TODO: once data layer exists, derive these from persisted answers
+  const preliminaryComplete = true;
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar style="dark" />
@@ -41,12 +44,12 @@ export default function LegalCheckDashboardScreen() {
         <View style={styles.headerCenter}>
           <View style={styles.headerIconCircle}>
             <MaterialCommunityIcons
-              name="shield-check-outline"
+              name="shield-alert-outline"
               size={18}
               color={KindlingColors.navy}
             />
           </View>
-          <Text style={styles.headerTitle}>Legal Check</Text>
+          <Text style={styles.headerTitle}>Avoid Issues</Text>
         </View>
         <View style={styles.headerRight} />
       </View>
@@ -59,51 +62,51 @@ export default function LegalCheckDashboardScreen() {
         {/* Hero card */}
         <View style={styles.heroCard}>
           <MaterialCommunityIcons
-            name="scale-balance"
+            name="shield-search"
             size={32}
             color={KindlingColors.navy}
           />
-          <Text style={styles.heroTitle}>Protect Your Wishes</Text>
+          <Text style={styles.heroTitle}>Common Pitfalls</Text>
           <Text style={styles.heroSubtitle}>
-            Flag anything a solicitor would want to know — so your will stands up when it matters most.
+            Work through each section to make sure your will is watertight.
           </Text>
         </View>
 
         {/* Section divider */}
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionLine} />
-          <Text style={styles.sectionLabel}>YOUR CHECKS</Text>
+          <Text style={styles.sectionLabel}>YOUR PROGRESS</Text>
           <View style={styles.sectionLine} />
         </View>
 
         {/* Stage cards */}
         <View style={styles.cards}>
           <StageCard
-            title="Avoid Common Issues"
-            status="Not started"
+            title="Preliminary Questions"
+            status={preliminaryComplete ? 'Complete' : 'Not started'}
             subline="Quick-fire questions to flag potential risks"
-            emphasis="hero"
+            emphasis={preliminaryComplete ? 'completed' : 'hero'}
             onPress={() => router.push('/legal-check/avoid-issues/questions' as any)}
           />
 
           <StageCard
             title="Critical Information"
             status="Not started"
-            subline="Key details a solicitor needs to protect your wishes"
-            emphasis="future"
-            disabled={true}
+            subline="Key details that protect your wishes"
+            emphasis={preliminaryComplete ? 'hero' : 'future'}
+            disabled={!preliminaryComplete}
           />
 
           <StageCard
             title="Avoid Key Risks"
             status="Not started"
-            subline="Targeted actions based on any concerns you flag"
+            subline="Specific actions to strengthen your will"
             emphasis="future"
             disabled={true}
           />
         </View>
 
-        {/* Warm progress sentence */}
+        {/* Progress sentence */}
         <View style={styles.progressRow}>
           <MaterialCommunityIcons
             name="flag-checkered"
@@ -111,7 +114,9 @@ export default function LegalCheckDashboardScreen() {
             color={KindlingColors.mutedForeground}
           />
           <Text style={styles.progressText}>
-            Complete your checks to strengthen your will.
+            {preliminaryComplete
+              ? 'Preliminary questions done. Keep going.'
+              : 'Start with the preliminary questions.'}
           </Text>
         </View>
       </ScrollView>

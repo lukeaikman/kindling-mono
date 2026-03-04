@@ -24,11 +24,11 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { BackButton, Button } from '../../src/components/ui';
-import { Celebration } from '../../src/components/ui/Celebration';
-import { SwipeCard, SwipeCardRef, SWIPE_THRESHOLD } from '../../src/components/ui/SwipeCard';
-import { KindlingColors } from '../../src/styles/theme';
-import { Spacing, Typography, BorderRadius } from '../../src/styles/constants';
+import { BackButton, Button } from '../../../src/components/ui';
+import { Celebration } from '../../../src/components/ui/Celebration';
+import { SwipeCard, SwipeCardRef, SWIPE_THRESHOLD } from '../../../src/components/ui/SwipeCard';
+import { KindlingColors } from '../../../src/styles/theme';
+import { Spacing, Typography, BorderRadius } from '../../../src/styles/constants';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -55,7 +55,7 @@ export default function AvoidIssuesScreen() {
 
   const handleCelebrationComplete = useCallback(() => {
     setShowCelebration(false);
-    router.back();
+    router.replace('/legal-check/avoid-issues' as any);
   }, []);
 
   const handleAnswer = useCallback((questionId: string, answer: boolean) => {
