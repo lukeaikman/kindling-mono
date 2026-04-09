@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "native-app",
+    "slug": "native-app",
+    "version": "1.0.0",
+    "scheme": "kindling",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/kindling-dark.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#EAE6E5"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "associatedDomains": [
+        "applinks:kindling.app"
+      ],
+      "bundleIdentifier": "com.lukeaikman.native-app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kindling.app",
+              "pathPrefix": "/app"
+            }
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kindling.app",
+              "pathPrefix": "/app"
+            }
+          ]
+        }
+      ],
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ],
+      "package": "com.lukeaikman.nativeapp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Kindling to use Face ID for secure authentication."
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}

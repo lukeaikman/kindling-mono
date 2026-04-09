@@ -1,0 +1,39 @@
+{
+  "will": {
+    "userId": "",
+    "willType": "simple",
+    "status": "draft",
+    "executors": [],
+    "guardianship": {},
+    "alignment": {},
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
+  },
+  "people": [],
+  "assets": {
+    "property": [],
+    "important-items": [],
+    "investment": [],
+    "pensions": [],
+    "life-insurance": [],
+    "bank-accounts": [],
+    "private-company-shares": [],
+    "assets-held-through-business": [],
+    "debts-credit": [],
+    "agricultural-assets": [],
+    "crypto-currency": [],
+    "other": []
+  },
+  "businesses": [],
+  "trusts": [],
+  "relationships": [],
+  "beneficiaryGroups": [],
+  "estateRemainder": {
+    "selectedPeopleIds": [],
+    "selectedGroupIds": [],
+    "splits": {},
+    "lockedCards": {},
+    "lastUpdated": "2024-01-01T00:00:00.000Z"
+  }
+}
+
