@@ -14,6 +14,16 @@ Rails.application.routes.draw do
   
   # Root redirects to admin dashboard (or login if not authenticated)
   root "admin/dashboard#index"
+
+  namespace :mobile do
+    root "startup#index"
+    get "open", to: "startup#open"
+    get "intro", to: "startup#intro"
+    get "video-intro", to: "startup#video_intro", as: :video_intro
+    get "risk-questionnaire", to: "startup#risk_questionnaire", as: :risk_questionnaire
+    post "complete-video", to: "startup#complete_video", as: :complete_video
+    post "complete-questionnaire", to: "startup#complete_questionnaire", as: :complete_questionnaire
+  end
   
   # API routes (for future use)
   namespace :api do

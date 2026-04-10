@@ -1,0 +1,10 @@
+<div class="card shadow-sm p-4">
+  <h1 class="h4 mb-3">Video Intro</h1>
+  <p class="text-muted">This mirrors the native startup gate for video-first onboarding.</p>
+
+  <video controls playsinline class="w-100 mb-3" preload="metadata">
+    <source src="<%= @video_url %>" type="video/mp4">
+  </video>
+
+  <%= button_to "Mark video complete", mobile_complete_video_path, method: :post, class: "btn btn-primary w-100" %>
+</div>

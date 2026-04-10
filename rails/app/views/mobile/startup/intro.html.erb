@@ -1,0 +1,13 @@
+<div class="card shadow-sm p-4">
+  <div class="text-center mb-3">
+    <%= image_tag "mobile/kindling-dark.png", alt: "Kindling", class: "img-fluid", style: "max-width: 220px;" %>
+  </div>
+  <h1 class="h4 text-center mb-2">Protect today. Build tomorrow.</h1>
+  <p class="text-muted text-center mb-4">Startup routing completed successfully.</p>
+
+  <div class="d-grid gap-2">
+    <%= link_to "Open deep-link flow", mobile_open_path(show_video: 1, source: "manual-test"), class: "btn btn-primary" %>
+    <%= link_to "Show video intro", mobile_video_intro_path, class: "btn btn-outline-secondary" %>
+    <%= link_to "Show risk questionnaire", mobile_risk_questionnaire_path, class: "btn btn-outline-secondary" %>
+  </div>
+</div>
