@@ -1,0 +1,38 @@
+<% content_for :title, "Kindling | Welcome" %>
+
+<div class="mobile-card">
+  <%= render "mobile/shared/step_header", step_number: 1, total_steps: 5, back_path: mobile_intro_path %>
+  <%= render "mobile/shared/form_errors", record: @onboarding_session %>
+
+  <p class="mobile-eyebrow">Step 1</p>
+  <h1 class="mobile-title">Let’s start with you.</h1>
+  <p class="mobile-subtitle">These details anchor the rest of the document, so we begin with the essentials and keep it clean.</p>
+
+  <%= form_with model: @onboarding_session, url: mobile_onboarding_welcome_path, method: :patch, class: "mobile-stack" do |form| %>
+    <div class="mobile-form-group">
+      <%= form.label :first_name, "First name", class: "mobile-field-label" %>
+      <%= form.text_field :first_name, class: "mobile-input", autocomplete: "given-name" %>
+    </div>
+
+    <div class="mobile-form-group">
+      <%= form.label :middle_names, "Middle names (optional)", class: "mobile-field-label" %>
+      <%= form.text_field :middle_names, class: "mobile-input", autocomplete: "additional-name" %>
+    </div>
+
+    <div class="mobile-form-group">
+      <%= form.label :last_name, "Family name / surname", class: "mobile-field-label" %>
+      <%= form.text_field :last_name, class: "mobile-input", autocomplete: "family-name" %>
+    </div>
+
+    <div class="mobile-form-group">
+      <%= form.label :date_of_birth, "Date of birth", class: "mobile-field-label" %>
+      <%= form.date_field :date_of_birth, class: "mobile-input" %>
+      <p class="mobile-helper mb-0">At the moment this flow supports people aged 18 to 90.</p>
+    </div>
+
+    <div class="mobile-actions">
+      <%= form.submit "Continue", class: "mobile-button" %>
+      <%= link_to "Log in instead", mobile_login_path, class: "mobile-button-tertiary" %>
+    </div>
+  <% end %>
+</div>

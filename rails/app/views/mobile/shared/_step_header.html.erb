@@ -1,0 +1,17 @@
+<div class="mobile-stepbar">
+  <% if local_assigns[:back_path].present? %>
+    <%= link_to back_path, class: "mobile-back-link" do %>
+      &larr; Back
+    <% end %>
+  <% else %>
+    <span></span>
+  <% end %>
+
+  <% if local_assigns[:step_number].present? %>
+    <span class="mobile-step-pill">Step <%= step_number %> of <%= total_steps || 5 %></span>
+  <% end %>
+</div>
+
+<div class="mobile-brand">
+  <%= image_tag "mobile/kindling-dark.png", alt: "Kindling" %>
+</div>

@@ -1,0 +1,101 @@
+<% content_for :title, "Kindling | Family" %>
+
+<%
+  children_for_form = @onboarding_session.children_payload
+  children_for_form = [{ "id" => SecureRandom.hex(6), "capacity_status" => "under-18", "disabled_answer" => nil, "lacks_mental_capacity_answer" => nil }] if @onboarding_session.has_children == "yes" && children_for_form.empty?
+  responsibility_options = @onboarding_session.child_responsibility_options
+  default_responsibility = @onboarding_session.default_child_responsibility
+%>
+
+<div class="mobile-card" data-mobile-family-form data-user-last-name="<%= @onboarding_session.last_name.to_s %>">
+  <%= render "mobile/shared/step_header", step_number: 3, total_steps: 5, back_path: mobile_onboarding_location_path %>
+  <%= render "mobile/shared/form_errors", record: @onboarding_session %>
+
+  <p class="mobile-eyebrow">Step 3</p>
+  <h1 class="mobile-title">Your family.</h1>
+  <p class="mobile-subtitle">This is where the flow becomes more personal. We keep it on one calm page so the whole picture stays visible.</p>
+
+  <%= form_with model: @onboarding_session, url: mobile_onboarding_family_path, method: :patch, class: "mobile-stack" do |form| %>
+    <div class="mobile-section">
+      <p class="mobile-field-label">Which best describes your current situation?</p>
+      <div class="mobile-radio-group" data-mobile-collapsible="true" data-role="relationship-status">
+        <% [["Single", "single"], ["Married", "married"], ["Civil partnership", "civil-partnership"], ["Cohabiting", "cohabiting"], ["Widowed", "widowed"]].each do |label, value| %>
+          <div class="mobile-radio-option">
+            <%= form.radio_button :relationship_status, value, id: "relationship_#{value}" %>
+            <%= form.label :relationship_status, label, value: value, for: "relationship_#{value}" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="mobile-section" data-role="partner-fields" <%= "hidden" unless @onboarding_session.has_partner? %>>
+      <h2 class="mobile-section-title">Partner details</h2>
+      <div class="mobile-inline-grid">
+        <div class="mobile-form-group">
+          <%= form.label :spouse_first_name, "First name", class: "mobile-field-label" %>
+          <%= form.text_field :spouse_first_name, class: "mobile-input", autocomplete: "off" %>
+        </div>
+
+        <div class="mobile-form-group">
+          <%= form.label :spouse_last_name, "Last name", class: "mobile-field-label" %>
+          <%= form.text_field :spouse_last_name, class: "mobile-input", autocomplete: "off", data: { role: "spouse-last-name", prefilled: (@onboarding_session.spouse_last_name.present? && @onboarding_session.spouse_last_name == @onboarding_session.last_name).to_s } %>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-section">
+      <div class="mobile-form-group">
+        <%= form.label :divorce_status, "Have you ever been divorced?", class: "mobile-field-label" %>
+        <%= form.select :divorce_status,
+          [["No, never divorced", "no"], ["Yes, divorced once", "yes-once"], ["Yes, divorced multiple times", "yes-multiple"], ["Currently going through divorce", "currently-divorcing"], ["Separated but not divorced", "separated"], ["Marriage was annulled", "annulled"], ["Prefer not to say", "prefer-not-to-say"], ["Other", "other"]],
+          {},
+          class: "mobile-select" %>
+      </div>
+    </div>
+
+    <div class="mobile-section">
+      <p class="mobile-field-label">Do you have children or guardianship responsibilities?</p>
+      <div class="mobile-radio-group" data-mobile-collapsible="true" data-role="has-children">
+        <% [["Yes", "yes"], ["No", "no"]].each do |label, value| %>
+          <div class="mobile-radio-option">
+            <%= form.radio_button :has_children, value, id: "has_children_#{value}" %>
+            <%= form.label :has_children, label, value: value, for: "has_children_#{value}" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="mobile-section" data-role="children-section" <%= "hidden" unless @onboarding_session.has_children == "yes" %>>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mobile-section-title mb-0">Tell us about those in your care</h2>
+        <button type="button" class="mobile-button-secondary px-3 py-2" data-add-child style="width: auto;">Add another</button>
+      </div>
+
+      <div class="mobile-stack" data-children-list>
+        <% children_for_form.each_with_index do |child, index| %>
+          <%= render "child_fields",
+            child: child,
+            child_index: index,
+            index: index,
+            allow_remove: children_for_form.size > 1,
+            responsibility_options: responsibility_options,
+            default_responsibility: default_responsibility %>
+        <% end %>
+      </div>
+
+      <template data-child-template>
+        <%= render "child_fields",
+          child: { "id" => "__CHILD_ID__", "capacity_status" => "under-18", "disabled_answer" => nil, "lacks_mental_capacity_answer" => nil },
+          child_index: "__INDEX__",
+          index: 0,
+          allow_remove: true,
+          responsibility_options: responsibility_options,
+          default_responsibility: default_responsibility %>
+      </template>
+    </div>
+
+    <div class="mobile-actions">
+      <%= form.submit "Continue", class: "mobile-button" %>
+    </div>
+  <% end %>
+</div>

@@ -1,13 +1,28 @@
-<div class="card shadow-sm p-4">
-  <div class="text-center mb-3">
-    <%= image_tag "mobile/kindling-dark.png", alt: "Kindling", class: "img-fluid", style: "max-width: 220px;" %>
-  </div>
-  <h1 class="h4 text-center mb-2">Protect today. Build tomorrow.</h1>
-  <p class="text-muted text-center mb-4">Startup routing completed successfully.</p>
+<% content_for :title, "Kindling | Start" %>
 
-  <div class="d-grid gap-2">
-    <%= link_to "Open deep-link flow", mobile_open_path(show_video: 1, source: "manual-test"), class: "btn btn-primary" %>
-    <%= link_to "Show video intro", mobile_video_intro_path, class: "btn btn-outline-secondary" %>
-    <%= link_to "Show risk questionnaire", mobile_risk_questionnaire_path, class: "btn btn-outline-secondary" %>
+<div class="mobile-card">
+  <%= render "mobile/shared/step_header" %>
+
+  <p class="mobile-eyebrow">Your will, made calmly</p>
+  <h1 class="mobile-title">Protect the people you love with clarity, not chaos.</h1>
+  <p class="mobile-subtitle">
+    We’ll guide you through a short set of questions so the legal shape is right before account setup begins.
+  </p>
+
+  <div class="mobile-stack mt-4">
+    <div class="mobile-stat-block">
+      <strong>What happens next</strong>
+      <p class="mobile-copy mb-0 mt-2">We’ll walk through your details, your family, and the few facts that materially affect the outcome.</p>
+    </div>
+
+    <div class="mobile-stat-block">
+      <strong>Built for mobile</strong>
+      <p class="mobile-copy mb-0 mt-2">You can move step by step, come back within the session window, and pick up where you left off.</p>
+    </div>
+  </div>
+
+  <div class="mobile-actions">
+    <%= button_to "Start creating your will", mobile_intro_continue_path, method: :post, class: "mobile-button" %>
+    <%= link_to "I already have an account", mobile_login_path, class: "mobile-button-secondary" %>
   </div>
 </div>

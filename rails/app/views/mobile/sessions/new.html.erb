@@ -1,0 +1,26 @@
+<% content_for :title, "Kindling | Log In" %>
+
+<div class="mobile-card">
+  <%= render "mobile/shared/step_header", back_path: mobile_intro_path %>
+
+  <p class="mobile-eyebrow">Welcome back</p>
+  <h1 class="mobile-title">Log in and pick up from your dashboard.</h1>
+  <p class="mobile-subtitle">Your dashboard lives behind the same Rails session auth as the admin surface, but this mobile view keeps the experience inside the app shell.</p>
+
+  <%= form_with url: mobile_login_path, method: :post, class: "mobile-stack" do |form| %>
+    <div class="mobile-form-group">
+      <%= form.label :email_address, "Email", class: "mobile-field-label" %>
+      <%= form.email_field :email_address, value: @email_address, required: true, autofocus: true, class: "mobile-input", placeholder: "you@example.com" %>
+    </div>
+
+    <div class="mobile-form-group">
+      <%= form.label :password, "Password", class: "mobile-field-label" %>
+      <%= form.password_field :password, required: true, class: "mobile-input", placeholder: "Enter your password" %>
+    </div>
+
+    <div class="mobile-actions">
+      <%= form.submit "Log in", class: "mobile-button" %>
+      <%= link_to "Back to the start", mobile_intro_path, class: "mobile-button-tertiary" %>
+    </div>
+  <% end %>
+</div>

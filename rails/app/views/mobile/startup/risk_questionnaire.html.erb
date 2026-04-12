@@ -1,12 +1,19 @@
-<div class="card shadow-sm p-4">
-  <h1 class="h4 mb-3">Risk Questionnaire</h1>
-  <p class="text-muted">This mirrors the native startup gate for questionnaire-first onboarding.</p>
+<% content_for :title, "Kindling | Risk Questionnaire" %>
 
-  <ul>
-    <li>Question set placeholder A</li>
-    <li>Question set placeholder B</li>
-    <li>Question set placeholder C</li>
+<div class="mobile-card">
+  <%= render "mobile/shared/step_header" %>
+
+  <p class="mobile-eyebrow">Quick risk check</p>
+  <h1 class="mobile-title">A brief check before we start building.</h1>
+  <p class="mobile-subtitle">This placeholder mirrors the native questionnaire gate we already agreed to keep in the startup flow.</p>
+
+  <ul class="mobile-list">
+    <li>Confirm that you’re ready to proceed with guided onboarding.</li>
+    <li>Screen for routing that needs to happen before the main questions.</li>
+    <li>Keep the startup flow in the same order as the native app.</li>
   </ul>
 
-  <%= button_to "Mark questionnaire complete", mobile_complete_questionnaire_path, method: :post, class: "btn btn-primary w-100" %>
+  <div class="mobile-actions">
+    <%= button_to "Continue", mobile_complete_questionnaire_path, method: :post, class: "mobile-button" %>
+  </div>
 </div>

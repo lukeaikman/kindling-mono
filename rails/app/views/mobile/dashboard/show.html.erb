@@ -1,0 +1,20 @@
+<% content_for :title, "Kindling | Dashboard" %>
+
+<div class="mobile-card">
+  <div class="mobile-brand">
+    <%= image_tag "mobile/kindling-dark.png", alt: "Kindling" %>
+  </div>
+
+  <p class="mobile-eyebrow">Mobile dashboard</p>
+  <h1 class="mobile-title">You’re in.</h1>
+  <p class="mobile-subtitle">This Epic 2 placeholder proves the authenticated mobile path cleanly bypasses onboarding and stays inside the mobile shell.</p>
+
+  <div class="mobile-stat-block mb-3">
+    <strong>What this means</strong>
+    <p class="mobile-copy mb-0 mt-2">Authenticated users no longer bounce through anonymous onboarding routes. They land here directly.</p>
+  </div>
+
+  <div class="mobile-actions">
+    <%= button_to "Log out", session_path, method: :delete, class: "mobile-button-secondary" %>
+  </div>
+</div>

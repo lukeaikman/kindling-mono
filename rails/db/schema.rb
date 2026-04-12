@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_26_132100) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_10_095500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -222,6 +222,45 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_26_132100) do
     t.string "name", null: false
     t.datetime "updated_at", null: false
     t.index ["name"], name: "motor_tags_name_unique_index", unique: true
+  end
+
+  create_table "onboarding_sessions", force: :cascade do |t|
+    t.string "attribution_source"
+    t.string "campaign"
+    t.text "children_payload"
+    t.datetime "completed_at"
+    t.string "country_of_residence"
+    t.datetime "created_at", null: false
+    t.string "current_step"
+    t.string "currently_resident_in_uk"
+    t.date "date_of_birth"
+    t.string "divorce_status", default: "no", null: false
+    t.string "domiciled_in_uk"
+    t.string "first_name"
+    t.string "first_show"
+    t.string "has_children"
+    t.datetime "intro_seen_at"
+    t.string "last_name"
+    t.datetime "last_seen_at"
+    t.string "location_id"
+    t.string "middle_names"
+    t.string "nationality"
+    t.integer "number_of_siblings"
+    t.string "parents_alive"
+    t.string "parents_in_law_alive"
+    t.datetime "questionnaire_completed_at"
+    t.text "raw_url"
+    t.string "relationship_status"
+    t.integer "risk_questionnaire_version"
+    t.string "siblings_alive"
+    t.string "spouse_first_name"
+    t.string "spouse_last_name"
+    t.string "token", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "video_completed_at"
+    t.integer "video_intro_version"
+    t.index ["last_seen_at"], name: "index_onboarding_sessions_on_last_seen_at"
+    t.index ["token"], name: "index_onboarding_sessions_on_token", unique: true
   end
 
   create_table "sessions", force: :cascade do |t|

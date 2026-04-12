@@ -68,6 +68,9 @@ end
 group :development do
   # Annotate models with schema info
   gem "annotate"
+
+  # Generate ER diagrams from the Rails models
+  gem "rails-erd", require: false
   
   # Detect N+1 queries
   gem "bullet"
