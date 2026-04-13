@@ -1,50 +1,54 @@
 <% content_for :title, "Kindling | Location" %>
 
-<div class="mobile-card">
-  <%= render "mobile/shared/step_header", step_number: 2, total_steps: 5, back_path: mobile_onboarding_welcome_path %>
+<%= form_with model: @onboarding_session, url: mobile_onboarding_location_path, method: :patch, class: "mobile-screen mobile-screen--onboarding", html: { id: "mobile-location-form" } do |form| %>
+  <% location_footer = capture do %>
+    <%= form.submit "Continue", class: "mobile-button", form: "mobile-location-form" %>
+  <% end %>
+
+  <% location_body = capture do %>
+    <%= render "mobile/shared/picker_field",
+      field_name: "onboarding_session[country_of_residence]",
+      label: "Which part of the UK do you live in?",
+      value: @onboarding_session.country_of_residence,
+      options: [["England", "england"], ["Wales", "wales"], ["Scotland", "scotland"]],
+      placeholder: "Select country" %>
+
+    <%= render "mobile/shared/picker_field",
+      field_name: "onboarding_session[nationality]",
+      label: "What’s your nationality?",
+      value: @onboarding_session.nationality,
+      options: [["British", "british"], ["American", "american"], ["Canadian", "canadian"], ["Australian", "australian"], ["Other", "other"]],
+      placeholder: "Select nationality" %>
+
+    <%= render "mobile/shared/choice_group",
+      field_name: "onboarding_session[domiciled_in_uk]",
+      label: "Are you domiciled in the UK?",
+      value: @onboarding_session.domiciled_in_uk,
+      options: [["Yes", "yes"], ["No", "no"], ["Not sure", "not-sure"]],
+      collapsible: true %>
+
+    <%= render "mobile/shared/choice_group",
+      field_name: "onboarding_session[currently_resident_in_uk]",
+      label: "Are you currently resident in the UK?",
+      value: @onboarding_session.currently_resident_in_uk,
+      options: [["Yes", "yes"], ["No", "no"]],
+      collapsible: true %>
+  <% end %>
+
+  <% content_for :mobile_footer do %>
+    <%= render "mobile/shared/sticky_actions", body: location_footer %>
+  <% end %>
+
+  <%= render "mobile/shared/screen_header", step_number: 2, total_steps: 5, back_path: mobile_onboarding_welcome_path %>
   <%= render "mobile/shared/form_errors", record: @onboarding_session %>
 
-  <p class="mobile-eyebrow">Step 2</p>
-  <h1 class="mobile-title">Where do you live?</h1>
-  <p class="mobile-subtitle">Your location and status affect how the law and tax rules apply, so this step stays focused and factual.</p>
+  <div class="mobile-screen__body">
+    <%= render "mobile/shared/hero_block",
+      eyebrow: "Step 2",
+      title: "Where do you live?",
+      subtitle: "Your location and status affect how the law and tax rules apply, so this step stays focused and factual." %>
 
-  <%= form_with model: @onboarding_session, url: mobile_onboarding_location_path, method: :patch, class: "mobile-stack" do |form| %>
-    <div class="mobile-form-group">
-      <%= form.label :country_of_residence, "Which part of the UK do you live in?", class: "mobile-field-label" %>
-      <%= form.select :country_of_residence, [["England", "england"], ["Wales", "wales"], ["Scotland", "scotland"]], { include_blank: "Select country" }, class: "mobile-select" %>
-    </div>
-
-    <div class="mobile-form-group">
-      <%= form.label :nationality, "What's your nationality?", class: "mobile-field-label" %>
-      <%= form.select :nationality, [["British", "british"], ["American", "american"], ["Canadian", "canadian"], ["Australian", "australian"], ["Other", "other"]], { include_blank: "Select nationality" }, class: "mobile-select" %>
-    </div>
-
-    <div class="mobile-form-group">
-      <p class="mobile-field-label">Are you domiciled in the UK?</p>
-      <div class="mobile-radio-group" data-mobile-collapsible="true">
-        <% [["Yes", "yes"], ["No", "no"], ["Not sure", "not-sure"]].each do |label, value| %>
-          <div class="mobile-radio-option">
-            <%= form.radio_button :domiciled_in_uk, value, id: "domiciled_#{value}" %>
-            <%= form.label :domiciled_in_uk, label, value: value, for: "domiciled_#{value}" %>
-          </div>
-        <% end %>
-      </div>
-    </div>
-
-    <div class="mobile-form-group">
-      <p class="mobile-field-label">Are you currently resident in the UK?</p>
-      <div class="mobile-radio-group" data-mobile-collapsible="true">
-        <% [["Yes", "yes"], ["No", "no"]].each do |label, value| %>
-          <div class="mobile-radio-option">
-            <%= form.radio_button :currently_resident_in_uk, value, id: "resident_#{value}" %>
-            <%= form.label :currently_resident_in_uk, label, value: value, for: "resident_#{value}" %>
-          </div>
-        <% end %>
-      </div>
-    </div>
-
-    <div class="mobile-actions">
-      <%= form.submit "Continue", class: "mobile-button" %>
-    </div>
-  <% end %>
-</div>
+    <%= render "mobile/shared/grouped_section",
+      body: location_body %>
+  </div>
+<% end %>

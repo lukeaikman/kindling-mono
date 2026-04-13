@@ -1,20 +1,15 @@
-<div class="mobile-card text-center" data-destination="<%= @destination %>" id="mobile-splash-root">
-  <div class="mobile-brand mb-3">
-    <%= image_tag "mobile/splash-icon.png", alt: "Kindling Splash", style: "max-width: 7rem;" %>
+<% content_for :title, "Kindling | Splash" %>
+
+<section class="mobile-screen mobile-screen--startup" data-destination="<%= @destination %>" id="mobile-splash-root">
+  <div class="mobile-screen__body">
+    <div class="mobile-brand">
+      <%= image_tag "mobile/splash-icon.png", alt: "Kindling Splash", style: "width: 7rem; height: auto;" %>
+    </div>
+
+    <%= render "mobile/shared/hero_block",
+      eyebrow: "Kindling",
+      title: "Setting the stage",
+      subtitle: "We’re opening the right part of your journey now.",
+      center: true %>
   </div>
-  <p class="mobile-eyebrow justify-content-center">Kindling</p>
-  <h1 class="mobile-title" style="font-size: 2.2rem;">Setting the stage</h1>
-  <p class="mobile-subtitle mb-0">We’re opening the right part of your journey now.</p>
-</div>
-
-<script>
-  (() => {
-    const root = document.getElementById("mobile-splash-root");
-    if (!root) return;
-
-    const destination = root.dataset.destination || "/mobile/intro";
-    window.setTimeout(() => {
-      window.location.assign(destination);
-    }, 450);
-  })();
-</script>
+</section>

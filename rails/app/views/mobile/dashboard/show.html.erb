@@ -1,20 +1,24 @@
 <% content_for :title, "Kindling | Dashboard" %>
 
-<div class="mobile-card">
-  <div class="mobile-brand">
-    <%= image_tag "mobile/kindling-dark.png", alt: "Kindling" %>
-  </div>
+<% footer_actions = capture do %>
+  <%= button_to "Log out", session_path, method: :delete, class: "mobile-button-secondary" %>
+<% end %>
 
-  <p class="mobile-eyebrow">Mobile dashboard</p>
-  <h1 class="mobile-title">You’re in.</h1>
-  <p class="mobile-subtitle">This Epic 2 placeholder proves the authenticated mobile path cleanly bypasses onboarding and stays inside the mobile shell.</p>
+<% content_for :mobile_footer do %>
+  <%= render "mobile/shared/sticky_actions", body: footer_actions %>
+<% end %>
 
-  <div class="mobile-stat-block mb-3">
-    <strong>What this means</strong>
-    <p class="mobile-copy mb-0 mt-2">Authenticated users no longer bounce through anonymous onboarding routes. They land here directly.</p>
-  </div>
+<section class="mobile-screen">
+  <%= render "mobile/shared/screen_header", center_label: "Dashboard" %>
 
-  <div class="mobile-actions">
-    <%= button_to "Log out", session_path, method: :delete, class: "mobile-button-secondary" %>
+  <div class="mobile-screen__body">
+    <%= render "mobile/shared/hero_block",
+      eyebrow: "Mobile dashboard",
+      title: "You’re in.",
+      subtitle: "This Epic 2 placeholder proves the authenticated mobile path cleanly bypasses onboarding and stays inside the mobile shell." %>
+
+    <%= render "mobile/shared/callout",
+      title: "What this means",
+      body: "Authenticated users no longer bounce through anonymous onboarding routes. They land here directly." %>
   </div>
-</div>
+</section>

@@ -1,0 +1,26 @@
+<%
+  normalized_options = options.map { |option| option.is_a?(Array) ? option : [option.fetch(:label), option.fetch(:value)] }
+  current_value = value.to_s
+  group_id = (local_assigns[:id_prefix].presence || field_name.gsub(/[^a-zA-Z0-9]+/, "_").gsub(/\A_|_\z/, ""))
+  collapsible = local_assigns.fetch(:collapsible, true)
+  choice_group_body = capture do
+%>
+  <div
+    class="mobile-choice-group mobile-radio-group"
+    data-mobile-choice-group="<%= collapsible %>"
+    data-mobile-collapsible="<%= collapsible %>"
+    <%= %(data-role="#{data_role}") if local_assigns[:data_role].present? %>>
+    <% normalized_options.each do |option_label, option_value| %>
+      <% option_id = "#{group_id}_#{option_value.to_s.parameterize(separator: "_")}" %>
+      <div class="mobile-choice-option mobile-radio-option">
+        <%= radio_button_tag field_name, option_value, current_value == option_value.to_s, id: option_id %>
+        <%= label_tag option_id, option_label %>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
+<%= render "mobile/shared/form_row",
+  label: local_assigns[:label],
+  hint: local_assigns[:hint],
+  body: choice_group_body %>

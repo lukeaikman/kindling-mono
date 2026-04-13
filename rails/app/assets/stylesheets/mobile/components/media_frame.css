@@ -1,0 +1,13 @@
+.mobile-media-frame {
+  overflow: hidden;
+  border-radius: var(--mobile-radius-lg);
+  background: #0f1820;
+  box-shadow: var(--mobile-shadow-card);
+}
+
+.mobile-media-frame video,
+.mobile-media-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}

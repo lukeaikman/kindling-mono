@@ -1,0 +1,62 @@
+.mobile-radio-group,
+.mobile-choice-group {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.mobile-radio-group.is-collapsed .mobile-radio-option:not(.is-selected) {
+  display: none;
+}
+
+.mobile-radio-option {
+  position: relative;
+}
+
+.mobile-radio-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mobile-radio-option label {
+  display: block;
+  min-height: 3.5rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--mobile-color-line);
+  border-radius: var(--mobile-radius-md);
+  background: rgba(255, 255, 255, 0.96);
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.mobile-radio-option input:checked + label {
+  border-color: rgba(47, 117, 90, 0.42);
+  background: rgba(240, 248, 244, 0.98);
+  box-shadow: 0 10px 22px rgba(47, 117, 90, 0.12);
+}
+
+.mobile-radio-group.is-collapsed .mobile-radio-option.is-selected label {
+  padding-right: 3.4rem;
+}
+
+.mobile-radio-reset {
+  position: absolute;
+  top: 50%;
+  right: 0.65rem;
+  transform: translateY(-50%);
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mobile-color-accent-soft);
+  color: var(--mobile-color-accent-deep);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.mobile-radio-reset[hidden] {
+  display: none;
+}

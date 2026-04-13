@@ -1,59 +1,60 @@
 <% content_for :title, "Kindling | Extended Family" %>
 
-<div class="mobile-card">
-  <%= render "mobile/shared/step_header", step_number: 4, total_steps: 5, back_path: mobile_onboarding_family_path %>
-  <%= render "mobile/shared/form_errors", record: @onboarding_session %>
+<%= form_with model: @onboarding_session, url: mobile_onboarding_extended_family_path, method: :patch, class: "mobile-screen mobile-screen--onboarding", html: { id: "mobile-extended-family-form" } do |form| %>
+  <% extended_family_footer = capture do %>
+    <%= form.submit "Continue", class: "mobile-button", form: "mobile-extended-family-form" %>
+  <% end %>
 
-  <p class="mobile-eyebrow">Step 4</p>
-  <h1 class="mobile-title">Extended family.</h1>
-  <p class="mobile-subtitle">A few more facts help us understand complexity without dragging you through a family tree exercise.</p>
-
-  <%= form_with model: @onboarding_session, url: mobile_onboarding_extended_family_path, method: :patch, class: "mobile-stack" do |form| %>
-    <div class="mobile-form-group">
-      <p class="mobile-field-label">Are either of your parents still alive?</p>
-      <div class="mobile-radio-group" data-mobile-collapsible="true">
-        <% [["Yes", "yes"], ["One alive", "one-alive"], ["No", "no"]].each do |label, value| %>
-          <div class="mobile-radio-option">
-            <%= form.radio_button :parents_alive, value, id: "parents_alive_#{value}" %>
-            <%= form.label :parents_alive, label, value: value, for: "parents_alive_#{value}" %>
-          </div>
-        <% end %>
-      </div>
-    </div>
+  <% extended_family_body = capture do %>
+    <%= render "mobile/shared/choice_group",
+      field_name: "onboarding_session[parents_alive]",
+      label: "Are either of your parents still alive?",
+      value: @onboarding_session.parents_alive,
+      options: [["Yes", "yes"], ["One alive", "one-alive"], ["No", "no"]],
+      id_prefix: "parents_alive",
+      collapsible: true %>
 
     <% if @onboarding_session.has_partner? %>
-      <div class="mobile-form-group">
-        <p class="mobile-field-label">Are either of your partner's parents still alive?</p>
-        <div class="mobile-radio-group" data-mobile-collapsible="true">
-          <% [["Yes", "yes"], ["One alive", "one-alive"], ["No", "no"]].each do |label, value| %>
-            <div class="mobile-radio-option">
-              <%= form.radio_button :parents_in_law_alive, value, id: "parents_in_law_#{value}" %>
-              <%= form.label :parents_in_law_alive, label, value: value, for: "parents_in_law_#{value}" %>
-            </div>
-          <% end %>
-        </div>
-      </div>
+      <%= render "mobile/shared/choice_group",
+        field_name: "onboarding_session[parents_in_law_alive]",
+        label: "Are either of your partner’s parents still alive?",
+        value: @onboarding_session.parents_in_law_alive,
+        options: [["Yes", "yes"], ["One alive", "one-alive"], ["No", "no"]],
+        id_prefix: "parents_in_law_alive",
+        collapsible: true %>
     <% end %>
 
-    <div class="mobile-form-group">
-      <p class="mobile-field-label">Do you have any brothers or sisters still alive?</p>
-      <div class="mobile-radio-group" data-mobile-collapsible="true">
-        <% [["Yes", "yes"], ["No", "no"]].each do |label, value| %>
-          <div class="mobile-radio-option">
-            <%= form.radio_button :siblings_alive, value, id: "siblings_alive_#{value}", data: { role: "siblings-alive" } %>
-            <%= form.label :siblings_alive, label, value: value, for: "siblings_alive_#{value}" %>
-          </div>
-        <% end %>
-      </div>
-    </div>
+    <%= render "mobile/shared/choice_group",
+      field_name: "onboarding_session[siblings_alive]",
+      label: "Do you have any brothers or sisters still alive?",
+      value: @onboarding_session.siblings_alive,
+      options: [["Yes", "yes"], ["No", "no"]],
+      id_prefix: "siblings_alive",
+      collapsible: true,
+      data_role: "siblings-alive" %>
 
-    <div class="mobile-form-group" data-role="siblings-count" <%= "hidden" unless @onboarding_session.siblings_alive == "yes" %>>
-      <%= form.label :number_of_siblings, "How many siblings are alive?", class: "mobile-field-label" %>
-      <%= form.number_field :number_of_siblings, class: "mobile-input-number", min: 1 %>
-    </div>
-
-    <div class="mobile-actions">
-      <%= form.submit "Continue", class: "mobile-button" %>
+    <div data-role="siblings-count" <%= "hidden" unless @onboarding_session.siblings_alive == "yes" %>>
+      <%= render "mobile/shared/form_row",
+        label: "How many siblings are alive?",
+        for_id: "onboarding_session_number_of_siblings",
+        body: capture { form.number_field :number_of_siblings, class: "mobile-input-number", min: 1 } %>
     </div>
   <% end %>
-</div>
+
+  <% content_for :mobile_footer do %>
+    <%= render "mobile/shared/sticky_actions", body: extended_family_footer %>
+  <% end %>
+
+  <%= render "mobile/shared/screen_header", step_number: 4, total_steps: 5, back_path: mobile_onboarding_family_path %>
+  <%= render "mobile/shared/form_errors", record: @onboarding_session %>
+
+  <div class="mobile-screen__body">
+    <%= render "mobile/shared/hero_block",
+      eyebrow: "Step 4",
+      title: "Extended family.",
+      subtitle: "A few more facts help us understand complexity without dragging you through a family tree exercise." %>
+
+    <%= render "mobile/shared/grouped_section",
+      body: extended_family_body %>
+  </div>
+<% end %>

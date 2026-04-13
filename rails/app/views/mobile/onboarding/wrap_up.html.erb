@@ -1,25 +1,37 @@
 <% content_for :title, "Kindling | Wrap Up" %>
 
-<div class="mobile-card">
-  <%= render "mobile/shared/step_header", step_number: 5, total_steps: 5, back_path: mobile_onboarding_extended_family_path %>
+<% footer_actions = capture do %>
+  <%= button_to "Continue", mobile_onboarding_wrap_up_continue_path, method: :post, class: "mobile-button" %>
+<% end %>
 
-  <p class="mobile-eyebrow">Step 5</p>
-  <h1 class="mobile-title">You’ve covered the right ground.</h1>
-  <p class="mobile-subtitle">We’ve collected the essential facts. Next comes securing your account so this can become a durable, properly owned plan.</p>
+<% content_for :mobile_footer do %>
+  <%= render "mobile/shared/sticky_actions", body: footer_actions %>
+<% end %>
 
-  <div class="mobile-stack">
-    <div class="mobile-stat-block">
-      <strong>What we’ve covered</strong>
-      <p class="mobile-copy mb-0 mt-2">Your core identity, your location, the structure of your family, and the details that change legal outcomes.</p>
-    </div>
+<% covered_body = capture do %>
+  <p class="mobile-copy">Your core identity, your location, the structure of your family, and the details that change legal outcomes.</p>
+<% end %>
 
-    <div class="mobile-stat-block">
-      <strong>Coming up next</strong>
-      <p class="mobile-copy mb-0 mt-2">Account security and ownership, so the work you’ve done becomes yours to return to and build on.</p>
-    </div>
+<% next_body = capture do %>
+  <p class="mobile-copy">Account security and ownership, so the work you’ve done becomes yours to return to and build on.</p>
+<% end %>
+
+<section class="mobile-screen mobile-screen--onboarding">
+  <%= render "mobile/shared/screen_header", step_number: 5, total_steps: 5, back_path: mobile_onboarding_extended_family_path %>
+
+  <div class="mobile-screen__body">
+    <%= render "mobile/shared/hero_block",
+      eyebrow: "Step 5",
+      title: "You’ve covered the right ground.",
+      subtitle: "We’ve collected the essential facts. Next comes securing your account so this can become a durable, properly owned plan." %>
+
+    <%= render "mobile/shared/grouped_section",
+      title: "What we’ve covered",
+      body: covered_body %>
+
+    <%= render "mobile/shared/grouped_section",
+      title: "Coming up next",
+      subtle: true,
+      body: next_body %>
   </div>
-
-  <div class="mobile-actions">
-    <%= button_to "Continue", mobile_onboarding_wrap_up_continue_path, method: :post, class: "mobile-button" %>
-  </div>
-</div>
+</section>

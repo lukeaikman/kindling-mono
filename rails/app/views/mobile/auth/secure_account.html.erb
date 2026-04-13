@@ -1,16 +1,17 @@
 <% content_for :title, "Kindling | Secure Account" %>
 
-<div class="mobile-card">
-  <%= render "mobile/shared/step_header", step_number: 5, total_steps: 5, back_path: mobile_onboarding_wrap_up_path %>
+<section class="mobile-screen mobile-screen--auth">
+  <%= render "mobile/shared/screen_header", step_number: 5, total_steps: 5, back_path: mobile_onboarding_wrap_up_path %>
 
-  <p class="mobile-eyebrow">Next step</p>
-  <h1 class="mobile-title">Secure your account.</h1>
-  <p class="mobile-subtitle">
-    Your onboarding is complete. Account setup lands here next, and this route now exists as the concrete handoff from Epic 2 onward.
-  </p>
+  <div class="mobile-screen__body">
+    <%= render "mobile/shared/hero_block",
+      eyebrow: "Next step",
+      title: "Secure your account.",
+      subtitle: "Your onboarding is complete. Account setup lands here next, and this route now exists as the concrete handoff from Epic 2 onward." %>
 
-  <div class="mobile-stat-block">
-    <strong>Current build</strong>
-    <p class="mobile-copy mb-0 mt-2">Epic 3 will replace this holding page with the real account-creation experience without changing the route or the user journey.</p>
+    <%= render "mobile/shared/callout",
+      kind: "info",
+      title: "Current build",
+      body: "Epic 3 will replace this holding page with the real account-creation experience without changing the route or the user journey." %>
   </div>
-</div>
+</section>

@@ -1,0 +1,63 @@
+.mobile-form-row {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.mobile-form-row__meta {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.mobile-field-label {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--mobile-color-text);
+}
+
+.mobile-field-hint {
+  margin: 0;
+  color: var(--mobile-color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.mobile-input,
+.mobile-select,
+.mobile-input-number,
+.mobile-picker__trigger {
+  width: 100%;
+  min-height: 3.5rem;
+  border-radius: var(--mobile-radius-md);
+  border: 1px solid var(--mobile-color-line);
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--mobile-color-text);
+  padding: 0.92rem 1rem;
+  font-size: 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.mobile-input:focus,
+.mobile-select:focus,
+.mobile-input-number:focus,
+.mobile-picker__trigger:focus {
+  border-color: rgba(47, 117, 90, 0.48);
+  outline: 0;
+  box-shadow: 0 0 0 0.22rem rgba(47, 117, 90, 0.14);
+}
+
+.mobile-picker__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.mobile-picker__label.is-placeholder {
+  color: var(--mobile-color-text-muted);
+}
+
+.mobile-picker__chevron {
+  color: var(--mobile-color-text-muted);
+  font-size: 1.1rem;
+}

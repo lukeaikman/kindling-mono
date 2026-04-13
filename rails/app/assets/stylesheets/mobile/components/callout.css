@@ -1,0 +1,25 @@
+.mobile-callout {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border-radius: var(--mobile-radius-md);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--mobile-color-line);
+}
+
+.mobile-callout--info {
+  background: rgba(47, 117, 90, 0.08);
+  border-color: rgba(47, 117, 90, 0.16);
+}
+
+.mobile-callout__title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.mobile-callout__body {
+  margin: 0;
+  color: var(--mobile-color-text-muted);
+  line-height: 1.55;
+}

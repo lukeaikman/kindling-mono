@@ -1,0 +1,22 @@
+.mobile-hero {
+  display: grid;
+  gap: var(--mobile-space-3);
+}
+
+.mobile-hero--center {
+  text-align: center;
+  justify-items: center;
+}
+
+.mobile-hero__icon {
+  width: 4.25rem;
+  height: 4.25rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(47, 117, 90, 0.14);
+  color: var(--mobile-color-accent);
+  box-shadow: var(--mobile-shadow-soft);
+  font-size: 1.5rem;
+  font-weight: 700;
+}

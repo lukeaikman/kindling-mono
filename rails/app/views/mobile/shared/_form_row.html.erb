@@ -1,0 +1,21 @@
+<div class="mobile-form-row">
+  <% if local_assigns[:label].present? || local_assigns[:hint].present? %>
+    <div class="mobile-form-row__meta">
+      <% if local_assigns[:label].present? %>
+        <% if local_assigns[:for_id].present? %>
+          <label for="<%= for_id %>" class="mobile-field-label"><%= label %></label>
+        <% else %>
+          <p class="mobile-field-label"><%= label %></p>
+        <% end %>
+      <% end %>
+
+      <% if local_assigns[:hint].present? %>
+        <p class="mobile-field-hint"><%= hint %></p>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div class="mobile-form-row__control">
+    <%= body %>
+  </div>
+</div>

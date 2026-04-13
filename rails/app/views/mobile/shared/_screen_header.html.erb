@@ -1,0 +1,32 @@
+<header class="mobile-screen-header">
+  <div class="mobile-screen-header__bar">
+    <div class="mobile-screen-header__side">
+      <% if local_assigns[:back_path].present? %>
+        <%= link_to safe_join([
+          content_tag(:span, "←", aria: { hidden: true }),
+          content_tag(:span, local_assigns[:back_label] || "Back")
+        ]), back_path, class: "mobile-screen-header__back" %>
+      <% else %>
+        <span></span>
+      <% end %>
+    </div>
+
+    <div class="mobile-screen-header__center">
+      <% if local_assigns[:step_number].present? %>
+        <span class="mobile-screen-header__progress">Step <%= step_number %> of <%= total_steps || 5 %></span>
+      <% elsif local_assigns[:center_label].present? %>
+        <span class="mobile-screen-header__progress"><%= center_label %></span>
+      <% end %>
+    </div>
+
+    <div class="mobile-screen-header__side mobile-screen-header__side--end">
+      <span></span>
+    </div>
+  </div>
+
+  <% if local_assigns.fetch(:show_brand, true) %>
+    <div class="mobile-brand">
+      <%= image_tag "mobile/kindling-dark.png", alt: "Kindling" %>
+    </div>
+  <% end %>
+</header>

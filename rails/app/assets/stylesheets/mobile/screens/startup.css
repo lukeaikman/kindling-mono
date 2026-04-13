@@ -1,0 +1,3 @@
+.mobile-screen--startup .mobile-hero {
+  gap: var(--mobile-space-4);
+}

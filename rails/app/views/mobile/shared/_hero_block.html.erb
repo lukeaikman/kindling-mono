@@ -1,0 +1,15 @@
+<section class="mobile-hero <%= "mobile-hero--center" if local_assigns.fetch(:center, false) %>">
+  <% if local_assigns[:icon].present? %>
+    <div class="mobile-hero__icon"><%= icon %></div>
+  <% end %>
+
+  <% if local_assigns[:eyebrow].present? %>
+    <p class="mobile-eyebrow"><%= eyebrow %></p>
+  <% end %>
+
+  <h1 class="mobile-title"><%= title %></h1>
+
+  <% if local_assigns[:subtitle].present? %>
+    <p class="mobile-subtitle"><%= subtitle %></p>
+  <% end %>
+</section>

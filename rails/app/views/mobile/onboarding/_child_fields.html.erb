@@ -1,9 +1,44 @@
 <%
   selected_responsibility = child["responsibility"].presence || default_responsibility
   responsibility_manual = child["responsibility"].present?
+  child_name_body = capture do
 %>
+  <div class="mobile-inline-grid">
+    <%= render "mobile/shared/form_row",
+      label: "First name",
+      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][first_name]", child["first_name"], class: "mobile-input" } %>
 
-<div class="mobile-child-card mobile-stack" data-child-card>
+    <%= render "mobile/shared/form_row",
+      label: "Last name",
+      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][last_name]", child["last_name"], class: "mobile-input", data: { role: "child-last-name", prefilled: child["last_name"].present?.to_s } } %>
+  </div>
+<% end %>
+
+<%
+  dob_body = capture do
+%>
+  <%= date_field_tag "onboarding_session[children_payload][#{child_index}][date_of_birth]", child["date_of_birth"], class: "mobile-input" %>
+<% end %>
+
+<%
+  guardian_details_body = capture do
+%>
+  <div class="mobile-inline-grid">
+    <%= render "mobile/shared/form_row",
+      label: "First name",
+      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_guardian_first_name]", child["co_guardian_first_name"], class: "mobile-input" } %>
+
+    <%= render "mobile/shared/form_row",
+      label: "Last name",
+      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_guardian_last_name]", child["co_guardian_last_name"], class: "mobile-input" } %>
+  </div>
+
+  <%= render "mobile/shared/form_row",
+    label: "Relationship (optional)",
+    body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_guardian_relationship]", child["co_guardian_relationship"], class: "mobile-input", placeholder: "Ex-partner, friend, sibling..." } %>
+<% end %>
+
+<div class="mobile-child-card" data-child-card>
   <div class="mobile-child-topline">
     <h3 class="mobile-child-title">Child <span data-child-number><%= index + 1 %></span></h3>
     <button type="button" class="mobile-remove-button" data-remove-child <%= "hidden" if allow_remove == false %>>Remove</button>
@@ -11,89 +46,58 @@
 
   <%= hidden_field_tag "onboarding_session[children_payload][#{child_index}][id]", child["id"] %>
 
-  <div class="mobile-inline-grid">
-    <div class="mobile-form-group">
-      <label class="mobile-field-label">First name</label>
-      <%= text_field_tag "onboarding_session[children_payload][#{child_index}][first_name]", child["first_name"], class: "mobile-input" %>
-    </div>
+  <%= child_name_body %>
 
-    <div class="mobile-form-group">
-      <label class="mobile-field-label">Last name</label>
-      <%= text_field_tag "onboarding_session[children_payload][#{child_index}][last_name]", child["last_name"], class: "mobile-input", data: { role: "child-last-name", prefilled: child["last_name"].present?.to_s } %>
-    </div>
-  </div>
+  <%= render "mobile/shared/form_row",
+    label: "Date of birth (optional)",
+    body: dob_body %>
 
-  <div class="mobile-form-group">
-    <label class="mobile-field-label">Date of birth (optional)</label>
-    <%= date_field_tag "onboarding_session[children_payload][#{child_index}][date_of_birth]", child["date_of_birth"], class: "mobile-input" %>
-  </div>
+  <%= render "mobile/shared/picker_field",
+    field_name: "onboarding_session[children_payload][#{child_index}][relationship]",
+    label: "Relationship to you",
+    value: child["relationship"] || "biological-child",
+    options: [["Biological child", "biological-child"], ["Adopted child", "adopted-child"], ["Stepchild", "stepchild"], ["Foster child", "foster-child"], ["Other", "other"]],
+    placeholder: "Select relationship",
+    id_prefix: "child_#{child_index}_relationship" %>
 
-  <div class="mobile-form-group">
-    <label class="mobile-field-label">Relationship to you</label>
-    <%= select_tag "onboarding_session[children_payload][#{child_index}][relationship]",
-      options_for_select([["Biological child", "biological-child"], ["Adopted child", "adopted-child"], ["Stepchild", "stepchild"], ["Foster child", "foster-child"], ["Other", "other"]], child["relationship"] || "biological-child"),
-      class: "mobile-select" %>
-  </div>
+  <%= render "mobile/shared/picker_field",
+    field_name: "onboarding_session[children_payload][#{child_index}][responsibility]",
+    label: "Responsibility",
+    value: selected_responsibility,
+    options: responsibility_options,
+    placeholder: "Select responsibility",
+    id_prefix: "child_#{child_index}_responsibility",
+    data_role: "responsibility",
+    select_data: { role: "responsibility", manual: responsibility_manual.to_s } %>
 
-  <div class="mobile-form-group">
-    <label class="mobile-field-label">Responsibility</label>
-    <%= select_tag "onboarding_session[children_payload][#{child_index}][responsibility]",
-      options_for_select(responsibility_options, selected_responsibility),
-      class: "mobile-select",
-      data: { role: "responsibility", manual: responsibility_manual.to_s } %>
-  </div>
+  <%= render "mobile/shared/picker_field",
+    field_name: "onboarding_session[children_payload][#{child_index}][capacity_status]",
+    label: "Capacity as guardian",
+    value: child["capacity_status"] || "under-18",
+    options: [["Child is under 18", "under-18"], ["Child is over 18 but lacks mental capacity", "over-18-lacks-capacity"], ["Child is over 18 with full capacity", "over-18-full-capacity"], ["Special circumstances", "special-circumstances"]],
+    placeholder: "Select capacity",
+    id_prefix: "child_#{child_index}_capacity_status" %>
 
-  <div class="mobile-form-group">
-    <label class="mobile-field-label">Capacity as guardian</label>
-    <%= select_tag "onboarding_session[children_payload][#{child_index}][capacity_status]",
-      options_for_select([["Child is under 18", "under-18"], ["Child is over 18 but lacks mental capacity", "over-18-lacks-capacity"], ["Child is over 18 with full capacity", "over-18-full-capacity"], ["Special circumstances", "special-circumstances"]], child["capacity_status"] || "under-18"),
-      class: "mobile-select" %>
-  </div>
+  <%= render "mobile/shared/choice_group",
+    field_name: "onboarding_session[children_payload][#{child_index}][disabled_answer]",
+    label: "Is this child disabled?",
+    value: child["disabled_answer"],
+    options: [["Yes", "yes"], ["No", "no"]],
+    id_prefix: "child_#{child_index}_disabled",
+    collapsible: true %>
 
-  <div class="mobile-form-group">
-    <p class="mobile-field-label">Is this child disabled?</p>
-    <div class="mobile-radio-group" data-mobile-collapsible="true">
-      <% [["Yes", "yes"], ["No", "no"]].each do |label, value| %>
-        <% disabled_id = "child_#{child_index}_disabled_#{value}" %>
-        <div class="mobile-radio-option">
-          <%= radio_button_tag "onboarding_session[children_payload][#{child_index}][disabled_answer]", value, child["disabled_answer"] == value, id: disabled_id %>
-          <%= label_tag disabled_id, label %>
-        </div>
-      <% end %>
-    </div>
-  </div>
-
-  <div class="mobile-form-group">
-    <p class="mobile-field-label">Does this child lack mental capacity?</p>
-    <div class="mobile-radio-group" data-mobile-collapsible="true">
-      <% [["Yes", "yes"], ["No", "no"]].each do |label, value| %>
-        <% capacity_id = "child_#{child_index}_capacity_#{value}" %>
-        <div class="mobile-radio-option">
-          <%= radio_button_tag "onboarding_session[children_payload][#{child_index}][lacks_mental_capacity_answer]", value, child["lacks_mental_capacity_answer"] == value, id: capacity_id %>
-          <%= label_tag capacity_id, label %>
-        </div>
-      <% end %>
-    </div>
-  </div>
+  <%= render "mobile/shared/choice_group",
+    field_name: "onboarding_session[children_payload][#{child_index}][lacks_mental_capacity_answer]",
+    label: "Does this child lack mental capacity?",
+    value: child["lacks_mental_capacity_answer"],
+    options: [["Yes", "yes"], ["No", "no"]],
+    id_prefix: "child_#{child_index}_lacks_mental_capacity",
+    collapsible: true %>
 
   <div class="mobile-stack" data-role="co-guardian-fields" <%= "hidden" unless selected_responsibility == "add-co-guardian" %>>
-    <p class="mobile-field-label mb-0">Guardian details</p>
-
-    <div class="mobile-inline-grid">
-      <div class="mobile-form-group">
-        <label class="mobile-field-label">First name</label>
-        <%= text_field_tag "onboarding_session[children_payload][#{child_index}][co_guardian_first_name]", child["co_guardian_first_name"], class: "mobile-input" %>
-      </div>
-
-      <div class="mobile-form-group">
-        <label class="mobile-field-label">Last name</label>
-        <%= text_field_tag "onboarding_session[children_payload][#{child_index}][co_guardian_last_name]", child["co_guardian_last_name"], class: "mobile-input" %>
-      </div>
-    </div>
-
-    <div class="mobile-form-group">
-      <label class="mobile-field-label">Relationship (optional)</label>
-      <%= text_field_tag "onboarding_session[children_payload][#{child_index}][co_guardian_relationship]", child["co_guardian_relationship"], class: "mobile-input", placeholder: "Ex-partner, friend, sibling..." %>
-    </div>
+    <%= render "mobile/shared/grouped_section",
+      title: "Guardian details",
+      subtle: true,
+      body: guardian_details_body %>
   </div>
 </div>

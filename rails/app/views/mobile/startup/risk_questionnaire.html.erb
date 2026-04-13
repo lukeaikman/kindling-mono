@@ -1,19 +1,32 @@
 <% content_for :title, "Kindling | Risk Questionnaire" %>
 
-<div class="mobile-card">
-  <%= render "mobile/shared/step_header" %>
+<% footer_actions = capture do %>
+  <%= button_to "Continue", mobile_complete_questionnaire_path, method: :post, class: "mobile-button" %>
+<% end %>
 
-  <p class="mobile-eyebrow">Quick risk check</p>
-  <h1 class="mobile-title">A brief check before we start building.</h1>
-  <p class="mobile-subtitle">This placeholder mirrors the native questionnaire gate we already agreed to keep in the startup flow.</p>
+<% content_for :mobile_footer do %>
+  <%= render "mobile/shared/sticky_actions", body: footer_actions %>
+<% end %>
 
+<% why_exists_body = capture do %>
   <ul class="mobile-list">
     <li>Confirm that you’re ready to proceed with guided onboarding.</li>
     <li>Screen for routing that needs to happen before the main questions.</li>
     <li>Keep the startup flow in the same order as the native app.</li>
   </ul>
+<% end %>
 
-  <div class="mobile-actions">
-    <%= button_to "Continue", mobile_complete_questionnaire_path, method: :post, class: "mobile-button" %>
+<section class="mobile-screen mobile-screen--startup">
+  <%= render "mobile/shared/screen_header" %>
+
+  <div class="mobile-screen__body">
+    <%= render "mobile/shared/hero_block",
+      eyebrow: "Quick risk check",
+      title: "A brief check before we start building.",
+      subtitle: "This placeholder mirrors the native questionnaire gate we already agreed to keep in the startup flow." %>
+
+    <%= render "mobile/shared/grouped_section",
+      title: "Why this exists",
+      body: why_exists_body %>
   </div>
-</div>
+</section>

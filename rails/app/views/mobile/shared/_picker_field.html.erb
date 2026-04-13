@@ -1,0 +1,62 @@
+<%
+  normalized_options = options.map { |option| option.is_a?(Array) ? option : [option.fetch(:label), option.fetch(:value)] }
+  select_id = (local_assigns[:id_prefix].presence || field_name.gsub(/[^a-zA-Z0-9]+/, "_").gsub(/\A_|_\z/, ""))
+  placeholder_text = local_assigns[:placeholder] || "Select an option"
+  picker_control = capture do
+%>
+<div class="mobile-picker__control">
+    <%= select_tag field_name,
+      options_for_select(normalized_options, value),
+      include_blank: placeholder_text,
+      id: select_id,
+      class: "mobile-select mobile-picker__native",
+      data: { mobile_picker_select: true }.merge(local_assigns[:select_data] || {}) %>
+
+    <button
+      type="button"
+      class="mobile-picker__trigger"
+      data-mobile-picker-trigger
+      aria-haspopup="dialog">
+      <span class="mobile-picker__label" data-mobile-picker-label><%= placeholder_text %></span>
+      <span class="mobile-picker__chevron" aria-hidden="true">&rsaquo;</span>
+    </button>
+  </div>
+<% end %>
+
+<div
+  class="mobile-picker"
+  data-mobile-picker
+  data-placeholder="<%= placeholder_text %>"
+  <%= %(data-role="#{data_role}") if local_assigns[:data_role].present? %>>
+  <%= render "mobile/shared/form_row",
+    label: label,
+    hint: local_assigns[:hint],
+    for_id: select_id,
+    body: picker_control %>
+
+  <div class="mobile-picker__sheet" hidden data-mobile-picker-sheet>
+    <div class="mobile-picker__backdrop" data-mobile-picker-close></div>
+    <div class="mobile-picker__panel" role="dialog" aria-modal="true" aria-labelledby="<%= "#{select_id}_title" %>">
+      <div class="mobile-picker__panel-header">
+        <h3 class="mobile-picker__panel-title" id="<%= "#{select_id}_title" %>"><%= label %></h3>
+        <% if local_assigns[:hint].present? %>
+          <p class="mobile-picker__panel-subtitle"><%= hint %></p>
+        <% end %>
+      </div>
+
+      <div class="mobile-picker__options">
+        <% normalized_options.each do |option_label, option_value| %>
+          <button
+            type="button"
+            class="mobile-picker__option"
+            data-mobile-picker-option
+            data-value="<%= option_value %>">
+            <%= option_label %>
+          </button>
+        <% end %>
+      </div>
+
+      <button type="button" class="mobile-button-secondary" data-mobile-picker-close>Cancel</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,9 @@
+<section class="mobile-grouped-section <%= "mobile-grouped-section--subtle" if local_assigns[:subtle] %>">
+  <% if local_assigns[:title].present? %>
+    <h2 class="mobile-grouped-section__title"><%= title %></h2>
+  <% end %>
+
+  <div class="mobile-grouped-section__body">
+    <%= body %>
+  </div>
+</section>

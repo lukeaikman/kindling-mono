@@ -1,28 +1,38 @@
 <% content_for :title, "Kindling | Start" %>
 
-<div class="mobile-card">
-  <%= render "mobile/shared/step_header" %>
+<% footer_actions = capture do %>
+  <%= button_to "Start creating your will", mobile_intro_continue_path, method: :post, class: "mobile-button" %>
+  <%= link_to "I already have an account", mobile_login_path, class: "mobile-button-secondary" %>
+<% end %>
 
-  <p class="mobile-eyebrow">Your will, made calmly</p>
-  <h1 class="mobile-title">Protect the people you love with clarity, not chaos.</h1>
-  <p class="mobile-subtitle">
-    We’ll guide you through a short set of questions so the legal shape is right before account setup begins.
-  </p>
+<% content_for :mobile_footer do %>
+  <%= render "mobile/shared/sticky_actions", body: footer_actions %>
+<% end %>
 
-  <div class="mobile-stack mt-4">
-    <div class="mobile-stat-block">
-      <strong>What happens next</strong>
-      <p class="mobile-copy mb-0 mt-2">We’ll walk through your details, your family, and the few facts that materially affect the outcome.</p>
-    </div>
+<% next_steps_body = capture do %>
+  <p class="mobile-copy">We’ll walk through your details, your family, and the few facts that materially affect the outcome.</p>
+<% end %>
 
-    <div class="mobile-stat-block">
-      <strong>Built for mobile</strong>
-      <p class="mobile-copy mb-0 mt-2">You can move step by step, come back within the session window, and pick up where you left off.</p>
-    </div>
+<% built_for_mobile_body = capture do %>
+  <p class="mobile-copy">You can move step by step, come back within the session window, and pick up where you left off.</p>
+<% end %>
+
+<section class="mobile-screen mobile-screen--startup">
+  <%= render "mobile/shared/screen_header" %>
+
+  <div class="mobile-screen__body">
+    <%= render "mobile/shared/hero_block",
+      eyebrow: "Your will, made calmly",
+      title: "Protect the people you love with clarity, not chaos.",
+      subtitle: "We’ll guide you through a short set of questions so the legal shape is right before account setup begins." %>
+
+    <%= render "mobile/shared/grouped_section",
+      title: "What happens next",
+      body: next_steps_body %>
+
+    <%= render "mobile/shared/grouped_section",
+      title: "Built for mobile",
+      subtle: true,
+      body: built_for_mobile_body %>
   </div>
-
-  <div class="mobile-actions">
-    <%= button_to "Start creating your will", mobile_intro_continue_path, method: :post, class: "mobile-button" %>
-    <%= link_to "I already have an account", mobile_login_path, class: "mobile-button-secondary" %>
-  </div>
-</div>
+</section>

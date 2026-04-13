@@ -1,0 +1,9 @@
+<div class="mobile-callout <%= "mobile-callout--#{kind}" if local_assigns[:kind].present? %>">
+  <% if local_assigns[:title].present? %>
+    <p class="mobile-callout__title"><%= title %></p>
+  <% end %>
+
+  <% if local_assigns[:body].present? %>
+    <p class="mobile-callout__body"><%= body %></p>
+  <% end %>
+</div>
