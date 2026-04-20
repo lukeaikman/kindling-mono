@@ -84,7 +84,7 @@ module Mobile
 
       prepare_entry_session!
       onboarding_session.mark_intro_seen!
-      redirect_to mobile_onboarding_path, allow_other_host: false
+      redirect_to onboarding_session.first_incomplete_path, allow_other_host: false
     end
 
     private
