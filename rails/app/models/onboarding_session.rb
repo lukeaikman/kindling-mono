@@ -1,6 +1,5 @@
 class OnboardingSession < ApplicationRecord
   COOKIE_KEY = "mobile_onboarding_session_token".freeze
-  FIRST_SHOW_DEFAULT = "video".freeze
   STEP_PATHS = {
     welcome: "/mobile/onboarding/welcome",
     location: "/mobile/onboarding/location",
@@ -14,7 +13,6 @@ class OnboardingSession < ApplicationRecord
 
   before_validation :ensure_token, on: :create
   before_validation :ensure_last_seen_at, on: :create
-  before_validation :ensure_first_show, on: :create
   before_validation :ensure_divorce_default
 
   validates :token, presence: true, uniqueness: true
@@ -193,10 +191,6 @@ class OnboardingSession < ApplicationRecord
     self.last_seen_at ||= Time.current
   end
 
-  def ensure_first_show
-    self.first_show ||= FIRST_SHOW_DEFAULT
-  end
-
   def ensure_divorce_default
     self.divorce_status = "no" if divorce_status.blank?
   end
@@ -210,10 +204,14 @@ class OnboardingSession < ApplicationRecord
     self.campaign = attribution["campaign"]
     self.location_id = attribution["location_id"]
     self.raw_url = attribution["raw_url"]
-    self.video_intro_version = attribution["show_video"]
-    self.risk_questionnaire_version = attribution["show_risk_questionnaire"]
+    self.video_intro_version = positive_version(attribution["show_video"])
+    self.risk_questionnaire_version = positive_version(attribution["show_risk_questionnaire"])
     self.first_show = attribution["first_show"]
     self.last_seen_at = Time.current
+  end
+
+  def positive_version(value)
+    value.to_i.positive? ? value.to_i : nil
   end
 
   def partner_details_complete?
