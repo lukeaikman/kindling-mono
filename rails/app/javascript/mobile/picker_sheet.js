@@ -1,38 +1,40 @@
+// Document-level delegates bind once when the module is imported.
+// initPickerSheets() is safe to call on every turbo:load — it only syncs state.
+document.addEventListener("click", (event) => {
+  const trigger = event.target.closest("[data-mobile-picker-trigger]")
+  if (trigger) {
+    event.preventDefault()
+    const picker = trigger.closest("[data-mobile-picker]")
+    openPicker(picker)
+    return
+  }
+
+  const option = event.target.closest("[data-mobile-picker-option]")
+  if (option) {
+    event.preventDefault()
+    const picker = option.closest("[data-mobile-picker]")
+    applyPickerSelection(picker, option.dataset.value || "")
+    closePicker(picker)
+    return
+  }
+
+  const closeButton = event.target.closest("[data-mobile-picker-close]")
+  if (closeButton) {
+    event.preventDefault()
+    const picker = closeButton.closest("[data-mobile-picker]")
+    closePicker(picker)
+  }
+})
+
+document.addEventListener("change", (event) => {
+  const select = event.target
+  if (!(select instanceof HTMLSelectElement) || !select.matches("[data-mobile-picker-select]")) return
+
+  syncPicker(select.closest("[data-mobile-picker]"))
+})
+
 export function initPickerSheets() {
   document.querySelectorAll("[data-mobile-picker]").forEach(syncPicker)
-
-  document.addEventListener("click", (event) => {
-    const trigger = event.target.closest("[data-mobile-picker-trigger]")
-    if (trigger) {
-      event.preventDefault()
-      const picker = trigger.closest("[data-mobile-picker]")
-      openPicker(picker)
-      return
-    }
-
-    const option = event.target.closest("[data-mobile-picker-option]")
-    if (option) {
-      event.preventDefault()
-      const picker = option.closest("[data-mobile-picker]")
-      applyPickerSelection(picker, option.dataset.value || "")
-      closePicker(picker)
-      return
-    }
-
-    const closeButton = event.target.closest("[data-mobile-picker-close]")
-    if (closeButton) {
-      event.preventDefault()
-      const picker = closeButton.closest("[data-mobile-picker]")
-      closePicker(picker)
-    }
-  })
-
-  document.addEventListener("change", (event) => {
-    const select = event.target
-    if (!(select instanceof HTMLSelectElement) || !select.matches("[data-mobile-picker-select]")) return
-
-    syncPicker(select.closest("[data-mobile-picker]"))
-  })
 }
 
 function openPicker(picker) {

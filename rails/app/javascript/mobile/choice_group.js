@@ -1,31 +1,33 @@
+// Document-level delegates bind once when the module is imported.
+// initChoiceGroups() is safe to call on every turbo:load — it only syncs state.
+document.addEventListener("change", (event) => {
+  const input = event.target
+  if (!(input instanceof HTMLInputElement) || input.type !== "radio") return
+
+  const group = input.closest("[data-mobile-choice-group]")
+  if (!group) return
+
+  syncChoiceGroup(group)
+})
+
+document.addEventListener("click", (event) => {
+  const resetButton = event.target.closest("[data-mobile-choice-reset]")
+  if (!resetButton) return
+
+  event.preventDefault()
+
+  const group = resetButton.closest("[data-mobile-choice-group]")
+  if (!group) return
+
+  group.querySelectorAll("input[type='radio']").forEach((input) => {
+    input.checked = false
+  })
+
+  syncChoiceGroup(group)
+})
+
 export function initChoiceGroups() {
   document.querySelectorAll("[data-mobile-choice-group]").forEach(syncChoiceGroup)
-
-  document.addEventListener("change", (event) => {
-    const input = event.target
-    if (!(input instanceof HTMLInputElement) || input.type !== "radio") return
-
-    const group = input.closest("[data-mobile-choice-group]")
-    if (!group) return
-
-    syncChoiceGroup(group)
-  })
-
-  document.addEventListener("click", (event) => {
-    const resetButton = event.target.closest("[data-mobile-choice-reset]")
-    if (!resetButton) return
-
-    event.preventDefault()
-
-    const group = resetButton.closest("[data-mobile-choice-group]")
-    if (!group) return
-
-    group.querySelectorAll("input[type='radio']").forEach((input) => {
-      input.checked = false
-    })
-
-    syncChoiceGroup(group)
-  })
 }
 
 function syncChoiceGroup(group) {

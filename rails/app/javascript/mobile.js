@@ -10,14 +10,12 @@ import { initSplashRedirect } from "mobile/splash_redirect"
 
 document.documentElement.classList.add("js")
 
-const runInit = () => {
+// turbo:load fires on initial page load AND every Turbo visit, so it's all we need.
+// Phase B replaces these init calls with Stimulus controllers that auto-connect.
+document.addEventListener("turbo:load", () => {
   initChoiceGroups()
   initPickerSheets()
   initFamilyForm()
   initExtendedFamilyForm()
   initSplashRedirect()
-}
-
-// Interim double-listener bridges to Phase B's Stimulus controllers.
-document.addEventListener("DOMContentLoaded", runInit)
-document.addEventListener("turbo:load", runInit)
+})
