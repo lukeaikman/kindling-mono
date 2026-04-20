@@ -1,3 +1,36 @@
 .mobile-screen--startup .mobile-hero {
   gap: var(--mobile-space-md);
 }
+
+/* Intro screen — matches RN intro.tsx: centered logo + tagline, buttons in sticky footer */
+.mobile-screen--intro {
+  min-height: calc(100vh - 10rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--mobile-space-md);
+  padding-block: var(--mobile-space-xxl);
+}
+
+.mobile-intro__logo-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--mobile-space-md);
+  text-align: center;
+}
+
+.mobile-intro__logo {
+  width: auto;
+  max-width: 12rem;
+  height: auto;
+}
+
+.mobile-intro__tagline {
+  margin: 0;
+  font-family: var(--mobile-font-ui);
+  font-size: var(--mobile-text-md);
+  color: var(--mobile-color-text-muted);
+  text-align: center;
+}

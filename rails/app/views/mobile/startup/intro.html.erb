@@ -1,38 +1,17 @@
 <% content_for :title, "Kindling | Start" %>
 
 <% footer_actions = capture do %>
-  <%= button_to "Start creating your will", mobile_intro_continue_path, method: :post, class: "mobile-button" %>
-  <%= link_to "I already have an account", mobile_login_path, class: "mobile-button-secondary" %>
+  <%= button_to "Start Creating Your Will And Estate Plan", mobile_intro_continue_path, method: :post, class: "mobile-button" %>
+  <%= link_to "Login", mobile_login_path, class: "mobile-button-secondary" %>
 <% end %>
 
 <% content_for :mobile_footer do %>
   <%= render "mobile/shared/sticky_actions", body: footer_actions %>
 <% end %>
 
-<% next_steps_body = capture do %>
-  <p class="mobile-copy">We’ll walk through your details, your family, and the few facts that materially affect the outcome.</p>
-<% end %>
-
-<% built_for_mobile_body = capture do %>
-  <p class="mobile-copy">You can move step by step, come back within the session window, and pick up where you left off.</p>
-<% end %>
-
-<section class="mobile-screen mobile-screen--startup">
-  <%= render "mobile/shared/screen_header" %>
-
-  <div class="mobile-screen__body">
-    <%= render "mobile/shared/hero_block",
-      eyebrow: "Your will, made calmly",
-      title: "Protect the people you love with clarity, not chaos.",
-      subtitle: "We’ll guide you through a short set of questions so the legal shape is right before account setup begins." %>
-
-    <%= render "mobile/shared/grouped_section",
-      title: "What happens next",
-      body: next_steps_body %>
-
-    <%= render "mobile/shared/grouped_section",
-      title: "Built for mobile",
-      subtle: true,
-      body: built_for_mobile_body %>
+<section class="mobile-screen mobile-screen--intro">
+  <div class="mobile-intro__logo-block">
+    <%= image_tag "mobile/kindling-dark.png", alt: "Kindling", class: "mobile-intro__logo" %>
+    <p class="mobile-intro__tagline">Protect today. Build tomorrow.</p>
   </div>
 </section>

@@ -2,16 +2,16 @@
   display: grid;
   gap: var(--mobile-space-sm);
   padding: var(--mobile-space-lg);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: var(--mobile-radius-2xl);
-  background: rgba(255, 253, 250, 0.92);
-  box-shadow: var(--mobile-shadow-lg);
+  border-radius: var(--mobile-radius-xl);
+  background: var(--mobile-color-surface);
+  box-shadow: var(--mobile-shadow-md);
 }
 
 .mobile-grouped-section__title {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-family: var(--mobile-font-ui);
+  font-size: var(--mobile-text-lg);
+  font-weight: var(--mobile-weight-semibold);
   color: var(--mobile-color-text);
 }
 
@@ -21,6 +21,6 @@
 }
 
 .mobile-grouped-section--subtle {
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: var(--mobile-shadow-md);
+  background: var(--mobile-color-surface-muted);
+  box-shadow: var(--mobile-shadow-sm);
 }
