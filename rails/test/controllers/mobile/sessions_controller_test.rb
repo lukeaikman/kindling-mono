@@ -16,7 +16,7 @@ module Mobile
 
     test "failed login preserves the anonymous onboarding session" do
       onboarding_session = OnboardingSession.create!(token: SecureRandom.hex(24))
-      cookies.signed[OnboardingSession::COOKIE_KEY] = onboarding_session.token
+      write_signed_cookie(OnboardingSession::COOKIE_KEY, onboarding_session.token)
 
       post mobile_login_path, params: { email_address: @user.email_address, password: "wrong" }
 
@@ -26,7 +26,7 @@ module Mobile
 
     test "successful login destroys the anonymous onboarding session and redirects to the mobile dashboard" do
       onboarding_session = OnboardingSession.create!(token: SecureRandom.hex(24))
-      cookies.signed[OnboardingSession::COOKIE_KEY] = onboarding_session.token
+      write_signed_cookie(OnboardingSession::COOKIE_KEY, onboarding_session.token)
 
       post mobile_login_path, params: { email_address: @user.email_address, password: "password" }
 

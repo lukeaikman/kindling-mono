@@ -181,7 +181,7 @@ module Mobile
 
     def create_onboarding_session(attributes = {})
       onboarding_session = OnboardingSession.create!({ token: SecureRandom.hex(24) }.merge(attributes))
-      cookies.signed[OnboardingSession::COOKIE_KEY] = onboarding_session.token
+      write_signed_cookie(OnboardingSession::COOKIE_KEY, onboarding_session.token)
       onboarding_session
     end
   end

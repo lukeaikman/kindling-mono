@@ -7,7 +7,7 @@ module Mobile
 
       assert_response :success
 
-      onboarding_session = OnboardingSession.find_by!(token: cookies.signed[:mobile_onboarding_session_token])
+      onboarding_session = OnboardingSession.find_by!(token: read_signed_cookie(:mobile_onboarding_session_token))
 
       assert_equal 1, onboarding_session.video_intro_version
       assert_nil onboarding_session.risk_questionnaire_version
@@ -19,7 +19,7 @@ module Mobile
 
       assert_redirected_to mobile_risk_questionnaire_path
 
-      onboarding_session = OnboardingSession.find_by!(token: cookies.signed[:mobile_onboarding_session_token])
+      onboarding_session = OnboardingSession.find_by!(token: read_signed_cookie(:mobile_onboarding_session_token))
 
       assert_equal "facebook", onboarding_session.attribution_source
       assert_equal 1, onboarding_session.video_intro_version
@@ -37,7 +37,7 @@ module Mobile
         first_show: "video"
       )
 
-      cookies.signed[:mobile_onboarding_session_token] = onboarding_session.token
+      write_signed_cookie(:mobile_onboarding_session_token, onboarding_session.token)
 
       get mobile_open_path(source: "new-source", show_video: 0)
 
@@ -54,7 +54,7 @@ module Mobile
         first_show: "video"
       )
 
-      cookies.signed[:mobile_onboarding_session_token] = onboarding_session.token
+      write_signed_cookie(:mobile_onboarding_session_token, onboarding_session.token)
 
       post mobile_complete_video_path
       assert_redirected_to mobile_risk_questionnaire_path
@@ -71,18 +71,12 @@ module Mobile
         intro_seen_at: Time.current
       )
 
-      cookies.signed[:mobile_onboarding_session_token] = onboarding_session.token
+      write_signed_cookie(:mobile_onboarding_session_token, onboarding_session.token)
 
       get mobile_root_path
 
       assert_response :success
       assert_select "#mobile-splash-root[data-destination='#{mobile_onboarding_welcome_path}']"
-    end
-
-    private
-
-    def mobile_onboarding_cookie_name
-      OnboardingSession::COOKIE_KEY
     end
   end
 end
