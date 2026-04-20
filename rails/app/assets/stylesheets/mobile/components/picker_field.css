@@ -69,7 +69,7 @@ html.js .mobile-picker__trigger {
 .mobile-picker__options {
   display: grid;
   gap: 0.6rem;
-  max-height: min(26rem, 58vh);
+  max-height: clamp(0rem, 58vh, 26rem);
   overflow-y: auto;
 }
 
