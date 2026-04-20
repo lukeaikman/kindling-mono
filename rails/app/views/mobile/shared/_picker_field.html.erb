@@ -10,14 +10,14 @@
       include_blank: placeholder_text,
       id: select_id,
       class: "mobile-select mobile-picker__native",
-      data: { mobile_picker_select: true }.merge(local_assigns[:select_data] || {}) %>
+      data: { picker_sheet_target: "select", action: "change->picker-sheet#selectChanged" }.merge(local_assigns[:select_data] || {}) %>
 
     <button
       type="button"
       class="mobile-picker__trigger"
-      data-mobile-picker-trigger
+      data-action="click->picker-sheet#open"
       aria-haspopup="dialog">
-      <span class="mobile-picker__label" data-mobile-picker-label><%= placeholder_text %></span>
+      <span class="mobile-picker__label" data-picker-sheet-target="label"><%= placeholder_text %></span>
       <span class="mobile-picker__chevron" aria-hidden="true">&rsaquo;</span>
     </button>
   </div>
@@ -25,7 +25,7 @@
 
 <div
   class="mobile-picker"
-  data-mobile-picker
+  data-controller="picker-sheet"
   data-placeholder="<%= placeholder_text %>"
   <%= %(data-role="#{data_role}") if local_assigns[:data_role].present? %>>
   <%= render "mobile/shared/form_row",
@@ -34,8 +34,8 @@
     for_id: select_id,
     body: picker_control %>
 
-  <div class="mobile-picker__sheet" hidden data-mobile-picker-sheet>
-    <div class="mobile-picker__backdrop" data-mobile-picker-close></div>
+  <div class="mobile-picker__sheet" hidden data-picker-sheet-target="sheet">
+    <div class="mobile-picker__backdrop" data-action="click->picker-sheet#close"></div>
     <div class="mobile-picker__panel" role="dialog" aria-modal="true" aria-labelledby="<%= "#{select_id}_title" %>">
       <div class="mobile-picker__panel-header">
         <h3 class="mobile-picker__panel-title" id="<%= "#{select_id}_title" %>"><%= label %></h3>
@@ -49,14 +49,15 @@
           <button
             type="button"
             class="mobile-picker__option"
-            data-mobile-picker-option
-            data-value="<%= option_value %>">
+            data-picker-sheet-target="option"
+            data-picker-value="<%= option_value %>"
+            data-action="click->picker-sheet#choose">
             <%= option_label %>
           </button>
         <% end %>
       </div>
 
-      <button type="button" class="mobile-button-secondary" data-mobile-picker-close>Cancel</button>
+      <button type="button" class="mobile-button-secondary" data-action="click->picker-sheet#close">Cancel</button>
     </div>
   </div>
 </div>

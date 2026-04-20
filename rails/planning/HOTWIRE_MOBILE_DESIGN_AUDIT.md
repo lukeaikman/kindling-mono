@@ -324,6 +324,176 @@ Left accent bar (3px wide, solid sage), 1px subtle-navy border, 16px padding. 28
 3. **Logo**: the RN app uses raster PNGs (`icon-blue.png`, `icon-white.png`). For the Rails mobile, should we do the same or convert to SVG? Recommendation: **SVG** if available, with PNG fallback for older `WKWebView` edge cases. Check with designer for SVG source.
 4. **StepCard decorative blobs — strict copy or light reinterpretation?** The RN app's specific blob positions/sizes are distinctive. We can either copy pixel-exact, or reinterpret as a slightly simpler version (single blob, different placement). Recommendation: **copy pixel-exact for the first implementation** — deviation can come later once we see it in context.
 
+## Deferred components — research preserved, build on first use
+
+These were drafted during the audit but are **not** being built in Phase B. They'd be dead code until a screen refactor actually needs them. The research is preserved here so we don't have to re-derive it when the first use case arrives — copy the spec into the screen's PR when you build it.
+
+### StepCard
+
+Source: `rnative/src/components/ui/StepCard.tsx`. The signature RN component — soft warm surface, decorative blobs, centered title + subtitle with optional icon.
+
+**Target ERB partial** (`app/views/mobile/shared/_step_card.html.erb` — create when first needed):
+
+```erb
+<%#
+  Locals: title (required), subtitle (optional), icon (optional heroicon name), body via yield
+%>
+<article class="mobile-step-card">
+  <% if local_assigns[:icon].present? %>
+    <div class="mobile-step-card__icon">
+      <%= render "mobile/shared/icon", name: icon %>
+    </div>
+  <% end %>
+
+  <h1 class="mobile-step-card__title"><%= title %></h1>
+
+  <% if local_assigns[:subtitle].present? %>
+    <p class="mobile-step-card__subtitle"><%= subtitle %></p>
+  <% end %>
+
+  <div class="mobile-step-card__body">
+    <%= yield %>
+  </div>
+
+  <span class="mobile-step-card__accent" aria-hidden="true"></span>
+</article>
+```
+
+**Target CSS** (`app/assets/stylesheets/mobile/components/step_card.css`):
+
+```css
+.mobile-step-card {
+  position: relative;
+  background: #f9f8f6;
+  border-radius: var(--mobile-radius-2xl);
+  padding: var(--mobile-space-lg);
+  box-shadow: var(--mobile-shadow-md);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Decorative warm blob — top-right */
+.mobile-step-card::before {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: rgba(234, 230, 229, 0.7);
+  z-index: -1;
+}
+
+/* Decorative cool blob — bottom-left */
+.mobile-step-card::after {
+  content: "";
+  position: absolute;
+  bottom: -40px;
+  left: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(91, 146, 121, 0.18);
+  z-index: -1;
+}
+
+.mobile-step-card__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--mobile-space-md);
+  border-radius: var(--mobile-radius-full);
+  background: var(--mobile-color-accent-soft);
+  color: var(--mobile-color-accent);
+  display: grid;
+  place-items: center;
+}
+
+.mobile-step-card__icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+.mobile-step-card__title {
+  font-family: var(--mobile-font-ui);
+  font-size: var(--mobile-text-2xl);
+  font-weight: var(--mobile-weight-bold);
+  color: var(--mobile-color-text);
+  text-align: center;
+  margin: 0;
+}
+
+.mobile-step-card__subtitle {
+  font-family: var(--mobile-font-ui);
+  font-size: var(--mobile-text-sm);
+  line-height: var(--mobile-lh-relaxed);
+  color: var(--mobile-color-text-muted);
+  text-align: center;
+  margin: var(--mobile-space-sm) 0 var(--mobile-space-lg);
+}
+
+.mobile-step-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mobile-space-sm);
+}
+
+.mobile-step-card__accent {
+  display: block;
+  width: 40px;
+  height: 3px;
+  margin: var(--mobile-space-lg) auto 0;
+  background: var(--mobile-color-green-light);
+  opacity: 0.5;
+  border-radius: var(--mobile-radius-sm);
+}
+```
+
+When built: import from `mobile.css` and wire into the first screen that wants it (likely intro or welcome).
+
+### Heroicons via inline SVG
+
+Source: [heroicons.com](https://heroicons.com). No JS, no icon-font — each icon is an inline `<svg>` read from a vendored file.
+
+**Target `_icon.html.erb` partial** (create when first needed):
+
+```erb
+<%#
+  Locals: name (required, heroicon name like "user"), variant ("outline"|"solid", default "outline"), class (optional)
+%>
+<% heroicons_path = Rails.root.join("app/assets/images/heroicons/#{local_assigns.fetch(:variant, 'outline')}") %>
+<% svg_file = heroicons_path.join("#{name}.svg") %>
+<% if svg_file.exist? %>
+  <span class="mobile-icon <%= local_assigns.fetch(:class, '') %>" aria-hidden="true">
+    <%= svg_file.read.html_safe %>
+  </span>
+<% end %>
+```
+
+**`.mobile-icon` utility** (add to base.css or a utilities stylesheet when first used):
+
+```css
+.mobile-icon { display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
+.mobile-icon svg { width: 1.5em; height: 1.5em; stroke-width: 1.5; }
+```
+
+**Curated starter set** — vendor these 15 on first icon use. Covers onboarding + dashboard + form flows. Download individually from heroicons.com (each is a single small SVG file — no need for a bulk tarball):
+
+- `user`, `users`, `user-group`
+- `home`
+- `chevron-right`, `chevron-left`, `arrow-right`, `arrow-left`
+- `check`, `x-mark`
+- `shield-check`
+- `calendar`
+- `heart`
+- `pencil-square`, `trash`
+- `information-circle`
+
+File placement: `app/assets/images/heroicons/outline/<name>.svg`. The existing `link_tree ../images` in `app/assets/config/manifest.js` covers them — no manifest edit needed.
+
+When a screen needs an icon not on this list, add that single SVG at that moment. Keep the set small and deliberate.
+
 ## Change log
 
 - 2026-04-20 — initial audit, written after reading both the RN codebase and the current Rails mobile CSS.
+- 2026-04-20 — added Deferred components appendix (StepCard + Heroicons) after DHH-style review trimmed Phase B scope. Research preserved; code not shipped until first real use case.

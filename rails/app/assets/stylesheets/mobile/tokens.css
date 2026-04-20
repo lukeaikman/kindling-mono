@@ -1,28 +1,101 @@
+@font-face {
+  font-family: "Montserrat";
+  src: url("/assets/montserrat-v31-latin-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("/assets/montserrat-v31-latin-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("/assets/montserrat-v31-latin-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("/assets/montserrat-v31-latin-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  --mobile-color-bg: #f3f0ea;
-  --mobile-color-surface: #fffdfa;
+  /* ---------- Colors — Kindling warm palette ---------- */
+  --mobile-color-navy: #293241;
+  --mobile-color-cream: #EAE6E5;
+  --mobile-color-green: #5B9279;
+  --mobile-color-green-deep: #3E6D58;
+  --mobile-color-green-light: #8FCB9B;
+  --mobile-color-beige: #CCB7A4;
+  --mobile-color-brown: #8F8073;
+
+  --mobile-color-bg: var(--mobile-color-cream);
+  --mobile-color-surface: #ffffff;
   --mobile-color-surface-muted: #f7f4ee;
-  --mobile-color-text: #172531;
-  --mobile-color-text-muted: #65717c;
-  --mobile-color-line: rgba(23, 37, 49, 0.10);
-  --mobile-color-accent: #2f755a;
-  --mobile-color-accent-deep: #1f5a45;
-  --mobile-color-accent-soft: rgba(47, 117, 90, 0.12);
-  --mobile-color-danger: #a24637;
-  --mobile-color-danger-soft: rgba(162, 70, 55, 0.10);
-  --mobile-shadow-soft: 0 16px 36px rgba(20, 31, 43, 0.08);
-  --mobile-shadow-card: 0 22px 48px rgba(20, 31, 43, 0.10);
-  --mobile-font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-  --mobile-font-display: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-  --mobile-space-1: 0.25rem;
-  --mobile-space-2: 0.5rem;
-  --mobile-space-3: 0.75rem;
-  --mobile-space-4: 1rem;
-  --mobile-space-5: 1.25rem;
-  --mobile-space-6: 1.5rem;
-  --mobile-space-7: 2rem;
-  --mobile-radius-sm: 0.9rem;
-  --mobile-radius-md: 1.15rem;
-  --mobile-radius-lg: 1.5rem;
-  --mobile-radius-xl: 2rem;
+
+  --mobile-color-text: var(--mobile-color-navy);
+  --mobile-color-text-muted: var(--mobile-color-brown);
+
+  --mobile-color-accent: var(--mobile-color-green);
+  --mobile-color-accent-deep: var(--mobile-color-green-deep);
+  --mobile-color-accent-soft: rgba(91, 146, 121, 0.12);
+  --mobile-color-line: rgba(41, 50, 65, 0.10);
+  --mobile-color-warning: #ec8686;
+  --mobile-color-warning-soft: rgba(236, 134, 134, 0.10);
+  --mobile-color-danger: #c70e0e;
+
+  /* ---------- Typography ---------- */
+  --mobile-font-ui: "Montserrat", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+
+  --mobile-text-xs: 0.75rem;
+  --mobile-text-sm: 0.875rem;
+  --mobile-text-md: 1rem;
+  --mobile-text-lg: 1.125rem;
+  --mobile-text-xl: 1.25rem;
+  --mobile-text-2xl: 1.5rem;
+  --mobile-text-3xl: 2rem;
+
+  --mobile-lh-tight: 1.2;
+  --mobile-lh-normal: 1.5;
+  --mobile-lh-relaxed: 1.75;
+
+  --mobile-weight-regular: 400;
+  --mobile-weight-medium: 500;
+  --mobile-weight-semibold: 600;
+  --mobile-weight-bold: 700;
+
+  /* ---------- Spacing — strict 8px grid ---------- */
+  --mobile-space-xs: 0.25rem;
+  --mobile-space-sm: 0.5rem;
+  --mobile-space-md: 1rem;
+  --mobile-space-lg: 1.5rem;
+  --mobile-space-xl: 2rem;
+  --mobile-space-xxl: 3rem;
+
+  /* ---------- Radii ---------- */
+  --mobile-radius-sm: 0.25rem;
+  --mobile-radius-md: 0.5rem;
+  --mobile-radius-lg: 0.75rem;
+  --mobile-radius-xl: 1rem;
+  --mobile-radius-2xl: 1.5rem;
+  --mobile-radius-full: 9999px;
+
+  /* ---------- Shadows — subtle elevation ---------- */
+  --mobile-shadow-sm: 0 2px 2px rgba(41, 50, 65, 0.10);
+  --mobile-shadow-md: 0 4px 4px rgba(41, 50, 65, 0.15);
+  --mobile-shadow-lg: 0 8px 8px rgba(41, 50, 65, 0.20);
+
+  /* ---------- Motion ---------- */
+  --mobile-duration-fast: 120ms;
+  --mobile-duration-base: 200ms;
+  --mobile-duration-slow: 320ms;
+  --mobile-ease: cubic-bezier(0.4, 0, 0.2, 1);
 }

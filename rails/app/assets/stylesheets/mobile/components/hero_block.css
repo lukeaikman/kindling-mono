@@ -1,6 +1,6 @@
 .mobile-hero {
   display: grid;
-  gap: var(--mobile-space-3);
+  gap: var(--mobile-space-sm);
 }
 
 .mobile-hero--center {
@@ -16,7 +16,7 @@
   place-items: center;
   background: rgba(47, 117, 90, 0.14);
   color: var(--mobile-color-accent);
-  box-shadow: var(--mobile-shadow-soft);
+  box-shadow: var(--mobile-shadow-md);
   font-size: 1.5rem;
   font-weight: 700;
 }
