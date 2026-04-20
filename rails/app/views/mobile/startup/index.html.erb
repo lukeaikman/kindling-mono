@@ -1,6 +1,8 @@
 <% content_for :title, "Kindling | Splash" %>
 
-<section class="mobile-screen mobile-screen--startup" data-destination="<%= @destination %>" id="mobile-splash-root">
+<section class="mobile-screen mobile-screen--startup"
+  data-controller="splash-redirect"
+  data-splash-redirect-url-value="<%= @destination %>">
   <div class="mobile-screen__body">
     <div class="mobile-brand">
       <%= image_tag "mobile/splash-icon.png", alt: "Kindling Splash", style: "width: 7rem; height: auto;" %>

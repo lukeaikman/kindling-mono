@@ -7,13 +7,13 @@
 %>
   <div
     class="mobile-choice-group mobile-radio-group"
-    data-mobile-choice-group="<%= collapsible %>"
-    data-mobile-collapsible="<%= collapsible %>"
+    data-controller="choice-group"
+    data-choice-group-collapsible-value="<%= collapsible %>"
     <%= %(data-role="#{data_role}") if local_assigns[:data_role].present? %>>
     <% normalized_options.each do |option_label, option_value| %>
       <% option_id = "#{group_id}_#{option_value.to_s.parameterize(separator: "_")}" %>
       <div class="mobile-choice-option mobile-radio-option">
-        <%= radio_button_tag field_name, option_value, current_value == option_value.to_s, id: option_id %>
+        <%= radio_button_tag field_name, option_value, current_value == option_value.to_s, id: option_id, data: { action: "change->choice-group#select" } %>
         <%= label_tag option_id, option_label %>
       </div>
     <% end %>
