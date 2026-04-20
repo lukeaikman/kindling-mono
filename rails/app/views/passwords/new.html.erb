@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Reset password - Kindling Admin</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= stylesheet_link_tag "application.bootstrap", "data-turbo-track": "reload" %>
+  </head>
+
+  <body class="bg-light">
+    <div class="container">
+      <div class="row min-vh-100 align-items-center justify-content-center">
+        <div class="col-md-6 col-lg-5">
+          <div class="card shadow">
+            <div class="card-body p-5">
+              <h2 class="card-title text-center mb-4">
+                <strong>Reset your password</strong>
+              </h2>
+
+              <% if alert %>
+                <div class="alert alert-danger" role="alert"><%= alert %></div>
+              <% end %>
+              <% if notice %>
+                <div class="alert alert-info" role="alert"><%= notice %></div>
+              <% end %>
+
+              <%= form_with url: passwords_path, method: :post, local: true do |f| %>
+                <div class="mb-3">
+                  <%= f.label :email_address, "Email", class: "form-label" %>
+                  <%= f.email_field :email_address, class: "form-control form-control-lg", required: true, autofocus: true %>
+                </div>
+
+                <div class="d-grid">
+                  <%= f.submit "Email reset instructions", class: "btn btn-primary btn-lg" %>
+                </div>
+              <% end %>
+
+              <div class="text-center mt-4">
+                <small class="text-muted">
+                  <%= link_to "Back to sign in", new_session_path, class: "text-decoration-none" %>
+                </small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
