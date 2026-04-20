@@ -137,6 +137,8 @@ module Mobile
         domiciled_in_uk: "yes",
         currently_resident_in_uk: "yes",
         relationship_status: "cohabiting",
+        spouse_first_name: "Sam",
+        spouse_last_name: "Partner",
         divorce_status: "no",
         has_children: "no"
       )

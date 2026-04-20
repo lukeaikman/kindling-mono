@@ -163,17 +163,8 @@ class Api::V1::AuthControllerTest < ActionDispatch::IntegrationTest
       last_name: "Hall"
     )
 
-    3.times do
-      post "/api/v1/auth/login", params: {
-        email: "locked6@example.com",
-        password: "wrong",
-        device_id: "device-1"
-      }, as: :json
-    end
-
-    user.update_columns(locked_until: 1.hour.ago)
-
-    3.times do
+    6.times do
+      user.update_columns(locked_until: nil) if user.reload.locked_until.present?
       post "/api/v1/auth/login", params: {
         email: "locked6@example.com",
         password: "wrong",
