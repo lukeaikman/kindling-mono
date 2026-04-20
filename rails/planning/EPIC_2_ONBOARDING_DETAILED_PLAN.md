@@ -1,5 +1,7 @@
 # Epic 2 Detailed Plan — Onboarding (Rails-Served Mobile, For Review)
 
+> **Frontend-shell decision updated 2026-04-20**: this doc references a "Capacitor shell." The shell decision has been superseded — we're using **Hotwire Native**. The onboarding product flow, question order, conditional logic, data contract, and parity matrix in this doc are unchanged. Where the doc says "Capacitor shell", read "Hotwire Native shell." Canonical plan: `~/.claude/plans/in-this-repo-you-moonlit-lantern.md`.
+
 ## 1. Objective
 
 Rebuild the React Native onboarding flow inside the Rails-served mobile surface with strict route-order and question-order parity.
@@ -8,7 +10,7 @@ This plan is intentionally opinionated in a Rails-first way:
 
 - preserve the native product flow exactly,
 - simplify the server implementation where native internals are local-state hacks rather than product requirements,
-- keep the mobile experience calm, fast, and beautiful inside a Capacitor shell,
+- keep the mobile experience calm, fast, and beautiful inside a Hotwire Native shell,
 - do not invent new onboarding questions, steps, branches, or summaries unless explicitly approved.
 
 Product-approved addition for Epic 2 review:
@@ -158,10 +160,10 @@ Use the surface we already have:
 ## 5.2 Why this is the Rails way
 
 - The app already serves HTML from Rails.
-- The repo does not currently use Turbo or Stimulus.
-- The current Rails auth stack already uses signed `session_id` cookies backed by `Session` rows; we should extend that rather than invent a mobile-only auth layer.
+- Turbo and Stimulus are being added as part of Phase A of the Hotwire Native plan (at the time this doc was written they weren't yet in the Gemfile).
+- The current Rails auth stack already uses signed `session_id` cookies backed by `Session` rows; we should extend that rather than invent a mobile-only auth layer. Hotwire Native uses the webview cookie jar directly so session cookies pass through natively.
 - The current Rails schema has auth tables only (`users`, `sessions`, `api_sessions`) and no estate-domain tables yet.
-- Capacitor does not require us to fake native navigation with a JS framework when ordinary request/response pages will do.
+- Hotwire Native does not require us to fake native navigation with a JS framework when ordinary request/response pages will do — the native shell gives us real `UINavigationController` / fragment-backstack chrome and Turbo handles the page transitions inside it.
 - This mobile surface is explicitly online-only, so there is no value in porting the native offline routing branch.
 - A pre-auth onboarding draft is a real domain concern; hiding it in cookies is too fragile, and creating full estate rows before account creation is too eager.
 - The signed onboarding cookie should be only a locator; the `OnboardingSession` row should be the single source of truth for anonymous startup + onboarding progress.
@@ -863,7 +865,7 @@ Tasks:
 
 Acceptance criteria:
 
-- validated in browser and inside Capacitor shell
+- validated in browser and inside Hotwire Native shell (iOS simulator + Android emulator)
 - structured logs exist for step view/save/failure
 - feature can be disabled cleanly
 

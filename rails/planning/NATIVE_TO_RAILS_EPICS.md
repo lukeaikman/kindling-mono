@@ -1,5 +1,7 @@
 # Native → Rails-Served App: Epic Breakdown (Detailed Discovery + Delivery Backlog)
 
+> **Frontend-shell decision updated 2026-04-20**: this doc was originally written assuming a Rails-served **Ionic/Capacitor** shell. That decision has been superseded — the mobile shell is now **Hotwire Native** (iOS + Android thin native shells rendering Rails ERB over Turbo + Stimulus). See `~/.claude/plans/in-this-repo-you-moonlit-lantern.md` for the canonical plan. The behavior-parity and discovery content in this doc (attribution, onboarding, trust logic, progression, asset rules) is unchanged and still canonical. Where this doc says "Ionic", "Capacitor", or "native wrapper", read "Hotwire Native shell".
+
 This plan is intentionally structured for **behavior parity first** (especially trust logic), then UI migration.
 
 ---
@@ -7,7 +9,7 @@ This plan is intentionally structured for **behavior parity first** (especially 
 ## Epic 1 — Splash screens, intro behavior, and deep link behavior manipulation
 
 ### Goal
-Reproduce app-open, first-touch attribution, splash timing, and deep-link routing exactly in the Rails-served Ionic/Capacitor shell.
+Reproduce app-open, first-touch attribution, splash timing, and deep-link routing exactly in the Rails-served Hotwire Native shell.
 
 ### Discovery tasks
 - Inventory all entry routes and startup transitions:
@@ -26,7 +28,7 @@ Reproduce app-open, first-touch attribution, splash timing, and deep-link routin
 
 ### Delivery tasks
 - Implement Rails-hosted web entry route that mirrors splash handoff behavior.
-- Implement Capacitor deep-link bridge + parser preserving current URL param semantics.
+- Implement Universal Link (iOS) + App Link (Android) deep-link handoff in the Hotwire Native shell, preserving current URL param semantics.
 - Implement secure client-side persistence for attribution + onboarding state (web equivalent of SecureStore strategy).
 - Port routing decision engine to a tested pure module.
 - Add analytics hooks for `open`, deep-link source/campaign capture, and first destination chosen.
@@ -64,7 +66,7 @@ Migrate all onboarding steps with parity in conditional questions, relationship 
 
 ### Delivery tasks
 - Create Rails API endpoints for onboarding payloads (idempotent and resumable).
-- Build Ionic onboarding wizard pages with route guards and step resume.
+- Build Rails-rendered ERB onboarding screens with route guards and step resume (no client-side framework — Turbo handles transitions).
 - Port validation + conditional visibility logic into shared TS domain package (no UI-coupled rules).
 - Add explicit data model fields for currently TODO/non-persisted onboarding data where product wants retention.
 - Implement autosave + draft-resume for each onboarding step.
@@ -101,8 +103,8 @@ Preserve current auth UX and offline safeguards while moving session authority t
 
 ### Delivery tasks
 - Implement final Rails auth endpoints contract parity (validate-email, register, login, validate, refresh, logout, profile).
-- Introduce shared auth client usable by Ionic app (browser + native wrapper).
-- Implement secure token storage strategy for web + capacitor (with clear threat model).
+- Auth flows use Rails session cookies via the `WKWebView` / `WebView` cookie jar — no separate mobile auth client needed. The API-token endpoints scaffolded at `/api/v1/auth/*` remain dormant.
+- Secure session storage is handled by Rails' existing encrypted session cookie + Hotwire Native's cookie forwarding. No separate secure-storage plugin required.
 - Recreate fresh-install/stale credential cleanup semantics in new platform constraints.
 - Preserve onboarding-to-auth handoff (secure-account route) and post-auth route outcomes.
 - Instrument auth errors and refresh failures with request IDs surfaced to logs.

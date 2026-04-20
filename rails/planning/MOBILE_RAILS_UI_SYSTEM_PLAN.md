@@ -1,14 +1,16 @@
 # Rails-Native Mobile UI System Plan
 
+> **Frontend-shell decision updated 2026-04-20**: the opening sentence below mentions Capacitor; the shell decision is now **Hotwire Native**. The design-system substance in this doc (primitives, tokens, CSS strategy, refactor phases, screen conventions) is unchanged and still canonical — it's all server-rendered ERB + custom CSS that works identically under Hotwire Native. The only shift is that a future "later adoption of Ionic" is no longer a target; Hotwire Native is the committed direction. Canonical plan: `~/.claude/plans/in-this-repo-you-moonlit-lantern.md`.
+
 ## Purpose
 
-This plan defines the Rails-first starting point for rebuilding the mobile surface so it feels like a real app inside Capacitor, while keeping routing, state, validation, and progression logic firmly in Rails.
+This plan defines the Rails-first starting point for rebuilding the mobile surface so it feels like a real app inside a Hotwire Native shell, while keeping routing, state, validation, and progression logic firmly in Rails.
 
 This is the path I would choose if the goal is:
 
 - keep the codebase understandable to Rails developers
-- avoid locking the product into a heavy mobile UI framework too early
-- make later adoption of Ionic or another component system easier rather than harder
+- avoid locking the product into a heavy mobile UI framework
+- keep the design system lean enough that the native shell (Hotwire Native) provides platform chrome while ERB provides branded content
 - refactor the views we already have instead of throwing them away
 
 ## Executive summary

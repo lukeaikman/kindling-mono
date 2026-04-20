@@ -1,7 +1,19 @@
 # Epic 1 Detailed Plan: Splash, Intro Behaviour, Deep-Link Behaviour
 
+> **Frontend-shell decision updated 2026-04-20** — this doc was written assuming a **Rails-served Ionic/Capacitor** shell with a client-side pure TypeScript decision module and Capacitor secure-storage for attribution + onboarding state. That architecture is superseded. The new frontend is **Hotwire Native** (thin iOS + Android shells rendering Rails ERB over Turbo), with:
+>
+> - Decision logic in Ruby: `Mobile::StartupRouting` at `app/models/mobile/startup_routing.rb` (not TypeScript).
+> - Attribution + onboarding state persisted in the Rails session / database (not Capacitor secure storage or client-side storage).
+> - Deep-link handoff via Universal Links (iOS) + App Links (Android), not a Capacitor plugin.
+>
+> Canonical plan: `~/.claude/plans/in-this-repo-you-moonlit-lantern.md`.
+>
+> **What's still canonical in this doc**: Section 5 (attribution + onboarding-state data contract), Section 6 Phase A (decision table freezing), Section 8 (QA / parity matrix), and the behavior rules. These were architecture-agnostic and are used as-is by the Hotwire Native implementation.
+>
+> **What's stale**: Section 4 ("Rails view strategy for Capacitor + Web"), Section 6 Phases B–F (TypeScript module, client-side storage adapter, Capacitor deep-link integration). Read those for historical context only.
+
 ## 1) Epic objective
-Recreate the app-open path in a Rails-served Ionic/Capacitor app with strict behavior parity for:
+Recreate the app-open path in a Rails-served Hotwire Native app with strict behavior parity for:
 - splash handoff,
 - attribution capture (first-touch),
 - onboarding state persistence,
