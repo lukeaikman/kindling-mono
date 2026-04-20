@@ -75,3 +75,6 @@ group :development do
   # Detect N+1 queries
   gem "bullet"
 end
+
+gem "turbo-rails", "~> 2.0"
+gem "stimulus-rails", "~> 1.3"
