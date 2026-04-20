@@ -2,9 +2,9 @@
   display: grid;
   gap: var(--mobile-space-sm);
   padding: var(--mobile-space-lg);
-  border-radius: var(--mobile-radius-xl);
+  border-radius: var(--mobile-radius-lg);
   background: var(--mobile-color-surface);
-  box-shadow: var(--mobile-shadow-md);
+  box-shadow: var(--mobile-shadow-sm);
 }
 
 .mobile-grouped-section__title {

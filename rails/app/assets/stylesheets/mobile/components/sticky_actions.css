@@ -1,16 +1,11 @@
+/* Buttons sit directly on the faded cream gradient from .mobile-app__footer —
+   no card wrapper (modern iOS pattern: content fades into action area). */
 .mobile-sticky-actions {
+  display: grid;
+  gap: var(--mobile-space-sm);
   width: 100%;
   max-width: 42rem;
   margin: 0 auto;
-  padding: 0 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  padding: var(--mobile-space-md) var(--mobile-space-md) calc(var(--mobile-space-md) + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
-}
-
-.mobile-sticky-actions__card {
-  display: grid;
-  gap: var(--mobile-space-sm);
-  padding: var(--mobile-space-md);
-  border-radius: var(--mobile-radius-xl);
-  background: var(--mobile-color-surface);
-  box-shadow: var(--mobile-shadow-md);
 }

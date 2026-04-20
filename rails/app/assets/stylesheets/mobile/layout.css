@@ -26,9 +26,15 @@
   position: sticky;
   bottom: 0;
   z-index: 30;
-  background: linear-gradient(180deg, rgba(234, 230, 229, 0), rgba(234, 230, 229, 0.96) 32%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  padding-top: var(--mobile-space-xl);
+  background: linear-gradient(180deg, rgba(234, 230, 229, 0) 0%, rgba(234, 230, 229, 0.9) 55%, var(--mobile-color-bg) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+.mobile-app__footer > * {
+  pointer-events: auto;
 }
 
 .mobile-flash-stack {
