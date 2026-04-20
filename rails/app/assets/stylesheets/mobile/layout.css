@@ -1,18 +1,23 @@
 .mobile-app {
-  min-height: 100vh;
+  min-height: 100vh;     /* fallback for older browsers */
+  min-height: 100dvh;    /* dynamic viewport height — correct under iOS URL-bar toggle */
   display: flex;
   flex-direction: column;
 }
 
 .mobile-app__content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 42rem;
   margin: 0 auto;
+  /* Bottom padding clears the sticky-footer height so long-form content
+     doesn't scroll permanently under the footer gradient. */
   padding:
     calc(1rem + env(safe-area-inset-top, 0px))
     1rem
-    calc(8rem + env(safe-area-inset-bottom, 0px));
+    2rem;
   box-sizing: border-box;
 }
 
