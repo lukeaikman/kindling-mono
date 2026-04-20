@@ -28,7 +28,7 @@
 .mobile-picker__trigger {
   width: 100%;
   min-height: 3.5rem;
-  border-radius: var(--mobile-radius-md);
+  border-radius: var(--mobile-radius-xl);
   border: 1px solid var(--mobile-color-line);
   background: rgba(255, 255, 255, 0.98);
   color: var(--mobile-color-text);
