@@ -28,6 +28,7 @@
 .mobile-input-number,
 .mobile-picker__trigger {
   width: 100%;
+  min-width: 0;
   min-height: 3rem;
   border-radius: var(--mobile-radius-md);
   border: 1px solid transparent;
@@ -36,6 +37,8 @@
   padding: var(--mobile-space-sm) var(--mobile-space-md);
   font-family: var(--mobile-font-ui);
   font-size: var(--mobile-text-md);
+  -webkit-appearance: none;
+  appearance: none;
   transition: border-color var(--mobile-duration-fast) var(--mobile-ease),
               box-shadow var(--mobile-duration-fast) var(--mobile-ease);
 }
