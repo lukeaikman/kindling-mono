@@ -33,9 +33,13 @@ html.js .mobile-picker__trigger {
 .mobile-picker__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(9, 15, 21, 0.42);
+  background: rgba(9, 15, 21, 0.22);
+  backdrop-filter: blur(8px) saturate(1.1);
+  -webkit-backdrop-filter: blur(8px) saturate(1.1);
 }
 
+/* Glass panel: translucent cream with two soft brand blobs drifting behind a
+   heavy backdrop-blur. Pure CSS — no DOM weight. */
 .mobile-picker__panel {
   position: absolute;
   right: 0;
@@ -43,32 +47,58 @@ html.js .mobile-picker__trigger {
   left: 0;
   display: grid;
   gap: var(--mobile-space-md);
-  padding: var(--mobile-space-lg) var(--mobile-space-md) calc(var(--mobile-space-lg) + env(safe-area-inset-bottom, 0px));
-  background: var(--mobile-color-surface);
-  border-radius: var(--mobile-radius-2xl) var(--mobile-radius-2xl) 0 0;
-  box-shadow: var(--mobile-shadow-lg);
+  padding:
+    calc(var(--mobile-space-lg) + 0.6rem)
+    var(--mobile-space-md)
+    calc(var(--mobile-space-lg) + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(91, 146, 121, 0.24), transparent 55%),
+    radial-gradient(90% 80% at 0% 100%, rgba(204, 183, 164, 0.26), transparent 60%),
+    rgba(234, 230, 229, 0.72);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-top-left-radius: var(--mobile-radius-2xl);
+  border-top-right-radius: var(--mobile-radius-2xl);
+  box-shadow:
+    0 -20px 48px rgba(20, 31, 43, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* iOS-style drag handle at the top of the panel */
+.mobile-picker__panel::before {
+  content: "";
+  position: absolute;
+  top: 0.55rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2.5rem;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: rgba(41, 50, 65, 0.22);
 }
 
 .mobile-picker__panel-header {
   display: grid;
-  gap: 0.2rem;
+  gap: var(--mobile-space-xs);
 }
 
 .mobile-picker__panel-title {
   margin: 0;
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-family: var(--mobile-font-ui);
+  font-size: var(--mobile-text-lg);
+  font-weight: var(--mobile-weight-semibold);
+  color: var(--mobile-color-text);
 }
 
 .mobile-picker__panel-subtitle {
   margin: 0;
   color: var(--mobile-color-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--mobile-text-sm);
 }
 
 .mobile-picker__options {
   display: grid;
-  gap: 0.6rem;
+  gap: var(--mobile-space-xs);
   max-height: clamp(0rem, 58vh, 26rem);
   overflow-y: auto;
 }
@@ -77,15 +107,30 @@ html.js .mobile-picker__trigger {
   width: 100%;
   text-align: left;
   min-height: 3.4rem;
-  border: 1px solid var(--mobile-color-line);
-  border-radius: var(--mobile-radius-xl);
-  background: rgba(255, 255, 255, 0.98);
-  color: var(--mobile-color-text);
+  border: 1px solid transparent;
+  border-radius: var(--mobile-radius-md);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--mobile-color-text-muted);
   padding: 0.85rem 1rem;
-  font-weight: 700;
+  font-family: var(--mobile-font-ui);
+  font-size: var(--mobile-text-md);
+  font-weight: var(--mobile-weight-regular);
+  cursor: pointer;
+  transition: color var(--mobile-duration-fast) var(--mobile-ease),
+              background var(--mobile-duration-fast) var(--mobile-ease),
+              border-color var(--mobile-duration-fast) var(--mobile-ease);
 }
 
 .mobile-picker__option.is-selected {
-  border-color: rgba(47, 117, 90, 0.42);
-  background: rgba(240, 248, 244, 0.98);
+  border-color: var(--mobile-color-accent);
+  background: var(--mobile-color-accent-soft);
+  color: var(--mobile-color-text);
+}
+
+/* Cancel sits as a text-link affordance, separated from the option list so it
+   reads as "escape hatch" not "option 4". */
+.mobile-picker__cancel {
+  margin-top: var(--mobile-space-sm);
+  background: transparent;
+  min-height: 3rem;
 }
