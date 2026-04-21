@@ -30,7 +30,7 @@
   width: 100%;
   min-height: 3rem;
   border-radius: var(--mobile-radius-md);
-  border: 1px solid var(--mobile-color-line);
+  border: 1px solid transparent;
   background: var(--mobile-color-surface);
   color: var(--mobile-color-text);
   padding: var(--mobile-space-sm) var(--mobile-space-md);

@@ -1,13 +1,5 @@
 <% content_for :title, "Kindling | Wrap Up" %>
 
-<% footer_actions = capture do %>
-  <%= button_to "Continue", mobile_onboarding_wrap_up_continue_path, method: :post, class: "mobile-button" %>
-<% end %>
-
-<% content_for :mobile_footer do %>
-  <%= render "mobile/shared/sticky_actions", body: footer_actions %>
-<% end %>
-
 <% covered_body = capture do %>
   <p class="mobile-copy">Your core identity, your location, the structure of your family, and the details that change legal outcomes.</p>
 <% end %>
@@ -33,5 +25,9 @@
       title: "Coming up next",
       subtle: true,
       body: next_body %>
+
+    <div class="mobile-actions">
+      <%= button_to "Continue", mobile_onboarding_wrap_up_continue_path, method: :post, class: "mobile-button" %>
+    </div>
   </div>
 </section>

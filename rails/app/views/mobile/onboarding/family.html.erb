@@ -12,19 +12,12 @@
   method: :patch,
   class: "mobile-screen mobile-screen--onboarding",
   html: {
-    id: "mobile-family-form",
     data: {
       controller: "family-form",
       action: "change->family-form#formChange click->family-form#formClick focusin->family-form#formFocusin input->family-form#formInput",
       family_form_user_last_name_value: @onboarding_session.last_name.to_s
     }
   } do |form| %>
-  <%
-    footer_body = capture do
-  %>
-    <%= form.submit "Continue", class: "mobile-button", form: "mobile-family-form" %>
-  <% end %>
-
   <%
     partner_fields_body = capture do
   %>
@@ -39,42 +32,6 @@
         for_id: "onboarding_session_spouse_last_name",
         body: capture { form.text_field :spouse_last_name, class: "mobile-input", autocomplete: "off", data: { role: "spouse-last-name", prefilled: (@onboarding_session.spouse_last_name.present? && @onboarding_session.spouse_last_name == @onboarding_session.last_name).to_s } } %>
     </div>
-  <% end %>
-
-  <%
-    relationship_section_body = capture do
-  %>
-    <%= render "mobile/shared/choice_group",
-      field_name: "onboarding_session[relationship_status]",
-      label: "Which best describes your current situation?",
-      value: @onboarding_session.relationship_status,
-      options: [["Single", "single"], ["Married", "married"], ["Civil partnership", "civil-partnership"], ["Cohabiting", "cohabiting"], ["Widowed", "widowed"]],
-      id_prefix: "relationship_status",
-      collapsible: true,
-      data_role: "relationship-status" %>
-
-    <div data-role="partner-fields" <%= "hidden" unless @onboarding_session.has_partner? %>>
-      <%= render "mobile/shared/grouped_section",
-        title: "Partner details",
-        subtle: true,
-        body: partner_fields_body %>
-    </div>
-
-    <%= render "mobile/shared/picker_field",
-      field_name: "onboarding_session[divorce_status]",
-      label: "Have you ever been divorced?",
-      value: @onboarding_session.divorce_status,
-      options: [["No, never divorced", "no"], ["Yes, divorced once", "yes-once"], ["Yes, divorced multiple times", "yes-multiple"], ["Currently going through divorce", "currently-divorcing"], ["Separated but not divorced", "separated"], ["Marriage was annulled", "annulled"], ["Prefer not to say", "prefer-not-to-say"], ["Other", "other"]],
-      placeholder: "Select divorce status" %>
-
-    <%= render "mobile/shared/choice_group",
-      field_name: "onboarding_session[has_children]",
-      label: "Do you have children or guardianship responsibilities?",
-      value: @onboarding_session.has_children,
-      options: [["Yes", "yes"], ["No", "no"]],
-      id_prefix: "has_children",
-      collapsible: true,
-      data_role: "has-children" %>
   <% end %>
 
   <%
@@ -105,10 +62,6 @@
     </template>
   <% end %>
 
-  <% content_for :mobile_footer do %>
-    <%= render "mobile/shared/sticky_actions", body: footer_body %>
-  <% end %>
-
   <%= render "mobile/shared/screen_header", step_number: 3, total_steps: 5, back_path: mobile_onboarding_location_path %>
   <%= render "mobile/shared/form_errors", record: @onboarding_session %>
 
@@ -118,13 +71,48 @@
       title: "Your family.",
       subtitle: "This is where the flow becomes more personal. We keep it on one calm page so the whole picture stays visible." %>
 
-    <%= render "mobile/shared/grouped_section",
-      body: relationship_section_body %>
+    <div class="mobile-stack">
+      <%= render "mobile/shared/choice_group",
+        field_name: "onboarding_session[relationship_status]",
+        label: "Which best describes your current situation?",
+        value: @onboarding_session.relationship_status,
+        options: [["Single", "single"], ["Married", "married"], ["Civil partnership", "civil-partnership"], ["Cohabiting", "cohabiting"], ["Widowed", "widowed"]],
+        id_prefix: "relationship_status",
+        collapsible: true,
+        data_role: "relationship-status" %>
+
+      <div data-role="partner-fields" <%= "hidden" unless @onboarding_session.has_partner? %>>
+        <%= render "mobile/shared/grouped_section",
+          title: "Partner details",
+          subtle: true,
+          body: partner_fields_body %>
+      </div>
+
+      <%= render "mobile/shared/picker_field",
+        field_name: "onboarding_session[divorce_status]",
+        label: "Have you ever been divorced?",
+        value: @onboarding_session.divorce_status,
+        options: [["No, never divorced", "no"], ["Yes, divorced once", "yes-once"], ["Yes, divorced multiple times", "yes-multiple"], ["Currently going through divorce", "currently-divorcing"], ["Separated but not divorced", "separated"], ["Marriage was annulled", "annulled"], ["Prefer not to say", "prefer-not-to-say"], ["Other", "other"]],
+        placeholder: "Select divorce status" %>
+
+      <%= render "mobile/shared/choice_group",
+        field_name: "onboarding_session[has_children]",
+        label: "Do you have children or guardianship responsibilities?",
+        value: @onboarding_session.has_children,
+        options: [["Yes", "yes"], ["No", "no"]],
+        id_prefix: "has_children",
+        collapsible: true,
+        data_role: "has-children" %>
+    </div>
 
     <div data-role="children-section" <%= "hidden" unless @onboarding_session.has_children == "yes" %>>
       <%= render "mobile/shared/grouped_section",
         title: "Tell us about those in your care",
         body: children_section_body %>
+    </div>
+
+    <div class="mobile-actions">
+      <%= form.submit "Continue", class: "mobile-button" %>
     </div>
   </div>
 <% end %>

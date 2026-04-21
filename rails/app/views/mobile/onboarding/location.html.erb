@@ -1,44 +1,6 @@
 <% content_for :title, "Kindling | Location" %>
 
-<%= form_with model: @onboarding_session, url: mobile_onboarding_location_path, method: :patch, class: "mobile-screen mobile-screen--onboarding", html: { id: "mobile-location-form" } do |form| %>
-  <% location_footer = capture do %>
-    <%= form.submit "Continue", class: "mobile-button", form: "mobile-location-form" %>
-  <% end %>
-
-  <% location_body = capture do %>
-    <%= render "mobile/shared/picker_field",
-      field_name: "onboarding_session[country_of_residence]",
-      label: "Which part of the UK do you live in?",
-      value: @onboarding_session.country_of_residence,
-      options: [["England", "england"], ["Wales", "wales"], ["Scotland", "scotland"]],
-      placeholder: "Select country" %>
-
-    <%= render "mobile/shared/picker_field",
-      field_name: "onboarding_session[nationality]",
-      label: "What’s your nationality?",
-      value: @onboarding_session.nationality,
-      options: [["British", "british"], ["American", "american"], ["Canadian", "canadian"], ["Australian", "australian"], ["Other", "other"]],
-      placeholder: "Select nationality" %>
-
-    <%= render "mobile/shared/choice_group",
-      field_name: "onboarding_session[domiciled_in_uk]",
-      label: "Are you domiciled in the UK?",
-      value: @onboarding_session.domiciled_in_uk,
-      options: [["Yes", "yes"], ["No", "no"], ["Not sure", "not-sure"]],
-      collapsible: true %>
-
-    <%= render "mobile/shared/choice_group",
-      field_name: "onboarding_session[currently_resident_in_uk]",
-      label: "Are you currently resident in the UK?",
-      value: @onboarding_session.currently_resident_in_uk,
-      options: [["Yes", "yes"], ["No", "no"]],
-      collapsible: true %>
-  <% end %>
-
-  <% content_for :mobile_footer do %>
-    <%= render "mobile/shared/sticky_actions", body: location_footer %>
-  <% end %>
-
+<%= form_with model: @onboarding_session, url: mobile_onboarding_location_path, method: :patch, class: "mobile-screen mobile-screen--onboarding" do |form| %>
   <%= render "mobile/shared/screen_header", step_number: 2, total_steps: 5, back_path: mobile_onboarding_welcome_path %>
   <%= render "mobile/shared/form_errors", record: @onboarding_session %>
 
@@ -48,7 +10,38 @@
       title: "Where do you live?",
       subtitle: "Your location and status affect how the law and tax rules apply, so this step stays focused and factual." %>
 
-    <%= render "mobile/shared/grouped_section",
-      body: location_body %>
+    <div class="mobile-stack">
+      <%= render "mobile/shared/picker_field",
+        field_name: "onboarding_session[country_of_residence]",
+        label: "Which part of the UK do you live in?",
+        value: @onboarding_session.country_of_residence,
+        options: [["England", "england"], ["Wales", "wales"], ["Scotland", "scotland"]],
+        placeholder: "Select country" %>
+
+      <%= render "mobile/shared/picker_field",
+        field_name: "onboarding_session[nationality]",
+        label: "What’s your nationality?",
+        value: @onboarding_session.nationality,
+        options: [["British", "british"], ["American", "american"], ["Canadian", "canadian"], ["Australian", "australian"], ["Other", "other"]],
+        placeholder: "Select nationality" %>
+
+      <%= render "mobile/shared/choice_group",
+        field_name: "onboarding_session[domiciled_in_uk]",
+        label: "Are you domiciled in the UK?",
+        value: @onboarding_session.domiciled_in_uk,
+        options: [["Yes", "yes"], ["No", "no"], ["Not sure", "not-sure"]],
+        collapsible: true %>
+
+      <%= render "mobile/shared/choice_group",
+        field_name: "onboarding_session[currently_resident_in_uk]",
+        label: "Are you currently resident in the UK?",
+        value: @onboarding_session.currently_resident_in_uk,
+        options: [["Yes", "yes"], ["No", "no"]],
+        collapsible: true %>
+    </div>
+
+    <div class="mobile-actions">
+      <%= form.submit "Continue", class: "mobile-button" %>
+    </div>
   </div>
 <% end %>
