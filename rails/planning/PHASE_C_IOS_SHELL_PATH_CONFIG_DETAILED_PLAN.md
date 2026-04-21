@@ -60,15 +60,17 @@ Quoted verbatim from the canonical plan. Re-read each before executing the relev
 
 ## Git strategy
 
-Branch: `phase-c-ios-shell` off main. Four commits, one branch, `git merge --no-ff` to main when done. Do not push without explicit go-ahead.
+Branch: `phase-c-ios-shell` off main. **Six commits total — five agent-authored, one manual rename by the user.** One branch, `git merge --no-ff` to main when done. Do not push without explicit go-ahead.
 
 Commit order:
-1. Rails canonical JSON + `Mobile::ConfigController` + endpoint tests.
-2. iOS Xcode project scaffold + `HotwireNative` Swift Package dependency.
-3. `RemoteConfigStore.swift` + its Swift Testing suite.
-4. Wiring (`SceneDelegate`, bundled JSON, `PathConfiguration` init, `refreshAll` kickoff, `ErrorPresenter` placeholder) + Rails drift tests + simulator verification notes in the commit message.
+1. (agent) Rails canonical JSON + `Mobile::ConfigController` + endpoint tests.
+2. (agent) Clone `hotwire-native-demo-ios` template into `ios/`, add `.gitignore`. Project still named "HotwireDemo".
+3. **(user, manual)** Xcode target rename HotwireDemo → Kindling, bundle ID → `app.kindling.ios`, deployment target → iOS 16. See §2.3.
+4. (agent) HotwireNative SPM pinned 1.2.1, `.xcconfig` files, Info.plist, AppDelegate trim — all on the renamed project. First step: grep check that the rename is complete.
+5. (agent) `RemoteConfigStore.swift` + Swift Testing suite. Requires the rename and a `KindlingTests` target (another manual user step — see §3.3).
+6. (agent) Wiring (`SceneDelegate`, bundled JSON, `PathConfiguration` init, `refreshAll` kickoff, `ErrorPresenter`) + Rails drift tests + simulator verification notes in the commit message.
 
-Why four commits and not one: reviewability. Each commit on its own compiles, passes tests, and makes the feature incrementally more real. The first commit doesn't need an iOS toolchain to review. The third is reviewable in isolation against its unit tests.
+Why six commits and not one: reviewability. Each commit stands on its own — compiles, passes tests, makes the feature incrementally more real. Commit 1 needs no iOS toolchain. Commit 5 is reviewable in isolation against its unit tests. The user-authored rename commit (3) is separated so its pbxproj diff isn't blamed on the agent.
 
 ## Part 1 — Rails side
 
@@ -126,9 +128,11 @@ end
 
 ```ruby
 get "mobile/config/:resource", to: "mobile/config#show",
-  constraints: { resource: /[a-z_]+/ }, defaults: { format: :json },
+  constraints: { resource: /[a-z_]+/, format: :json },
   as: :mobile_config_resource
 ```
+
+**Why `constraints: { format: :json }` and not `defaults:`**: `constraints` rejects requests without the `.json` extension with 404. `defaults:` accepts both `/mobile/config/foo` and `/mobile/config/foo.json`, which is ambiguous — two URLs, one resource, nobody tested both. Lock the single URL shape the iOS client will use.
 
 **Why `fresh_when`**: Rails handles `If-None-Match` / `If-Modified-Since` for us. Returns 304 automatically when the client's cached version matches. One line, correct behavior.
 
@@ -182,11 +186,17 @@ module Mobile
       get "/mobile/config/CAPITALS.json"
       assert_response :not_found
     end
+
+    test "missing .json extension is rejected by the route constraint" do
+      # The constraint format: :json requires the .json extension.
+      get "/mobile/config/path_configuration"
+      assert_response :not_found
+    end
   end
 end
 ```
 
-**Run**: `bin/rails test test/controllers/mobile/config_controller_test.rb` — expect 4 runs, 0 failures.
+**Run**: `bin/rails test test/controllers/mobile/config_controller_test.rb` — expect 5 runs, 0 failures.
 
 ### 1.4 Commit 1
 
@@ -200,12 +210,13 @@ Phase C part 1 — Mobile::ConfigController + canonical path_configuration.json
 - New Mobile::ConfigController#show served at
   GET /mobile/config/:resource.json, whitelisted against a single
   resource name (path_configuration) with a route constraint
-  /[a-z_]+/ blocking traversal attempts. Uses fresh_when for
-  automatic ETag + Last-Modified + conditional GET handling.
-  Unknown resource -> 404.
-- Four request specs: 200 happy path, 304 on matching If-None-Match,
-  404 on unknown resource, route-constraint rejection of disallowed
-  resource names.
+  /[a-z_]+/ blocking traversal attempts and format: :json requiring
+  the extension. Uses fresh_when for automatic ETag + Last-Modified
+  + conditional GET handling. Unknown resource or missing extension
+  -> 404.
+- Five request specs: 200 happy path, 304 on matching If-None-Match,
+  404 on unknown resource, 404 on disallowed resource name, 404 on
+  missing .json extension.
 
 No consumer yet. The iOS shell lands in later commits on this branch.
 
@@ -214,7 +225,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 ## Part 2 — iOS shell scaffold
 
-### 2.1 Xcode project from the demo template
+Part 2 spans commits 2, 3, and 4. Agent commits 2 and 4; user commits 3 (rename).
+
+### 2.1 Clone the demo template into `ios/` (agent — part of commit 2)
 
 **Prerequisites**:
 - Xcode 16 or later (Swift Testing is Xcode 16+).
@@ -229,36 +242,15 @@ git clone --depth 1 https://github.com/hotwired/hotwire-native-demo-ios.git /tmp
 # 2. Copy its project structure into ios/ — not a git clone, a plain copy.
 mkdir -p ios
 cp -R /tmp/hn-demo-ios/HotwireDemo ios/Kindling
-cp /tmp/hn-demo-ios/HotwireDemo.xcodeproj ios/Kindling.xcodeproj -R
+cp -R /tmp/hn-demo-ios/HotwireDemo.xcodeproj ios/Kindling.xcodeproj
 rm -rf /tmp/hn-demo-ios
 ```
 
-**Manual step — user performs in Xcode, then hands back to the agent.** Agents cannot click through Xcode's rename UI reliably, and editing `project.pbxproj` by hand is brittle. The user does these four things and commits, then the plan resumes at §2.2:
+The project is still named "HotwireDemo" internally at this point. The user renames it in §2.3; don't pre-empt.
 
-1. In Xcode, File → Rename the target `HotwireDemo` → `Kindling` (this renames the scheme, folders, and build configs in one action).
-2. Project → Target `Kindling` → Build Settings → Product Bundle Identifier: set to `app.kindling.ios`.
-3. Project → Target `Kindling` → General → Display Name: set to `Kindling`.
-4. Project → Target `Kindling` → General → Minimum Deployments: set to iOS 16.0.
+**Do not** (either party, at any step of Part 2): restructure the folder layout, flatten the `Coordinator`/`Scene` files, or rename files beyond the target rename. Match the demo's organization so Hotwire docs and examples map directly.
 
-Commit the result as "Phase C — iOS Xcode project renamed from demo template to Kindling" before moving on.
-
-**Agent-side check after handback**: `grep -rln "HotwireDemo" ios/` returns empty. If it doesn't, the rename was incomplete — stop and report back, don't sed-patch the stragglers.
-
-**Do not** (either party): restructure the folder layout, flatten the `Coordinator`/`Scene` files, or rename files beyond the target rename. Match the demo's organization so Hotwire docs and examples map directly.
-
-### 2.2 `HotwireNative` Swift Package dependency
-
-Open `ios/Kindling.xcodeproj` in Xcode. File → Add Package Dependencies…:
-
-- URL: `https://github.com/hotwired/hotwire-native-ios`
-- Dependency Rule: **Exact Version** — **1.2.1**. No ranges. No branches. No "up to next minor." No "latest stable at time of execution." If `1.2.1` doesn't resolve, stop and report back — don't pick a nearby version to keep moving.
-- Add to target: `Kindling`.
-
-**Why exact**: a surprise upstream change breaks the shell silently. Exact pinning forces a conscious bump with review.
-
-**Verify**: build the (still-empty) target. Should succeed. If the demo's `import HotwireNative` statements compile cleanly, the dependency is wired.
-
-### 2.3 `.gitignore` for iOS build artifacts
+### 2.2 `.gitignore` for iOS build artifacts (agent — same commit as §2.1)
 
 **File**: `ios/.gitignore` (new).
 
@@ -285,7 +277,71 @@ Podfile.lock
 
 Do not ignore `*.xcodeproj/project.pbxproj` — that's the shared project file.
 
-### 2.4 Origin configuration via `.xcconfig`
+**Commit 2** (agent):
+
+```
+Phase C part 2 — clone hotwire-native-demo-ios into ios/
+
+Template copy only — project is still named HotwireDemo. Renamed
+in commit 3 by the user via Xcode's target-rename tooling.
+
+- ios/Kindling/ source tree copied from the demo (HotwireDemo/).
+- ios/Kindling.xcodeproj copied from the demo (HotwireDemo.xcodeproj/).
+- ios/.gitignore scoped for Xcode/SPM/macOS build artifacts.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+```
+
+### 2.3 Xcode rename (user manual — commit 3)
+
+Agents cannot click through Xcode's rename UI reliably, and editing `project.pbxproj` by hand is brittle. **This is a manual step the user performs.** Four actions, one commit:
+
+1. Open `ios/Kindling.xcodeproj` in Xcode.
+2. File → Rename the target `HotwireDemo` → `Kindling` (this renames the scheme, folders, and build configs in one action). Accept Xcode's "rename files" prompts.
+3. Project → Target `Kindling` → Build Settings → Product Bundle Identifier: set to `app.kindling.ios`.
+4. Project → Target `Kindling` → General → Display Name: set to `Kindling`. Minimum Deployments: iOS 16.0.
+
+**Commit 3** (user):
+
+```
+Phase C commit 3 — Xcode target renamed HotwireDemo → Kindling
+
+Manual rename done in Xcode so agents don't have to patch pbxproj
+by hand. Bundle ID set to app.kindling.ios. Deployment target iOS 16.
+Also ensures KindlingTests target exists (created if demo template
+didn't ship one — see §3.3) so commit 5 has somewhere to put
+Swift Testing files.
+```
+
+**Agent-side resume check after handback — required before any agent work on commit 4**:
+
+```bash
+grep -rln "HotwireDemo" ios/
+```
+
+Must return empty. If any "HotwireDemo" references remain, the rename was incomplete — stop and report back. Do not sed-patch stragglers; ask the user to complete the rename.
+
+### 2.4 `HotwireNative` Swift Package dependency (agent — commit 4)
+
+Open `ios/Kindling.xcodeproj` in Xcode. File → Add Package Dependencies…:
+
+- URL: `https://github.com/hotwired/hotwire-native-ios`
+- Dependency Rule: **Exact Version** — **1.2.1**. No ranges. No branches. No "up to next minor." No "latest stable at time of execution." If `1.2.1` doesn't resolve, stop and report back — don't pick a nearby version to keep moving.
+- Add to target: `Kindling`.
+
+**Why exact**: a surprise upstream change breaks the shell silently. Exact pinning forces a conscious bump with review.
+
+**Verify the pin landed**:
+
+```bash
+grep '"version" : "1.2.1"' ios/Kindling.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+```
+
+Must return a match. If it returns empty or a different version, the SPM resolution picked something else — fix before proceeding.
+
+**Verify build**: `xcodebuild -scheme Kindling build` (or Cmd-B in Xcode) succeeds. `import HotwireNative` in the demo's existing source compiles.
+
+### 2.5 Origin configuration via `.xcconfig` (agent — commit 4)
 
 **Files** (new):
 
@@ -333,7 +389,7 @@ enum Origin {
 
 `fatalError` is the right response: a missing origin is a build-misconfiguration bug, caught on first launch. Logging a warning and continuing would mask it.
 
-### 2.5 `AppDelegate.swift` trim
+### 2.6 `AppDelegate.swift` trim (agent — commit 4)
 
 **File**: `ios/Kindling/Sources/AppDelegate.swift` (existing from demo).
 
@@ -358,24 +414,24 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 
 **Verify at end of Part 2**: `xcodebuild -scheme Kindling build` (or Cmd-B in Xcode) compiles cleanly against the original demo `SceneDelegate`. The app won't be runnable against our Rails origin yet — that wiring is Part 4.
 
-### 2.6 Commit 2
+### 2.7 Commit 4 message
 
 ```
-Phase C part 2 — iOS shell scaffold from hotwire-native-demo-ios
+Phase C commit 4 — HotwireNative SPM + xcconfig + Info.plist + AppDelegate trim
 
-- New ios/Kindling.xcodeproj derived from the hotwire-native-demo-ios
-  template. Bundle identifier app.kindling.ios. Deployment target iOS 16.
-- HotwireNative Swift Package pinned to exact 1.2.1.
-- .gitignore scoped to ios/ for Xcode/SPM/macOS build artifacts.
+Builds on the renamed project from commit 3.
+
+- HotwireNative Swift Package pinned to exact 1.2.1
+  (Package.resolved verified).
 - Dev.xcconfig and Release.xcconfig expose KINDLING_ORIGIN
   (http://localhost:3010 and https://kindling.app respectively),
   interpolated into Info.plist as KindlingOrigin and read at runtime
   by Origin.rails with a fatalError on misconfiguration.
 - AppDelegate trimmed to the minimum (push + universal links are
   Phases I and E, not this phase).
-- SceneDelegate NOT written in this commit — it lands in Part 4 once
-  RemoteConfigStore exists to feed it. Demo's SceneDelegate left
-  in place; the build compiles.
+- SceneDelegate NOT written in this commit — it lands in commit 6
+  once RemoteConfigStore exists to feed it. Demo's SceneDelegate
+  left in place; the build compiles.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 ```
@@ -510,9 +566,11 @@ final class RemoteConfigStore {
 **Notes to the agent**:
 - The `fatalError` on unregistered-resource is a real guard — call `resolve("foo")` without registering and there's nothing coherent to return. Keep it.
 - `try!` on bundle data read is deliberate: if it fails, the Xcode target's Copy Bundle Resources phase is wrong, which is a build issue, not a runtime one.
+- `readBundled` does NOT schema-validate the bundled data. That's deliberate. Validity of the bundled JSON is guaranteed by the Rails-side drift test (`test/mobile/path_configuration_drift_test.rb`) passing in CI: canonical JSON is validated by the route-coverage test; bundled JSON is byte-identical to canonical; therefore bundled is valid by transitivity. **Load-bearing assumption: do not ship a build when CI is red.** If that assumption ever needs runtime enforcement, revisit.
 - The `Schema` generic at `register(...)` is erased into a closure at storage time. Keeps the registrations dict homogeneous.
 - No logging. If we want logging later, add a single delegate callback — don't sprinkle `print` / `os_log` through the type.
 - No `static let shared`. If you're tempted to add one "for convenience," stop. The instance lives on `SceneDelegate`.
+- Call all `register(...)` calls before calling `refreshAll(...)`. `SceneDelegate` does this naturally; don't design a flow that interleaves registration with refresh.
 
 ### 3.2 `PathConfigurationSchema.swift`
 
@@ -537,7 +595,14 @@ The schema exists for one thing: answer "does this JSON have a `rules` array who
 
 ### 3.3 Swift Testing suite
 
-**File**: `ios/KindlingTests/RemoteConfigStoreTests.swift` (new — create a `KindlingTests` target if the demo doesn't have one; if it does, add the file to it).
+**Manual pre-step — user ensures the `KindlingTests` target exists.** After commit 3's rename, check `ios/Kindling.xcodeproj`:
+
+- If a `KindlingTests` target already exists (the demo commonly ships one, renamed from `HotwireDemoTests`), no user action needed. Agent proceeds.
+- If not, the user creates one in Xcode: File → New → Target… → iOS → Unit Testing Bundle → Product Name: `KindlingTests` → Target to be tested: `Kindling`. **Commit this as part of commit 3** (amend if the user already committed the rename, or add a follow-up commit before agent resumes). No separate numbered commit — it's piggy-backed on the rename.
+
+**Agent resume check (same gate as §2.3)**: `test -d ios/KindlingTests && grep -q 'KindlingTests' ios/Kindling.xcodeproj/project.pbxproj` — both must pass, or the Cmd-U run in §3.4 will fail.
+
+**File**: `ios/KindlingTests/RemoteConfigStoreTests.swift` (new, added to the `KindlingTests` target).
 
 ```swift
 import Testing
@@ -661,10 +726,10 @@ final class StubProtocol: URLProtocol {
 
 **Run**: Cmd-U in Xcode. Four tests pass. If Xcode older than 16 is in use, Swift Testing isn't available — that's a blocker, upgrade Xcode before continuing.
 
-### 3.4 Commit 3
+### 3.4 Commit 5
 
 ```
-Phase C part 3 — RemoteConfigStore + Swift Testing suite
+Phase C commit 5 — RemoteConfigStore + Swift Testing suite
 
 - Single final class RemoteConfigStore, ~95 lines. No protocol, no
   singleton, no DI container. URLSession and UserDefaults injected
@@ -823,6 +888,8 @@ end
 
 **Run**: `bin/rails test test/mobile/path_configuration_drift_test.rb` — expect 2 runs, 0 failures.
 
+**Known limitation — dynamic route segments**: the route-coverage test matches regex patterns against route specs as literal strings (e.g. `/mobile/person/:id`). Patterns like `/mobile/person/\d+$` won't match `/mobile/person/:id` literally, so any future dynamic route will appear unmatched. Today the only dynamic mobile route is `/mobile/config/:resource`, which we subtract. **When a future epic adds a dynamic route** (e.g. `/mobile/person/:id`, `/mobile/asset/:type/:id`), add its literal spec to the `mobile_routes -= [...]` subtraction list in the same PR. The alternative — resolving `:id` against a real record to generate test URLs — is not worth the complexity yet.
+
 **Not in this phase**: the Android byte-identity test and the dead-rule inverse-coverage test. The Android test lands when Phase D lands the Android bundle (don't carry a perpetually-skipped test as a reminder — put it on the Phase D plan's checklist). The dead-rule test lands the week it would have caught something real, not preemptively.
 
 ### 4.5 Simulator verification
@@ -837,14 +904,32 @@ Record the following in the commit message, not in a separate doc:
 4. Navigate to `/mobile/auth/secure-account` from the wrap-up Continue button → presents MODALLY (sheet from bottom, grab handle, swipe-to-dismiss). Not a push.
 5. Navigate to `/mobile/login` → presents MODALLY.
 6. Open the simulator's Safari and visit the running Rails origin directly to confirm visual parity (browser vs WKWebView should look identical).
-7. **Remote-config refresh cycle**: with `bin/dev` still running, edit `rails/config/mobile/path_configuration.json` (e.g. change `/mobile/dashboard` presentation from `replace_root` to `push`). Without rebuilding the iOS app, force-quit it (swipe up in app switcher, swipe app card up) and relaunch → first launch after the edit still uses the old behavior (cache was populated on the previous launch). Force-quit and relaunch a second time → new behavior in effect. This proves the next-launch-apply property: changes apply the launch AFTER the one that fetched them.
-8. **Malformed response guardrail**: temporarily change `Mobile::ConfigController#show` to render `{ "not": "path-config" }` instead of the file. Relaunch the app → `RemoteConfigStore` rejects the response in `validate`, cache retains the last-known-good version, no crash. Revert the controller change.
+7. **Remote-config refresh cycle**: with `bin/dev` still running, edit `rails/config/mobile/path_configuration.json` (e.g. change `/mobile/dashboard` presentation from `replace_root` to `push`). Without rebuilding the iOS app:
+   - Force-quit (swipe up in app switcher, swipe app card up) and relaunch.
+   - **Wait ≥5 seconds after the intro screen loads** so the background `refreshAll` task has time to fetch the new config and write it to `UserDefaults`. Without this wait, you'll false-positive that the cache didn't update.
+   - First post-edit launch still shows OLD behavior (cache was populated on the previous launch, per session-freeze).
+   - Force-quit and relaunch a second time → NEW behavior in effect. This proves the next-launch-apply property: changes apply the launch AFTER the one that fetched them.
+   - After verifying, `git checkout -- rails/config/mobile/path_configuration.json` to revert.
+8. **Malformed response guardrail**: edit the controller to return garbage, verify, then `git checkout` to revert. The mandatory `git status` check at the end is the backstop against forgetting.
+   ```bash
+   # 1. Edit rails/app/controllers/mobile/config_controller.rb: change
+   #    `render json: path.read` to `render json: '{ "not": "path-config" }'`
+   # 2. Rails auto-reloads on file save. Cold-start the iOS app.
+   # 3. App cold-start should succeed with old cached config intact;
+   #    RemoteConfigStore rejects the malformed response inside validate,
+   #    the existing cache is untouched, no crash.
+   # 4. Revert the controller edit:
+   git checkout -- rails/app/controllers/mobile/config_controller.rb
+   # 5. MUST be clean before proceeding:
+   git status
+   ```
+   Do NOT commit step 8 work. If `git status` isn't clean, stop and investigate before anything else.
 9. Open DevTools on the simulator's web inspector (`Safari → Develop → Simulator → [WKWebView]`). Console: zero JS errors. Tap through a choice-group and a picker; confirm both still work inside the webview exactly as in-browser.
 
-### 4.6 Commit 4
+### 4.6 Commit 6
 
 ```
-Phase C part 4 — Wire Navigator to PathConfiguration + drift tests
+Phase C commit 6 — Wire Navigator to PathConfiguration + drift tests
 
 - ios/Kindling/Config/path-configuration.json bundled into the app
   target, byte-identical to rails/config/mobile/path_configuration.json.
@@ -876,32 +961,47 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 ### Automated (CI)
 
-- [ ] `bin/rails test` — 0 failures. Six new test methods total: 4 in `Mobile::ConfigControllerTest`, 2 in `PathConfigurationDriftTest`. Run count rises from **64 → 70**. Assertion count rises by roughly 10, whatever Minitest reports — confirm the count went up by at least the number of new `assert` calls; don't pin a specific assertion number.
+- [ ] `bin/rails test` — 0 failures. Seven new test methods total: 5 in `Mobile::ConfigControllerTest`, 2 in `PathConfigurationDriftTest`. Run count rises from **64 → 71**. Assertion count rises correspondingly — confirm the count went up, don't pin a specific number.
 - [ ] Swift Testing suite (Cmd-U in Xcode) — 4 tests pass in `RemoteConfigStoreTests`.
 
 ### Simulator (end-of-phase gate)
 
-Per §4.5 — nine scenarios walked and recorded in commit 4's message.
+Per §4.5 — nine scenarios walked and recorded in commit 6's message.
 
 ### Objective spot-checks
 
 - `curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:3010/mobile/config/path_configuration.json` → 200 on cold request, 304 on conditional GET with the returned ETag.
+- `curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:3010/mobile/config/path_configuration` → 404 (missing .json extension rejected by route constraint).
 - `diff rails/config/mobile/path_configuration.json ios/Kindling/Config/path-configuration.json` → empty output.
 - `grep -rn 'data-presentation\|data-modal\|data-push' rails/app/views/mobile/` → empty (Pitfall 15 — no ERB-level presentation overrides).
 - `grep -rn 'window.location.href\|window.location.assign\|window.location.replace' rails/app/javascript/` → empty (Pitfall A1 carries forward — Turbo-bypassing navigation is still forbidden).
+- `grep -rln 'HotwireDemo' ios/` → empty (rename completed correctly).
+- `grep '"version" : "1.2.1"' ios/Kindling.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` → one match (HotwireNative pinned correctly).
 
 ## Done criteria
 
 Phase C is complete when all of the following hold:
 
-1. Branch `phase-c-ios-shell` has four commits as specified (Rails / scaffold / store / wiring).
-2. `bin/rails test` passes with the new 8 assertions included.
-3. Swift Testing suite passes.
-4. All nine simulator scenarios from §4.5 verified and captured in commit 4's message.
-5. `ios/Kindling.xcodeproj` builds for both Debug (Dev origin) and Release (production origin) without warnings.
+1. Branch `phase-c-ios-shell` has six commits as specified (Rails / clone+gitignore / user-rename / SPM+xcconfig+AppDelegate / store+tests / wiring+drift).
+2. `bin/rails test` passes with the new tests running. Run count is 71.
+3. Swift Testing suite (4 cases) passes.
+4. All nine simulator scenarios from §4.5 verified and captured in commit 6's message.
+5. `ios/Kindling.xcodeproj` builds for the Debug configuration (Dev origin) without errors. Warnings are acceptable in Phase C and triaged in Phase H. Release configuration compiles; signing is NOT configured in this phase (deferred to the pre-release pass before TestFlight submission).
 6. `ios/` contains a valid `.gitignore`; `xcuserdata/` is absent from the tree.
 7. Drift test enforces Rails ↔ iOS byte-identity and flags any route missing a rule.
 8. Branch merged to main with `git merge --no-ff`. Branch deleted.
+
+## Rollback model
+
+Know this before shipping Phase C to TestFlight, because the recovery surface differs by layer:
+
+- **Bug in Rails-served JSON (`config/mobile/path_configuration.json`)**: Rails hotfix → users get the corrected JSON on their NEXT launch (background refresh writes cache) → the launch AFTER that uses the new behavior. So one faulty release reaches users' devices for **two launches per user** worst case. Acceptable for presentation tweaks; unacceptable for bugs that crash the app.
+- **Bug in bundled fallback JSON (`ios/Kindling/Config/path-configuration.json`)**: this ships inside the app binary. Fix requires an App Store build + review cycle. Days.
+- **Bug in Swift code (`RemoteConfigStore`, `SceneDelegate`, `KindlingErrorPresenter`)**: same as above — App Store build cycle.
+
+**The load-bearing assumption**: before shipping Phase C to TestFlight, the bundled JSON must be **known-good** and byte-identical to a Rails-served version that CI has validated. The drift test is the gate. Don't cut it.
+
+**What this means for PRs in later phases**: editing `rails/config/mobile/path_configuration.json` alone is NOT safe — the bundled iOS copy must update in the same PR, the drift test must pass in CI, and the next app release must ship the updated bundle. Emergency hotfixes via Rails-only edits work for minor behavior tweaks, not for fixing things that would brick the app.
 
 ## Handoff to Phase D and Phase E
 
