@@ -46,7 +46,6 @@
 .mobile-picker__trigger:focus {
   border-color: var(--mobile-color-accent);
   outline: 0;
-  box-shadow: 0 0 0 3px var(--mobile-color-accent-soft);
 }
 
 .mobile-picker__trigger {
