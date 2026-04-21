@@ -1,6 +1,6 @@
 .mobile-form-row {
   display: grid;
-  gap: var(--mobile-space-xs);
+  gap: var(--mobile-space-sm);
 }
 
 .mobile-form-row__meta {

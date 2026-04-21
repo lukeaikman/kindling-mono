@@ -1,7 +1,7 @@
 .mobile-radio-group,
 .mobile-choice-group {
   display: grid;
-  gap: 0.7rem;
+  gap: var(--mobile-space-xs);
 }
 
 .mobile-radio-group.is-collapsed .mobile-radio-option:not(.is-selected) {
