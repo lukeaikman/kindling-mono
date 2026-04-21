@@ -1,3 +1,4 @@
-.mobile-screen--onboarding .mobile-grouped-section {
-  gap: var(--mobile-space-md);
+/* More air between question blocks than between related fields within a block. */
+.mobile-screen--onboarding .mobile-stack {
+  gap: var(--mobile-space-lg);
 }

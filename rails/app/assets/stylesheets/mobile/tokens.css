@@ -54,6 +54,8 @@
 
   /* ---------- Typography ---------- */
   --mobile-font-ui: "Montserrat", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  /* System stack for interactive controls (buttons, inputs) — native-feeling chrome while Montserrat carries brand on body + display copy. */
+  --mobile-font-system: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
 
   --mobile-text-xs: 0.75rem;
   --mobile-text-sm: 0.875rem;

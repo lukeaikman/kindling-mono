@@ -10,13 +10,13 @@ module Mobile
       get mobile_login_path
 
       assert_response :success
-      assert_select "body .mobile-shell"
-      assert_select "h1", text: /Welcome back/i
+      assert_select "body.mobile-body .mobile-app"
+      assert_select ".mobile-eyebrow", text: /Welcome back/i
     end
 
     test "failed login preserves the anonymous onboarding session" do
       onboarding_session = OnboardingSession.create!(token: SecureRandom.hex(24))
-      cookies.signed[OnboardingSession::COOKIE_KEY] = onboarding_session.token
+      write_signed_cookie(OnboardingSession::COOKIE_KEY, onboarding_session.token)
 
       post mobile_login_path, params: { email_address: @user.email_address, password: "wrong" }
 
@@ -26,13 +26,13 @@ module Mobile
 
     test "successful login destroys the anonymous onboarding session and redirects to the mobile dashboard" do
       onboarding_session = OnboardingSession.create!(token: SecureRandom.hex(24))
-      cookies.signed[OnboardingSession::COOKIE_KEY] = onboarding_session.token
+      write_signed_cookie(OnboardingSession::COOKIE_KEY, onboarding_session.token)
 
       post mobile_login_path, params: { email_address: @user.email_address, password: "password" }
 
       assert_redirected_to mobile_dashboard_path
       assert_not OnboardingSession.exists?(onboarding_session.id)
-      assert_nil cookies[OnboardingSession::COOKIE_KEY]
+      assert cookies[OnboardingSession::COOKIE_KEY].blank?
       assert cookies[:session_id].present?
     end
   end

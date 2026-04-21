@@ -88,6 +88,11 @@ textarea {
   border: 1px solid rgba(91, 146, 121, 0.24);
 }
 
+.mobile-actions {
+  display: grid;
+  gap: var(--mobile-space-sm);
+}
+
 .mobile-button,
 .mobile-button-secondary,
 .mobile-button-tertiary {
@@ -99,7 +104,7 @@ textarea {
   border: 0;
   border-radius: var(--mobile-radius-md);
   padding: 0.95rem 1.2rem;
-  font-family: var(--mobile-font-ui);
+  font-family: var(--mobile-font-system);
   font-size: var(--mobile-text-md);
   font-weight: var(--mobile-weight-semibold);
   line-height: var(--mobile-lh-tight);

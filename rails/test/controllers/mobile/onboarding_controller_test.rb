@@ -54,7 +54,7 @@ module Mobile
       get mobile_onboarding_location_path
 
       assert_response :success
-      assert_select ".mobile-radio-group[data-mobile-collapsible='true']", minimum: 2
+      assert_select ".mobile-radio-group[data-choice-group-collapsible-value='true']", minimum: 2
     end
 
     test "family defaults a fresh child to partner co-guardianship when partnered" do
@@ -137,6 +137,8 @@ module Mobile
         domiciled_in_uk: "yes",
         currently_resident_in_uk: "yes",
         relationship_status: "cohabiting",
+        spouse_first_name: "Sam",
+        spouse_last_name: "Partner",
         divorce_status: "no",
         has_children: "no"
       )
@@ -181,7 +183,7 @@ module Mobile
 
     def create_onboarding_session(attributes = {})
       onboarding_session = OnboardingSession.create!({ token: SecureRandom.hex(24) }.merge(attributes))
-      cookies.signed[OnboardingSession::COOKIE_KEY] = onboarding_session.token
+      write_signed_cookie(OnboardingSession::COOKIE_KEY, onboarding_session.token)
       onboarding_session
     end
   end

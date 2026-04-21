@@ -1,50 +1,6 @@
 <% content_for :title, "Kindling | Extended Family" %>
 
-<%= form_with model: @onboarding_session, url: mobile_onboarding_extended_family_path, method: :patch, class: "mobile-screen mobile-screen--onboarding", html: { id: "mobile-extended-family-form", data: { controller: "extended-family-form", action: "change->extended-family-form#changed" } } do |form| %>
-  <% extended_family_footer = capture do %>
-    <%= form.submit "Continue", class: "mobile-button", form: "mobile-extended-family-form" %>
-  <% end %>
-
-  <% extended_family_body = capture do %>
-    <%= render "mobile/shared/choice_group",
-      field_name: "onboarding_session[parents_alive]",
-      label: "Are either of your parents still alive?",
-      value: @onboarding_session.parents_alive,
-      options: [["Yes", "yes"], ["One alive", "one-alive"], ["No", "no"]],
-      id_prefix: "parents_alive",
-      collapsible: true %>
-
-    <% if @onboarding_session.has_partner? %>
-      <%= render "mobile/shared/choice_group",
-        field_name: "onboarding_session[parents_in_law_alive]",
-        label: "Are either of your partner’s parents still alive?",
-        value: @onboarding_session.parents_in_law_alive,
-        options: [["Yes", "yes"], ["One alive", "one-alive"], ["No", "no"]],
-        id_prefix: "parents_in_law_alive",
-        collapsible: true %>
-    <% end %>
-
-    <%= render "mobile/shared/choice_group",
-      field_name: "onboarding_session[siblings_alive]",
-      label: "Do you have any brothers or sisters still alive?",
-      value: @onboarding_session.siblings_alive,
-      options: [["Yes", "yes"], ["No", "no"]],
-      id_prefix: "siblings_alive",
-      collapsible: true,
-      data_role: "siblings-alive" %>
-
-    <div data-role="siblings-count" <%= "hidden" unless @onboarding_session.siblings_alive == "yes" %>>
-      <%= render "mobile/shared/form_row",
-        label: "How many siblings are alive?",
-        for_id: "onboarding_session_number_of_siblings",
-        body: capture { form.number_field :number_of_siblings, class: "mobile-input-number", min: 1 } %>
-    </div>
-  <% end %>
-
-  <% content_for :mobile_footer do %>
-    <%= render "mobile/shared/sticky_actions", body: extended_family_footer %>
-  <% end %>
-
+<%= form_with model: @onboarding_session, url: mobile_onboarding_extended_family_path, method: :patch, class: "mobile-screen mobile-screen--onboarding", html: { data: { controller: "extended-family-form", action: "change->extended-family-form#changed" } } do |form| %>
   <%= render "mobile/shared/screen_header", step_number: 4, total_steps: 5, back_path: mobile_onboarding_family_path %>
   <%= render "mobile/shared/form_errors", record: @onboarding_session %>
 
@@ -54,7 +10,44 @@
       title: "Extended family.",
       subtitle: "A few more facts help us understand complexity without dragging you through a family tree exercise." %>
 
-    <%= render "mobile/shared/grouped_section",
-      body: extended_family_body %>
+    <div class="mobile-stack">
+      <%= render "mobile/shared/choice_group",
+        field_name: "onboarding_session[parents_alive]",
+        label: "Are either of your parents still alive?",
+        value: @onboarding_session.parents_alive,
+        options: [["Yes", "yes"], ["One alive", "one-alive"], ["No", "no"]],
+        id_prefix: "parents_alive",
+        collapsible: true %>
+
+      <% if @onboarding_session.has_partner? %>
+        <%= render "mobile/shared/choice_group",
+          field_name: "onboarding_session[parents_in_law_alive]",
+          label: "Are either of your partner’s parents still alive?",
+          value: @onboarding_session.parents_in_law_alive,
+          options: [["Yes", "yes"], ["One alive", "one-alive"], ["No", "no"]],
+          id_prefix: "parents_in_law_alive",
+          collapsible: true %>
+      <% end %>
+
+      <%= render "mobile/shared/choice_group",
+        field_name: "onboarding_session[siblings_alive]",
+        label: "Do you have any brothers or sisters still alive?",
+        value: @onboarding_session.siblings_alive,
+        options: [["Yes", "yes"], ["No", "no"]],
+        id_prefix: "siblings_alive",
+        collapsible: true,
+        data_role: "siblings-alive" %>
+
+      <div data-role="siblings-count" <%= "hidden" unless @onboarding_session.siblings_alive == "yes" %>>
+        <%= render "mobile/shared/form_row",
+          label: "How many siblings are alive?",
+          for_id: "onboarding_session_number_of_siblings",
+          body: capture { form.number_field :number_of_siblings, class: "mobile-input-number", min: 1 } %>
+      </div>
+    </div>
+
+    <div class="mobile-actions">
+      <%= form.submit "Continue", class: "mobile-button" %>
+    </div>
   </div>
 <% end %>

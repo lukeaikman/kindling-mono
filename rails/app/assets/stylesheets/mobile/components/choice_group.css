@@ -1,15 +1,29 @@
 .mobile-radio-group,
 .mobile-choice-group {
-  display: grid;
-  gap: 0.7rem;
-}
-
-.mobile-radio-group.is-collapsed .mobile-radio-option:not(.is-selected) {
-  display: none;
+  display: flex;
+  flex-direction: column;
 }
 
 .mobile-radio-option {
   position: relative;
+  overflow: hidden;
+  max-height: 6rem;
+  opacity: 1;
+  transition:
+    max-height 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms var(--mobile-ease),
+    margin-top 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mobile-radio-option + .mobile-radio-option {
+  margin-top: var(--mobile-space-xs);
+}
+
+.mobile-radio-group.is-collapsed .mobile-radio-option:not(.is-selected) {
+  max-height: 0;
+  margin-top: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .mobile-radio-option input {
@@ -19,21 +33,46 @@
 }
 
 .mobile-radio-option label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--mobile-space-md);
   min-height: 3.5rem;
   padding: 0.95rem 1rem;
-  border: 1px solid var(--mobile-color-line);
-  border-radius: var(--mobile-radius-xl);
-  background: rgba(255, 255, 255, 0.96);
-  font-weight: 700;
+  border: 1px solid transparent;
+  border-radius: var(--mobile-radius-md);
+  background: var(--mobile-color-surface);
+  color: var(--mobile-color-text-muted);
+  font-weight: var(--mobile-weight-regular);
+  text-align: left;
   cursor: pointer;
-  transition: 0.18s ease;
+  transition: color var(--mobile-duration-fast) var(--mobile-ease),
+              background var(--mobile-duration-fast) var(--mobile-ease),
+              border-color var(--mobile-duration-fast) var(--mobile-ease);
+}
+
+.mobile-radio-option label::before {
+  content: "";
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--mobile-color-line);
+  background: transparent;
+  transition: border-color var(--mobile-duration-fast) var(--mobile-ease),
+              background var(--mobile-duration-fast) var(--mobile-ease),
+              box-shadow var(--mobile-duration-fast) var(--mobile-ease);
 }
 
 .mobile-radio-option input:checked + label {
-  border-color: rgba(47, 117, 90, 0.42);
-  background: rgba(240, 248, 244, 0.98);
-  box-shadow: 0 10px 22px rgba(47, 117, 90, 0.12);
+  border-color: var(--mobile-color-accent);
+  background: var(--mobile-color-accent-soft);
+  color: var(--mobile-color-text);
+}
+
+.mobile-radio-option input:checked + label::before {
+  border-color: var(--mobile-color-accent);
+  background: var(--mobile-color-accent);
+  box-shadow: inset 0 0 0 0.22rem var(--mobile-color-surface);
 }
 
 .mobile-radio-group.is-collapsed .mobile-radio-option.is-selected label {

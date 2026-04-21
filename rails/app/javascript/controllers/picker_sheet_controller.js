@@ -16,13 +16,17 @@ export default class extends Controller {
   open(event) {
     event.preventDefault()
     this.sheetTarget.hidden = false
+    // Force a reflow so the initial transform:translateY(100%) paints
+    // before we add .is-open — otherwise the browser coalesces and skips
+    // the transition.
+    this.sheetTarget.offsetHeight // eslint-disable-line no-unused-expressions
+    this.sheetTarget.classList.add("is-open")
     document.body.classList.add("mobile-sheet-open")
   }
 
   close(event) {
-    event.preventDefault()
-    this.sheetTarget.hidden = true
-    document.body.classList.remove("mobile-sheet-open")
+    event?.preventDefault()
+    this.#startClose()
   }
 
   choose(event) {
@@ -30,8 +34,7 @@ export default class extends Controller {
     const value = event.currentTarget.dataset.pickerValue || ""
     this.selectTarget.value = value
     this.selectTarget.dispatchEvent(new Event("change", { bubbles: true }))
-    this.sheetTarget.hidden = true
-    document.body.classList.remove("mobile-sheet-open")
+    this.#startClose()
   }
 
   // Bound to the hidden <select>'s change event.
@@ -52,5 +55,20 @@ export default class extends Controller {
     this.optionTargets.forEach((option) => {
       option.classList.toggle("is-selected", option.dataset.pickerValue === selectedValue)
     })
+  }
+
+  #startClose() {
+    if (!this.sheetTarget.classList.contains("is-open")) return
+
+    this.sheetTarget.classList.remove("is-open")
+    document.body.classList.remove("mobile-sheet-open")
+
+    const panel = this.sheetTarget.querySelector(".mobile-picker__panel")
+    const onEnd = (event) => {
+      if (event.target !== panel || event.propertyName !== "transform") return
+      panel.removeEventListener("transitionend", onEnd)
+      this.sheetTarget.hidden = true
+    }
+    panel.addEventListener("transitionend", onEnd)
   }
 }
