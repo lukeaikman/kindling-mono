@@ -1,6 +1,6 @@
 # Phase C Detailed Plan — iOS shell scaffold + path configuration v1
 
-> **Note to the AI agent executing this plan**: you need specifics, not architecture. Where this plan is explicit about commands, data-attribute names, exact Swift code, bundle IDs, port numbers, and file paths, it's not because they're clever — it's because ambiguity is how you produce bugs in a long agent session. Follow the letter of the plan. Do NOT introduce abstractions beyond what is specified: no `protocol` declarations where a concrete type is specified, no DI containers, no factory patterns, no error-handling `enum`s beyond what this plan asks for. Where the plan asks you to make a judgment call (marked **Judgment:**), make it and note what you chose in the commit message. Everything else is prescribed.
+> **Note to the AI agent executing this plan**: you need specifics, not architecture. Where this plan is explicit about commands, data-attribute names, exact Swift code, bundle IDs, port numbers, file paths, and gem/package versions, it's not because they're clever — it's because ambiguity is how you produce bugs in a long agent session. Follow the letter of the plan. Do NOT introduce abstractions beyond what is specified: no `protocol` declarations where a concrete type is specified, no DI containers, no factory patterns, no error-handling `enum`s, no parallelism primitives that aren't asked for, no one-off convenience methods. Everything the plan prescribes is prescribed deliberately; everything it doesn't prescribe, don't add.
 
 ## Context
 
@@ -48,7 +48,7 @@ Quoted verbatim from the canonical plan. Re-read each before executing the relev
 
 **Pitfall 9 — Don't forget safe-area when the native tab bar *and* home indicator both exist.** `padding-bottom: max(env(safe-area-inset-bottom), 0.75rem)` is the right pattern — never just `env(safe-area-inset-bottom)` alone if the element can sit above the home indicator.
 
-**Pitfall 12 — Keep iOS and Android bundled remote-config fallbacks in lockstep with each other AND with the Rails source-of-truth.** Three copies exist per resource: `rails/config/mobile/<resource>.json`, `ios/Kindling/Config/<resource>.json`, `android/app/src/main/assets/config/<resource>.json`. They must stay byte-identical aside from whitespace. Any edit to one is a three-file edit in the same PR. The CI drift check fails the build if they diverge. (Android copy can be absent until Phase D ships; the drift test is shaped to soft-skip when the Android file isn't present yet — see §4.3.)
+**Pitfall 12 — Keep iOS and Android bundled remote-config fallbacks in lockstep with each other AND with the Rails source-of-truth.** Three copies exist per resource once both shells ship: `rails/config/mobile/<resource>.json`, `ios/Kindling/Config/<resource>.json`, `android/app/src/main/assets/config/<resource>.json`. They must stay byte-identical aside from whitespace. Any edit to one is a multi-file edit in the same PR. The CI drift check fails the build if they diverge. Phase C enforces iOS ↔ Rails; Phase D adds Android ↔ Rails to the same test.
 
 **Pitfall 13 — Never overwrite the remote-config cache with malformed data.** The background fetch MUST validate schema before writing to `UserDefaults` / `SharedPreferences`. If the server returns garbage (broken deploy, proxy interception, truncated response), leave the last-known-good cache alone. Overwriting with bad data poisons the next session and can brick the app for that user until a reinstall. Fail silently, keep the old cache, try again next launch.
 
@@ -111,15 +111,11 @@ module Mobile
   class ConfigController < ApplicationController
     allow_unauthenticated_access
 
-    RESOURCE_PATHS = {
-      "path_configuration" => Rails.root.join("config/mobile/path_configuration.json")
-    }.freeze
-
     def show
-      path = RESOURCE_PATHS[params[:resource]]
-      return head :not_found if path.nil? || !path.exist?
+      return head :not_found unless params[:resource] == "path_configuration"
 
-      fresh_when etag: path, last_modified: path.mtime, public: false
+      path = Rails.root.join("config/mobile/path_configuration.json")
+      fresh_when etag: path, last_modified: path.mtime
       render json: path.read
     end
   end
@@ -130,14 +126,15 @@ end
 
 ```ruby
 get "mobile/config/:resource", to: "mobile/config#show",
-  constraints: { resource: /[a-z_]+/ }, format: :json, as: :mobile_config_resource
+  constraints: { resource: /[a-z_]+/ }, defaults: { format: :json },
+  as: :mobile_config_resource
 ```
 
-**Why `fresh_when` and not manual ETag headers**: Rails handles `If-None-Match` / `If-Modified-Since` for us. Returns 304 automatically when the client's cached version matches. One line, correct behavior.
+**Why `fresh_when`**: Rails handles `If-None-Match` / `If-Modified-Since` for us. Returns 304 automatically when the client's cached version matches. One line, correct behavior.
 
 **Why `allow_unauthenticated_access`**: this endpoint must be reachable on cold start before the user has a session. There's no PII in the response — the content is the same for every user.
 
-**Why `RESOURCE_PATHS` as a frozen hash and not dynamic file lookup**: prevents directory traversal via crafted `:resource` params. Unknown resource → 404. The `constraints: { resource: /[a-z_]+/ }` in the route provides a second belt.
+**Why an inline `params[:resource]` check and not a whitelist hash**: one resource today. When a second resource lands, replace the `==` guard with a `case` or a small whitelist — not before. The route constraint `/[a-z_]+/` already rejects traversal attempts.
 
 ### 1.3 Tests — `Mobile::ConfigControllerTest`
 
@@ -201,13 +198,14 @@ Phase C part 1 — Mobile::ConfigController + canonical path_configuration.json
   video-intro/risk-questionnaire/onboarding, modal for
   secure-account/login.
 - New Mobile::ConfigController#show served at
-  GET /mobile/config/:resource.json, backed by a frozen
-  RESOURCE_PATHS hash so path traversal is structurally impossible.
-  Uses fresh_when for automatic ETag + Last-Modified + conditional
-  GET handling. Unknown resource -> 404.
+  GET /mobile/config/:resource.json, whitelisted against a single
+  resource name (path_configuration) with a route constraint
+  /[a-z_]+/ blocking traversal attempts. Uses fresh_when for
+  automatic ETag + Last-Modified + conditional GET handling.
+  Unknown resource -> 404.
 - Four request specs: 200 happy path, 304 on matching If-None-Match,
-  404 on unknown resource, route-constraint rejection of path
-  traversal attempts.
+  404 on unknown resource, route-constraint rejection of disallowed
+  resource names.
 
 No consumer yet. The iOS shell lands in later commits on this branch.
 
@@ -235,26 +233,28 @@ cp /tmp/hn-demo-ios/HotwireDemo.xcodeproj ios/Kindling.xcodeproj -R
 rm -rf /tmp/hn-demo-ios
 ```
 
-**Manual renames** (Xcode → File → Rename, or via search-and-replace in the project file and target names):
+**Manual step — user performs in Xcode, then hands back to the agent.** Agents cannot click through Xcode's rename UI reliably, and editing `project.pbxproj` by hand is brittle. The user does these four things and commits, then the plan resumes at §2.2:
 
-- Target `HotwireDemo` → `Kindling`
-- Scheme `HotwireDemo` → `Kindling`
-- Bundle identifier `com.hotwired.HotwireDemo` → `app.kindling.ios`
-- Display name → `Kindling`
+1. In Xcode, File → Rename the target `HotwireDemo` → `Kindling` (this renames the scheme, folders, and build configs in one action).
+2. Project → Target `Kindling` → Build Settings → Product Bundle Identifier: set to `app.kindling.ios`.
+3. Project → Target `Kindling` → General → Display Name: set to `Kindling`.
+4. Project → Target `Kindling` → General → Minimum Deployments: set to iOS 16.0.
 
-**Deployment target**: set to iOS 16.0 in Project → General → Minimum Deployments.
+Commit the result as "Phase C — iOS Xcode project renamed from demo template to Kindling" before moving on.
 
-**Do not**: restructure the folder layout, flatten the `Coordinator`/`Scene` files, or rename files beyond the target-rename pass. Match the demo's file organization so Hotwire docs and examples map directly.
+**Agent-side check after handback**: `grep -rln "HotwireDemo" ios/` returns empty. If it doesn't, the rename was incomplete — stop and report back, don't sed-patch the stragglers.
+
+**Do not** (either party): restructure the folder layout, flatten the `Coordinator`/`Scene` files, or rename files beyond the target rename. Match the demo's organization so Hotwire docs and examples map directly.
 
 ### 2.2 `HotwireNative` Swift Package dependency
 
 Open `ios/Kindling.xcodeproj` in Xcode. File → Add Package Dependencies…:
 
 - URL: `https://github.com/hotwired/hotwire-native-ios`
-- Dependency Rule: **Exact Version** — **1.2.1** (check the package's latest stable tag at time of execution; update this number in the commit message if a newer stable exists).
+- Dependency Rule: **Exact Version** — **1.2.1**. No ranges. No branches. No "up to next minor." No "latest stable at time of execution." If `1.2.1` doesn't resolve, stop and report back — don't pick a nearby version to keep moving.
 - Add to target: `Kindling`.
 
-**Why exact version, not range**: a surprise upstream change breaks the shell silently at build time; exact pinning forces a conscious bump.
+**Why exact**: a surprise upstream change breaks the shell silently. Exact pinning forces a conscious bump with review.
 
 **Verify**: build the (still-empty) target. Should succeed. If the demo's `import HotwireNative` statements compile cleanly, the dependency is wired.
 
@@ -333,40 +333,11 @@ enum Origin {
 
 `fatalError` is the right response: a missing origin is a build-misconfiguration bug, caught on first launch. Logging a warning and continuing would mask it.
 
-### 2.5 `SceneDelegate` — Navigator wiring (first pass)
+### 2.5 `AppDelegate.swift` trim
 
-**File**: `ios/Kindling/Sources/SceneDelegate.swift` (existing from demo; replace its contents).
+**File**: `ios/Kindling/Sources/AppDelegate.swift` (existing from demo).
 
-```swift
-import UIKit
-import HotwireNative
-
-final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
-  var window: UIWindow?
-  private var navigator: Navigator?
-
-  func scene(
-    _ scene: UIScene,
-    willConnectTo session: UISceneSession,
-    options connectionOptions: UIScene.ConnectionOptions
-  ) {
-    guard let windowScene = scene as? UIWindowScene else { return }
-
-    let window = UIWindow(windowScene: windowScene)
-    let navigator = Navigator()
-    window.rootViewController = navigator.rootViewController
-    window.makeKeyAndVisible()
-
-    // Path configuration wiring lands in Part 4. For now, route at the splash.
-    navigator.route(Origin.rails.appendingPathComponent("mobile/open"))
-
-    self.window = window
-    self.navigator = navigator
-  }
-}
-```
-
-**Delete** the demo's `AppDelegate.swift` content that configures push notifications / universal links — those land in Phases I and E. Keep the file with just the minimum:
+Delete the demo's push-notifications and universal-links wiring — those land in Phases I and E, not now. Keep the file at the minimum:
 
 ```swift
 import UIKit
@@ -383,7 +354,9 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 ```
 
-**Verify**: Cmd-R against a running `bin/dev` (Rails on :3010). The simulator should open, load the splash, and auto-redirect into the intro via the existing `splash_redirect_controller`. Back button behavior will be wrong at this point (no path-config means everything pushes) — that's addressed in Part 4.
+**`SceneDelegate.swift` is NOT written in this commit.** It lands in Part 4 (§4.2) once `RemoteConfigStore` exists to feed it. Writing it twice — once without path-config, once with — is a trap that produces the wrong committed version. Leave the demo's `SceneDelegate.swift` in place until Part 4 rewrites it.
+
+**Verify at end of Part 2**: `xcodebuild -scheme Kindling build` (or Cmd-B in Xcode) compiles cleanly against the original demo `SceneDelegate`. The app won't be runnable against our Rails origin yet — that wiring is Part 4.
 
 ### 2.6 Commit 2
 
@@ -392,18 +365,17 @@ Phase C part 2 — iOS shell scaffold from hotwire-native-demo-ios
 
 - New ios/Kindling.xcodeproj derived from the hotwire-native-demo-ios
   template. Bundle identifier app.kindling.ios. Deployment target iOS 16.
-- HotwireNative Swift Package pinned to <VERSION>.
+- HotwireNative Swift Package pinned to exact 1.2.1.
 - .gitignore scoped to ios/ for Xcode/SPM/macOS build artifacts.
 - Dev.xcconfig and Release.xcconfig expose KINDLING_ORIGIN
   (http://localhost:3010 and https://kindling.app respectively),
   interpolated into Info.plist as KindlingOrigin and read at runtime
   by Origin.rails with a fatalError on misconfiguration.
-- SceneDelegate instantiates a Navigator rooted at Origin.rails
-  + /mobile/open. Path configuration arrives in the next commit on
-  this branch; for now every navigation pushes onto the nav stack.
-
-Simulator launch against bin/dev verifies the Rails mobile flow
-renders inside a WKWebView with native chrome wrapping it.
+- AppDelegate trimmed to the minimum (push + universal links are
+  Phases I and E, not this phase).
+- SceneDelegate NOT written in this commit — it lands in Part 4 once
+  RemoteConfigStore exists to feed it. Demo's SceneDelegate left
+  in place; the build compiles.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 ```
@@ -416,10 +388,11 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 **Rules for this type**:
 - Single concrete `final class`. No protocol declaration. No subclasses.
+- No singleton. `SceneDelegate` instantiates one and holds it. Tests instantiate their own with stub `URLSession` / `UserDefaults`.
 - Session-frozen via an in-memory `[String: Data]` dictionary populated on first `resolve(_:)` per name.
-- `URLSession` and `UserDefaults` injected via `init` with defaults (`.shared` / `.standard`) so tests can pass stubs. That is the **only** DI in this type.
+- `URLSession` and `UserDefaults` injected via `init` with defaults (`.shared` / `.standard`). That is the **only** DI in this type.
 - Schema validation via `JSONDecoder().decode(schemaType, ...)`. Decode throws → skip the cache write. No custom validators, no closures, no `Result` returns.
-- `refreshAll(origin:)` is `async`, iterates registered resources, issues one conditional GET per resource with stored `ETag` as `If-None-Match`. Silent on all failures.
+- `refreshAll(origin:)` is `async`, iterates registered resources **sequentially** with a plain `for` loop. When we have N>1 resource in a future phase, we can reach for `TaskGroup` then — not now.
 
 **Full implementation** — copy verbatim:
 
@@ -427,8 +400,6 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 import Foundation
 
 final class RemoteConfigStore {
-  static let shared = RemoteConfigStore()
-
   private struct Registration {
     let name: String
     let bundledURL: URL
@@ -472,12 +443,8 @@ final class RemoteConfigStore {
   /// Background refresh for every registered resource. Safe to call fire-and-forget.
   /// Silent failure: malformed data, HTTP errors, and transport errors all leave the cache alone.
   func refreshAll(origin: URL) async {
-    await withTaskGroup(of: Void.self) { group in
-      for registration in registrations.values {
-        group.addTask { [weak self] in
-          await self?.refresh(registration: registration, origin: origin)
-        }
-      }
+    for registration in registrations.values {
+      await refresh(registration: registration, origin: origin)
     }
   }
 
@@ -529,10 +496,10 @@ final class RemoteConfigStore {
     guard let registration = registrations[name] else {
       fatalError("RemoteConfigStore.resolve called for unregistered resource: \(name)")
     }
-    guard let data = try? Data(contentsOf: registration.bundledURL) else {
-      fatalError("Bundled fallback missing for resource: \(name) at \(registration.bundledURL.path)")
-    }
-    return data
+    // Force-try: by this point `registration.bundledURL` came from Bundle.main.url(forResource:)
+    // at register-time and app bundles are read-only during runtime. If this throws, the Xcode
+    // target is misconfigured and the crash is the right signal.
+    return try! Data(contentsOf: registration.bundledURL)
   }
 
   private func cacheKey(_ name: String) -> String { "remote_config.\(name)" }
@@ -541,44 +508,32 @@ final class RemoteConfigStore {
 ```
 
 **Notes to the agent**:
-- `fatalError` on unregistered-resource or missing-bundled-fallback is intentional. These are build/scaffolding bugs that must be fixed before ship — not runtime conditions to recover from.
+- The `fatalError` on unregistered-resource is a real guard — call `resolve("foo")` without registering and there's nothing coherent to return. Keep it.
+- `try!` on bundle data read is deliberate: if it fails, the Xcode target's Copy Bundle Resources phase is wrong, which is a build issue, not a runtime one.
 - The `Schema` generic at `register(...)` is erased into a closure at storage time. Keeps the registrations dict homogeneous.
-- No logging. If we want logging later, add a single delegate callback; don't sprinkle `print` / `os_log` through the type.
+- No logging. If we want logging later, add a single delegate callback — don't sprinkle `print` / `os_log` through the type.
+- No `static let shared`. If you're tempted to add one "for convenience," stop. The instance lives on `SceneDelegate`.
 
 ### 3.2 `PathConfigurationSchema.swift`
 
-**File**: `ios/Kindling/Sources/PathConfigurationSchema.swift` (new). One-line struct used only for decoder-based validation:
+**File**: `ios/Kindling/Sources/PathConfigurationSchema.swift` (new). Minimum viable validator:
 
 ```swift
 import Foundation
 
 struct PathConfigurationSchema: Decodable {
-  struct Rule: Decodable {
-    let patterns: [String]
-    let properties: [String: JSONPrimitive]
-  }
-
+  struct Rule: Decodable { let patterns: [String] }
   let rules: [Rule]
-  let settings: [String: JSONPrimitive]?
-}
-
-/// Narrow helper type for decoding heterogeneous JSON property bags without `Any`.
-enum JSONPrimitive: Decodable {
-  case string(String)
-  case int(Int)
-  case bool(Bool)
-
-  init(from decoder: Decoder) throws {
-    let c = try decoder.singleValueContainer()
-    if let s = try? c.decode(String.self) { self = .string(s); return }
-    if let i = try? c.decode(Int.self) { self = .int(i); return }
-    if let b = try? c.decode(Bool.self) { self = .bool(b); return }
-    throw DecodingError.dataCorruptedError(in: c, debugDescription: "Unsupported JSON primitive")
-  }
 }
 ```
 
-**Why this and not more**: we don't model the rules semantically in Swift — Hotwire's own `PathConfiguration` does that. We only need "does this JSON parse into the expected top-level shape?" to satisfy Pitfall 13. `PathConfigurationSchema` provides that and no more.
+**That is the whole file.** Four lines. Do NOT add:
+- A `properties: [String: Something]` field. We don't read properties in Swift — Hotwire does. Decoding them is wasted work and forces JSON-Any helpers.
+- A `settings:` field. Same reason.
+- A `JSONPrimitive` enum. If you find yourself writing one, stop and re-read this paragraph.
+- Any semantic modelling of presentation, context, or pull_to_refresh_enabled.
+
+The schema exists for one thing: answer "does this JSON have a `rules` array whose entries have `patterns`?" If yes, it's our shape. If decoding throws, Pitfall 13 kicks in and the cache is left alone. Unknown JSON keys are ignored by default — that's correct behavior, not a bug.
 
 ### 3.3 Swift Testing suite
 
@@ -711,17 +666,19 @@ final class StubProtocol: URLProtocol {
 ```
 Phase C part 3 — RemoteConfigStore + Swift Testing suite
 
-- Single final class RemoteConfigStore, ~110 lines. No protocol, no
-  DI container. URLSession and UserDefaults injected via init for
-  test stubbing; everything else concrete.
+- Single final class RemoteConfigStore, ~95 lines. No protocol, no
+  singleton, no DI container. URLSession and UserDefaults injected
+  via init for test stubbing; everything else concrete.
 - register<Schema: Decodable>(name:bundledURL:schema:) registers a
   resource and its validation schema. resolve(_:) is session-frozen.
-  refreshAll(origin:) iterates registered resources, conditional GETs
-  with stored ETag, validates via JSONDecoder().decode(Schema.self,...)
+  refreshAll(origin:) iterates registered resources sequentially
+  (plain for-loop, not TaskGroup — one resource today), conditional
+  GETs with stored ETag, validates via JSONDecoder().decode(...)
   before overwriting cache. Silent failure on transport, HTTP, and
   validation errors (Pitfall 13).
-- PathConfigurationSchema.swift models the minimum shape needed for
-  decoder-based validation — no semantic modelling of rules.
+- PathConfigurationSchema.swift is four lines: just rules + patterns.
+  Nothing more — the schema is a validation gate, not a type system
+  for Hotwire's own model.
 - Swift Testing suite covers the four canonical scenarios: empty
   cache falls back to bundled, malformed cache falls back to bundled,
   malformed fetched payload leaves cache intact, valid fetched payload
@@ -729,7 +686,8 @@ Phase C part 3 — RemoteConfigStore + Swift Testing suite
   URLSession isolation.
 - KindlingTests target created alongside Kindling app target.
 
-Not yet wired into SceneDelegate — that lands in the next commit.
+Store instance is owned by SceneDelegate (wired in the next commit).
+No RemoteConfigStore.shared global.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 ```
@@ -744,56 +702,66 @@ In Xcode: drag the file into the `Kindling` target, "Copy items if needed" = **o
 
 **Verify**: build, then inside the `.app` bundle, `find Kindling.app -name path-configuration.json` returns a hit. `diff <rails-path> <ios-path>` shows identical.
 
-### 4.2 Wire `RemoteConfigStore` into `SceneDelegate`
+### 4.2 Write `SceneDelegate` — Navigator + RemoteConfigStore wiring
 
-Replace the body of `scene(_:willConnectTo:options:)` with:
+**File**: `ios/Kindling/Sources/SceneDelegate.swift` — replace the demo's contents with:
 
 ```swift
-func scene(
-  _ scene: UIScene,
-  willConnectTo session: UISceneSession,
-  options connectionOptions: UIScene.ConnectionOptions
-) {
-  guard let windowScene = scene as? UIWindowScene else { return }
+import UIKit
+import HotwireNative
 
-  // 1. Register remote-config resources before anything reads them.
-  let bundledPathConfig = Bundle.main.url(forResource: "path-configuration", withExtension: "json")!
-  RemoteConfigStore.shared.register(
-    name: "path_configuration",
-    bundledURL: bundledPathConfig,
-    schema: PathConfigurationSchema.self
-  )
+final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+  var window: UIWindow?
 
-  // 2. Frozen for this session. Hotwire parses the bytes once.
-  let pathConfig = PathConfiguration(
-    sources: [.data(RemoteConfigStore.shared.resolve("path_configuration"))]
-  )
+  private var navigator: Navigator?
+  private var store: RemoteConfigStore?
 
-  // 3. Navigator with the parsed path configuration.
-  let navigator = Navigator(pathConfiguration: pathConfig)
+  func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions
+  ) {
+    guard let windowScene = scene as? UIWindowScene else { return }
 
-  let window = UIWindow(windowScene: windowScene)
-  window.rootViewController = navigator.rootViewController
-  window.makeKeyAndVisible()
+    // 1. Build and own the store. No singleton.
+    let store = RemoteConfigStore()
+    let bundledPathConfig = Bundle.main.url(forResource: "path-configuration", withExtension: "json")!
+    store.register(
+      name: "path_configuration",
+      bundledURL: bundledPathConfig,
+      schema: PathConfigurationSchema.self
+    )
 
-  // 4. Route at the splash. Turbo takes over from here.
-  navigator.route(Origin.rails.appendingPathComponent("mobile/open"))
+    // 2. Frozen for this session. Hotwire parses the bytes once.
+    let pathConfig = PathConfiguration(sources: [.data(store.resolve("path_configuration"))])
 
-  self.window = window
-  self.navigator = navigator
+    // 3. Navigator with the parsed path configuration and error presenter.
+    let navigator = Navigator(pathConfiguration: pathConfig)
+    navigator.errorPresenter = KindlingErrorPresenter()
 
-  // 5. Background refresh after the first screen renders. Fire-and-forget.
-  Task.detached(priority: .background) {
-    await RemoteConfigStore.shared.refreshAll(origin: Origin.rails)
+    // 4. Window + first route.
+    let window = UIWindow(windowScene: windowScene)
+    window.rootViewController = navigator.rootViewController
+    window.makeKeyAndVisible()
+    navigator.route(Origin.rails.appendingPathComponent("mobile/open"))
+
+    self.window = window
+    self.navigator = navigator
+    self.store = store
+
+    // 5. Background refresh after the first screen renders. Fire-and-forget.
+    Task { [store] in
+      await store.refreshAll(origin: Origin.rails)
+    }
   }
 }
 ```
 
-**Step 5 is after `makeKeyAndVisible` deliberately** — startup blocks on nothing network-related. The background task is scheduled, not awaited.
+**Step 5 runs after `makeKeyAndVisible`** deliberately — startup blocks on nothing network-related. The task is scheduled, not awaited.
+
+**Why the `store` instance property**: if `SceneDelegate` doesn't hold a reference, ARC deallocates the store mid-`Task` and the refresh silently aborts. The property is not optional decoration.
 
 ### 4.3 Error presenter placeholder
-
-Phase H fleshes this out. For now, register the minimum so `WKError` doesn't crash the app.
 
 **File**: `ios/Kindling/Sources/KindlingErrorPresenter.swift` (new).
 
@@ -814,17 +782,15 @@ final class KindlingErrorPresenter: ErrorPresenter {
 }
 ```
 
-Wire it in `SceneDelegate` after `Navigator(...)` is constructed:
+Registered on the Navigator in §4.2 (`navigator.errorPresenter = KindlingErrorPresenter()`). Phase H replaces this with a real offline screen.
 
-```swift
-navigator.errorPresenter = KindlingErrorPresenter()
-```
-
-(Exact API name — `errorPresenter` vs `setErrorPresenter(_:)` vs `delegate` — depends on the pinned HotwireNative version. Check the package's `Navigator.swift`. If the property name differs, match it; otherwise this is the right shape.)
+**One compatibility check the agent must do**: verify the exact API name on `Navigator` in HotwireNative 1.2.1. Expected: a property `errorPresenter: ErrorPresenter?`. If the pinned version uses `setErrorPresenter(_:)` or a delegate pattern instead, match it — don't change versions, match the code.
 
 ### 4.4 Drift + coverage tests — Rails side
 
 **File**: `rails/test/mobile/path_configuration_drift_test.rb` (new — create `test/mobile/` directory).
+
+Two tests. Missing-rule catches the common bug (forgot to add a rule for a new route); byte-identity catches the other common bug (edited Rails-side, forgot to re-copy into iOS).
 
 ```ruby
 require "test_helper"
@@ -832,20 +798,10 @@ require "test_helper"
 class PathConfigurationDriftTest < ActiveSupport::TestCase
   CANONICAL = Rails.root.join("config/mobile/path_configuration.json")
   IOS_BUNDLED = Rails.root.join("../ios/Kindling/Config/path-configuration.json")
-  ANDROID_BUNDLED = Rails.root.join("../android/app/src/main/assets/config/path-configuration.json")
 
   test "iOS bundled path_configuration is byte-identical to Rails canonical" do
-    skip "iOS bundled file not yet committed (Phase C in progress)" unless IOS_BUNDLED.exist?
-
     assert_equal CANONICAL.read, IOS_BUNDLED.read,
       "Rails canonical and iOS bundled path_configuration.json have diverged. Re-copy the Rails file into the iOS target."
-  end
-
-  test "Android bundled path_configuration is byte-identical to Rails canonical" do
-    skip "Android bundled file not yet committed (Phase D)" unless ANDROID_BUNDLED.exist?
-
-    assert_equal CANONICAL.read, ANDROID_BUNDLED.read,
-      "Rails canonical and Android bundled path_configuration.json have diverged."
   end
 
   test "every /mobile/* route has at least one matching path_configuration rule" do
@@ -862,38 +818,26 @@ class PathConfigurationDriftTest < ActiveSupport::TestCase
     unmatched = mobile_routes.reject { |path| regexes.any? { |re| path.match?(re) } }
     assert unmatched.empty?, "These mobile routes have no matching path-config rule: #{unmatched.join(', ')}. Add a rule to rails/config/mobile/path_configuration.json (and the bundled copies) in the same PR that added the route."
   end
-
-  test "every path_configuration pattern matches at least one real route" do
-    patterns = JSON.parse(CANONICAL.read).fetch("rules").flat_map { |r| r.fetch("patterns") }
-
-    mobile_routes = Rails.application.routes.routes.map do |route|
-      route.path.spec.to_s.sub("(.:format)", "")
-    end.select { |path| path.start_with?("/mobile/") }
-
-    dead = patterns.reject do |pattern|
-      regex = Regexp.new(pattern)
-      mobile_routes.any? { |path| path.match?(regex) }
-    end
-    assert dead.empty?, "These path-config patterns match no actual route (dead rules): #{dead.join(', ')}. Remove from path_configuration.json or fix the pattern."
-  end
 end
 ```
 
-**Run**: `bin/rails test test/mobile/path_configuration_drift_test.rb` — expect 4 runs, 0 failures (Android test skips until Phase D).
+**Run**: `bin/rails test test/mobile/path_configuration_drift_test.rb` — expect 2 runs, 0 failures.
 
-**Why two directions of coverage**: missing rule ships a route with Hotwire's default presentation (probably wrong). Dead rule is less urgent but compounds into bit-rot over months — it's free to catch now.
+**Not in this phase**: the Android byte-identity test and the dead-rule inverse-coverage test. The Android test lands when Phase D lands the Android bundle (don't carry a perpetually-skipped test as a reminder — put it on the Phase D plan's checklist). The dead-rule test lands the week it would have caught something real, not preemptively.
 
 ### 4.5 Simulator verification
 
-Record the following in the commit message, not in a doc:
+**Before any step below**: ensure Rails is running in another terminal. From `rails/`, run `bin/dev` and leave it up. The simulator cannot reach `http://localhost:3010` otherwise. If the simulator shows an error alert on cold-start, check the terminal running `bin/dev` before debugging anywhere else.
 
-1. Cold-start with fresh simulator (erase all content and settings first). App launches, splash shows, `splash_redirect_controller` fires, navigates to `/mobile/intro`. Back button on `/mobile/intro` does NOT return to splash (confirms `replace_root`).
+Record the following in the commit message, not in a separate doc:
+
+1. Cold-start with fresh simulator (erase all content and settings first — Device → Erase All Content and Settings). App launches, splash shows, `splash_redirect_controller` fires, navigates to `/mobile/intro`. Back button on `/mobile/intro` does NOT return to splash (confirms `replace_root`).
 2. Tap "Create your will and estate plan" on intro → POST to `/mobile/intro/continue` → redirect to `/mobile/onboarding/welcome`. Screen PUSHES onto nav stack with native animation (swipe-from-left-edge to pop works).
 3. Walk welcome → location → family → extended-family → wrap-up. Each screen pushes. Swipe-back works at every step.
 4. Navigate to `/mobile/auth/secure-account` from the wrap-up Continue button → presents MODALLY (sheet from bottom, grab handle, swipe-to-dismiss). Not a push.
 5. Navigate to `/mobile/login` → presents MODALLY.
 6. Open the simulator's Safari and visit the running Rails origin directly to confirm visual parity (browser vs WKWebView should look identical).
-7. **Remote-config refresh cycle**: with the app running, edit `rails/config/mobile/path_configuration.json` (e.g. change `/mobile/dashboard` presentation from `replace_root` to `push`). Without rebuilding the iOS app, cold-start the app → session still uses the old behavior (cache from previous launch). Force-quit and relaunch → new behavior in effect. This proves the next-launch-apply property.
+7. **Remote-config refresh cycle**: with `bin/dev` still running, edit `rails/config/mobile/path_configuration.json` (e.g. change `/mobile/dashboard` presentation from `replace_root` to `push`). Without rebuilding the iOS app, force-quit it (swipe up in app switcher, swipe app card up) and relaunch → first launch after the edit still uses the old behavior (cache was populated on the previous launch). Force-quit and relaunch a second time → new behavior in effect. This proves the next-launch-apply property: changes apply the launch AFTER the one that fetched them.
 8. **Malformed response guardrail**: temporarily change `Mobile::ConfigController#show` to render `{ "not": "path-config" }` instead of the file. Relaunch the app → `RemoteConfigStore` rejects the response in `validate`, cache retains the last-known-good version, no crash. Revert the controller change.
 9. Open DevTools on the simulator's web inspector (`Safari → Develop → Simulator → [WKWebView]`). Console: zero JS errors. Tap through a choice-group and a picker; confirm both still work inside the webview exactly as in-browser.
 
@@ -904,23 +848,24 @@ Phase C part 4 — Wire Navigator to PathConfiguration + drift tests
 
 - ios/Kindling/Config/path-configuration.json bundled into the app
   target, byte-identical to rails/config/mobile/path_configuration.json.
-- SceneDelegate now registers the path_configuration resource with
-  RemoteConfigStore.shared, resolves the cached-or-bundled bytes,
-  constructs Hotwire's PathConfiguration from them, and hands it to
-  Navigator. refreshAll kicks off as a detached background task
-  after makeKeyAndVisible so startup is never blocked on network.
+- SceneDelegate constructed fresh: builds and owns a RemoteConfigStore
+  instance, registers the path_configuration resource, resolves the
+  cached-or-bundled bytes, constructs Hotwire's PathConfiguration
+  from them, hands it to Navigator. refreshAll kicks off as a Task
+  after makeKeyAndVisible so startup never blocks on network.
 - KindlingErrorPresenter placeholder registered on the Navigator so
   WKError no longer crashes the app; Phase H replaces the alert with
   a real offline screen.
-- test/mobile/path_configuration_drift_test.rb enforces: Rails
-  canonical == iOS bundled (hard), Rails canonical == Android bundled
-  (soft-skip until Phase D), every /mobile/* route has a matching
-  rule, every rule pattern matches at least one real route.
+- test/mobile/path_configuration_drift_test.rb enforces two things:
+  Rails canonical == iOS bundled (hard), and every /mobile/* route
+  has a matching rule. Android byte-identity lands with Phase D;
+  dead-rule inverse coverage lands when a dead rule bites (neither
+  is carried here).
 - Simulator verification walked end-to-end per the plan. Splash
   replace_root, push on video-intro/onboarding, modal on
   secure-account/login — all behave as the path config dictates.
-  Remote-config refresh cycle and malformed-response guardrail both
-  pass.
+  Remote-config refresh cycle (next-launch-apply) and
+  malformed-response guardrail both pass.
 
 Phase C done criteria 1-8 satisfied. Ready for --no-ff merge to main.
 
@@ -931,7 +876,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 ### Automated (CI)
 
-- [ ] `bin/rails test` — 0 failures. New tests: 4 in `Mobile::ConfigControllerTest`, 4 in `PathConfigurationDriftTest` (one skipped). Expected total: 187 assertions pass, up from 179.
+- [ ] `bin/rails test` — 0 failures. Six new test methods total: 4 in `Mobile::ConfigControllerTest`, 2 in `PathConfigurationDriftTest`. Run count rises from **64 → 70**. Assertion count rises by roughly 10, whatever Minitest reports — confirm the count went up by at least the number of new `assert` calls; don't pin a specific assertion number.
 - [ ] Swift Testing suite (Cmd-U in Xcode) — 4 tests pass in `RemoteConfigStoreTests`.
 
 ### Simulator (end-of-phase gate)
@@ -964,7 +909,8 @@ Phase C is complete when all of the following hold:
 
 - Reuses the exact Rails endpoint (`GET /mobile/config/path_configuration.json`). No Rails changes needed.
 - Builds the Kotlin equivalent of `RemoteConfigStore` — same three-method interface, `SharedPreferences` in place of `UserDefaults`, `OkHttp` or Ktor in place of `URLSession`. The Swift source in this phase is the reference.
-- `android/app/src/main/assets/config/path-configuration.json` is a byte-identical copy of `rails/config/mobile/path_configuration.json`. The drift test in §4.4 un-skips automatically once the Android file is committed.
+- `android/app/src/main/assets/config/path-configuration.json` is a byte-identical copy of `rails/config/mobile/path_configuration.json`.
+- Phase D adds an `Android bundled path_configuration is byte-identical to Rails canonical` test to `path_configuration_drift_test.rb` (alongside the iOS one Phase C lands). The test is NOT pre-committed and skipped — it lands with its subject.
 - Phase D's detail plan should open with the same canonical-path note and the same Pitfalls list. Items 3, 9, 12, 13, 14, 15, 17 all carry; pitfalls specific to Android surface during detail planning.
 
 **Phase E — Universal Links + App Links**:
@@ -976,14 +922,14 @@ Phase C is complete when all of the following hold:
 
 **New resource in `RemoteConfigStore` (any future phase)**:
 
-Five-line recipe, not a re-implementation:
+Five-line recipe, not a re-implementation. Call on the `SceneDelegate`-owned `store` instance at app launch:
 
 ```swift
-RemoteConfigStore.shared.register(
+store.register(
   name: "feature_flags",
   bundledURL: Bundle.main.url(forResource: "feature-flags", withExtension: "json")!,
   schema: FeatureFlagsSchema.self
 )
 ```
 
-Plus: commit `rails/config/mobile/feature_flags.json`, bundle `ios/Kindling/Config/feature-flags.json` byte-identical, extend the drift test with two lines for the new resource, add a row to the Remote-config resources table in the canonical plan. That's the whole pattern — anything more is premature.
+Plus: commit `rails/config/mobile/feature_flags.json`, bundle `ios/Kindling/Config/feature-flags.json` byte-identical, add one byte-identity `assert_equal` to the drift test for the new resource, add a row to the Remote-config resources table in the canonical plan. That's the whole pattern — anything more is premature.
