@@ -27,10 +27,12 @@
   border: 1px solid transparent;
   border-radius: var(--mobile-radius-md);
   background: var(--mobile-color-surface);
-  font-weight: var(--mobile-weight-semibold);
+  color: var(--mobile-color-text-muted);
+  font-weight: var(--mobile-weight-regular);
   text-align: left;
   cursor: pointer;
-  transition: background var(--mobile-duration-fast) var(--mobile-ease),
+  transition: color var(--mobile-duration-fast) var(--mobile-ease),
+              background var(--mobile-duration-fast) var(--mobile-ease),
               border-color var(--mobile-duration-fast) var(--mobile-ease);
 }
 
@@ -50,6 +52,7 @@
 .mobile-radio-option input:checked + label {
   border-color: var(--mobile-color-accent);
   background: var(--mobile-color-accent-soft);
+  color: var(--mobile-color-text);
 }
 
 .mobile-radio-option input:checked + label::before {
