@@ -54,7 +54,7 @@ module Mobile
       get mobile_onboarding_location_path
 
       assert_response :success
-      assert_select ".mobile-radio-group[data-mobile-collapsible='true']", minimum: 2
+      assert_select ".mobile-radio-group[data-choice-group-collapsible-value='true']", minimum: 2
     end
 
     test "family defaults a fresh child to partner co-guardianship when partnered" do

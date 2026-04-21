@@ -11,7 +11,7 @@ module Mobile
 
       assert_equal 1, onboarding_session.video_intro_version
       assert_nil onboarding_session.risk_questionnaire_version
-      assert_select "#mobile-splash-root[data-destination='#{mobile_video_intro_path}']"
+      assert_select "[data-controller~='splash-redirect'][data-splash-redirect-url-value='#{mobile_video_intro_path}']"
     end
 
     test "open stores deep link values on the onboarding session once and redirects by first_show" do
@@ -76,7 +76,7 @@ module Mobile
       get mobile_root_path
 
       assert_response :success
-      assert_select "#mobile-splash-root[data-destination='#{mobile_onboarding_welcome_path}']"
+      assert_select "[data-controller~='splash-redirect'][data-splash-redirect-url-value='#{mobile_onboarding_welcome_path}']"
     end
   end
 end
