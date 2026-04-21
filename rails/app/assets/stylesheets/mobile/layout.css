@@ -1,52 +1,71 @@
 .mobile-app {
-  min-height: 100vh;
+  min-height: 100vh;     /* fallback for older browsers */
+  min-height: 100dvh;    /* dynamic viewport height — correct under iOS URL-bar toggle */
   display: flex;
   flex-direction: column;
 }
 
 .mobile-app__content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 42rem;
   margin: 0 auto;
+  /* Bottom padding clears the sticky-footer height so long-form content
+     doesn't scroll permanently under the footer gradient. */
   padding:
     calc(1rem + env(safe-area-inset-top, 0px))
     1rem
-    calc(8rem + env(safe-area-inset-bottom, 0px));
+    2rem;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 .mobile-app__footer {
   position: sticky;
   bottom: 0;
   z-index: 30;
-  background: linear-gradient(180deg, rgba(243, 240, 234, 0), rgba(243, 240, 234, 0.96) 32%);
-  backdrop-filter: blur(10px);
+  padding-top: var(--mobile-space-xl);
+  background: linear-gradient(180deg, rgba(234, 230, 229, 0) 0%, rgba(234, 230, 229, 0.9) 55%, var(--mobile-color-bg) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+.mobile-app__footer > * {
+  pointer-events: auto;
 }
 
 .mobile-flash-stack {
   display: grid;
-  gap: var(--mobile-space-3);
-  margin-bottom: var(--mobile-space-4);
+  gap: var(--mobile-space-sm);
+  margin-bottom: var(--mobile-space-md);
 }
 
 .mobile-screen {
   display: grid;
-  gap: var(--mobile-space-5);
+  gap: var(--mobile-space-lg);
 }
 
 .mobile-screen__body {
   display: grid;
-  gap: var(--mobile-space-5);
+  gap: var(--mobile-space-lg);
 }
 
 .mobile-stack {
   display: grid;
-  gap: var(--mobile-space-4);
+  gap: var(--mobile-space-md);
 }
 
 .mobile-section {
   display: grid;
-  gap: var(--mobile-space-4);
+  gap: var(--mobile-space-md);
 }
 
 .mobile-inline-grid {
@@ -69,26 +88,28 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--mobile-color-text-muted);
+  color: var(--mobile-color-navy);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-size: 0.73rem;
-  font-weight: 700;
+  font-size: var(--mobile-text-xs);
+  font-weight: var(--mobile-weight-semibold);
+  opacity: 0.7;
 }
 
 .mobile-title {
   margin: 0;
-  font-family: var(--mobile-font-display);
-  font-size: clamp(2rem, 6vw, 2.75rem);
-  line-height: 1.04;
-  letter-spacing: -0.035em;
+  font-family: var(--mobile-font-ui);
+  font-size: var(--mobile-text-2xl);
+  font-weight: var(--mobile-weight-bold);
+  line-height: var(--mobile-lh-tight);
+  letter-spacing: -0.01em;
 }
 
 .mobile-subtitle {
   margin: 0;
   color: var(--mobile-color-text-muted);
-  font-size: 1rem;
-  line-height: 1.6;
+  font-size: var(--mobile-text-sm);
+  line-height: var(--mobile-lh-relaxed);
 }
 
 @media (max-width: 640px) {

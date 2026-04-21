@@ -1,8 +1,8 @@
 .mobile-media-frame {
   overflow: hidden;
-  border-radius: var(--mobile-radius-lg);
+  border-radius: var(--mobile-radius-2xl);
   background: #0f1820;
-  box-shadow: var(--mobile-shadow-card);
+  box-shadow: var(--mobile-shadow-lg);
 }
 
 .mobile-media-frame video,

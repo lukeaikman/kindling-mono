@@ -11,8 +11,14 @@
   url: mobile_onboarding_family_path,
   method: :patch,
   class: "mobile-screen mobile-screen--onboarding",
-  html: { id: "mobile-family-form" },
-  data: { mobile_family_form: true, user_last_name: @onboarding_session.last_name.to_s } do |form| %>
+  html: {
+    id: "mobile-family-form",
+    data: {
+      controller: "family-form",
+      action: "change->family-form#formChange click->family-form#formClick focusin->family-form#formFocusin input->family-form#formInput",
+      family_form_user_last_name_value: @onboarding_session.last_name.to_s
+    }
+  } do |form| %>
   <%
     footer_body = capture do
   %>

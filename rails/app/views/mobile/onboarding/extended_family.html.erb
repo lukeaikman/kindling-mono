@@ -1,6 +1,6 @@
 <% content_for :title, "Kindling | Extended Family" %>
 
-<%= form_with model: @onboarding_session, url: mobile_onboarding_extended_family_path, method: :patch, class: "mobile-screen mobile-screen--onboarding", html: { id: "mobile-extended-family-form" } do |form| %>
+<%= form_with model: @onboarding_session, url: mobile_onboarding_extended_family_path, method: :patch, class: "mobile-screen mobile-screen--onboarding", html: { id: "mobile-extended-family-form", data: { controller: "extended-family-form", action: "change->extended-family-form#changed" } } do |form| %>
   <% extended_family_footer = capture do %>
     <%= form.submit "Continue", class: "mobile-button", form: "mobile-extended-family-form" %>
   <% end %>

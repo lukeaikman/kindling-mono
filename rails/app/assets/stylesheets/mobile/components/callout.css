@@ -2,7 +2,7 @@
   display: grid;
   gap: 0.35rem;
   padding: 1rem;
-  border-radius: var(--mobile-radius-md);
+  border-radius: var(--mobile-radius-xl);
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid var(--mobile-color-line);
 }

@@ -1,13 +1,12 @@
 html,
 body {
   min-height: 100%;
+  background: var(--mobile-color-bg);
 }
 
 body.mobile-body {
   margin: 0;
-  background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.8), transparent 28%),
-    linear-gradient(180deg, #fbf9f4 0%, var(--mobile-color-bg) 48%, #ece5d8 100%);
+  overflow-x: hidden;
   color: var(--mobile-color-text);
   font-family: var(--mobile-font-ui);
   -webkit-font-smoothing: antialiased;
@@ -36,7 +35,8 @@ textarea {
 }
 
 .mobile-link:hover,
-.mobile-link:focus {
+.mobile-link:focus,
+.mobile-link:active {
   color: var(--mobile-color-accent);
 }
 
@@ -69,23 +69,23 @@ textarea {
 .mobile-form-error,
 .mobile-flash-alert,
 .mobile-flash-notice {
-  border-radius: var(--mobile-radius-md);
+  border-radius: var(--mobile-radius-xl);
   padding: 0.95rem 1rem;
   font-size: 0.95rem;
-  box-shadow: var(--mobile-shadow-soft);
+  box-shadow: var(--mobile-shadow-md);
 }
 
 .mobile-form-error,
 .mobile-flash-alert {
   color: var(--mobile-color-danger);
-  background: var(--mobile-color-danger-soft);
-  border: 1px solid rgba(162, 70, 55, 0.18);
+  background: var(--mobile-color-warning-soft);
+  border: 1px solid rgba(236, 134, 134, 0.24);
 }
 
 .mobile-flash-notice {
   color: var(--mobile-color-accent-deep);
   background: var(--mobile-color-accent-soft);
-  border: 1px solid rgba(47, 117, 90, 0.18);
+  border: 1px solid rgba(91, 146, 121, 0.24);
 }
 
 .mobile-button,
@@ -97,36 +97,38 @@ textarea {
   width: 100%;
   min-height: 3.5rem;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--mobile-radius-md);
   padding: 0.95rem 1.2rem;
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.2;
+  font-family: var(--mobile-font-ui);
+  font-size: var(--mobile-text-md);
+  font-weight: var(--mobile-weight-semibold);
+  line-height: var(--mobile-lh-tight);
   text-decoration: none;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  transition: opacity var(--mobile-duration-fast) var(--mobile-ease),
+              background var(--mobile-duration-fast) var(--mobile-ease);
 }
 
 .mobile-button {
   color: #fff;
-  background: linear-gradient(180deg, var(--mobile-color-accent) 0%, var(--mobile-color-accent-deep) 100%);
-  box-shadow: 0 16px 30px rgba(31, 90, 69, 0.2);
+  background: var(--mobile-color-navy);
 }
 
 .mobile-button:hover,
-.mobile-button:focus {
+.mobile-button:focus,
+.mobile-button:active {
   color: #fff;
-  transform: translateY(-1px);
+  opacity: 0.92;
 }
 
+.mobile-button:active { opacity: 0.78; }
+
 .mobile-button:disabled {
-  opacity: 0.58;
-  transform: none;
-  box-shadow: none;
+  opacity: 0.5;
 }
 
 .mobile-button-secondary {
   color: var(--mobile-color-text);
-  background: rgba(255, 255, 255, 0.92);
+  background: #fff;
   border: 1px solid var(--mobile-color-line);
 }
 
@@ -137,7 +139,10 @@ textarea {
 
 .mobile-button-secondary:hover,
 .mobile-button-secondary:focus,
+.mobile-button-secondary:active,
 .mobile-button-tertiary:hover,
-.mobile-button-tertiary:focus {
+.mobile-button-tertiary:focus,
+.mobile-button-tertiary:active {
   color: var(--mobile-color-accent-deep);
+  opacity: 0.8;
 }
