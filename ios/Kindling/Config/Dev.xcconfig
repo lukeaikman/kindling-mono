@@ -1,0 +1,4 @@
+// Dev build points at the Rails dev server. Port 3010 matches
+// rails/config/environments/development.rb action_mailer.default_url_options.
+// $(inherited) preserves any flags Xcode already injects.
+OTHER_SWIFT_FLAGS = $(inherited) -D KINDLING_ORIGIN_DEV

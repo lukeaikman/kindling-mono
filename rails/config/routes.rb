@@ -40,6 +40,10 @@ Rails.application.routes.draw do
     patch "onboarding/extended-family", to: "onboarding#update_extended_family"
     get "onboarding/wrap-up", to: "onboarding#wrap_up", as: :onboarding_wrap_up
     post "onboarding/wrap-up/continue", to: "onboarding#continue_wrap_up", as: :onboarding_wrap_up_continue
+
+    get "config/:resource.json", to: "config#show",
+      constraints: { resource: /[a-z_]+/ },
+      as: :config_resource
   end
   
   # API routes (for future use)

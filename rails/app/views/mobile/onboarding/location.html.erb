@@ -1,12 +1,11 @@
-<% content_for :title, "Kindling | Location" %>
+<% content_for :title, "" %>
 
 <%= form_with model: @onboarding_session, url: mobile_onboarding_location_path, method: :patch, class: "mobile-screen mobile-screen--onboarding" do |form| %>
-  <%= render "mobile/shared/screen_header", step_number: 2, total_steps: 5, back_path: mobile_onboarding_welcome_path %>
+  <%= render "mobile/shared/screen_header", step_number: 2, total_steps: 5 %>
   <%= render "mobile/shared/form_errors", record: @onboarding_session %>
 
   <div class="mobile-screen__body">
     <%= render "mobile/shared/hero_block",
-      eyebrow: "Step 2",
       title: "Where do you live?",
       subtitle: "Your location and status affect how the law and tax rules apply, so this step stays focused and factual." %>
 
