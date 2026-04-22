@@ -1,1 +1,4 @@
 .imports/
+
+# Claude Code session state + agent worktrees
+.claude/
