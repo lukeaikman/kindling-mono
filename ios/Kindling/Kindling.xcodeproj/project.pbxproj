@@ -14,11 +14,10 @@
 		844BA7B12B9A488A008F48DB /* FormComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 844BA7A32B9A488A008F48DB /* FormComponent.swift */; };
 		844BA7B52B9A488A008F48DB /* OverflowMenuComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 844BA7AA2B9A488A008F48DB /* OverflowMenuComponent.swift */; };
 		844BA7B62B9A488A008F48DB /* MenuComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 844BA7AB2B9A488A008F48DB /* MenuComponent.swift */; };
-		844BA7B72B9A488A008F48DB /* NumbersViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 844BA7AC2B9A488A008F48DB /* NumbersViewController.swift */; };
-		844BA7B82B9A488A008F48DB /* Demo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 844BA7AD2B9A488A008F48DB /* Demo.swift */; };
 		844BA7B92B9A488A008F48DB /* path-configuration.json in Resources */ = {isa = PBXBuildFile; fileRef = 844BA7AE2B9A488A008F48DB /* path-configuration.json */; };
 		848E12212BD813CA009BB0A4 /* HotwireNative in Frameworks */ = {isa = PBXBuildFile; productRef = 848E12202BD813CA009BB0A4 /* HotwireNative */; };
-		84A617FF2D5AA88B00694AEE /* Tabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A617FE2D5AA88B00694AEE /* Tabs.swift */; };
+		F0049EE42F98E64500C16388 /* HotwireNative in Frameworks */ = {isa = PBXBuildFile; productRef = F0049EE32F98E64500C16388 /* HotwireNative */; };
+		F0049EE62F98E73200C16388 /* Origin.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0049EE52F98E73200C16388 /* Origin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,11 +30,11 @@
 		844BA7A32B9A488A008F48DB /* FormComponent.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FormComponent.swift; sourceTree = "<group>"; };
 		844BA7AA2B9A488A008F48DB /* OverflowMenuComponent.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OverflowMenuComponent.swift; sourceTree = "<group>"; };
 		844BA7AB2B9A488A008F48DB /* MenuComponent.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MenuComponent.swift; sourceTree = "<group>"; };
-		844BA7AC2B9A488A008F48DB /* NumbersViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NumbersViewController.swift; sourceTree = "<group>"; };
-		844BA7AD2B9A488A008F48DB /* Demo.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Demo.swift; sourceTree = "<group>"; };
 		844BA7AE2B9A488A008F48DB /* path-configuration.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = "path-configuration.json"; sourceTree = "<group>"; };
 		8458F3EF2BD8139400867B66 /* hotwire-native-ios */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = "hotwire-native-ios"; path = ..; sourceTree = "<group>"; };
-		84A617FE2D5AA88B00694AEE /* Tabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tabs.swift; sourceTree = "<group>"; };
+		F0049EE52F98E73200C16388 /* Origin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Origin.swift; sourceTree = "<group>"; };
+		F0049EE72F98E78100C16388 /* Dev.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Dev.xcconfig; path = Config/Dev.xcconfig; sourceTree = "<group>"; };
+		F0049EE82F98E78100C16388 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Config/Release.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,6 +42,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F0049EE42F98E64500C16388 /* HotwireNative in Frameworks */,
 				848E12212BD813CA009BB0A4 /* HotwireNative in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -70,12 +70,12 @@
 		844BA7892B9A4843008F48DB /* Kindling */ = {
 			isa = PBXGroup;
 			children = (
+				F0049EE72F98E78100C16388 /* Dev.xcconfig */,
+				F0049EE82F98E78100C16388 /* Release.xcconfig */,
+				F0049EE52F98E73200C16388 /* Origin.swift */,
 				844BA7BA2B9A4893008F48DB /* Bridge */,
-				844BA7AD2B9A488A008F48DB /* Demo.swift */,
 				844BA7A22B9A4889008F48DB /* SceneController.swift */,
 				844BA78A2B9A4843008F48DB /* AppDelegate.swift */,
-				84A617FE2D5AA88B00694AEE /* Tabs.swift */,
-				844BA7AC2B9A488A008F48DB /* NumbersViewController.swift */,
 				844BA7AE2B9A488A008F48DB /* path-configuration.json */,
 				844BA7982B9A4844008F48DB /* Info.plist */,
 				844BA7932B9A4844008F48DB /* Assets.xcassets */,
@@ -120,6 +120,7 @@
 			name = Kindling;
 			packageProductDependencies = (
 				848E12202BD813CA009BB0A4 /* HotwireNative */,
+				F0049EE32F98E64500C16388 /* HotwireNative */,
 			);
 			productName = Demo;
 			productReference = 844BA7872B9A4843008F48DB /* Kindling.app */;
@@ -150,6 +151,7 @@
 			);
 			mainGroup = 844BA77E2B9A4843008F48DB;
 			packageReferences = (
+				F0049EE22F98E64500C16388 /* XCRemoteSwiftPackageReference "hotwire-native-ios" */,
 			);
 			productRefGroup = 844BA7882B9A4843008F48DB /* Products */;
 			projectDirPath = "";
@@ -179,10 +181,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				844BA7B62B9A488A008F48DB /* MenuComponent.swift in Sources */,
-				844BA7B72B9A488A008F48DB /* NumbersViewController.swift in Sources */,
-				844BA7B82B9A488A008F48DB /* Demo.swift in Sources */,
-				84A617FF2D5AA88B00694AEE /* Tabs.swift in Sources */,
 				844BA78B2B9A4843008F48DB /* AppDelegate.swift in Sources */,
+				F0049EE62F98E73200C16388 /* Origin.swift in Sources */,
 				844BA7B02B9A488A008F48DB /* SceneController.swift in Sources */,
 				844BA7B12B9A488A008F48DB /* FormComponent.swift in Sources */,
 				844BA7B52B9A488A008F48DB /* OverflowMenuComponent.swift in Sources */,
@@ -205,6 +205,7 @@
 /* Begin XCBuildConfiguration section */
 		844BA7992B9A4844008F48DB /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F0049EE72F98E78100C16388 /* Dev.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -268,6 +269,7 @@
 		};
 		844BA79A2B9A4844008F48DB /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F0049EE82F98E78100C16388 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -324,6 +326,7 @@
 		};
 		844BA79C2B9A4844008F48DB /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F0049EE72F98E78100C16388 /* Dev.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -352,6 +355,7 @@
 		};
 		844BA79D2B9A4844008F48DB /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F0049EE82F98E78100C16388 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -401,9 +405,25 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		F0049EE22F98E64500C16388 /* XCRemoteSwiftPackageReference "hotwire-native-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/hotwired/hotwire-native-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		848E12202BD813CA009BB0A4 /* HotwireNative */ = {
 			isa = XCSwiftPackageProductDependency;
+			productName = HotwireNative;
+		};
+		F0049EE32F98E64500C16388 /* HotwireNative */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F0049EE22F98E64500C16388 /* XCRemoteSwiftPackageReference "hotwire-native-ios" */;
 			productName = HotwireNative;
 		};
 /* End XCSwiftPackageProductDependency section */
