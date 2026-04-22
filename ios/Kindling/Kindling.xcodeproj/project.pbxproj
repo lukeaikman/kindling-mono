@@ -22,7 +22,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		844BA7872B9A4843008F48DB /* Demo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Demo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		844BA7872B9A4843008F48DB /* Kindling.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kindling.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		844BA78A2B9A4843008F48DB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		844BA7932B9A4844008F48DB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		844BA7962B9A4844008F48DB /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -62,7 +62,7 @@
 		844BA7882B9A4843008F48DB /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				844BA7872B9A4843008F48DB /* Demo.app */,
+				844BA7872B9A4843008F48DB /* Kindling.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -105,9 +105,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		844BA7862B9A4843008F48DB /* Demo */ = {
+		844BA7862B9A4843008F48DB /* Kindling */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 844BA79B2B9A4844008F48DB /* Build configuration list for PBXNativeTarget "Demo" */;
+			buildConfigurationList = 844BA79B2B9A4844008F48DB /* Build configuration list for PBXNativeTarget "Kindling" */;
 			buildPhases = (
 				844BA7832B9A4843008F48DB /* Sources */,
 				844BA7842B9A4843008F48DB /* Frameworks */,
@@ -117,12 +117,12 @@
 			);
 			dependencies = (
 			);
-			name = Demo;
+			name = Kindling;
 			packageProductDependencies = (
 				848E12202BD813CA009BB0A4 /* HotwireNative */,
 			);
 			productName = Demo;
-			productReference = 844BA7872B9A4843008F48DB /* Demo.app */;
+			productReference = 844BA7872B9A4843008F48DB /* Kindling.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -140,7 +140,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 844BA7822B9A4843008F48DB /* Build configuration list for PBXProject "Demo" */;
+			buildConfigurationList = 844BA7822B9A4843008F48DB /* Build configuration list for PBXProject "Kindling" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -155,7 +155,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				844BA7862B9A4843008F48DB /* Demo */,
+				844BA7862B9A4843008F48DB /* Kindling */,
 			);
 		};
 /* End PBXProject section */
@@ -331,17 +331,18 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Kindling;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.Demo;
+				PRODUCT_BUNDLE_IDENTIFIER = app.kindling.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -358,17 +359,18 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Kindling;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.Demo;
+				PRODUCT_BUNDLE_IDENTIFIER = app.kindling.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -379,7 +381,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		844BA7822B9A4843008F48DB /* Build configuration list for PBXProject "Demo" */ = {
+		844BA7822B9A4843008F48DB /* Build configuration list for PBXProject "Kindling" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				844BA7992B9A4844008F48DB /* Debug */,
@@ -388,7 +390,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		844BA79B2B9A4844008F48DB /* Build configuration list for PBXNativeTarget "Demo" */ = {
+		844BA79B2B9A4844008F48DB /* Build configuration list for PBXNativeTarget "Kindling" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				844BA79C2B9A4844008F48DB /* Debug */,

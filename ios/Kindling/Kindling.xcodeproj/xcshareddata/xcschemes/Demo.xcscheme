@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "844BA7862B9A4843008F48DB"
-               BuildableName = "Demo.app"
-               BlueprintName = "Demo"
-               ReferencedContainer = "container:Demo.xcodeproj">
+               BuildableName = "Kindling.app"
+               BlueprintName = "Kindling"
+               ReferencedContainer = "container:Kindling.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -45,9 +45,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "844BA7862B9A4843008F48DB"
-            BuildableName = "Demo.app"
-            BlueprintName = "Demo"
-            ReferencedContainer = "container:Demo.xcodeproj">
+            BuildableName = "Kindling.app"
+            BlueprintName = "Kindling"
+            ReferencedContainer = "container:Kindling.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "844BA7862B9A4843008F48DB"
-            BuildableName = "Demo.app"
-            BlueprintName = "Demo"
-            ReferencedContainer = "container:Demo.xcodeproj">
+            BuildableName = "Kindling.app"
+            BlueprintName = "Kindling"
+            ReferencedContainer = "container:Kindling.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
