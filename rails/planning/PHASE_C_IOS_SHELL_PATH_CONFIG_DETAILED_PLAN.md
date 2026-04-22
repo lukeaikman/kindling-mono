@@ -8,7 +8,7 @@ Phase A shipped Turbo + Stimulus into the mobile bundle. Phase B finished the va
 
 Phase C drops a real iOS app — a Hotwire Native shell — around it. Same HTML, same Stimulus controllers, same Rails routes. The shell adds native chrome (`UINavigationController`, push/modal animations, safe-area handling, swipe-to-pop) and consults a **path-configuration JSON** on every Turbo navigation to decide how to present each URL.
 
-Path-configuration is the first and only remote config Phase C needs. HotwireNative 1.2.1's `Hotwire.loadPathConfiguration(from:)` already does the caching, background fetch, and schema validation our earlier plan had us reimplementing. Phase C uses the library. Future resources (feature flags, min-supported-version warnings, A/B toggles) are NOT in Phase C's scope; if/when they arrive, revisit whether Hotwire's loader still fits or whether a custom mechanism is warranted.
+Path-configuration is the first and only remote config Phase C needs. HotwireNative 1.2.2's `Hotwire.loadPathConfiguration(from:)` already does the caching, background fetch, and schema validation our earlier plan had us reimplementing. Phase C uses the library. Future resources (feature flags, min-supported-version warnings, A/B toggles) are NOT in Phase C's scope; if/when they arrive, revisit whether Hotwire's loader still fits or whether a custom mechanism is warranted.
 
 **iOS first. Android is Phase D, gated on Phase C shipping to TestFlight and getting real-user time.** Not parallel.
 
@@ -20,7 +20,7 @@ Path-configuration is the first and only remote config Phase C needs. HotwireNat
 - New Rails controller `Mobile::ConfigController#show` and route `GET /mobile/config/:resource.json`. ETag + Last-Modified via `stale?`. **DONE — landed in commit 1.**
 - Request specs for the controller — five tests. **DONE — landed in commit 1.**
 - New Xcode project at `ios/Kindling.xcodeproj` derived from the `Demo/` target inside `hotwired/hotwire-native-ios`. Bundle ID `app.kindling.ios`. Deployment target **iOS 16**.
-- `HotwireNative` Swift Package dependency, pinned to exactly **1.2.1**.
+- `HotwireNative` Swift Package dependency, pinned to exactly **1.2.2**.
 - Two `.xcconfig` files (Dev, Release) that set a Swift compile-time flag (`-D KINDLING_ORIGIN_DEV` / `-D KINDLING_ORIGIN_PROD`) per build configuration. `Origin.swift` resolves the origin at compile time via `#if`.
 - `AppDelegate.configureHotwire()` calls `Hotwire.loadPathConfiguration(from: [.file(bundledURL), .server(originURL)])`. That's the whole path-config integration — no custom cache, no custom validator.
 - `SceneController` instantiates a `Navigator`, routes to `/mobile/open`, hands `rootViewController` to the window.
@@ -66,7 +66,7 @@ Commit order:
 1. (agent) **DONE** — Rails canonical JSON + `Mobile::ConfigController` + endpoint tests. Sitting on `mobile-phase-c` as `fdf3f2f`.
 2. (agent) Clone `hotwired/hotwire-native-ios`'s `Demo/` into `ios/`, add `.gitignore`. Project still named "Demo" at this point.
 3. **(user, manual)** Xcode target rename Demo → Kindling, bundle ID → `app.kindling.ios`, deployment target → iOS 16. Includes creating the `KindlingTests` target if the demo doesn't ship one (it does — renamed from `DemoTests`, so usually no extra action). See §2.3.
-4. (agent) HotwireNative SPM pinned 1.2.1, `.xcconfig` files driving Swift compile-time flags, `Origin.swift`, `AppDelegate.configureHotwire()`, `SceneController` + `Navigator`, bundled `path-configuration.json` byte-identical to Rails canonical, Rails drift tests, simulator verification notes in the commit message.
+4. (agent) HotwireNative SPM pinned 1.2.2, `.xcconfig` files driving Swift compile-time flags, `Origin.swift`, `AppDelegate.configureHotwire()`, `SceneController` + `Navigator`, bundled `path-configuration.json` byte-identical to Rails canonical, Rails drift tests, simulator verification notes in the commit message.
 
 **Four commits total.** Smaller than the earlier 6-commit plan because the whole RemoteConfigStore commit is gone — Hotwire's loader does that work.
 
@@ -250,7 +250,7 @@ Both must pass, or commit 4's simulator tests won't have anywhere to run.
 **This splits commit 4 into two user-involved pieces:**
 
 - **Commit 4a (agent)**: write Swift files, xcconfigs, drift test, and overwritten bundled JSON to disk. Rails tests run. The iOS target won't yet reference the new files (they're invisible to Xcode), and won't yet miss the deleted files (those are still referenced but contain obsolete code).
-- **Commit 4b (user)**: in Xcode, add the three new Swift files + xcconfigs to the Kindling target, delete the three now-dead files, add HotwireNative 1.2.1 as an SPM dependency, wire Dev.xcconfig and Release.xcconfig as the base config for Debug and Release build configurations. Build. Simulator verification in §3.8.
+- **Commit 4b (user)**: in Xcode, add the three new Swift files + xcconfigs to the Kindling target, delete the three now-dead files, add HotwireNative 1.2.2 as an SPM dependency, wire Dev.xcconfig and Release.xcconfig as the base config for Debug and Release build configurations. Build. Simulator verification in §3.8.
 
 Agent cannot do 4b because every step is an Xcode GUI action. Splitting the user's Xcode work into its own commit keeps the pbxproj diff attributable and separable from the agent's Swift authorship.
 
@@ -259,7 +259,7 @@ Agent cannot do 4b because every step is an Xcode GUI action. Splitting the user
 Open `ios/Kindling.xcodeproj` in Xcode. File → Add Package Dependencies…:
 
 - URL: `https://github.com/hotwired/hotwire-native-ios`
-- Dependency Rule: **Exact Version** — **1.2.1**. No ranges. No branches. No "up to next minor." No "latest stable at time of execution." If `1.2.1` doesn't resolve, stop and report back — don't pick a nearby version to keep moving.
+- Dependency Rule: **Exact Version** — **1.2.2**. No ranges. No branches. No "up to next minor." No "latest stable at time of execution." If `1.2.2` doesn't resolve, stop and report back — don't pick a nearby version to keep moving.
 - Add to target: `Kindling`.
 
 **Why exact**: a surprise upstream change breaks the shell silently. Exact pinning forces a conscious bump with review.
@@ -267,7 +267,7 @@ Open `ios/Kindling.xcodeproj` in Xcode. File → Add Package Dependencies…:
 **Verify the pin landed**:
 
 ```bash
-grep '"version" : "1.2.1"' ios/Kindling.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+grep '"version" : "1.2.2"' ios/Kindling.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 ```
 
 Must return a match.
@@ -523,7 +523,7 @@ Record the following in the commit message, not in a separate doc:
 ```
 Phase C commit 4 — HotwireNative wiring + bundled path-config + drift tests
 
-- HotwireNative Swift Package pinned to exact 1.2.1
+- HotwireNative Swift Package pinned to exact 1.2.2
   (Package.resolved verified).
 - Dev.xcconfig and Release.xcconfig set a Swift compile-time flag
   (-D KINDLING_ORIGIN_DEV / -D KINDLING_ORIGIN_PROD) per build config.
@@ -578,7 +578,7 @@ Per §3.8 — nine scenarios walked and recorded in commit 4's message.
 - `grep -rn 'data-presentation\|data-modal\|data-push' rails/app/views/mobile/` → empty (Pitfall 15 — no ERB-level presentation overrides).
 - `grep -rn 'window.location.href\|window.location.assign\|window.location.replace' rails/app/javascript/` → empty (Pitfall A1 carries forward — Turbo-bypassing navigation is still forbidden).
 - `grep -rln "Demo.xcodeproj\|com\.hotwired\.Demo" ios/` → empty (rename completed correctly).
-- `grep '"version" : "1.2.1"' ios/Kindling.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` → one match (HotwireNative pinned correctly).
+- `grep '"version" : "1.2.2"' ios/Kindling.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` → one match (HotwireNative pinned correctly).
 
 ## Done criteria
 
