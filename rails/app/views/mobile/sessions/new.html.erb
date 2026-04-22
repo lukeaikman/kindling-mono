@@ -1,4 +1,4 @@
-<% content_for :title, "Kindling | Log In" %>
+<% content_for :title, "" %>
 
 <%= form_with url: mobile_login_path, method: :post, class: "mobile-screen mobile-screen--auth", html: { id: "mobile-login-form" } do |form| %>
   <% login_footer = capture do %>
@@ -22,7 +22,7 @@
     <%= render "mobile/shared/sticky_actions", body: login_footer %>
   <% end %>
 
-  <%= render "mobile/shared/screen_header", back_path: mobile_intro_path %>
+  <%= render "mobile/shared/screen_header" %>
 
   <div class="mobile-screen__body">
     <%= render "mobile/shared/hero_block",

@@ -1,7 +1,7 @@
-<% content_for :title, "Kindling | Extended Family" %>
+<% content_for :title, "" %>
 
 <%= form_with model: @onboarding_session, url: mobile_onboarding_extended_family_path, method: :patch, class: "mobile-screen mobile-screen--onboarding", html: { data: { controller: "extended-family-form", action: "change->extended-family-form#changed" } } do |form| %>
-  <%= render "mobile/shared/screen_header", step_number: 4, total_steps: 5, back_path: mobile_onboarding_family_path %>
+  <%= render "mobile/shared/screen_header", step_number: 4, total_steps: 5 %>
   <%= render "mobile/shared/form_errors", record: @onboarding_session %>
 
   <div class="mobile-screen__body">

@@ -1,7 +1,7 @@
-<% content_for :title, "Kindling | Welcome" %>
+<% content_for :title, "" %>
 
 <%= form_with model: @onboarding_session, url: mobile_onboarding_welcome_path, method: :patch, class: "mobile-screen mobile-screen--onboarding" do |form| %>
-  <%= render "mobile/shared/screen_header", step_number: 1, total_steps: 5, back_path: mobile_intro_path %>
+  <%= render "mobile/shared/screen_header", step_number: 1, total_steps: 5 %>
   <%= render "mobile/shared/form_errors", record: @onboarding_session %>
 
   <div class="mobile-screen__body">

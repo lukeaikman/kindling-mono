@@ -1,4 +1,4 @@
-<% content_for :title, "Kindling | Family" %>
+<% content_for :title, "" %>
 
 <%
   children_for_form = @onboarding_session.children_payload
@@ -62,7 +62,7 @@
     </template>
   <% end %>
 
-  <%= render "mobile/shared/screen_header", step_number: 3, total_steps: 5, back_path: mobile_onboarding_location_path %>
+  <%= render "mobile/shared/screen_header", step_number: 3, total_steps: 5 %>
   <%= render "mobile/shared/form_errors", record: @onboarding_session %>
 
   <div class="mobile-screen__body">
