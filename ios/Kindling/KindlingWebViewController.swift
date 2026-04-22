@@ -4,6 +4,10 @@ import UIKit
 final class KindlingWebViewController: HotwireWebViewController {
   override func viewDidLoad() {
     super.viewDidLoad()
+    // Without this, iOS 15+ reserves a "large title" area beneath the
+    // compact nav bar for a title-text that we never set, leaving a
+    // big empty gap above page content. Force compact mode.
+    navigationItem.largeTitleDisplayMode = .never
     installBrandTitleView()
   }
 
