@@ -70,15 +70,40 @@ Commit order:
 
 **Four commits total.** Smaller than the earlier 6-commit plan because the whole RemoteConfigStore commit is gone — Hotwire's loader does that work.
 
-## Part 1 — Rails side [DONE]
+## Part 1 — Rails side [DONE, with one patch]
 
 Already executed. The artifacts landed in commit 1 (`fdf3f2f`):
 - `rails/config/mobile/path_configuration.json` with the seed ruleset.
-- `rails/app/controllers/mobile/config_controller.rb` — 8-line `#show` action with resource whitelist.
+- `rails/app/controllers/mobile/config_controller.rb` — short `#show` action with resource whitelist, rate-limited to 60/minute/IP.
 - Route: `get "config/:resource.json"` inside the `namespace :mobile` block, constrained to `resource: /[a-z_]+/`.
 - `test/controllers/mobile/config_controller_test.rb` with five request specs.
 
-Leave it. No changes needed for Option B.
+**Patch commit on top** (minor, applied before commit 2):
+- Widened seed JSON patterns to cover `/mobile/$` (root → `startup#index`) and the `/mobile/onboarding` index action. The original `/mobile/onboarding/.*` pattern missed the bare index because it required a trailing slash + something; replaced with `/mobile/onboarding(/.*)?$` which matches both.
+- Added `rate_limit to: 60, within: 1.minute` to `Mobile::ConfigController` — 3 lines, closes the "public unauthenticated disk-hitting endpoint with no DOS guard" concern.
+- Created `rails/planning/PRE_LAUNCH_TODO.md` with a single entry for adding `Cache-Control` headers before TestFlight. The current endpoint ships ETag + Last-Modified only, which works direct-to-Rails but leaves CDNs/proxies confused.
+
+Current seed JSON shape (canonical):
+
+```json
+{
+  "settings": { "screenshots_enabled": true },
+  "rules": [
+    { "patterns": ["/mobile/$", "/mobile/open$", "/mobile/intro$"],
+      "properties": { "context": "default", "presentation": "replace_root", "pull_to_refresh_enabled": false } },
+    { "patterns": ["/mobile/video-intro$", "/mobile/risk-questionnaire$"],
+      "properties": { "context": "default", "presentation": "push" } },
+    { "patterns": ["/mobile/onboarding(/.*)?$"],
+      "properties": { "context": "default", "presentation": "push" } },
+    { "patterns": ["/mobile/auth/secure-account$"],
+      "properties": { "context": "modal", "presentation": "default" } },
+    { "patterns": ["/mobile/dashboard$"],
+      "properties": { "context": "default", "presentation": "replace_root", "pull_to_refresh_enabled": true } },
+    { "patterns": ["/mobile/login$"],
+      "properties": { "context": "modal", "presentation": "default" } }
+  ]
+}
+```
 
 ## Part 2 — iOS shell scaffold
 
@@ -415,6 +440,8 @@ find ~/Library/Developer/Xcode/DerivedData -name "path-configuration.json" -path
 Two tests. Missing-rule catches the common bug (forgot to add a rule for a new route); byte-identity catches the other common bug (edited Rails-side, forgot to re-copy into iOS).
 
 ```ruby
+# Requires the ios/ directory to be present in the working tree — don't
+# exclude from CI checkouts if a future Rails-only Docker build lands.
 require "test_helper"
 
 class PathConfigurationDriftTest < ActiveSupport::TestCase
@@ -426,23 +453,29 @@ class PathConfigurationDriftTest < ActiveSupport::TestCase
       "Rails canonical and iOS bundled path_configuration.json have diverged. Re-copy the Rails file into the iOS target."
   end
 
-  test "every /mobile/* route has at least one matching path_configuration rule" do
+  test "every GET /mobile/* route has at least one matching path_configuration rule" do
     patterns = JSON.parse(CANONICAL.read).fetch("rules").flat_map { |r| r.fetch("patterns") }
     regexes = patterns.map { |p| Regexp.new(p) }
 
-    mobile_routes = Rails.application.routes.routes.map do |route|
-      route.path.spec.to_s.sub("(.:format)", "")
-    end.select { |path| path.start_with?("/mobile/") }
+    # Only GET routes need path-config rules. POST/PATCH/DELETE endpoints
+    # respond with redirects; the native shell path-configs the GET target,
+    # never the form-submit verb itself.
+    mobile_routes = Rails.application.routes.routes
+      .select { |r| r.verb == "GET" }
+      .map { |r| r.path.spec.to_s.sub("(.:format)", "") }
+      .select { |path| path.start_with?("/mobile/") }
 
-    # Exclude the config endpoint itself and its :resource placeholder —
-    # it's shell → server, not shell → user-facing page.
+    # Exclude the config endpoint itself — it's shell → server, not
+    # shell → user-facing page.
     mobile_routes -= ["/mobile/config/:resource.json", "/mobile/config/:resource"]
 
     unmatched = mobile_routes.reject { |path| regexes.any? { |re| path.match?(re) } }
-    assert unmatched.empty?, "These mobile routes have no matching path-config rule: #{unmatched.join(', ')}. Add a rule to rails/config/mobile/path_configuration.json (and ios/Kindling/path-configuration.json) in the same PR that added the route."
+    assert unmatched.empty?, "These GET /mobile/* routes have no matching path-config rule: #{unmatched.join(', ')}. Add a rule to rails/config/mobile/path_configuration.json (and ios/Kindling/path-configuration.json) in the same PR that added the route."
   end
 end
 ```
+
+**Why GET-only**: Hotwire Native's path configuration applies to VISIT events — Turbo navigating to a URL to render a page. Form submissions (POST/PATCH/DELETE) respond with a `303 See Other` redirect; the native shell sees the subsequent GET to the redirect target. Rules on the POST would never fire.
 
 **Known limitation — dynamic route segments**: the route-coverage test matches regex patterns against route specs as literal strings (e.g. `/mobile/person/:id`). Patterns like `/mobile/person/\d+$` won't match `/mobile/person/:id` literally. When a future epic adds a dynamic route, add its literal spec to the `mobile_routes -= [...]` subtraction list in the same PR.
 
@@ -451,6 +484,8 @@ end
 **Run**: `bin/rails test test/mobile/path_configuration_drift_test.rb` — expect 2 runs, 0 failures.
 
 ### 3.8 Simulator verification
+
+**Who runs this**: the **user**, after the agent commits commit 4. The agent cannot launch a simulator, tap the app, watch Rails logs in real time, or perform the edit-then-revert dance in step 8. If any step fails, the user reports back and the agent adjusts; do NOT have the agent "verify" this section.
 
 **Before any step below**: ensure Rails is running in another terminal. From `rails/`, run `bin/dev` and leave it up. The simulator cannot reach `http://localhost:3010` otherwise. If the simulator shows an error alert on cold-start, check the terminal running `bin/dev` before debugging anywhere else.
 

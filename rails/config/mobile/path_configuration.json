@@ -1,11 +1,11 @@
 {
   "settings": { "screenshots_enabled": true },
   "rules": [
-    { "patterns": ["/mobile/open$", "/mobile/intro$"],
+    { "patterns": ["/mobile/$", "/mobile/open$", "/mobile/intro$"],
       "properties": { "context": "default", "presentation": "replace_root", "pull_to_refresh_enabled": false } },
     { "patterns": ["/mobile/video-intro$", "/mobile/risk-questionnaire$"],
       "properties": { "context": "default", "presentation": "push" } },
-    { "patterns": ["/mobile/onboarding/.*"],
+    { "patterns": ["/mobile/onboarding(/.*)?$"],
       "properties": { "context": "default", "presentation": "push" } },
     { "patterns": ["/mobile/auth/secure-account$"],
       "properties": { "context": "modal", "presentation": "default" } },
