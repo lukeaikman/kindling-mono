@@ -21,7 +21,7 @@ Path-configuration is the first and only remote config Phase C needs. HotwireNat
 - Request specs for the controller — five tests. **DONE — landed in commit 1.**
 - New Xcode project at `ios/Kindling.xcodeproj` derived from the `Demo/` target inside `hotwired/hotwire-native-ios`. Bundle ID `app.kindling.ios`. Deployment target **iOS 16**.
 - `HotwireNative` Swift Package dependency, pinned to exactly **1.2.1**.
-- Two `.xcconfig` files (Dev, Release) + Info.plist placeholder + runtime read for the Rails origin.
+- Two `.xcconfig` files (Dev, Release) that set a Swift compile-time flag (`-D KINDLING_ORIGIN_DEV` / `-D KINDLING_ORIGIN_PROD`) per build configuration. `Origin.swift` resolves the origin at compile time via `#if`.
 - `AppDelegate.configureHotwire()` calls `Hotwire.loadPathConfiguration(from: [.file(bundledURL), .server(originURL)])`. That's the whole path-config integration — no custom cache, no custom validator.
 - `SceneController` instantiates a `Navigator`, routes to `/mobile/open`, hands `rootViewController` to the window.
 - Bundled `ios/Kindling/path-configuration.json` in the app target (byte-identical to the Rails canonical file).
@@ -66,7 +66,7 @@ Commit order:
 1. (agent) **DONE** — Rails canonical JSON + `Mobile::ConfigController` + endpoint tests. Sitting on `mobile-phase-c` as `fdf3f2f`.
 2. (agent) Clone `hotwired/hotwire-native-ios`'s `Demo/` into `ios/`, add `.gitignore`. Project still named "Demo" at this point.
 3. **(user, manual)** Xcode target rename Demo → Kindling, bundle ID → `app.kindling.ios`, deployment target → iOS 16. Includes creating the `KindlingTests` target if the demo doesn't ship one (it does — renamed from `DemoTests`, so usually no extra action). See §2.3.
-4. (agent) HotwireNative SPM pinned 1.2.1, `.xcconfig` files, Info.plist, `AppDelegate.configureHotwire()`, `SceneController` + `Navigator`, bundled `path-configuration.json` byte-identical to Rails canonical, Rails drift tests, simulator verification notes in the commit message.
+4. (agent) HotwireNative SPM pinned 1.2.1, `.xcconfig` files driving Swift compile-time flags, `Origin.swift`, `AppDelegate.configureHotwire()`, `SceneController` + `Navigator`, bundled `path-configuration.json` byte-identical to Rails canonical, Rails drift tests, simulator verification notes in the commit message.
 
 **Four commits total.** Smaller than the earlier 6-commit plan because the whole RemoteConfigStore commit is gone — Hotwire's loader does that work.
 
@@ -98,12 +98,37 @@ Part 2 spans commits 2 and 3.
 # 1. Clone the framework repo (demo lives inside it).
 git clone --depth 1 https://github.com/hotwired/hotwire-native-ios.git /tmp/hn-ios
 
-# 2. Copy the Demo target into ios/ — plain copy, not a nested git clone.
+# 2. Copy the Demo/ folder wholesale into ios/Kindling. The .xcodeproj
+# stays INSIDE the source folder — that's how the demo's pbxproj expects
+# its file references. Do NOT hoist the .xcodeproj up a level; doing so
+# breaks every file reference in the project and you'll open Xcode to a
+# sea of red "file not found" markers.
 mkdir -p ios
 cp -R /tmp/hn-ios/Demo ios/Kindling
-cp -R /tmp/hn-ios/Demo/Demo.xcodeproj ios/Kindling.xcodeproj
-rm -rf ios/Kindling/Demo.xcodeproj   # the xcodeproj was inside Demo/; we hoisted it, remove the nested copy
 rm -rf /tmp/hn-ios
+```
+
+Resulting structure:
+
+```
+ios/
+  .gitignore                          (added in §2.2)
+  Kindling/
+    AppDelegate.swift                 (rewritten in §3.4)
+    SceneController.swift             (rewritten in §3.5)
+    Tabs.swift                        (deleted in §3.5)
+    Demo.swift                        (deleted in §3.5)
+    NumbersViewController.swift       (deleted in §3.5)
+    Origin.swift                      (new in §3.3)
+    Config/                           (new in §3.2)
+      Dev.xcconfig
+      Release.xcconfig
+    Demo.xcodeproj/                   (renamed to Kindling.xcodeproj in §2.3 by user)
+    Info.plist                        (unchanged — the demo's plist ships fine)
+    path-configuration.json           (overwritten in §3.6 with Rails canonical)
+    Assets.xcassets/
+    Base.lproj/
+    Bridge/                           (demo bridge-component helpers — leave for now)
 ```
 
 The project is still named "Demo" internally at this point. The user renames it in §2.3; don't pre-empt.
@@ -197,6 +222,12 @@ Both must pass, or commit 4's simulator tests won't have anywhere to run.
 
 All of this lands in commit 4. Single agent commit.
 
+**Xcode project structure — check before starting.** Xcode 15+ supports "synchronized folders" (auto-include on-disk files into the target); older projects use explicit "groups" where every file is added to the project manually. The Hotwire demo uses the modern style, so the commands in this part assume **synchronized folders**: placing a `.swift` or `.json` file on disk inside `ios/Kindling/` automatically adds it to the `Kindling` target. Deleting a file with `rm` automatically removes the Xcode reference.
+
+**Verify before commit 4**: open `ios/Kindling.xcodeproj` in Xcode once. The Project Navigator should show folders as blue icons (synchronized) rather than yellow icons (legacy groups). If you see yellow folders, STOP and report back — legacy groups turn every "create a new Swift file" into a manual Xcode UI step, and the plan doesn't account for that. The user may need to migrate the project to synchronized folders first (File → File Options → Convert to Group, then add the folder as a Synchronized Folder — a minute's work).
+
+Assuming synchronized folders throughout the rest of Part 3.
+
 ### 3.1 `HotwireNative` Swift Package dependency
 
 Open `ios/Kindling.xcodeproj` in Xcode. File → Add Package Dependencies…:
@@ -215,39 +246,36 @@ grep '"version" : "1.2.1"' ios/Kindling.xcodeproj/project.xcworkspace/xcsharedda
 
 Must return a match.
 
-### 3.2 Origin configuration via `.xcconfig`
+### 3.2 Origin configuration via `.xcconfig` + Swift compile-time flag
+
+**Why not Info.plist interpolation**: interpolating `$(VAR)` into Info.plist requires `INFOPLIST_PREPROCESS = YES` or similar Xcode build setting. Not default on all templates, and silent failure looks like "the app crashes on launch with a fatalError" with no obvious cause. Using a Swift compile-time flag (`#if KINDLING_ORIGIN_DEV`) driven from xcconfig sidesteps the whole class of Info.plist-interpolation gotchas, catches misconfiguration at COMPILE time via `#error`, and is equally extensible when Phase E adds a staging flag.
 
 **Files** (new):
 
 `ios/Kindling/Config/Dev.xcconfig`:
 
 ```
-// Dev points at the Rails dev server. Port 3010 matches rails/config/environments/development.rb
-// action_mailer.default_url_options. The $() escapes the // sequence so xcconfig doesn't read it
-// as a comment.
-KINDLING_ORIGIN = http:/$()/localhost:3010
+// Dev build points at the Rails dev server. Port 3010 matches
+// rails/config/environments/development.rb action_mailer.default_url_options.
+// $(inherited) preserves any flags Xcode already injects.
+OTHER_SWIFT_FLAGS = $(inherited) -D KINDLING_ORIGIN_DEV
 ```
 
 `ios/Kindling/Config/Release.xcconfig`:
 
 ```
-KINDLING_ORIGIN = https:/$()/kindling.app
-```
-
-**Info.plist** — add one entry under `ios/Kindling/Info.plist`:
-
-```xml
-<key>KindlingOrigin</key>
-<string>$(KINDLING_ORIGIN)</string>
+OTHER_SWIFT_FLAGS = $(inherited) -D KINDLING_ORIGIN_PROD
 ```
 
 **Xcode build configuration wiring**: Project → Info → Configurations. Set:
 - Debug → Based on `Dev.xcconfig`
 - Release → Based on `Release.xcconfig`
 
-One scheme, two build configurations. Running with Cmd-R picks Debug → Dev origin. Archive picks Release → production origin.
+One scheme, two build configurations. Cmd-R picks Debug → Dev origin. Archive picks Release → production origin. Debug build pointed at production is still possible (e.g. for a real-device test of the production origin) by temporarily swapping the base xcconfig on Debug — no Swift edit needed.
 
-### 3.3 `Origin.swift` — runtime origin lookup
+**No Info.plist entry for the origin.** The URL lives in Swift, guarded by the compile flag. Nothing to interpolate.
+
+### 3.3 `Origin.swift` — compile-time origin resolution
 
 **File**: `ios/Kindling/Origin.swift` (new).
 
@@ -255,17 +283,19 @@ One scheme, two build configurations. Running with Cmd-R picks Debug → Dev ori
 import Foundation
 
 enum Origin {
-  static var rails: URL {
-    guard
-      let raw = Bundle.main.object(forInfoDictionaryKey: "KindlingOrigin") as? String,
-      let url = URL(string: raw)
-    else { fatalError("KindlingOrigin Info.plist key missing or malformed") }
-    return url
-  }
+  static let rails: URL = {
+    #if KINDLING_ORIGIN_DEV
+    return URL(string: "http://localhost:3010")!
+    #elseif KINDLING_ORIGIN_PROD
+    return URL(string: "https://kindling.app")!
+    #else
+    #error("No origin flag set. Check Dev.xcconfig / Release.xcconfig contains -D KINDLING_ORIGIN_DEV or -D KINDLING_ORIGIN_PROD.")
+    #endif
+  }()
 }
 ```
 
-`fatalError` is the right response: a missing origin is a build-misconfiguration bug, caught on first launch.
+`#error` halts compilation if neither flag is set — a misconfigured build doesn't ship. `URL(string:)!` force-unwraps are safe because the inputs are compile-time constants the Swift team maintains.
 
 ### 3.4 `AppDelegate.swift` — configureHotwire
 
@@ -348,7 +378,9 @@ final class SceneController: UIResponder, UIWindowSceneDelegate {
 }
 ```
 
-**Delete** `ios/Kindling/Tabs.swift` and `ios/Kindling/Demo.swift` — they're demo-specific tab-bar helpers we don't use. Remove their Target Membership from the Xcode project when deleting the files.
+**Delete** `ios/Kindling/Tabs.swift` and `ios/Kindling/Demo.swift` — they're demo-specific tab-bar helpers we don't use. Under synchronized folders, plain `rm ios/Kindling/Tabs.swift ios/Kindling/Demo.swift` is sufficient; Xcode auto-removes the references on next open. If the project turned out to use legacy groups (see the Part 3 preamble check), the deletion requires the Xcode UI (right-click → Delete → Move to Trash) to remove both file and project reference.
+
+Also: the demo's `NumbersViewController.swift` (a custom visitable registered via `NavigatorDelegate`) can go too — Phase C doesn't register any custom visitables. Same `rm` treatment.
 
 If the demo's original `SceneController` had `NavigatorDelegate` / `visitableDidFailRequest` handling, **remove it**. Phase H adds the real offline/error screen; Phase C relies on Hotwire's default error behavior (which is fine for the simulator walkthrough).
 
@@ -360,7 +392,16 @@ Copy `rails/config/mobile/path_configuration.json` to `ios/Kindling/path-configu
 cp rails/config/mobile/path_configuration.json ios/Kindling/path-configuration.json
 ```
 
-Add the file to the `Kindling` target's Copy Bundle Resources build phase in Xcode. Verify it's bundled:
+Under synchronized folders the file is automatically added to the `Kindling` target's Copy Bundle Resources phase. No Xcode UI step required. Under legacy groups, add via Xcode: File → Add Files to "Kindling"… → select the file → check "Copy items if needed" OFF → check Target `Kindling`. (See the Part 3 preamble about which mode the project is in.)
+
+Note: the demo shipped its own `path-configuration.json` inside `ios/Kindling/` when we cloned it in §2.1. The `cp` above overwrites it with ours. Confirm no stale copy remains:
+
+```bash
+ls ios/Kindling/path-configuration.json    # should be the file we just copied
+diff rails/config/mobile/path_configuration.json ios/Kindling/path-configuration.json   # empty
+```
+
+Verify it's bundled:
 
 ```bash
 # After a build, the file should be inside the .app bundle.
@@ -421,7 +462,7 @@ Record the following in the commit message, not in a separate doc:
 4. Navigate to `/mobile/auth/secure-account` from the wrap-up Continue button → presents MODALLY (sheet from bottom, grab handle, swipe-to-dismiss). Not a push.
 5. Navigate to `/mobile/login` → presents MODALLY.
 6. Open the simulator's Safari and visit the running Rails origin directly. Visual parity check: browser vs WKWebView should look identical.
-7. **Server path-config fetch fires**: with `bin/dev` running, open DevTools on the running Rails server (or `tail -f rails/log/development.log`) and watch for a `GET /mobile/config/path_configuration.json` hit shortly after app cold-start. That's Hotwire's `.server(...)` firing. Subsequent launches should see a 304 (ETag match) rather than a 200 — confirms the conditional GET caching works.
+7. **Server path-config fetch fires**: with `bin/dev` running, `tail -f rails/log/development.log` and watch for a `GET /mobile/config/path_configuration.json` hit shortly after app cold-start. That's Hotwire's `.server(...)` firing. The Rails-side response is 200 on every request — Hotwire's `PathConfigurationLoader.download(from:)` does NOT send `If-None-Match`, so Rails' `stale?` always returns true and serves the full body. URLSession's own HTTP cache may short-circuit between the network and the library transparently, but from our observation point, every cold-start is a 200. That's fine; the file is <1KB.
 8. **Malformed response guardrail**: edit the controller to return garbage, verify Hotwire ignores it, then `git checkout` to revert.
    ```bash
    # 1. Edit rails/app/controllers/mobile/config_controller.rb: change
@@ -445,10 +486,10 @@ Phase C commit 4 — HotwireNative wiring + bundled path-config + drift tests
 
 - HotwireNative Swift Package pinned to exact 1.2.1
   (Package.resolved verified).
-- Dev.xcconfig and Release.xcconfig expose KINDLING_ORIGIN
-  (http://localhost:3010 and https://kindling.app respectively),
-  interpolated into Info.plist as KindlingOrigin and read at runtime
-  by Origin.rails with a fatalError on misconfiguration.
+- Dev.xcconfig and Release.xcconfig set a Swift compile-time flag
+  (-D KINDLING_ORIGIN_DEV / -D KINDLING_ORIGIN_PROD) per build config.
+  Origin.swift resolves the URL at compile time via #if/#elseif with a
+  #error fallback. No Info.plist interpolation, no runtime lookup.
 - AppDelegate.configureHotwire() calls
   Hotwire.loadPathConfiguration(from: [.file(bundled), .server(origin)]).
   That's the whole path-config integration — no RemoteConfigStore, no
@@ -471,7 +512,7 @@ Phase C commit 4 — HotwireNative wiring + bundled path-config + drift tests
 - Simulator verification walked end-to-end per the plan. Splash
   replace_root, push on video-intro/onboarding, modal on
   secure-account/login — all behave as the path config dictates.
-  Server fetch + 304 cycle verified; malformed-response guardrail
+  Server fetch verified via Rails log; malformed-response guardrail
   verified (Hotwire's validation discards bad JSON).
 
 Phase C done criteria 1-7 satisfied. Ready for --no-ff merge to main.
