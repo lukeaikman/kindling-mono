@@ -1,37 +1,17 @@
 {
-  "settings": {
-    "enable_feature_x": true
-  },
+  "settings": { "screenshots_enabled": true },
   "rules": [
-    {
-      "patterns": [
-        "/new$",
-        "/edit$",
-        "/modal"
-      ],
-      "properties": {
-        "context": "modal",
-        "pull_to_refresh_enabled": false
-      },
-      "comment": "Present forms and custom modal path as modals."
-    },
-    {
-      "patterns": [
-        "/numbers$"
-      ],
-      "properties": {
-        "view_controller": "numbers"
-      },
-      "comment": "Intercept with a native view."
-    },
-    {
-      "patterns": [
-        "^/$"
-      ],
-      "properties": {
-        "presentation": "clear_all"
-      },
-      "comment": "Reset navigation stacks when visiting root page."
-    }
+    { "patterns": ["/mobile/$", "/mobile/open$", "/mobile/intro$"],
+      "properties": { "context": "default", "presentation": "replace_root", "pull_to_refresh_enabled": false } },
+    { "patterns": ["/mobile/video-intro$", "/mobile/risk-questionnaire$"],
+      "properties": { "context": "default", "presentation": "push" } },
+    { "patterns": ["/mobile/onboarding(/.*)?$"],
+      "properties": { "context": "default", "presentation": "push" } },
+    { "patterns": ["/mobile/auth/secure-account$"],
+      "properties": { "context": "modal", "presentation": "default" } },
+    { "patterns": ["/mobile/dashboard$"],
+      "properties": { "context": "default", "presentation": "replace_root", "pull_to_refresh_enabled": true } },
+    { "patterns": ["/mobile/login$"],
+      "properties": { "context": "modal", "presentation": "default" } }
   ]
 }

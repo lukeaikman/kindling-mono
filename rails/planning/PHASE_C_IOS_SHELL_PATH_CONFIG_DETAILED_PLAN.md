@@ -243,15 +243,16 @@ test -d ios/KindlingTests && grep -q "KindlingTests" ios/Kindling.xcodeproj/proj
 
 Both must pass, or commit 4's simulator tests won't have anywhere to run.
 
-## Part 3 — Hotwire wiring + bundled config + drift tests (commit 4)
+## Part 3 — Hotwire wiring + bundled config + drift tests
 
-All of this lands in commit 4. Single agent commit.
+**Xcode project structure — reality check.** The Hotwire demo ships with **legacy groups**, not synchronized folders, AND it colocates source files as siblings of the `.xcodeproj` rather than in a subfolder. That combination means Xcode's "Convert to Folder" won't work (no associated on-disk folder to sync with). We accept the demo's native pattern and proceed with legacy groups — file adds and deletes require Xcode UI actions by the user, not `cp`/`rm` by the agent.
 
-**Xcode project structure — check before starting.** Xcode 15+ supports "synchronized folders" (auto-include on-disk files into the target); older projects use explicit "groups" where every file is added to the project manually. The Hotwire demo uses the modern style, so the commands in this part assume **synchronized folders**: placing a `.swift` or `.json` file on disk inside `ios/Kindling/` automatically adds it to the `Kindling` target. Deleting a file with `rm` automatically removes the Xcode reference.
+**This splits commit 4 into two user-involved pieces:**
 
-**Verify before commit 4**: open `ios/Kindling.xcodeproj` in Xcode once. The Project Navigator should show folders as blue icons (synchronized) rather than yellow icons (legacy groups). If you see yellow folders, STOP and report back — legacy groups turn every "create a new Swift file" into a manual Xcode UI step, and the plan doesn't account for that. The user may need to migrate the project to synchronized folders first (File → File Options → Convert to Group, then add the folder as a Synchronized Folder — a minute's work).
+- **Commit 4a (agent)**: write Swift files, xcconfigs, drift test, and overwritten bundled JSON to disk. Rails tests run. The iOS target won't yet reference the new files (they're invisible to Xcode), and won't yet miss the deleted files (those are still referenced but contain obsolete code).
+- **Commit 4b (user)**: in Xcode, add the three new Swift files + xcconfigs to the Kindling target, delete the three now-dead files, add HotwireNative 1.2.1 as an SPM dependency, wire Dev.xcconfig and Release.xcconfig as the base config for Debug and Release build configurations. Build. Simulator verification in §3.8.
 
-Assuming synchronized folders throughout the rest of Part 3.
+Agent cannot do 4b because every step is an Xcode GUI action. Splitting the user's Xcode work into its own commit keeps the pbxproj diff attributable and separable from the agent's Swift authorship.
 
 ### 3.1 `HotwireNative` Swift Package dependency
 
@@ -403,11 +404,15 @@ final class SceneController: UIResponder, UIWindowSceneDelegate {
 }
 ```
 
-**Delete** `ios/Kindling/Tabs.swift` and `ios/Kindling/Demo.swift` — they're demo-specific tab-bar helpers we don't use. Under synchronized folders, plain `rm ios/Kindling/Tabs.swift ios/Kindling/Demo.swift` is sufficient; Xcode auto-removes the references on next open. If the project turned out to use legacy groups (see the Part 3 preamble check), the deletion requires the Xcode UI (right-click → Delete → Move to Trash) to remove both file and project reference.
+**Delete three demo files (user, commit 4b)**:
 
-Also: the demo's `NumbersViewController.swift` (a custom visitable registered via `NavigatorDelegate`) can go too — Phase C doesn't register any custom visitables. Same `rm` treatment.
+- `ios/Kindling/Tabs.swift` — tab-bar helper we don't use.
+- `ios/Kindling/Demo.swift` — demo origin struct (replaced by our `Origin.swift` in §3.3).
+- `ios/Kindling/NumbersViewController.swift` — custom visitable registered via `NavigatorDelegate`; Phase C doesn't register any.
 
-If the demo's original `SceneController` had `NavigatorDelegate` / `visitableDidFailRequest` handling, **remove it**. Phase H adds the real offline/error screen; Phase C relies on Hotwire's default error behavior (which is fine for the simulator walkthrough).
+In Xcode: right-click each file in the Project Navigator → **Delete** → **Move to Trash**. The "Move to Trash" option removes both the on-disk file AND the pbxproj reference in one step. Do NOT `rm` from the command line — that leaves a dangling reference in the project file that breaks the build.
+
+If the demo's original `SceneController` had `NavigatorDelegate` / `visitableDidFailRequest` handling referencing `NumbersViewController.pathConfigurationIdentifier`, delete those lines when rewriting (§3.5 shows the correct file content). Phase H adds the real offline/error screen; Phase C relies on Hotwire's default error behavior.
 
 ### 3.6 Bundled `path-configuration.json`
 
@@ -417,19 +422,18 @@ Copy `rails/config/mobile/path_configuration.json` to `ios/Kindling/path-configu
 cp rails/config/mobile/path_configuration.json ios/Kindling/path-configuration.json
 ```
 
-Under synchronized folders the file is automatically added to the `Kindling` target's Copy Bundle Resources phase. No Xcode UI step required. Under legacy groups, add via Xcode: File → Add Files to "Kindling"… → select the file → check "Copy items if needed" OFF → check Target `Kindling`. (See the Part 3 preamble about which mode the project is in.)
+Since the demo shipped its own `path-configuration.json` inside `ios/Kindling/` when we cloned in §2.1, that file is ALREADY registered in the Xcode target. The `cp` above just overwrites its content with ours. No Xcode UI action needed for this file.
 
-Note: the demo shipped its own `path-configuration.json` inside `ios/Kindling/` when we cloned it in §2.1. The `cp` above overwrites it with ours. Confirm no stale copy remains:
+Confirm no stale copy or divergence:
 
 ```bash
 ls ios/Kindling/path-configuration.json    # should be the file we just copied
 diff rails/config/mobile/path_configuration.json ios/Kindling/path-configuration.json   # empty
 ```
 
-Verify it's bundled:
+Verify it's bundled (after the user's Xcode build in commit 4b):
 
 ```bash
-# After a build, the file should be inside the .app bundle.
 find ~/Library/Developer/Xcode/DerivedData -name "path-configuration.json" -path "*/Kindling.app/*"
 ```
 
