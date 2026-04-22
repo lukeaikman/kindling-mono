@@ -53,7 +53,7 @@
 		844BA77E2B9A4843008F48DB = {
 			isa = PBXGroup;
 			children = (
-				844BA7892B9A4843008F48DB /* Demo */,
+				844BA7892B9A4843008F48DB /* Kindling */,
 				844BA7882B9A4843008F48DB /* Products */,
 				8458F3EC2BD8135600867B66 /* Frameworks */,
 			);
@@ -67,7 +67,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		844BA7892B9A4843008F48DB /* Demo */ = {
+		844BA7892B9A4843008F48DB /* Kindling */ = {
 			isa = PBXGroup;
 			children = (
 				844BA7BA2B9A4893008F48DB /* Bridge */,
@@ -81,7 +81,7 @@
 				844BA7932B9A4844008F48DB /* Assets.xcassets */,
 				844BA7952B9A4844008F48DB /* LaunchScreen.storyboard */,
 			);
-			name = Demo;
+			name = Kindling;
 			sourceTree = "<group>";
 		};
 		844BA7BA2B9A4893008F48DB /* Bridge */ = {
