@@ -30,6 +30,12 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
       .server(serverConfig)
     ])
 
+    // Every visitable is a KindlingWebViewController so the Kindling logo
+    // renders in the nav bar titleView. No NavigatorDelegate needed.
+    Hotwire.config.defaultViewController = { url in
+      KindlingWebViewController(url: url)
+    }
+
     #if DEBUG
     Hotwire.config.debugLoggingEnabled = true
     #endif
