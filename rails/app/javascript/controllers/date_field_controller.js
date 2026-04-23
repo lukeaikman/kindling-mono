@@ -1,8 +1,9 @@
 import { BridgeComponent } from "@hotwired/hotwire-native-bridge"
 
-// data-controller="date-field"
-// Targets: input (<input type="date">, transparent overlay), label (visible span)
-// Values: title (picker header), placeholder (label text when no date set)
+// data-controller="date-field" (applied to the <button> trigger)
+// Targets: input (hidden <input type="date"> holding the submit value),
+//          label (visible span)
+// Values: title (native picker header), placeholder (label text when blank)
 export default class extends BridgeComponent {
   static component = "date-picker"
   static targets = ["input", "label"]
@@ -13,18 +14,18 @@ export default class extends BridgeComponent {
     this.sync()
   }
 
-  // Bound to the input's click. In the shell, we intercept and open the
-  // native wheel. In a browser, we do NOT preventDefault — the browser's
-  // own date picker opens naturally because the input receives the tap.
   open(event) {
-    if (!this.enabled) return
-
     event.preventDefault()
-    this.#openNative()
+
+    if (this.enabled) {
+      this.#openNative()
+    } else {
+      this.#openBrowser()
+    }
   }
 
-  // Bound to the input's change event (browser path updates the value,
-  // native path assigns directly and dispatches change).
+  // Bound to the hidden input's change event (browser path after the
+  // browser date picker resolves, or native path via dispatchEvent).
   sync() {
     const iso = this.inputTarget.value
     this.labelTarget.textContent = iso ? this.#format(iso) : this.placeholderValue
@@ -43,6 +44,18 @@ export default class extends BridgeComponent {
       this.inputTarget.value = picked
       this.inputTarget.dispatchEvent(new Event("change", { bubbles: true }))
     })
+  }
+
+  #openBrowser() {
+    if (typeof this.inputTarget.showPicker === "function") {
+      try {
+        this.inputTarget.showPicker()
+        return
+      } catch (_error) {
+        // fall through to click fallback
+      }
+    }
+    this.inputTarget.click()
   }
 
   #format(iso) {

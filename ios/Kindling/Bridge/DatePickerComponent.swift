@@ -54,7 +54,7 @@ final class DatePickerComponent: BridgeComponent {
     private static let isoFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = TimeZone(identifier: "UTC")
+        f.timeZone = TimeZone.current
         f.dateFormat = "yyyy-MM-dd"
         return f
     }()
@@ -140,9 +140,8 @@ private final class DatePickerSheetViewController: UIViewController {
         doneButton.addAction(UIAction { [weak self] _ in
             guard let self else { return }
             let chosen = self.datePicker.date
-            self.dismiss(animated: true) { [onSelect = self.onSelect] in
-                onSelect(chosen)
-            }
+            self.onSelect(chosen)
+            self.dismiss(animated: true)
         }, for: .touchUpInside)
         view.addSubview(doneButton)
 
