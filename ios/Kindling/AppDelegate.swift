@@ -22,6 +22,8 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
   }
 
   private func configureHotwire() {
+    Hotwire.registerBridgeComponents([PickerComponent.self])
+
     let bundledConfig = Bundle.main.url(forResource: "path-configuration", withExtension: "json")!
     let serverConfig = Origin.rails.appendingPathComponent("mobile/config/path_configuration.json")
 
