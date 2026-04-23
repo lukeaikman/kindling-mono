@@ -78,5 +78,83 @@ module Mobile
       assert_response :success
       assert_select "[data-controller~='splash-redirect'][data-splash-redirect-url-value='#{mobile_onboarding_welcome_path}']"
     end
+
+    test "open with show_video=1 only routes to video-intro" do
+      get mobile_open_path(show_video: 1)
+
+      assert_redirected_to mobile_video_intro_path
+
+      onboarding_session = OnboardingSession.find_by!(token: read_signed_cookie(:mobile_onboarding_session_token))
+      assert_equal 1, onboarding_session.video_intro_version
+      assert_nil onboarding_session.risk_questionnaire_version
+    end
+
+    test "open with show_video=0 and show_risk_questionnaire=1 routes to risk-questionnaire" do
+      get mobile_open_path(show_video: 0, show_risk_questionnaire: 1)
+
+      assert_redirected_to mobile_risk_questionnaire_path
+
+      onboarding_session = OnboardingSession.find_by!(token: read_signed_cookie(:mobile_onboarding_session_token))
+      assert_nil onboarding_session.video_intro_version
+      assert_equal 1, onboarding_session.risk_questionnaire_version
+    end
+
+    test "open with both show flags and first_show=video routes to video-intro" do
+      get mobile_open_path(show_video: 1, show_risk_questionnaire: 1, first_show: "video")
+
+      assert_redirected_to mobile_video_intro_path
+
+      onboarding_session = OnboardingSession.find_by!(token: read_signed_cookie(:mobile_onboarding_session_token))
+      assert_equal "video", onboarding_session.first_show
+    end
+
+    test "open with negative show_video coerces to 1 and routes to video-intro" do
+      get mobile_open_path(show_video: -3)
+
+      assert_redirected_to mobile_video_intro_path
+
+      onboarding_session = OnboardingSession.find_by!(token: read_signed_cookie(:mobile_onboarding_session_token))
+      assert_equal 1, onboarding_session.video_intro_version
+    end
+
+    test "open with non-numeric show_video coerces to 1 and routes to video-intro" do
+      get mobile_open_path(show_video: "banana")
+
+      assert_redirected_to mobile_video_intro_path
+
+      onboarding_session = OnboardingSession.find_by!(token: read_signed_cookie(:mobile_onboarding_session_token))
+      assert_equal 1, onboarding_session.video_intro_version
+    end
+
+    test "open with unexpected first_show value defaults to video ordering" do
+      get mobile_open_path(show_video: 1, show_risk_questionnaire: 1, first_show: "drop_tables")
+
+      assert_redirected_to mobile_video_intro_path
+
+      onboarding_session = OnboardingSession.find_by!(token: read_signed_cookie(:mobile_onboarding_session_token))
+      assert_equal "video", onboarding_session.first_show
+    end
+
+    test "open with empty-string params uses organic defaults" do
+      get mobile_open_path(source: "", campaign: "", show_video: "", show_risk_questionnaire: "")
+
+      assert_redirected_to mobile_video_intro_path
+
+      onboarding_session = OnboardingSession.find_by!(token: read_signed_cookie(:mobile_onboarding_session_token))
+      assert_equal 1, onboarding_session.video_intro_version
+      assert_nil onboarding_session.risk_questionnaire_version
+      assert onboarding_session.attribution_source.blank?
+    end
+
+    test "open with oversized source param persists verbatim without error" do
+      big_source = "x" * 2048
+
+      get mobile_open_path(source: big_source, show_video: 1)
+
+      assert_redirected_to mobile_video_intro_path
+
+      onboarding_session = OnboardingSession.find_by!(token: read_signed_cookie(:mobile_onboarding_session_token))
+      assert_equal big_source, onboarding_session.attribution_source
+    end
   end
 end
