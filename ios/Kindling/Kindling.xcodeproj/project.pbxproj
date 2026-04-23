@@ -16,7 +16,7 @@
 		F0049EE42F98E64500C16388 /* HotwireNative in Frameworks */ = {isa = PBXBuildFile; productRef = F0049EE32F98E64500C16388 /* HotwireNative */; };
 		F0049EE62F98E73200C16388 /* Origin.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0049EE52F98E73200C16388 /* Origin.swift */; };
 		F0049EEA2F99054500C16388 /* KindlingWebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0049EE92F99054500C16388 /* KindlingWebViewController.swift */; };
-		F02172672F9A53060069AA66 /* PickerComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F02172662F9A53060069AA66 /* PickerComponent.swift */; };
+		F02172692F9A5B610069AA66 /* DatePickerComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F02172682F9A5B610069AA66 /* DatePickerComponent.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,7 +32,7 @@
 		F0049EE72F98E78100C16388 /* Dev.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Dev.xcconfig; path = Config/Dev.xcconfig; sourceTree = "<group>"; };
 		F0049EE82F98E78100C16388 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Config/Release.xcconfig; sourceTree = "<group>"; };
 		F0049EE92F99054500C16388 /* KindlingWebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KindlingWebViewController.swift; sourceTree = "<group>"; };
-		F02172662F9A53060069AA66 /* PickerComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickerComponent.swift; sourceTree = "<group>"; };
+		F02172682F9A5B610069AA66 /* DatePickerComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatePickerComponent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -86,7 +86,7 @@
 		844BA7BA2B9A4893008F48DB /* Bridge */ = {
 			isa = PBXGroup;
 			children = (
-				F02172662F9A53060069AA66 /* PickerComponent.swift */,
+				F02172682F9A5B610069AA66 /* DatePickerComponent.swift */,
 			);
 			path = Bridge;
 			sourceTree = "<group>";
@@ -177,8 +177,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F02172672F9A53060069AA66 /* PickerComponent.swift in Sources */,
 				844BA78B2B9A4843008F48DB /* AppDelegate.swift in Sources */,
+				F02172692F9A5B610069AA66 /* DatePickerComponent.swift in Sources */,
 				F0049EEA2F99054500C16388 /* KindlingWebViewController.swift in Sources */,
 				F0049EE62F98E73200C16388 /* Origin.swift in Sources */,
 				844BA7B02B9A488A008F48DB /* SceneController.swift in Sources */,

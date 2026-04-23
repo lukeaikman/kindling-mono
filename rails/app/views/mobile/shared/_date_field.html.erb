@@ -11,21 +11,17 @@
     data-controller="date-field"
     data-date-field-title-value="<%= picker_title %>"
     data-date-field-placeholder-value="<%= placeholder_text %>">
+    <div class="mobile-input mobile-date__display">
+      <span class="mobile-date__label is-placeholder" data-date-field-target="label"><%= placeholder_text %></span>
+    </div>
+
     <%= date_field_tag field_name,
       value_iso,
       id: select_id,
       class: "mobile-date__input",
       min: min_iso,
       max: max_iso,
-      data: { date_field_target: "input", action: "change->date-field#sync" } %>
-
-    <button type="button"
-      class="mobile-input mobile-date__trigger"
-      data-action="click->date-field#open"
-      data-date-field-target="trigger"
-      aria-labelledby="<%= select_id %>_label">
-      <span class="mobile-date__label" data-date-field-target="label"><%= placeholder_text %></span>
-    </button>
+      data: { date_field_target: "input", action: "click->date-field#open change->date-field#sync" } %>
   </div>
 <% end %>
 

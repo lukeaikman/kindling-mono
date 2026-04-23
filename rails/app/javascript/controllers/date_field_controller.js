@@ -1,11 +1,11 @@
 import { BridgeComponent } from "@hotwired/hotwire-native-bridge"
 
 // data-controller="date-field"
-// Targets: input (hidden <input type="date">), trigger (button), label (span inside button)
+// Targets: input (<input type="date">, transparent overlay), label (visible span)
 // Values: title (picker header), placeholder (label text when no date set)
 export default class extends BridgeComponent {
   static component = "date-picker"
-  static targets = ["input", "trigger", "label"]
+  static targets = ["input", "label"]
   static values = { title: String, placeholder: String }
 
   connect() {
@@ -13,17 +13,18 @@ export default class extends BridgeComponent {
     this.sync()
   }
 
+  // Bound to the input's click. In the shell, we intercept and open the
+  // native wheel. In a browser, we do NOT preventDefault — the browser's
+  // own date picker opens naturally because the input receives the tap.
   open(event) {
-    event.preventDefault()
+    if (!this.enabled) return
 
-    if (this.enabled) {
-      this.#openNative()
-    } else {
-      this.#openBrowser()
-    }
+    event.preventDefault()
+    this.#openNative()
   }
 
-  // Bound to the hidden input's change event (browser path).
+  // Bound to the input's change event (browser path updates the value,
+  // native path assigns directly and dispatches change).
   sync() {
     const iso = this.inputTarget.value
     this.labelTarget.textContent = iso ? this.#format(iso) : this.placeholderValue
@@ -42,15 +43,6 @@ export default class extends BridgeComponent {
       this.inputTarget.value = picked
       this.inputTarget.dispatchEvent(new Event("change", { bubbles: true }))
     })
-  }
-
-  #openBrowser() {
-    if (typeof this.inputTarget.showPicker === "function") {
-      this.inputTarget.showPicker()
-    } else {
-      this.inputTarget.focus()
-      this.inputTarget.click()
-    }
   }
 
   #format(iso) {

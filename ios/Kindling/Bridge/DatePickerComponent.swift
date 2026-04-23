@@ -41,7 +41,7 @@ final class DatePickerComponent: BridgeComponent {
         }
 
         if let sheet = picker.sheetPresentationController {
-            sheet.detents = [.medium()]
+            sheet.detents = [.custom(identifier: .init("datePickerCompact")) { _ in 370 }]
             sheet.prefersGrabberVisible = true
             sheet.preferredCornerRadius = 16
         }
