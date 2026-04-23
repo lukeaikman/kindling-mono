@@ -27,12 +27,15 @@ module Mobile
 
       find_or_create_onboarding_session!
       touch_onboarding_session!
-      onboarding_session.apply_startup_attribution!(
+      first_touch = onboarding_session.apply_startup_attribution!(
         params.permit(:source, :campaign, :location_id, :show_video, :show_risk_questionnaire, :first_show).to_h.symbolize_keys,
         raw_url: request.original_url
       )
 
-      redirect_to mobile_entry_destination, allow_other_host: false
+      destination = mobile_entry_destination
+      Rails.logger.info "[mobile.startup] open session=#{onboarding_session.id} first_touch=#{first_touch} source=#{onboarding_session.attribution_source.inspect} destination=#{destination}"
+
+      redirect_to destination, allow_other_host: false
     end
 
     def intro
