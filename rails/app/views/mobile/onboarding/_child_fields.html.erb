@@ -15,12 +15,6 @@
 <% end %>
 
 <%
-  dob_body = capture do
-%>
-  <%= date_field_tag "onboarding_session[children_payload][#{child_index}][date_of_birth]", child["date_of_birth"], class: "mobile-input" %>
-<% end %>
-
-<%
   guardian_details_body = capture do
 %>
   <div class="mobile-inline-grid">
@@ -48,9 +42,14 @@
 
   <%= child_name_body %>
 
-  <%= render "mobile/shared/form_row",
+  <%= render "mobile/shared/date_field",
+    field_name: "onboarding_session[children_payload][#{child_index}][date_of_birth]",
+    id_prefix: "child_#{child_index}_date_of_birth",
     label: "Date of birth (optional)",
-    body: dob_body %>
+    value: child["date_of_birth"],
+    placeholder: "Select date of birth",
+    min: (Date.current - 100.years),
+    max: Date.current %>
 
   <%= render "mobile/shared/picker_field",
     field_name: "onboarding_session[children_payload][#{child_index}][relationship]",

@@ -1,0 +1,28 @@
+.mobile-date {
+  display: grid;
+}
+
+.mobile-date__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mobile-date__trigger {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-date__label.is-placeholder {
+  color: var(--mobile-color-text-muted);
+}
