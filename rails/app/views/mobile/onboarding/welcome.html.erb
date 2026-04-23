@@ -25,11 +25,15 @@
         for_id: "onboarding_session_last_name",
         body: capture { form.text_field :last_name, class: "mobile-input", autocomplete: "family-name" } %>
 
-      <%= render "mobile/shared/form_row",
+      <%= render "mobile/shared/date_field",
+        field_name: "onboarding_session[date_of_birth]",
+        id_prefix: "onboarding_session_date_of_birth",
         label: "Date of birth",
         hint: "At the moment this flow supports people aged 18 to 90.",
-        for_id: "onboarding_session_date_of_birth",
-        body: capture { form.date_field :date_of_birth, class: "mobile-input" } %>
+        value: @onboarding_session.date_of_birth,
+        placeholder: "Select your date of birth",
+        min: (Date.current - 120.years),
+        max: (Date.current - 16.years) %>
     </div>
 
     <div class="mobile-actions">

@@ -1,0 +1,52 @@
+<%
+  select_id = (local_assigns[:id_prefix].presence || field_name.gsub(/[^a-zA-Z0-9]+/, "_").gsub(/\A_|_\z/, ""))
+  placeholder_text = local_assigns[:placeholder] || "Select a date"
+  value_iso = value.is_a?(Date) ? value.iso8601 : value.presence
+  min_iso = local_assigns[:min].present? ? (local_assigns[:min].respond_to?(:iso8601) ? local_assigns[:min].iso8601 : local_assigns[:min]) : nil
+  max_iso = local_assigns[:max].present? ? (local_assigns[:max].respond_to?(:iso8601) ? local_assigns[:max].iso8601 : local_assigns[:max]) : nil
+  picker_title = local_assigns[:picker_title] || label
+  desktop_dev_loop = !request.user_agent.to_s.match?(/Mobile|iPhone|iPad|iPod|Android/i)
+%>
+
+<% if desktop_dev_loop %>
+  <%= render "mobile/shared/form_row",
+    label: label,
+    hint: local_assigns[:hint],
+    for_id: select_id,
+    body: capture {
+      date_field_tag field_name,
+        value_iso,
+        id: select_id,
+        class: "mobile-input",
+        min: min_iso,
+        max: max_iso
+    } %>
+<% else %>
+  <%
+    date_control = capture do
+  %>
+    <button type="button"
+      class="mobile-input mobile-date"
+      data-controller="date-field"
+      data-action="click->date-field#open"
+      data-date-field-title-value="<%= picker_title %>"
+      data-date-field-placeholder-value="<%= placeholder_text %>">
+      <span class="mobile-date__label is-placeholder" data-date-field-target="label"><%= placeholder_text %></span>
+      <%= date_field_tag field_name,
+        value_iso,
+        id: select_id,
+        class: "mobile-date__input",
+        min: min_iso,
+        max: max_iso,
+        tabindex: -1,
+        aria: { hidden: true },
+        data: { date_field_target: "input", action: "change->date-field#sync" } %>
+    </button>
+  <% end %>
+
+  <%= render "mobile/shared/form_row",
+    label: label,
+    hint: local_assigns[:hint],
+    for_id: select_id,
+    body: date_control %>
+<% end %>

@@ -8,6 +8,7 @@
  *= require mobile/components/form_row
  *= require mobile/components/choice_group
  *= require mobile/components/picker_field
+ *= require mobile/components/date_field
  *= require mobile/components/sticky_actions
  *= require mobile/components/callout
  *= require mobile/components/repeater_card
