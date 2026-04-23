@@ -10,7 +10,7 @@ Commit 1 shipped a working `PickerComponent` bridge for list pickers. Simulator 
 
 - Brand web overlay for all list pickers. Unchanged from before Phase F.
 - Native `UIDatePicker` wheel (3 drums — day/month/year) presented in a medium-detent bottom sheet for every date field in the mobile flow.
-- Web fallback for dates: the browser's native `<input type="date">` picker (via `input.showPicker()`). Same `YYYY-MM-DD` submit value, same validations.
+- Desktop browser (bin/dev dev loop): plain `<input type="date">` rendered straight by the Rails partial — no bridge, no button, no controller. Just a working `YYYY-MM-DD` input. The partial branches on user-agent; real users never hit this path because every mobile request goes through the Hotwire Native shell.
 - One new partial — `mobile/shared/date_field` — used for every date input going forward.
 
 ## What we ship in this commit (commit 2 on `mobile-phase-f`)
@@ -24,7 +24,7 @@ Commit 1 shipped a working `PickerComponent` bridge for list pickers. Simulator 
 ### New — Rails side
 
 - `rails/app/views/mobile/shared/_date_field.html.erb` — new partial. Hidden `<input type="date">` for form submit; visible trigger button; Stimulus controller `date-field`.
-- `rails/app/javascript/controllers/date_field_controller.js` — new. Extends `BridgeComponent`, component name `"date-picker"`. On trigger tap: sends `{title, value, minDate, maxDate}` to native when enabled; otherwise calls `input.showPicker()`.
+- `rails/app/javascript/controllers/date_field_controller.js` — new. Extends `BridgeComponent`, component name `"date-picker"`. On trigger tap: sends `{title, value, minDate, maxDate}` to native. Only mounts in the mobile context (desktop renders a plain input, skipping the controller entirely).
 - `rails/app/views/mobile/onboarding/welcome.html.erb` — DOB field switches from `form.date_field` to the new partial.
 - `rails/app/views/mobile/onboarding/_child_fields.html.erb` — child DOB switches from `date_field_tag` to the new partial.
 
@@ -88,17 +88,18 @@ The list pickers must NOT present native sheets anymore.
 4. Year range: today − 100 to today.
 5. Pick a date, tap Done. Sheet dismisses. Label reflects the chosen date.
 
-### Scenario 4 — browser fallback
+### Scenario 4 — desktop browser dev loop
 
-1. `bin/dev`, visit `/mobile/onboarding/welcome` in Chrome or Safari.
-2. Tap the DOB field. Browser's native date picker appears (NOT the wheel — we don't emulate the wheel in browser).
-3. Select a date. Field label updates to "23 Apr 1992" format.
+1. `bin/dev`, visit `/mobile/onboarding/welcome` in desktop Chrome.
+2. The partial detects a non-mobile user-agent and renders a plain `<input type="date">` instead of the bridge-trigger button.
+3. Click the input → Chrome's native date picker opens.
+4. Select a date, submit the form — Rails persists it normally.
 
-If browser behavior differs (e.g. nothing happens on tap in Firefox), that's a `showPicker()` compatibility note for follow-up, not a blocker. Chrome and Safari support it.
+No bridge involvement on desktop. This path exists purely to keep the `bin/dev` iteration loop working when a developer is tweaking ERB/CSS on their laptop. Real users never see it; every mobile request comes through the Hotwire Native shell which falls into the mobile branch of the partial.
 
 ## Things not to do
 
-**Don't match the native wheel visually in browser.** The browser path uses `input.showPicker()` and whatever the browser provides. Faking a wheel with JS is a 400-line detour.
+**Don't polish the desktop dev-loop experience.** Desktop gets a plain `<input type="date">` — whatever the browser renders natively. Real users are always on the Hotwire Native shell. Any time spent making the desktop path look fancy is time stolen from shell work.
 
 **Don't add "today" / "yesterday" shortcut buttons.** Wheels suffice. Shortcuts later, if product asks.
 

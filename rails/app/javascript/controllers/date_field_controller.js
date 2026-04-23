@@ -4,6 +4,10 @@ import { BridgeComponent } from "@hotwired/hotwire-native-bridge"
 // Targets: input (hidden <input type="date"> holding the submit value),
 //          label (visible span)
 // Values: title (native picker header), placeholder (label text when blank)
+//
+// Only rendered in the Hotwire Native mobile context. Desktop browsers
+// (bin/dev dev loop) get a plain <input type="date"> from the partial
+// instead of this bridge-triggered button — no controller, no bridge.
 export default class extends BridgeComponent {
   static component = "date-picker"
   static targets = ["input", "label"]
@@ -16,23 +20,6 @@ export default class extends BridgeComponent {
 
   open(event) {
     event.preventDefault()
-
-    if (this.enabled) {
-      this.#openNative()
-    } else {
-      this.#openBrowser()
-    }
-  }
-
-  // Bound to the hidden input's change event (browser path after the
-  // browser date picker resolves, or native path via dispatchEvent).
-  sync() {
-    const iso = this.inputTarget.value
-    this.labelTarget.textContent = iso ? this.#format(iso) : this.placeholderValue
-    this.labelTarget.classList.toggle("is-placeholder", !iso)
-  }
-
-  #openNative() {
     this.send("display", {
       title: this.titleValue,
       value: this.inputTarget.value || null,
@@ -46,16 +33,10 @@ export default class extends BridgeComponent {
     })
   }
 
-  #openBrowser() {
-    if (typeof this.inputTarget.showPicker === "function") {
-      try {
-        this.inputTarget.showPicker()
-        return
-      } catch (_error) {
-        // fall through to click fallback
-      }
-    }
-    this.inputTarget.click()
+  sync() {
+    const iso = this.inputTarget.value
+    this.labelTarget.textContent = iso ? this.#format(iso) : this.placeholderValue
+    this.labelTarget.classList.toggle("is-placeholder", !iso)
   }
 
   #format(iso) {
