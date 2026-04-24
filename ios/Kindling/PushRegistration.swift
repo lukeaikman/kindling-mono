@@ -10,12 +10,9 @@ enum PushRegistration {
     /// registration. The resulting device token arrives on AppDelegate
     /// and is forwarded via `deliverToken(_:)`.
     static func requestAuthorizationAndRegister() {
-        print("[Push] requestAuthorizationAndRegister called")
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            print("[Push] auth result granted=\(granted) error=\(String(describing: error))")
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
             guard granted else { return }
             DispatchQueue.main.async {
-                print("[Push] calling registerForRemoteNotifications")
                 UIApplication.shared.registerForRemoteNotifications()
             }
         }

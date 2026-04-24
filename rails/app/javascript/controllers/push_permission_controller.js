@@ -9,7 +9,6 @@ export default class extends BridgeComponent {
 
   connect() {
     super.connect()
-    console.log("[Push] push_permission controller connected, enabled=", this.enabled)
     this.handler = this.#request.bind(this)
     this.element.addEventListener("click", this.handler)
   }
@@ -22,9 +21,7 @@ export default class extends BridgeComponent {
   }
 
   #request() {
-    console.log("[Push] push_permission click fired, enabled=", this.enabled)
     if (!this.enabled) return
     this.send("request-permission", {})
-    console.log("[Push] request-permission sent to native")
   }
 }

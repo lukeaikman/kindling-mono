@@ -27,7 +27,6 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    print("[Push] didRegister callback fired, token length=\(deviceToken.count)")
     PushRegistration.deliverToken(deviceToken)
   }
 
@@ -35,7 +34,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFailToRegisterForRemoteNotificationsWithError error: Error
   ) {
-    print("[Push] didFailToRegister: \(error.localizedDescription)")
+    print("[Push] APNs registration failed: \(error.localizedDescription)")
   }
 
   private func configureHotwire() {

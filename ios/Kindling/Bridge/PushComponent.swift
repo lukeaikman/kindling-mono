@@ -10,11 +10,7 @@ final class PushComponent: BridgeComponent {
     override class var name: String { "push" }
 
     override func onReceive(message: Message) {
-        print("[Push] bridge onReceive event=\(message.event)")
-        guard let event = Event(rawValue: message.event) else {
-            print("[Push] unknown event, ignoring")
-            return
-        }
+        guard let event = Event(rawValue: message.event) else { return }
 
         switch event {
         case .requestPermission:
