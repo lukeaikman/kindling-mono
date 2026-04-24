@@ -40,6 +40,9 @@ enum PushRegistration {
         var request = URLRequest(url: Origin.rails.appendingPathComponent("mobile/devices"))
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        // LocalTunnel gates non-browser requests behind a reminder page unless
+        // this header is set. No-op against ngrok or production.
+        request.setValue("true", forHTTPHeaderField: "Bypass-Tunnel-Reminder")
         request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
         request.httpShouldHandleCookies = true
 
