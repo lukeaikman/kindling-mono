@@ -21,10 +21,27 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     UISceneConfiguration(name: "Default", sessionRole: connectingSceneSession.role)
   }
 
+  // MARK: Remote notifications
+
+  func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    PushRegistration.deliverToken(deviceToken)
+  }
+
+  func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    print("[Push] APNs registration failed: \(error.localizedDescription)")
+  }
+
   private func configureHotwire() {
     Hotwire.registerBridgeComponents([
       DatePickerComponent.self,
-      HapticsComponent.self
+      HapticsComponent.self,
+      PushComponent.self
     ])
 
     let bundledConfig = Bundle.main.url(forResource: "path-configuration", withExtension: "json")!

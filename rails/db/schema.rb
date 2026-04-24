@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_10_095500) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_24_140455) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -29,6 +29,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_10_095500) do
     t.index ["refresh_expires_at"], name: "index_api_sessions_on_refresh_expires_at"
     t.index ["refresh_token_digest"], name: "index_api_sessions_on_refresh_token_digest", unique: true
     t.index ["user_id"], name: "index_api_sessions_on_user_id"
+  end
+
+  create_table "devices", force: :cascade do |t|
+    t.string "apns_token", null: false
+    t.datetime "created_at", null: false
+    t.datetime "last_registered_at", null: false
+    t.bigint "onboarding_session_id"
+    t.string "platform", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.string "vendor_id"
+    t.index ["apns_token"], name: "index_devices_on_apns_token", unique: true
+    t.index ["onboarding_session_id"], name: "index_devices_on_onboarding_session_id"
+    t.index ["user_id"], name: "index_devices_on_user_id"
+    t.index ["vendor_id"], name: "index_devices_on_vendor_id", unique: true
   end
 
   create_table "motor_alert_locks", force: :cascade do |t|
@@ -287,6 +302,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_10_095500) do
   end
 
   add_foreign_key "api_sessions", "users"
+  add_foreign_key "devices", "onboarding_sessions"
+  add_foreign_key "devices", "users"
   add_foreign_key "motor_alert_locks", "motor_alerts", column: "alert_id"
   add_foreign_key "motor_alerts", "motor_queries", column: "query_id"
   add_foreign_key "motor_note_tag_tags", "motor_note_tags", column: "tag_id"
