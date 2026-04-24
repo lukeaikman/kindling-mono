@@ -3,13 +3,7 @@ import UIKit
 
 final class SceneController: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
-
-    private lazy var navigator = Navigator(
-        configuration: Navigator.Configuration(
-            name: "main",
-            startLocation: Origin.rails.appendingPathComponent("mobile/open")
-        )
-    )
+    private var navigator: Navigator?
 
     func scene(
         _ scene: UIScene,
@@ -19,32 +13,55 @@ final class SceneController: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         let window = ShakeObservingWindow(windowScene: windowScene)
-        window.rootViewController = navigator.rootViewController
-        window.makeKeyAndVisible()
         self.window = window
+        buildAndAttachNavigator()
+        window.makeKeyAndVisible()
 
         #if KINDLING_ORIGIN_DEV
-        // Shake events flow up the responder chain from whatever is
-        // first-responder to the window. If nothing is first-responder
-        // (e.g. the Hotwire error screen), motion events are dropped
-        // before they reach the window. Claim first responder so the
-        // chain is always non-empty.
         window.becomeFirstResponder()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDevOriginUpdated),
+            name: .devOriginUpdated,
+            object: nil
+        )
 
         if shouldAutoShowChooser() {
-            // Physical device, no override saved — the compile-time
-            // localhost default can't work. Show the chooser before
-            // the navigator starts so the user configures a tunnel
-            // URL first, rather than staring at an error page.
-            presentChooserThenStartNavigator(on: window)
+            presentChooser(on: window)
             return
         }
         #endif
 
-        navigator.start()
+        navigator?.start()
+    }
+
+    private func buildAndAttachNavigator() {
+        let nav = Navigator(
+            configuration: Navigator.Configuration(
+                name: "main",
+                startLocation: Origin.rails.appendingPathComponent("mobile/open")
+            )
+        )
+        navigator = nav
+        window?.rootViewController = nav.rootViewController
     }
 
     #if KINDLING_ORIGIN_DEV
+    @objc private func handleDevOriginUpdated() {
+        // Reload path config against the new origin.
+        let bundledConfig = Bundle.main.url(forResource: "path-configuration", withExtension: "json")!
+        let serverConfig = Origin.rails.appendingPathComponent("mobile/config/path_configuration.json")
+        Hotwire.loadPathConfiguration(from: [
+            .file(bundledConfig),
+            .server(serverConfig)
+        ])
+
+        // Rebuild the navigator so its startLocation captures the
+        // fresh Origin.rails, then swap it in as the window root.
+        buildAndAttachNavigator()
+        navigator?.start()
+    }
+
     private func shouldAutoShowChooser() -> Bool {
         #if targetEnvironment(simulator)
         return false
@@ -54,13 +71,13 @@ final class SceneController: UIResponder, UIWindowSceneDelegate {
         #endif
     }
 
-    private func presentChooserThenStartNavigator(on window: UIWindow) {
+    private func presentChooser(on window: UIWindow) {
         let chooser = DevOriginController()
         chooser.onDismiss = { [weak self] in
-            // User saved → they'll force-quit + relaunch (alert told them).
-            // User cancelled → start the navigator anyway so the error
-            // screen renders; they can shake to reopen the chooser.
-            self?.navigator.start()
+            // Only fires on Cancel — save/clear dismiss without the
+            // callback. Start the navigator so the error screen
+            // renders; user can shake to reopen the chooser.
+            self?.navigator?.start()
         }
 
         let nav = UINavigationController(rootViewController: chooser)

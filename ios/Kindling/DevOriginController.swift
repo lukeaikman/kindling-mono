@@ -68,7 +68,8 @@ final class DevOriginController: UIViewController {
         config.title = "Clear override"
         let button = UIButton(configuration: config, primaryAction: UIAction { [weak self] _ in
             UserDefaults.standard.removeObject(forKey: Origin.overrideDefaultsKey)
-            self?.showQuitAlert(message: "Override cleared. The app will now quit. Relaunch from the home screen to use the compile-time default.")
+            NotificationCenter.default.post(name: .devOriginUpdated, object: nil)
+            self?.dismiss(animated: true)
         })
         return button
     }
@@ -85,19 +86,8 @@ final class DevOriginController: UIViewController {
         }
 
         UserDefaults.standard.set(url.absoluteString, forKey: Origin.overrideDefaultsKey)
-        showQuitAlert(message: "Saved. The app will now quit. Relaunch from the home screen to connect to \(url.host ?? url.absoluteString).")
-    }
-
-    private func showQuitAlert(message: String) {
-        let alert = UIAlertController(title: "Relaunch required", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Quit now", style: .destructive) { _ in
-            // Dev builds only — fine to hard-exit. Clean cold launch
-            // is the only way Origin.rails and the Navigator re-read
-            // the saved UserDefaults key.
-            UserDefaults.standard.synchronize()
-            exit(0)
-        })
-        present(alert, animated: true)
+        NotificationCenter.default.post(name: .devOriginUpdated, object: nil)
+        dismiss(animated: true)
     }
 }
 
