@@ -44,6 +44,8 @@ Rails.application.routes.draw do
     get "config/:resource.json", to: "config#show",
       constraints: { resource: /[a-z_]+/ },
       as: :config_resource
+
+    resources :devices, only: :create
   end
   
   # API routes (for future use)
