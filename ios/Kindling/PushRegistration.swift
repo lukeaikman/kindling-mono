@@ -20,26 +20,36 @@ enum PushRegistration {
 
     /// Post the APNs token to Rails. Re-uses the existing WKWebView
     /// cookie jar so the request is tied to the current onboarding
-    /// session (or authenticated user, if present).
+    /// session (or authenticated user, if present). Sends
+    /// identifierForVendor alongside the token so reinstalls update
+    /// the existing device row in place rather than creating a zombie.
     static func deliverToken(_ tokenData: Data) {
         let token = tokenData.map { String(format: "%02x", $0) }.joined()
+        let vendorId = UIDevice.current.identifierForVendor?.uuidString ?? ""
+
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "apns_token", value: token),
+            URLQueryItem(name: "platform", value: "ios"),
+            URLQueryItem(name: "vendor_id", value: vendorId)
+        ]
 
         var request = URLRequest(url: Origin.rails.appendingPathComponent("mobile/devices"))
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = "apns_token=\(token)&platform=ios".data(using: .utf8)
+        request.httpBody = components.percentEncodedQuery?.data(using: .utf8)
         request.httpShouldHandleCookies = true
 
         URLSession.shared.dataTask(with: request) { _, response, error in
             if let error {
-                NSLog("[PushRegistration] POST failed: \(error.localizedDescription)")
+                print("[PushRegistration] POST failed: \(error.localizedDescription)")
                 return
             }
             guard let http = response as? HTTPURLResponse else { return }
             if http.statusCode == 201 {
-                NSLog("[PushRegistration] token registered")
+                print("[PushRegistration] token registered (vendor=\(vendorId.prefix(8))…)")
             } else {
-                NSLog("[PushRegistration] unexpected status \(http.statusCode)")
+                print("[PushRegistration] unexpected status \(http.statusCode)")
             }
         }.resume()
     }

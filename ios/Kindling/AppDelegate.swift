@@ -34,7 +34,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFailToRegisterForRemoteNotificationsWithError error: Error
   ) {
-    NSLog("[AppDelegate] APNs registration failed: \(error.localizedDescription)")
+    print("[AppDelegate] APNs registration failed: \(error.localizedDescription)")
   }
 
   private func configureHotwire() {

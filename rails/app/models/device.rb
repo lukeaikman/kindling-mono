@@ -5,6 +5,7 @@ class Device < ApplicationRecord
   belongs_to :user, optional: true
 
   validates :apns_token, presence: true, uniqueness: true
+  validates :vendor_id, uniqueness: true, allow_nil: true
   validates :platform, inclusion: { in: PLATFORMS }
   validates :last_registered_at, presence: true
 end

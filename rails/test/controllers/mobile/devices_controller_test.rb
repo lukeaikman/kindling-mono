@@ -30,6 +30,20 @@ module Mobile
       assert_operator existing.reload.last_registered_at, :>, original_registered_at
     end
 
+    test "create upserts on vendor_id when provided, rotating the apns_token" do
+      vendor = SecureRandom.uuid
+      existing = Device.create!(apns_token: "apns-old", vendor_id: vendor, platform: "ios", last_registered_at: 1.day.ago)
+
+      assert_no_difference "Device.count" do
+        post mobile_devices_path, params: { apns_token: "apns-new", platform: "ios", vendor_id: vendor }
+      end
+
+      assert_response :created
+      existing.reload
+      assert_equal "apns-new", existing.apns_token
+      assert_equal vendor, existing.vendor_id
+    end
+
     test "create works without an onboarding session" do
       assert_difference "Device.count", 1 do
         post mobile_devices_path, params: { apns_token: "apns-anon-token", platform: "ios" }
