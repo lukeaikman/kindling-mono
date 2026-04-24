@@ -26,7 +26,7 @@
       body: next_body %>
 
     <div class="mobile-actions">
-      <%= button_to "Continue", mobile_onboarding_wrap_up_continue_path, method: :post, class: "mobile-button" %>
+      <%= button_to "Continue", mobile_onboarding_wrap_up_continue_path, method: :post, class: "mobile-button", data: { controller: "haptic", haptic_style_value: "medium" } %>
     </div>
   </div>
 </section>
