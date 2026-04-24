@@ -67,7 +67,9 @@ final class SceneController: UIResponder, UIWindowSceneDelegate {
         nav.modalPresentationStyle = .formSheet
         nav.isModalInPresentation = false
 
-        window.rootViewController?.present(nav, animated: false)
+        DispatchQueue.main.async {
+            window.rootViewController?.present(nav, animated: false)
+        }
     }
     #endif
 }
