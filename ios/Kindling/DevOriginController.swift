@@ -15,7 +15,9 @@ final class DevOriginController: UIViewController {
 
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             systemItem: .cancel,
-            primaryAction: UIAction { [weak self] _ in self?.dismissAndNotify() }
+            primaryAction: UIAction { [weak self] _ in
+                self?.dismiss(animated: true) { self?.onDismiss?() }
+            }
         )
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             systemItem: .save,
