@@ -37,7 +37,7 @@
     </div>
 
     <div class="mobile-actions">
-      <%= form.submit "Continue", class: "mobile-button" %>
+      <%= form.submit "Continue", class: "mobile-button", data: { controller: "haptic", haptic_style_value: "medium" } %>
       <%= link_to "Log in instead", mobile_login_path, class: "mobile-button-tertiary" %>
     </div>
   </div>

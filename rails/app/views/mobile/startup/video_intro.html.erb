@@ -1,7 +1,7 @@
 <% content_for :title, "" %>
 
 <% footer_actions = capture do %>
-  <%= button_to "Continue", mobile_complete_video_path, method: :post, class: "mobile-button" %>
+  <%= button_to "Continue", mobile_complete_video_path, method: :post, class: "mobile-button", data: { controller: "haptic", haptic_style_value: "medium" } %>
 <% end %>
 
 <% content_for :mobile_footer do %>

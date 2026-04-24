@@ -1,7 +1,7 @@
 <% content_for :title, "" %>
 
 <% footer_actions = capture do %>
-  <%= button_to "Create your will and estate plan", mobile_intro_continue_path, method: :post, class: "mobile-button" %>
+  <%= button_to "Create your will and estate plan", mobile_intro_continue_path, method: :post, class: "mobile-button", data: { controller: "haptic", haptic_style_value: "medium" } %>
   <%= link_to "Log in", mobile_login_path, class: "mobile-button-secondary" %>
 <% end %>
 

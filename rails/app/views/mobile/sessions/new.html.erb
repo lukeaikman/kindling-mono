@@ -2,7 +2,7 @@
 
 <%= form_with url: mobile_login_path, method: :post, class: "mobile-screen mobile-screen--auth", html: { id: "mobile-login-form" } do |form| %>
   <% login_footer = capture do %>
-    <%= form.submit "Log in", class: "mobile-button", form: "mobile-login-form" %>
+    <%= form.submit "Log in", class: "mobile-button", form: "mobile-login-form", data: { controller: "haptic", haptic_style_value: "medium" } %>
     <%= link_to "Back to the start", mobile_intro_path, class: "mobile-button-tertiary" %>
   <% end %>
 
