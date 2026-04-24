@@ -17,6 +17,8 @@
 		F0049EE62F98E73200C16388 /* Origin.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0049EE52F98E73200C16388 /* Origin.swift */; };
 		F0049EEA2F99054500C16388 /* KindlingWebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0049EE92F99054500C16388 /* KindlingWebViewController.swift */; };
 		F02172692F9A5B610069AA66 /* DatePickerComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F02172682F9A5B610069AA66 /* DatePickerComponent.swift */; };
+		F021726B2F9B76D90069AA66 /* DevOriginController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F021726A2F9B76D90069AA66 /* DevOriginController.swift */; };
+		F021726D2F9B76EF0069AA66 /* HapticsComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = F021726C2F9B76EF0069AA66 /* HapticsComponent.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +35,8 @@
 		F0049EE82F98E78100C16388 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Config/Release.xcconfig; sourceTree = "<group>"; };
 		F0049EE92F99054500C16388 /* KindlingWebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KindlingWebViewController.swift; sourceTree = "<group>"; };
 		F02172682F9A5B610069AA66 /* DatePickerComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatePickerComponent.swift; sourceTree = "<group>"; };
+		F021726A2F9B76D90069AA66 /* DevOriginController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevOriginController.swift; sourceTree = "<group>"; };
+		F021726C2F9B76EF0069AA66 /* HapticsComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsComponent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -68,6 +72,7 @@
 		844BA7892B9A4843008F48DB /* Kindling */ = {
 			isa = PBXGroup;
 			children = (
+				F021726A2F9B76D90069AA66 /* DevOriginController.swift */,
 				F0049EE92F99054500C16388 /* KindlingWebViewController.swift */,
 				F0049EE72F98E78100C16388 /* Dev.xcconfig */,
 				F0049EE82F98E78100C16388 /* Release.xcconfig */,
@@ -86,6 +91,7 @@
 		844BA7BA2B9A4893008F48DB /* Bridge */ = {
 			isa = PBXGroup;
 			children = (
+				F021726C2F9B76EF0069AA66 /* HapticsComponent.swift */,
 				F02172682F9A5B610069AA66 /* DatePickerComponent.swift */,
 			);
 			path = Bridge;
@@ -180,6 +186,8 @@
 				844BA78B2B9A4843008F48DB /* AppDelegate.swift in Sources */,
 				F02172692F9A5B610069AA66 /* DatePickerComponent.swift in Sources */,
 				F0049EEA2F99054500C16388 /* KindlingWebViewController.swift in Sources */,
+				F021726D2F9B76EF0069AA66 /* HapticsComponent.swift in Sources */,
+				F021726B2F9B76D90069AA66 /* DevOriginController.swift in Sources */,
 				F0049EE62F98E73200C16388 /* Origin.swift in Sources */,
 				844BA7B02B9A488A008F48DB /* SceneController.swift in Sources */,
 			);
@@ -328,6 +336,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8XGSC8PUXH;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Kindling;
@@ -357,6 +366,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8XGSC8PUXH;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Kindling;
