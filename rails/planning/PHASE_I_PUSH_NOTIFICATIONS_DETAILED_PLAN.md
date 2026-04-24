@@ -73,3 +73,46 @@ Two commits on `mobile-phase-i`:
 From `~/.claude/plans/in-this-repo-you-moonlit-lantern.md:442`:
 - **Pitfall 14** — "Never expand remote config to hold secrets." APNs keys never go in path-configuration. Rails credentials only.
 - **Pitfall 17** — device-only QA. Permission prompts don't behave reliably in simulator; test on hardware.
+
+## Post-merge follow-ups (known, deferred)
+
+### Device dedupe — switch to `(user_id, platform)` when auth lands (Path C)
+
+v1 dedupes `Device` rows on `vendor_id` (iOS `identifierForVendor`). Apple's documented behaviour: the vendor UUID regenerates when **all** apps from the same team are deleted + reinstalled on a device. Kindling is currently the only app under our team, so aggressive delete+reinstall cycles (common in dev testing) create zombie device rows — each install's APNs registration lands as a fresh row instead of updating the previous one.
+
+**Accepted for v1** because:
+- Real users rarely delete+reinstall — the edge hits dev workflow far more than production.
+- v2's APNs sender will naturally purge zombies: when Apple returns 410 (Gone) for an invalid token, we delete the row. Self-cleaning over time.
+- The alternatives (iCloud Keychain for a persistent UUID, Sign in with Apple for a stable user identifier) add dependencies for a problem that evaporates once auth lands.
+
+**The fix (Path C, when Epic 3 auth ships):**
+
+Switch the primary dedupe key. A device is "user X's iPhone", not a vendor UUID:
+
+```ruby
+def create
+  # ...
+  device = if Current.user
+    # Authenticated: primary key is (user, platform). Most natural.
+    Current.user.devices.find_or_initialize_by(platform: platform)
+  elsif vendor_id
+    Device.find_or_initialize_by(vendor_id: vendor_id)
+  else
+    Device.find_or_initialize_by(apns_token: token)
+  end
+  # ... same updates as before
+end
+```
+
+At the same time, run a data-migration to collapse any historical zombies: for each `(user_id, platform)` with multiple rows, keep the row with the newest `last_registered_at` and delete the rest.
+
+**Trigger**: after Epic 3 (Registration and auth) ships and `Current.user` is reliably populated in the mobile namespace. Cross-referenced in project memory: `project_device_dedupe_when_auth_lands.md`.
+
+### APNs sender (v2)
+
+Not in v1 scope. When product defines notification triggers, v2 adds:
+- Rails credentials for APNs (`apns_team_id`, `apns_key_id`, `apns_p8_key`) — stash safely when you create the key at developer.apple.com.
+- Gem / HTTP client for APNs (candidates: `apnotic`, `rpush`, raw `httpx` + JWT).
+- Background job wiring for sends based on product rules.
+- 410 Gone handling → delete the corresponding device row (natural zombie cleanup).
+- Deep-link contract: notification payload carries a `url`; tap handler in iOS calls `Navigator.route(url)`.
