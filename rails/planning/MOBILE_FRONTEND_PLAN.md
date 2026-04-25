@@ -1,5 +1,36 @@
 # Mobile frontend plan — Hotwire Native on Rails
 
+## Phase status
+
+Updated as phases merge. Order shown is **current execution order** (D removed; H bumped to last). Original A→J chronological order is preserved further down in the per-phase descriptions for historical reference.
+
+| Phase | Status | Branch / Merge | Detail plan |
+|---|---|---|---|
+| A — Turbo + Stimulus into mobile bundle | ✅ Merged | `mobile-phase-a` | [PHASE_A_TURBO_STIMULUS_DETAILED_PLAN.md](PHASE_A_TURBO_STIMULUS_DETAILED_PLAN.md) |
+| B — Vanilla → Stimulus + design refresh | ✅ Merged | `mobile-phase-b` | [PHASE_B_STIMULUS_DESIGN_REFRESH_DETAILED_PLAN.md](PHASE_B_STIMULUS_DESIGN_REFRESH_DETAILED_PLAN.md) |
+| C — iOS shell + path config v1 | ✅ Merged | `mobile-phase-c` | [PHASE_C_IOS_SHELL_PATH_CONFIG_DETAILED_PLAN.md](PHASE_C_IOS_SHELL_PATH_CONFIG_DETAILED_PLAN.md) |
+| D — Android shell | ⏭️ Skipped | — | No Android until iOS app is fully built (decision 2026-04-23) |
+| E — Deep-link handoff | ✅ Merged (v1 only) | `mobile-phase-e` | [PHASE_E_DEEPLINK_DETAILED_PLAN.md](PHASE_E_DEEPLINK_DETAILED_PLAN.md) — Universal Link verification deferred to v2 (PRE_LAUNCH_TODO entry) |
+| F — Native picker bridge | ✅ Merged (pivoted) | `mobile-phase-f` | [PHASE_F_DATE_PICKER_BRIDGE_DETAILED_PLAN.md](PHASE_F_DATE_PICKER_BRIDGE_DETAILED_PLAN.md) — pivoted from list picker → native date picker mid-phase |
+| G — Haptics + dev origin override | ✅ Merged | `mobile-phase-g` | [PHASE_G_HAPTICS_AND_DEV_ORIGIN_DETAILED_PLAN.md](PHASE_G_HAPTICS_AND_DEV_ORIGIN_DETAILED_PLAN.md) — bundled F.5 (dev origin chooser, ngrok/LT support) with Phase G proper |
+| I — Push notifications | ✅ Merged (v1 plumbing only) | `mobile-phase-i` | [PHASE_I_PUSH_NOTIFICATIONS_DETAILED_PLAN.md](PHASE_I_PUSH_NOTIFICATIONS_DETAILED_PLAN.md) — APNs sender + product triggers deferred to v2; device dedupe Path C deferred until Epic 3 auth |
+| J — Camera bridge | 📋 Next | — | Asset capture for estate-asset photos |
+| H — Preloading + offline polish | ⏸️ Last (deferred) | — | Bumped to final phase 2026-04-24. Preload-first framing (`data-turbo-preload`) over lazy-load; hard-offline screen still in scope |
+
+## Decision log
+
+| Date | Decision |
+|---|---|
+| 2026-04-20 | Frontend shell: Hotwire Native (supersedes Capacitor). Repo layout: monorepo siblings `ios/` + `android/`. iOS first. |
+| 2026-04-23 | Phase D (Android) skipped indefinitely — no Android work until iOS app is fully built and shipped. |
+| 2026-04-23 | Phase E shipped v1 only — Universal Link verification (AASA hosting, Associated Domains entitlement, physical-device verify) deferred to v2 because no external link surface exists yet to justify the prerequisites. |
+| 2026-04-23 | Phase F pivoted mid-phase: list-picker bridge built, simulator verification preferred brand web overlay for lists; pivoted to native date picker (UIDatePicker wheels) which is what `<input type="date">` doesn't give us by default. |
+| 2026-04-24 | Phase G bundled F.5 (dev origin override + ngrok/LT chooser via shake gesture, ATS exception for `*.loca.lt`) with Phase G proper (haptics bridge). Both required physical device for verification. |
+| 2026-04-24 | Phase H moved from "after G" to "after J" (last). Polish phase, no debt from deferral. Reframed as preload-first (Turbo `data-turbo-preload` for linear onboarding) over lazy-load. |
+| 2026-04-24 | Phase I shipped v1 plumbing only (permission, register, store device). APNs sender + product triggers + Path C dedupe (`(user_id, platform)` instead of `vendor_id`) all deferred until Epic 3 auth lands. |
+
+---
+
 ## Context
 
 Kindling is moving off the React Native app (`../native-app/`) onto a Rails-powered mobile experience. The *strategic* driver is **decomplication of the stack**: as the legal/concerns/trust/progression rules grow in complexity, maintaining two parallel implementations (Ruby models + TypeScript client) and keeping them in sync becomes the dominant cost. Rails owning both the data model *and* the view layer eliminates the sync tax entirely.
