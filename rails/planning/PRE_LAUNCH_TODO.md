@@ -101,4 +101,4 @@ Building UL against placeholder values produces plumbing that looks fine on insp
 
 **Effort**: 1–2 days once prerequisites are met. Longer if domain/DNS/TestFlight need bootstrapping. Write as `PHASE_E2_UNIVERSAL_LINKS_DETAILED_PLAN.md` mirroring Phase C's structure when the first campaign date is set.
 
-**Origin**: Phase E detail plan — deferred deliberately. See `rails/planning/PHASE_E_DEEPLINK_DETAILED_PLAN.md`.
+**Origin**: Phase E detail plan — deferred deliberately. See `rails/planning/native-to-rails/epic-0-mobile-frontend-shell/phase-e-deeplink/PHASE_E_DEEPLINK_DETAILED_PLAN.md`.

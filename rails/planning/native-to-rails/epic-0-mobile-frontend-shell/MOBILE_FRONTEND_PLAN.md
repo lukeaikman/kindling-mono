@@ -2,32 +2,23 @@
 
 ## Phase status
 
-Updated as phases merge. Order shown is **current execution order** (D removed; H bumped to last). Original A→J chronological order is preserved further down in the per-phase descriptions for historical reference.
+> **Canonical phase status lives in [epic-0-mobile-frontend-shell-roadmap.md](epic-0-mobile-frontend-shell-roadmap.md).** That table is the single source of truth — update it in the same commit when a phase status changes. Per-phase detail plans live in their own subfolders (e.g. [phase-a-turbo-stimulus/](phase-a-turbo-stimulus/)).
 
-| Phase | Status | Branch / Merge | Detail plan |
-|---|---|---|---|
-| A — Turbo + Stimulus into mobile bundle | ✅ Merged | `mobile-phase-a` | [PHASE_A_TURBO_STIMULUS_DETAILED_PLAN.md](PHASE_A_TURBO_STIMULUS_DETAILED_PLAN.md) |
-| B — Vanilla → Stimulus + design refresh | ✅ Merged | `mobile-phase-b` | [PHASE_B_STIMULUS_DESIGN_REFRESH_DETAILED_PLAN.md](PHASE_B_STIMULUS_DESIGN_REFRESH_DETAILED_PLAN.md) |
-| C — iOS shell + path config v1 | ✅ Merged | `mobile-phase-c` | [PHASE_C_IOS_SHELL_PATH_CONFIG_DETAILED_PLAN.md](PHASE_C_IOS_SHELL_PATH_CONFIG_DETAILED_PLAN.md) |
-| D — Android shell | ⏭️ Skipped | — | No Android until iOS app is fully built (decision 2026-04-23) |
-| E — Deep-link handoff | ✅ Merged (v1 only) | `mobile-phase-e` | [PHASE_E_DEEPLINK_DETAILED_PLAN.md](PHASE_E_DEEPLINK_DETAILED_PLAN.md) — Universal Link verification deferred to v2 (PRE_LAUNCH_TODO entry) |
-| F — Native picker bridge | ✅ Merged (pivoted) | `mobile-phase-f` | [PHASE_F_DATE_PICKER_BRIDGE_DETAILED_PLAN.md](PHASE_F_DATE_PICKER_BRIDGE_DETAILED_PLAN.md) — pivoted from list picker → native date picker mid-phase |
-| G — Haptics + dev origin override | ✅ Merged | `mobile-phase-g` | [PHASE_G_HAPTICS_AND_DEV_ORIGIN_DETAILED_PLAN.md](PHASE_G_HAPTICS_AND_DEV_ORIGIN_DETAILED_PLAN.md) — bundled F.5 (dev origin chooser, ngrok/LT support) with Phase G proper |
-| I — Push notifications | ✅ Merged (v1 plumbing only) | `mobile-phase-i` | [PHASE_I_PUSH_NOTIFICATIONS_DETAILED_PLAN.md](PHASE_I_PUSH_NOTIFICATIONS_DETAILED_PLAN.md) — APNs sender + product triggers deferred to v2; device dedupe Path C deferred until Epic 3 auth |
-| J — Camera bridge | 📋 Next | — | Asset capture for estate-asset photos |
-| H — Preloading + offline polish | ⏸️ Last (deferred) | — | Bumped to final phase 2026-04-24. Preload-first framing (`data-turbo-preload`) over lazy-load; hard-offline screen still in scope |
+The decision log below preserves dated context for *why* each phase landed how it did.
 
 ## Decision log
 
 | Date | Decision |
 |---|---|
 | 2026-04-20 | Frontend shell: Hotwire Native (supersedes Capacitor). Repo layout: monorepo siblings `ios/` + `android/`. iOS first. |
-| 2026-04-23 | Phase D (Android) skipped indefinitely — no Android work until iOS app is fully built and shipped. |
+| 2026-04-23 | Phase D (Android) deferred indefinitely — no Android work until iOS app is fully built and shipped. |
 | 2026-04-23 | Phase E shipped v1 only — Universal Link verification (AASA hosting, Associated Domains entitlement, physical-device verify) deferred to v2 because no external link surface exists yet to justify the prerequisites. |
 | 2026-04-23 | Phase F pivoted mid-phase: list-picker bridge built, simulator verification preferred brand web overlay for lists; pivoted to native date picker (UIDatePicker wheels) which is what `<input type="date">` doesn't give us by default. |
 | 2026-04-24 | Phase G bundled F.5 (dev origin override + ngrok/LT chooser via shake gesture, ATS exception for `*.loca.lt`) with Phase G proper (haptics bridge). Both required physical device for verification. |
 | 2026-04-24 | Phase H moved from "after G" to "after J" (last). Polish phase, no debt from deferral. Reframed as preload-first (Turbo `data-turbo-preload` for linear onboarding) over lazy-load. |
 | 2026-04-24 | Phase I shipped v1 plumbing only (permission, register, store device). APNs sender + product triggers + Path C dedupe (`(user_id, platform)` instead of `vendor_id`) all deferred until Epic 3 auth lands. |
+| 2026-04-25 | Phase J (camera bridge) deferred and subsumed into Epic 5 (Asset Entry). Audit during lplan setup found photo-attach was net-new work, not RN parity — building plumbing in isolation would mean dummy data model + dormant bridge until Epic 5 catches up. Camera lands inside Epic 5 with Asset model + photo UX defined together. See [phase-j-camera-bridge-deferred/why-deferred.md](phase-j-camera-bridge-deferred/why-deferred.md). |
+| 2026-04-25 | Planning folder reorganised: this plan is now Epic 0 of the [native-to-rails roadmap](../native-to-rails-roadmap.md). Each phase has its own subfolder with detail plan + (where deferred) `why-deferred.md`. UI-system docs split out to a sibling `mobile-ui-system/` folder. |
 
 ---
 
@@ -39,7 +30,7 @@ We have compared **Hotwire Native** (37signals' thin native shell + Rails-render
 
 - It is the Rails-native answer. Minimum additional stack surface: Turbo + Stimulus + a thin Swift shell + a thin Kotlin shell. No second frontend framework parked next to Rails.
 - Native chrome is real native (`UINavigationController`, `UITabBar`, `UISheetPresentationController` on iOS; fragment back-stack, `BottomNavigationView`, `BottomSheetDialogFragment` on Android) — content stays 100% our ERB, preserving the Kindling brand identity.
-- Work already shipped in [Epic 1](kindling-monorepo/rails/planning/EPIC_1_SPLASH_INTRO_DEEPLINK_DETAILED_PLAN.md) translates almost entirely. `Mobile::StartupRouting`, the onboarding controllers, the shared partials in `app/views/mobile/shared/`, and the `mobile.css` tokens are kept. The vanilla JS modules become Stimulus controllers.
+- Work already shipped in [Epic 1](../epic-1-splash-intro-deeplink/EPIC_1_SPLASH_INTRO_DEEPLINK_DETAILED_PLAN.md) translates almost entirely. `Mobile::StartupRouting`, the onboarding controllers, the shared partials in `app/views/mobile/shared/`, and the `mobile.css` tokens are kept. The vanilla JS modules become Stimulus controllers.
 - The team is willing to write small amounts of Swift and Kotlin for bridges (haptics, native sheet, camera, push).
 
 The target quality bar is **Premium + mobile-first**: native navigation chrome (nav stack, tab bar, sheets, haptics, keyboard handling) wrapping branded content (serif display titles, warm palette, grouped-section style) inside each screen.
@@ -67,10 +58,10 @@ Not assumed. Read just now from the repo:
 
 This plan flips the mobile-frontend decision from Capacitor (+ ERB) to Hotwire Native (+ ERB + Turbo). The following existing planning documents carry Capacitor assumptions and must be updated or annotated with a "superseded by this plan" note before Phase A starts. Do NOT delete them — they hold behavior-parity detail we still need. Just annotate the frontend-shell paragraphs.
 
-- [rails/planning/NATIVE_TO_RAILS_EPICS.md](kindling-monorepo/rails/planning/NATIVE_TO_RAILS_EPICS.md) — Epic 1 + Epic 3 mention "Ionic/Capacitor shell" and "Capacitor deep-link bridge." Flip to "Hotwire Native shell" and "Universal Link / App Link handoff."
-- [rails/planning/EPIC_1_SPLASH_INTRO_DEEPLINK_DETAILED_PLAN.md](kindling-monorepo/rails/planning/EPIC_1_SPLASH_INTRO_DEEPLINK_DETAILED_PLAN.md) — multiple Capacitor references in storage adapter design and view strategy. The storage adapter is still needed (web fallback remains for `bin/dev` browser iteration) but the Capacitor-specific secure-storage plugin references drop out.
-- [rails/planning/EPIC_2_ONBOARDING_DETAILED_PLAN.md](kindling-monorepo/rails/planning/EPIC_2_ONBOARDING_DETAILED_PLAN.md) — opening paragraph and verification checklist reference Capacitor.
-- [rails/planning/MOBILE_RAILS_UI_SYSTEM_PLAN.md](kindling-monorepo/rails/planning/MOBILE_RAILS_UI_SYSTEM_PLAN.md) — opening sentence says "feels like a real app inside Capacitor." The design-system substance (primitives, tokens, refactor strategy) is unchanged and still canonical.
+- [NATIVE_TO_RAILS_EPICS.md](../NATIVE_TO_RAILS_EPICS.md) — Epic 1 + Epic 3 mention "Ionic/Capacitor shell" and "Capacitor deep-link bridge." Flip to "Hotwire Native shell" and "Universal Link / App Link handoff."
+- [EPIC_1_SPLASH_INTRO_DEEPLINK_DETAILED_PLAN.md](../epic-1-splash-intro-deeplink/EPIC_1_SPLASH_INTRO_DEEPLINK_DETAILED_PLAN.md) — multiple Capacitor references in storage adapter design and view strategy. The storage adapter is still needed (web fallback remains for `bin/dev` browser iteration) but the Capacitor-specific secure-storage plugin references drop out.
+- [EPIC_2_ONBOARDING_DETAILED_PLAN.md](../epic-2-onboarding/EPIC_2_ONBOARDING_DETAILED_PLAN.md) — opening paragraph and verification checklist reference Capacitor.
+- [MOBILE_RAILS_UI_SYSTEM_PLAN.md](../../mobile-ui-system/MOBILE_RAILS_UI_SYSTEM_PLAN.md) — opening sentence says "feels like a real app inside Capacitor." The design-system substance (primitives, tokens, refactor strategy) is unchanged and still canonical.
 
 Annotation pass is Phase A step 0, before any code.
 
@@ -78,7 +69,7 @@ Annotation pass is Phase A step 0, before any code.
 
 Explicitly **not** covered here, owned by other plans:
 
-- Domain model design (Person, Will, Assets, Trusts, Concerns). Lives in Epic 2–6 per [NATIVE_TO_RAILS_EPICS.md](kindling-monorepo/rails/planning/NATIVE_TO_RAILS_EPICS.md).
+- Domain model design (Person, Will, Assets, Trusts, Concerns). Lives in Epic 2–5 per [NATIVE_TO_RAILS_EPICS.md](../NATIVE_TO_RAILS_EPICS.md).
 - Legal-check / "concerns" UI. Currently in native-app only; Rails migration post Epic 2.
 - API-token-based auth at `/api/v1/auth/*`. Those routes exist in [routes.rb:46-56](kindling-monorepo/rails/config/routes.rb:46) but are unused. Hotwire Native uses session cookies via `WKWebView` / `WebView` cookie jar — no API token flow needed for the mobile shell.
 - Asset storage / upload pipeline. Touched by the camera bridge in Phase J but storage design is a separate plan.
@@ -339,7 +330,7 @@ Delete `app/javascript/mobile/*.js` modules once controllers are live. Delete th
 - Cold start and warm start both work.
 - Invalid params (e.g. `show_video=banana`) fall through to `/mobile/intro` and log a warning (coerce + validate lives in `Mobile::StartupRouting`).
 
-**Done criteria**: deeplink QA matrix from [EPIC_1_SPLASH_INTRO_DEEPLINK_DETAILED_PLAN.md](kindling-monorepo/rails/planning/EPIC_1_SPLASH_INTRO_DEEPLINK_DETAILED_PLAN.md) passes in both simulators AND on a physical device (universal link verification requires real domain association, which requires a physical device or TestFlight build).
+**Done criteria**: deeplink QA matrix from [EPIC_1_SPLASH_INTRO_DEEPLINK_DETAILED_PLAN.md](../epic-1-splash-intro-deeplink/EPIC_1_SPLASH_INTRO_DEEPLINK_DETAILED_PLAN.md) passes in both simulators AND on a physical device (universal link verification requires real domain association, which requires a physical device or TestFlight build).
 
 ---
 
@@ -484,7 +475,7 @@ Hard-won gotchas that bite Hotwire Native apps. Keep this list in the repo.
 8. **Don't rely on `:hover` as the only visual state.** On touch devices `:hover` sticks until the next tap, causing ghost-highlighted buttons. Use `:active` + `:focus-visible` for mobile.
 9. **Don't forget safe-area when the native tab bar *and* home indicator both exist.** `padding-bottom: max(env(safe-area-inset-bottom), 0.75rem)` is the right pattern — never just `env(safe-area-inset-bottom)` alone if the element can sit above the home indicator.
 10. **Don't mix session-cookie auth and API-token auth in the same shell.** Current code has API auth scaffolded at [routes.rb:46](kindling-monorepo/rails/config/routes.rb:46). Leave it unused; Hotwire Native uses the `WKWebView`/`WebView` cookie jar and Rails session cookies. Introducing token auth later would force a big re-architecture.
-11. **Don't let ERB templates device-branch.** If a screen needs mobile-specific markup, keep it in the `mobile/` views namespace or use a partial swap — don't scatter `if @mobile` conditionals into shared views. Re-read [MOBILE_RAILS_UI_SYSTEM_PLAN.md](kindling-monorepo/rails/planning/MOBILE_RAILS_UI_SYSTEM_PLAN.md) — this rule is already canonical.
+11. **Don't let ERB templates device-branch.** If a screen needs mobile-specific markup, keep it in the `mobile/` views namespace or use a partial swap — don't scatter `if @mobile` conditionals into shared views. Re-read [MOBILE_RAILS_UI_SYSTEM_PLAN.md](../../mobile-ui-system/MOBILE_RAILS_UI_SYSTEM_PLAN.md) — this rule is already canonical.
 12. **Keep iOS and Android bundled remote-config fallbacks in lockstep with each other AND with the Rails source-of-truth.** Three copies exist per resource: `rails/config/mobile/<resource>.json`, `ios/Kindling/Config/<resource>.json`, `android/app/src/main/assets/config/<resource>.json`. They must stay byte-identical aside from whitespace. Any edit to one is a three-file edit in the same PR. The CI drift check fails the build if they diverge.
 13. **Never overwrite the remote-config cache with malformed data.** The background fetch MUST validate schema before writing to `UserDefaults` / `SharedPreferences`. If the server returns garbage (broken deploy, proxy interception, truncated response), leave the last-known-good cache alone. Overwriting with bad data poisons the next session and can brick the app for that user until a reinstall. Fail silently, keep the old cache, try again next launch.
 14. **Never expand remote config to hold secrets or per-user data.** The cache is plaintext on-device. Path-config rules, feature flags, rollout toggles — fine. Auth tokens, user IDs, PII — never. Per-user experiments need a different mechanism with user-scoped keys and cache-per-user semantics; don't retrofit the session-frozen global pattern to handle them.

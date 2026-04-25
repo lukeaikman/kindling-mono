@@ -6,7 +6,7 @@
 
 Phase A added Turbo Drive and started a Stimulus application. The five vanilla JS modules in `app/javascript/mobile/*.js` are still there, called from a `turbo:load` handler in `app/javascript/mobile.js`. Phase B finishes that migration: every interactive behavior becomes a Stimulus controller that auto-connects on DOM insertion and disconnects on removal. The interim `turbo:load` handler is deleted.
 
-Phase B is **also** the moment to close the design gap documented in [HOTWIRE_MOBILE_DESIGN_AUDIT.md](HOTWIRE_MOBILE_DESIGN_AUDIT.md). Two reasons to combine these with the Stimulus work:
+Phase B is **also** the moment to close the design gap documented in [HOTWIRE_MOBILE_DESIGN_AUDIT.md](../../../mobile-ui-system/HOTWIRE_MOBILE_DESIGN_AUDIT.md). Two reasons to combine these with the Stimulus work:
 
 1. Phase B touches ERB partials anyway (to add `data-controller` attributes). Editing partials to also apply new CSS classes is the same PR, not a second one.
 2. The native shells in Phase C will render whatever ERB + CSS is current. Closing the design gap before Phase C means the first simulator screenshots are representative of the final product, not a placeholder.
@@ -22,7 +22,7 @@ The React Native app (`rnative/`) is the visual reference. The goal is for a use
 - Remove the interim `turbo:load` runInit handler from `app/javascript/mobile.js`.
 - Update mobile ERB partials to use `data-controller`, `data-X-target`, `data-action` attributes.
 - Self-host Montserrat (four weights) as WOFF2 under `app/assets/fonts/`.
-- Rewrite `app/assets/stylesheets/mobile/tokens.css` to the target state in [HOTWIRE_MOBILE_DESIGN_AUDIT.md](HOTWIRE_MOBILE_DESIGN_AUDIT.md).
+- Rewrite `app/assets/stylesheets/mobile/tokens.css` to the target state in [HOTWIRE_MOBILE_DESIGN_AUDIT.md](../../../mobile-ui-system/HOTWIRE_MOBILE_DESIGN_AUDIT.md).
 - Update `app/assets/stylesheets/mobile/base.css` and per-component stylesheets to use the new tokens and new design conventions (flatter shadows, corrected radii, proper type scale).
 - Leave the existing `kindling-dark.png` logo in place as a placeholder. Real SVG logo lands in parallel; swap when available.
 
@@ -34,7 +34,7 @@ The React Native app (`rnative/`) is the visual reference. The goal is for a use
 - Remote config store — Phase C.
 - New onboarding questions or flow changes — orthogonal to this phase.
 - Fixing the 26 pre-existing test failures surfaced by Phase A — tracked separately.
-- **StepCard partial** and **Heroicons vendoring** — research preserved in [HOTWIRE_MOBILE_DESIGN_AUDIT.md](HOTWIRE_MOBILE_DESIGN_AUDIT.md) under "Deferred components." Build each when the first screen actually uses it. Shipping them now = dead code.
+- **StepCard partial** and **Heroicons vendoring** — research preserved in [HOTWIRE_MOBILE_DESIGN_AUDIT.md](../../../mobile-ui-system/HOTWIRE_MOBILE_DESIGN_AUDIT.md) under "Deferred components." Build each when the first screen actually uses it. Shipping them now = dead code.
 
 ## Pitfalls to carry
 
@@ -54,7 +54,7 @@ Branch `phase-b-stimulus-design-refresh` off main. Suggested ordering: design re
 
 ## Part 1 — Design system refresh
 
-Reference: [HOTWIRE_MOBILE_DESIGN_AUDIT.md](HOTWIRE_MOBILE_DESIGN_AUDIT.md). Every decision in Part 1 comes from that doc.
+Reference: [HOTWIRE_MOBILE_DESIGN_AUDIT.md](../../../mobile-ui-system/HOTWIRE_MOBILE_DESIGN_AUDIT.md). Every decision in Part 1 comes from that doc.
 
 ### 1.1 Self-host Montserrat
 
