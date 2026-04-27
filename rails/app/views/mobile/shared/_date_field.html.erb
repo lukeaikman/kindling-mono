@@ -5,10 +5,18 @@
   min_iso = local_assigns[:min].present? ? (local_assigns[:min].respond_to?(:iso8601) ? local_assigns[:min].iso8601 : local_assigns[:min]) : nil
   max_iso = local_assigns[:max].present? ? (local_assigns[:max].respond_to?(:iso8601) ? local_assigns[:max].iso8601 : local_assigns[:max]) : nil
   picker_title = local_assigns[:picker_title] || label
-  desktop_dev_loop = !request.user_agent.to_s.match?(/Mobile|iPhone|iPad|iPod|Android/i)
+  # The Hotwire Native iOS shell injects "bridge-components: [...]" into the
+  # user-agent. Without that marker, BridgeComponent.shouldLoad returns false
+  # in @hotwired/hotwire-native-bridge — meaning the date-field Stimulus
+  # controller never registers and `data-action="click->date-field#open"` is
+  # a silent no-op. So: render the bridge-button branch ONLY when the UA
+  # carries the shell signature; render a plain native <input type="date">
+  # for every other context (desktop browsers, mobile browsers like Dia /
+  # Safari / Chrome, DevTools mobile emulation, bots).
+  inside_native_shell = request.user_agent.to_s.include?("bridge-components: [")
 %>
 
-<% if desktop_dev_loop %>
+<% unless inside_native_shell %>
   <%= render "mobile/shared/form_row",
     label: label,
     hint: local_assigns[:hint],
