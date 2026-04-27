@@ -57,6 +57,45 @@ module Mobile
       assert_select ".mobile-radio-group[data-choice-group-collapsible-value='true']", minimum: 2
     end
 
+    test "location step offers Northern Ireland as a country option" do
+      create_onboarding_session(
+        video_intro_version: 1,
+        video_completed_at: Time.current,
+        intro_seen_at: Time.current,
+        first_name: "Luke",
+        last_name: "Aikman",
+        date_of_birth: Date.new(1988, 1, 1)
+      )
+
+      get mobile_onboarding_location_path
+
+      assert_response :success
+      assert_match(/Northern Ireland/, response.body)
+      assert_match(/northern_ireland/, response.body)
+    end
+
+    test "location step accepts northern_ireland as a valid country_of_residence" do
+      create_onboarding_session(
+        video_intro_version: 1,
+        video_completed_at: Time.current,
+        intro_seen_at: Time.current,
+        first_name: "Luke",
+        last_name: "Aikman",
+        date_of_birth: Date.new(1988, 1, 1)
+      )
+
+      patch mobile_onboarding_location_path, params: {
+        onboarding_session: {
+          country_of_residence: "northern_ireland",
+          nationality: "british",
+          domiciled_in_uk: "yes",
+          currently_resident_in_uk: "yes"
+        }
+      }
+
+      assert_redirected_to mobile_onboarding_family_path
+    end
+
     test "family defaults a fresh child to partner co-guardianship when partnered" do
       create_onboarding_session(
         video_intro_version: 1,
