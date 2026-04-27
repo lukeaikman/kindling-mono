@@ -1,0 +1,533 @@
+erDiagram
+    %% Implementation notes (precisions, UNIQUE/CHECK constraints,
+    %% encryption modes, cascade-delete strategy, indexes) live in
+    %% sibling: 01-erd-implementation-notes-2026-04-27.md
+
+    %% ============================================
+    %% AUTH & SESSIONS — exists today
+    %% ============================================
+    User ||--o{ Session : "has many"
+    User ||--o{ ApiSession : "has many (dormant)"
+    User ||--o{ Device : "registers"
+
+    %% ============================================
+    %% ONBOARDING DRAFT — Epic 2
+    %% ============================================
+    OnboardingSession ||--o{ Person : "drafts"
+    OnboardingSession ||--o{ Device : "pre-auth registers"
+
+    %% ============================================
+    %% PEOPLE GRAPH — Epic 3
+    %% ============================================
+    User ||--o{ Person : "owns in graph"
+    User ||--o| Person : "will_maker (via will_maker_person_id)"
+    Person ||--o{ Marriage : "as will-maker"
+    Person ||--o{ Marriage : "as partner"
+    Person ||--o{ Parentage : "as parent"
+    Person ||--o{ Parentage : "as child"
+
+    %% ============================================
+    %% WILL DOCUMENT — Epic 3
+    %% ============================================
+    User ||--o{ Will : "owns versioned"
+    Will ||--o| Will : "supersedes"
+    Will ||--o{ WillExecutor : "appoints"
+    Will ||--o{ WillWitness : "witnessed by"
+    Will ||--o{ Guardianship : "appoints"
+    Person ||--o{ WillExecutor : "is executor"
+    Person ||--o{ WillWitness : "is witness"
+    Person ||--o{ Guardianship : "as guardian"
+    Person ||--o{ Guardianship : "as ward"
+
+    %% ============================================
+    %% INVITATIONS — Epic 4
+    %% ============================================
+    User ||--o{ Invitation : "sends"
+    Person ||--o{ Invitation : "is invitee"
+    Invitation ||--o{ WillExecutor : "authorises"
+    Invitation ||--o{ Guardianship : "authorises"
+
+    %% ============================================
+    %% ASSETS — Epic 5 (delegated types)
+    %% ============================================
+    User ||--o{ Asset : "owns"
+    Asset ||--o| Property : "delegates"
+    Asset ||--o| BankAccount : "delegates"
+    Asset ||--o| Investment : "delegates"
+    Asset ||--o| Pension : "delegates"
+    Asset ||--o| LifeInsurance : "delegates"
+    Asset ||--o| PrivateCompanyShares : "delegates"
+    Asset ||--o| AgriculturalAsset : "delegates"
+    Asset ||--o| Cryptocurrency : "delegates"
+    Asset ||--o| ImportantItem : "delegates"
+    Asset ||--o| BusinessHolding : "delegates"
+    Asset ||--o| Debt : "delegates"
+    Asset ||--o| OtherAsset : "delegates"
+
+    %% ============================================
+    %% BEQUESTS & RESIDUE — Epic 5
+    %% ============================================
+    Will ||--o{ Bequest : "contains"
+    Asset ||--o{ Bequest : "is bequeathed in"
+    Bequest ||--o{ BequestAllocation : "splits into"
+    Will ||--o{ WillResidueAllocation : "residue split"
+    User ||--o{ BeneficiaryGroup : "owns"
+
+    %% ============================================
+    %% DEFERRED — Future epics (Trust, Business)
+    %% ============================================
+    User ||--o{ Trust : "owns or holds role"
+    Trust ||--o{ TrustSettlor : "has"
+    Trust ||--o{ TrustBeneficiary : "has"
+    Trust ||--o{ TrustTrustee : "has"
+    Person ||--o{ TrustSettlor : "is"
+    Person ||--o{ TrustBeneficiary : "is"
+    Person ||--o{ TrustTrustee : "is"
+    Trust ||--o{ Asset : "holds"
+    User ||--o{ Business : "owns"
+    Business ||--o{ BusinessHolding : "is the underlying business"
+    Business ||--o{ Property : "owns"
+    Business ||--o{ PrivateCompanyShares : "is the company"
+
+    %% ============================================
+    %% ENTITY DEFINITIONS
+    %% ============================================
+
+    User {
+        bigint id PK
+        string email_address UK
+        string password_digest
+        bigint will_maker_person_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    Session {
+        bigint id PK
+        bigint user_id FK
+        string ip_address
+        string user_agent
+        datetime created_at
+        datetime updated_at
+    }
+
+    ApiSession {
+        bigint id PK
+        bigint user_id FK
+        string access_token_digest UK
+        string refresh_token_digest UK
+        datetime access_expires_at
+        datetime refresh_expires_at
+        datetime revoked_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    Device {
+        bigint id PK
+        bigint user_id FK
+        bigint onboarding_session_id FK
+        string apns_token UK
+        string platform
+        string vendor_id UK
+        datetime last_registered_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    OnboardingSession {
+        bigint id PK
+        string token UK
+        string current_step
+        datetime intro_seen_at
+        datetime last_seen_at
+        datetime completed_at
+        string attribution_source
+        string campaign
+        string raw_url
+        string first_show
+        int video_intro_version
+        int risk_questionnaire_version
+        datetime video_completed_at
+        datetime questionnaire_completed_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    Person {
+        bigint id PK
+        bigint user_id FK
+        bigint onboarding_session_id FK
+        string relationship_kind
+        encrypted first_name
+        encrypted middle_names
+        encrypted last_name
+        encrypted date_of_birth
+        encrypted email
+        encrypted phone
+        encrypted address_line_1
+        encrypted address_line_2
+        encrypted city
+        encrypted postcode
+        string country_of_residence
+        string nationality
+        string domiciled_in_uk
+        string currently_resident_in_uk
+        boolean disabled
+        boolean lacks_mental_capacity
+        int times_divorced
+        int times_widowed
+        string parents_alive
+        string parents_in_law_alive
+        string siblings_alive
+        int number_of_siblings
+        datetime created_at
+        datetime updated_at
+    }
+
+    Marriage {
+        bigint id PK
+        bigint will_maker_person_id FK
+        bigint partner_person_id FK
+        string kind
+        string phase
+        date started_at
+        date ended_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    Parentage {
+        bigint id PK
+        bigint parent_person_id FK
+        bigint child_person_id FK
+        string kind
+        datetime created_at
+        datetime updated_at
+    }
+
+    Will {
+        bigint id PK
+        bigint user_id FK
+        int version
+        string status
+        bigint supersedes_id FK
+        datetime finalized_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    WillExecutor {
+        bigint id PK
+        bigint will_id FK
+        bigint person_id FK
+        bigint invitation_id FK
+        int level
+        datetime created_at
+        datetime updated_at
+    }
+
+    WillWitness {
+        bigint id PK
+        bigint will_id FK
+        bigint person_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    Guardianship {
+        bigint id PK
+        bigint will_id FK
+        bigint guardian_person_id FK
+        bigint ward_person_id FK
+        bigint invitation_id FK
+        int level
+        datetime created_at
+        datetime updated_at
+    }
+
+    Invitation {
+        bigint id PK
+        bigint sender_user_id FK
+        bigint invitee_person_id FK
+        string role_type
+        string token UK
+        string status
+        encrypted recipient_email
+        encrypted recipient_phone
+        datetime sent_at
+        datetime responded_at
+        datetime expires_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    Asset {
+        bigint id PK
+        bigint user_id FK
+        string assetable_type
+        bigint assetable_id
+        string title
+        text description
+        decimal estimated_value
+        boolean estimated_value_unknown
+        decimal net_value
+        string held_in_trust
+        bigint trust_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    Property {
+        bigint id PK
+        encrypted address_line_1
+        encrypted address_line_2
+        encrypted city
+        encrypted postcode
+        string property_type
+        string ownership_type
+        decimal ownership_percentage
+        boolean primary_residence
+        int acquisition_month
+        int acquisition_year
+        boolean has_mortgage
+        decimal mortgage_balance
+        string mortgage_provider
+        bigint business_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    BankAccount {
+        bigint id PK
+        string account_type
+        string provider
+        encrypted account_number
+        encrypted sort_code
+        string ownership_type
+        boolean is_non_uk_bank
+        datetime created_at
+        datetime updated_at
+    }
+
+    Investment {
+        bigint id PK
+        string investment_type
+        string provider
+        encrypted account_number
+        datetime created_at
+        datetime updated_at
+    }
+
+    Pension {
+        bigint id PK
+        string provider
+        encrypted policy_number
+        string linked_employer
+        string pension_type
+        decimal monthly_contribution
+        decimal employer_contribution
+        string pension_owner
+        string beneficiary_nominated
+        datetime created_at
+        datetime updated_at
+    }
+
+    LifeInsurance {
+        bigint id PK
+        string policy_type
+        string provider
+        encrypted policy_number
+        string life_assured
+        decimal sum_insured
+        decimal monthly_premium
+        string beneficiary_known
+        string premium_status
+        jsonb beneficiaries
+        datetime created_at
+        datetime updated_at
+    }
+
+    PrivateCompanyShares {
+        bigint id PK
+        string company_name
+        bigint business_id FK
+        int number_of_shares
+        decimal percentage_ownership
+        string share_class
+        string company_country_of_registration
+        boolean is_actively_trading
+        boolean held_for_two_plus_years
+        datetime created_at
+        datetime updated_at
+    }
+
+    AgriculturalAsset {
+        bigint id PK
+        string asset_type
+        text asset_description
+        encrypted location
+        string ownership_structure
+        string size_quantity
+        int years_owned
+        string active_agricultural_use
+        boolean has_debts_encumbrances
+        string apr_ownership_duration
+        string bpr_ownership_duration
+        datetime created_at
+        datetime updated_at
+    }
+
+    Cryptocurrency {
+        bigint id PK
+        string crypto_type
+        string platform
+        decimal quantity
+        datetime created_at
+        datetime updated_at
+    }
+
+    ImportantItem {
+        bigint id PK
+        string category
+        text specific_details
+        boolean sentimental_value
+        datetime created_at
+        datetime updated_at
+    }
+
+    BusinessHolding {
+        bigint id PK
+        bigint business_id FK
+        string asset_type
+        text asset_description
+        decimal business_ownership_percentage
+        decimal number_of_units
+        datetime created_at
+        datetime updated_at
+    }
+
+    Debt {
+        bigint id PK
+        string debt_kind
+        string creditor_name
+        decimal balance_outstanding
+        datetime created_at
+        datetime updated_at
+    }
+
+    OtherAsset {
+        bigint id PK
+        text notes
+        datetime created_at
+        datetime updated_at
+    }
+
+    Bequest {
+        bigint id PK
+        bigint will_id FK
+        bigint asset_id FK
+        text specific_instructions
+        datetime created_at
+        datetime updated_at
+    }
+
+    BequestAllocation {
+        bigint id PK
+        bigint bequest_id FK
+        string recipient_type
+        bigint recipient_id
+        decimal percentage
+        decimal amount
+        int position
+        datetime created_at
+        datetime updated_at
+    }
+
+    WillResidueAllocation {
+        bigint id PK
+        bigint will_id FK
+        string recipient_type
+        bigint recipient_id
+        decimal percentage
+        int position
+        datetime created_at
+        datetime updated_at
+    }
+
+    BeneficiaryGroup {
+        bigint id PK
+        bigint user_id FK
+        string name
+        text description
+        boolean is_predefined
+        datetime created_at
+        datetime updated_at
+    }
+
+    Trust {
+        bigint id PK
+        bigint user_id FK
+        string name
+        string trust_type
+        int creation_month
+        int creation_year
+        string created_in_context
+        datetime created_at
+        datetime updated_at
+    }
+
+    TrustSettlor {
+        bigint id PK
+        bigint trust_id FK
+        bigint person_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    TrustBeneficiary {
+        bigint id PK
+        bigint trust_id FK
+        bigint person_id FK
+        decimal percentage
+        datetime created_at
+        datetime updated_at
+    }
+
+    TrustTrustee {
+        bigint id PK
+        bigint trust_id FK
+        bigint person_id FK
+        jsonb duties
+        datetime created_at
+        datetime updated_at
+    }
+
+    Business {
+        bigint id PK
+        bigint user_id FK
+        string name
+        string business_type
+        string registration_number
+        decimal estimated_value
+        text description
+        encrypted address_line_1
+        encrypted city
+        encrypted postcode
+        datetime created_at
+        datetime updated_at
+    }
+
+    %% ============================================
+    %% STYLING — "onboarding -> your people" review subset
+    %% (warm peach fill, chocolate outline)
+    %% ============================================
+    style User fill:#FFE4B5,stroke:#D2691E,stroke-width:3px
+    style OnboardingSession fill:#FFE4B5,stroke:#D2691E,stroke-width:3px
+    style Person fill:#FFE4B5,stroke:#D2691E,stroke-width:3px
+    style Marriage fill:#FFE4B5,stroke:#D2691E,stroke-width:3px
+    style Parentage fill:#FFE4B5,stroke:#D2691E,stroke-width:3px
+    style Invitation fill:#FFE4B5,stroke:#D2691E,stroke-width:3px
+    style BeneficiaryGroup fill:#FFE4B5,stroke:#D2691E,stroke-width:3px
+    style WillExecutor fill:#FFE4B5,stroke:#D2691E,stroke-width:3px
+    style Guardianship fill:#FFE4B5,stroke:#D2691E,stroke-width:3px
