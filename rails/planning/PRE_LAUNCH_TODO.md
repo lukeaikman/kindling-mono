@@ -30,19 +30,6 @@ end
 
 ---
 
-## Family form — conditional reveal broken
-
-**What**: on `/mobile/onboarding/family`, selecting "Married" (or any partner relationship) does NOT reveal the partner-details section. Selecting "Yes" under "Do you have children or guardianship responsibilities?" does NOT reveal the children section. User hits Continue with empty fields and gets validation errors, but can't fill them in because the sections never appeared.
-
-**Why**: pre-existing bug, reproduces in the browser (not iOS-shell-specific). Most likely `family_form_controller`'s delegated `formChange` handler isn't firing — either the event isn't bubbling from the radio input to the form, the `data-action` wiring is off, or `this.partnerFields` / `this.childrenSection` are null at `connect()` time. Needs console-log debugging or a system test to pin down.
-
-**Effort**: 30 min debugging + write a system/integration test to prevent regression. Suggested test: Capybara flow that picks Married, asserts `[data-role='partner-fields']:not([hidden])` is present.
-
-**Origin**: surfaced during Phase C simulator walkthrough 2026-04-22. Not Phase C-caused — the controller logic lives on `main` and the Hotwire Native shell is just rendering what Rails serves. Landed in `rails/app/javascript/controllers/family_form_controller.js` during Phase B.
-
-**Blocks**: Phase C §3.8 simulator verification scenarios 3 and 4 (walk welcome → wrap-up end-to-end, reach secure-account modal). Those two scenarios stay unverified until this is fixed; other §3.8 scenarios (splash redirect, intro push, login modal, server fetch, malformed-response guardrail, JS console clean) work independently.
-
----
 
 ## Universal Link verification — deep-link handoff v2
 
