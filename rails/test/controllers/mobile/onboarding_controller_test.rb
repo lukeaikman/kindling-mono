@@ -96,6 +96,108 @@ module Mobile
       assert_redirected_to mobile_onboarding_family_path
     end
 
+    test "family form has correct conditional-reveal wiring (data-action, data-role, hidden state)" do
+      # Single user — partner-fields should be hidden, children-section should be hidden
+      create_onboarding_session(
+        video_intro_version: 1,
+        video_completed_at: Time.current,
+        intro_seen_at: Time.current,
+        first_name: "Luke",
+        last_name: "Aikman",
+        date_of_birth: Date.new(1988, 1, 1),
+        country_of_residence: "england",
+        nationality: "british",
+        domiciled_in_uk: "yes",
+        currently_resident_in_uk: "yes",
+        relationship_status: "single",
+        divorce_status: "no",
+        has_children: "no"
+      )
+
+      get mobile_onboarding_family_path
+
+      assert_response :success
+
+      # Form has the correct Stimulus controller + action wiring
+      assert_select "form[data-controller~='family-form']"
+      assert_select "form[data-action*='change->family-form#formChange']"
+      assert_select "form[data-action*='click->family-form#formClick']"
+
+      # The relationship_status choice-group has the data-role marker the controller looks for
+      assert_select "[data-role='relationship-status'][data-controller='choice-group']"
+
+      # The has_children choice-group has the data-role marker
+      assert_select "[data-role='has-children'][data-controller='choice-group']"
+
+      # Partner fields and children section exist with correct data-role markers
+      assert_select "[data-role='partner-fields'][hidden]", count: 1
+      assert_select "[data-role='children-section'][hidden]", count: 1
+
+      # Children list and template exist (always rendered, just inside hidden parent)
+      assert_select "[data-children-list]", count: 1
+      assert_select "[data-child-template]", count: 1
+
+      # Each radio in the relationship-status group has the choice-group action wiring
+      assert_select "[data-role='relationship-status'] input[type='radio'][data-action*='change->choice-group#select']", minimum: 5
+    end
+
+    test "family form reveals partner fields when state is married (server-side)" do
+      create_onboarding_session(
+        video_intro_version: 1,
+        video_completed_at: Time.current,
+        intro_seen_at: Time.current,
+        first_name: "Luke",
+        last_name: "Aikman",
+        date_of_birth: Date.new(1988, 1, 1),
+        country_of_residence: "england",
+        nationality: "british",
+        domiciled_in_uk: "yes",
+        currently_resident_in_uk: "yes",
+        relationship_status: "married",
+        spouse_first_name: "Sarah",
+        spouse_last_name: "Aikman",
+        divorce_status: "no",
+        has_children: "no"
+      )
+
+      get mobile_onboarding_family_path
+
+      assert_response :success
+
+      # Server-side: partner fields should NOT be hidden when married
+      assert_select "[data-role='partner-fields']:not([hidden])"
+      # And spouse name fields are present
+      assert_select "input[name='onboarding_session[spouse_first_name]']"
+      assert_select "input[name='onboarding_session[spouse_last_name]']"
+    end
+
+    test "family form reveals children section when has_children is yes (server-side)" do
+      create_onboarding_session(
+        video_intro_version: 1,
+        video_completed_at: Time.current,
+        intro_seen_at: Time.current,
+        first_name: "Luke",
+        last_name: "Aikman",
+        date_of_birth: Date.new(1988, 1, 1),
+        country_of_residence: "england",
+        nationality: "british",
+        domiciled_in_uk: "yes",
+        currently_resident_in_uk: "yes",
+        relationship_status: "single",
+        divorce_status: "no",
+        has_children: "yes"
+      )
+
+      get mobile_onboarding_family_path
+
+      assert_response :success
+
+      # Server-side: children section should NOT be hidden when has_children=yes
+      assert_select "[data-role='children-section']:not([hidden])"
+      # And at least one child card should be rendered
+      assert_select "[data-child-card]", minimum: 1
+    end
+
     test "family defaults a fresh child to partner co-guardianship when partnered" do
       create_onboarding_session(
         video_intro_version: 1,

@@ -9,7 +9,7 @@
     class="mobile-choice-group mobile-radio-group"
     data-controller="choice-group"
     data-choice-group-collapsible-value="<%= collapsible %>"
-    <%= %(data-role="#{data_role}") if local_assigns[:data_role].present? %>>
+    <%= raw(%(data-role="#{ERB::Util.h(data_role)}")) if local_assigns[:data_role].present? %>>
     <% normalized_options.each do |option_label, option_value| %>
       <% option_id = "#{group_id}_#{option_value.to_s.parameterize(separator: "_")}" %>
       <div class="mobile-choice-option mobile-radio-option"
