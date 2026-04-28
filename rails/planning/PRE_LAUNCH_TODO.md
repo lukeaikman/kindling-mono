@@ -117,6 +117,36 @@ Decide between Postgres native ENUM types (immutable, requires migration ceremon
 
 ---
 
+## Provision Active Record encryption keys for production
+
+**What**: production credentials must contain an `active_record_encryption:` block with **fresh** keys — not the dev/test keys committed in `config/credentials/{development,test}.yml.enc`.
+
+Steps when prod credentials are accessible (i.e. the host has `config/master.key` or `RAILS_MASTER_KEY` set):
+
+```bash
+bin/rails db:encryption:init                                  # prints fresh keys
+EDITOR="..." RAILS_ENV=production bin/rails credentials:edit  # paste the block
+```
+
+The block looks like:
+
+```yaml
+active_record_encryption:
+  primary_key: <fresh value>
+  deterministic_key: <fresh value>
+  key_derivation_salt: <fresh value>
+```
+
+**Why**: every `encrypts ...` declaration on `Person` / `User` (added in Wave 2 Commit 2) reads from `Rails.application.config.active_record.encryption.*`, which Rails populates from credentials. If prod boots without those keys, every encrypted-column read or write raises — onboarding is dead. Dev and test ship with shared dev-only keys (committed in per-environment credentials so any developer / CI run can decrypt locally); prod keys are deliberately separate and never travel through dev hands.
+
+Reusing the dev keys in prod would also defeat the threat model — anyone with repo read access could decrypt a prod DB dump.
+
+**Effort**: 5–10 minutes once you have `config/master.key` (or the prod master key in the deployment env). One-time.
+
+**Origin**: Epic 2 Wave 2 Commit 1 (2026-04-28). Dev + test keys provisioned at the same time; prod deferred because prod master key was not on the dev workstation.
+
+---
+
 ## Active Record encryption mode audit
 
 **What**: review every `encrypted` column and decide deterministic vs non-deterministic mode based on actual usage.

@@ -64,3 +64,7 @@ yarn-error.log
 # Ignore mise/asdf local config that might have sensitive data
 /.mise.local.toml
 
+
+# Ignore key files for decrypting credentials and more.
+/config/credentials/*.key
+
