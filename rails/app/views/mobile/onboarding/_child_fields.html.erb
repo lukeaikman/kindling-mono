@@ -96,33 +96,33 @@
 
   <%# Co-parent radio (always shown — covers ex-partners + previous marriages
       where current relationship_status doesn't apply). Stimulus re-renders
-      labels as relationship_status / partner-name change. %>
-  <div data-role="co-parent-section">
-    <%= render "mobile/shared/choice_group",
-      field_name: "onboarding_session[children_payload][#{child_index}][co_parent_type]",
-      label: "Do you share legal responsibility for this child?",
-      value: co_parent_type,
-      options: active_options,
-      id_prefix: "child_#{child_index}_co_parent_type",
-      collapsible: true,
-      data_role: "co-parent-type" %>
+      labels as relationship_status / partner-name change.
+      Note: each block below is a direct child of `.mobile-child-card` so the
+      grid `gap` rule spaces them uniformly with the surrounding form rows. %>
+  <%= render "mobile/shared/choice_group",
+    field_name: "onboarding_session[children_payload][#{child_index}][co_parent_type]",
+    label: "Do you share legal responsibility for this child?",
+    value: co_parent_type,
+    options: active_options,
+    id_prefix: "child_#{child_index}_co_parent_type",
+    collapsible: true,
+    data_role: "co-parent-type" %>
 
-    <div data-role="co-parent-partner-rel" <%= "hidden" unless co_parent_type == "yes_with_partner" %>>
-      <%= render "mobile/shared/picker_field",
-        field_name: "onboarding_session[children_payload][#{child_index}][co_parent_partner_relationship_to_child]",
-        label: "Their relationship to this child",
-        value: child["co_parent_partner_relationship_to_child"],
-        options: partner_relationship_to_child_options,
-        placeholder: "Select relationship",
-        id_prefix: "child_#{child_index}_co_parent_partner_rel" %>
-    </div>
+  <div data-role="co-parent-partner-rel" <%= "hidden" unless co_parent_type == "yes_with_partner" %>>
+    <%= render "mobile/shared/picker_field",
+      field_name: "onboarding_session[children_payload][#{child_index}][co_parent_partner_relationship_to_child]",
+      label: "Their relationship to this child",
+      value: child["co_parent_partner_relationship_to_child"],
+      options: partner_relationship_to_child_options,
+      placeholder: "Select relationship",
+      id_prefix: "child_#{child_index}_co_parent_partner_rel" %>
+  </div>
 
-    <div data-role="co-parent-other-fields" <%= "hidden" unless co_parent_type == "yes_with_other" %>>
-      <%= render "mobile/shared/grouped_section",
-        title: "Other parent details",
-        subtle: true,
-        body: someone_else_body %>
-    </div>
+  <div data-role="co-parent-other-fields" <%= "hidden" unless co_parent_type == "yes_with_other" %>>
+    <%= render "mobile/shared/grouped_section",
+      title: "Other parent details",
+      subtle: true,
+      body: someone_else_body %>
   </div>
 
   <%= render "mobile/shared/choice_group",
