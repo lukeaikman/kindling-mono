@@ -26,6 +26,20 @@
   pointer-events: none;
 }
 
+/* Two-up layout: side-by-side options. Used for compact yes/no questions
+   where vertical space matters. Falls back gracefully under is-collapsed:
+   non-selected option still collapses to max-height: 0, leaving the
+   selected option in place. */
+.mobile-radio-group--two-up {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--mobile-space-xs);
+}
+
+.mobile-radio-group--two-up .mobile-radio-option + .mobile-radio-option {
+  margin-top: 0;
+}
+
 .mobile-radio-option input {
   position: absolute;
   opacity: 0;

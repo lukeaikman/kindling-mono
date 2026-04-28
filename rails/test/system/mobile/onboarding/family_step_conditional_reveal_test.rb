@@ -84,5 +84,44 @@ module Mobile
       assert_selector "[data-role='co-parent-partner-rel']", visible: :visible
       assert_selector "[data-role='co-parent-other-fields']", visible: :hidden
     end
+
+    test "Add another button hidden until Child 1 first_name has content" do
+      session = OnboardingSession.create!(
+        token: SecureRandom.hex(24),
+        video_intro_version: 1, video_completed_at: Time.current, intro_seen_at: Time.current,
+        first_name: "Luke", last_name: "Aikman", date_of_birth: Date.new(1988, 1, 1),
+        country_of_residence: "england", nationality: "british",
+        domiciled_in_uk: "yes", currently_resident_in_uk: "yes",
+        relationship_status: "single", has_children: "yes",
+        children_payload: [{
+          "id" => SecureRandom.hex(6),
+          "capacity_status" => "under-18"
+        }]
+      )
+
+      visit "/"
+      jar = ActionDispatch::TestRequest.create.cookie_jar
+      jar.signed[OnboardingSession::COOKIE_KEY] = session.token
+      page.driver.browser.manage.add_cookie(
+        name: OnboardingSession::COOKIE_KEY.to_s,
+        value: jar[OnboardingSession::COOKIE_KEY],
+        path: "/"
+      )
+
+      visit mobile_onboarding_family_path
+
+      # Add-another button is hidden initially — single empty child, "another" is misleading.
+      # Default `visible: true` filter excludes the button, so assert_no_selector succeeds.
+      assert_no_selector "[data-add-child]"
+
+      # Type a first name into Child 1. The form_row partial renders <p> labels
+      # (not <label for>), so Capybara's fill_in label-matching doesn't apply —
+      # find the field by data-role attribute instead.
+      first_card = find("[data-child-card]", match: :first)
+      first_card.find("[data-role='child-first-name']").set("Charlie")
+
+      # Button now revealed
+      assert_selector "[data-add-child]"
+    end
   end
 end

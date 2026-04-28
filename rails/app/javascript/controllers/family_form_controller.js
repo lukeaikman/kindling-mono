@@ -39,6 +39,7 @@ export default class extends Controller {
     this.childrenSection          = form.querySelector("[data-role='children-section']")
     this.childrenList             = form.querySelector("[data-children-list]")
     this.childTemplate            = form.querySelector("[data-child-template]")
+    this.addChildButton           = form.querySelector("[data-add-child]")
 
     if (!this.childrenList || !this.childTemplate) return
 
@@ -48,6 +49,7 @@ export default class extends Controller {
     this.updateChildrenSection()
     this.refreshAllChildCardChrome()
     this.refreshAllChildCoParentOptions()
+    this.updateAddChildButton()
   }
 
   // ---------- Delegated event routers ----------
@@ -82,6 +84,7 @@ export default class extends Controller {
       event.preventDefault()
       removeButton.closest("[data-child-card]")?.remove()
       this.refreshAllChildCardChrome()
+      this.updateAddChildButton()
     }
   }
 
@@ -117,6 +120,11 @@ export default class extends Controller {
     if (childLastName && this.childrenList?.contains(childLastName)) {
       childLastName.dataset.touched = "true"
       childLastName.dataset.prefilled = "false"
+    }
+
+    // Any input within the children list might affect "Add another" visibility
+    if (this.childrenList?.contains(event.target)) {
+      this.updateAddChildButton()
     }
   }
 
@@ -320,7 +328,48 @@ export default class extends Controller {
     if (newCard) {
       this.updateCoParentOptions(newCard)
       this.updateCoParentSubFields(newCard)
+
+      // Scroll the new card into view so the user can see where their next
+      // input is going. Without this, the "Add another" button moves down
+      // off-screen and the user wonders if the click registered.
+      newCard.scrollIntoView({ behavior: "smooth", block: "start" })
+
+      // Focus first_name on the new card so the user can start typing.
+      // Defer past the smooth-scroll animation start so iOS Safari doesn't
+      // jank the scroll by snapping to the input.
+      setTimeout(() => {
+        newCard.querySelector("[data-role='child-first-name']")?.focus({ preventScroll: true })
+      }, 250)
     }
+
+    this.updateAddChildButton()
+  }
+
+  // "Add another" implies a previous one exists. Hide the button until the
+  // first child has at least its first_name filled in (avoids confusing
+  // single-card users) — but always show it when there's already more than
+  // one card (otherwise the user couldn't add a third).
+  updateAddChildButton() {
+    if (!this.addChildButton || !this.childrenList) return
+
+    const cards = Array.from(this.childrenList.querySelectorAll("[data-child-card]"))
+    if (cards.length === 0) {
+      this.addChildButton.hidden = true
+      return
+    }
+    if (cards.length > 1) {
+      this.addChildButton.hidden = false
+      return
+    }
+
+    // Single card: visible only once first_name has content. Using first_name
+    // (not last_name) because last_name can be auto-prefilled with the user's
+    // surname when they're partnered, which isn't a real "started" signal.
+    // The data-role="child-first-name" attribute disambiguates from any other
+    // first_name-bearing field outside the card (defence in depth).
+    const firstNameInput = cards[0].querySelector("[data-role='child-first-name']")
+    const firstName = firstNameInput?.value?.trim()
+    this.addChildButton.hidden = !firstName
   }
 
   nextIndex() {

@@ -34,14 +34,17 @@
 
   child_name_body = capture do
 %>
+  <%# autocomplete="off" prevents browsers from auto-filling these fields with
+      the user's own saved name — the form is asking for THE CHILD's name,
+      not the user's. Same reason the partner fields opt out. %>
   <div class="mobile-inline-grid">
     <%= render "mobile/shared/form_row",
       label: "First name",
-      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][first_name]", child["first_name"], class: "mobile-input" } %>
+      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][first_name]", child["first_name"], class: "mobile-input", autocomplete: "off", data: { role: "child-first-name" } } %>
 
     <%= render "mobile/shared/form_row",
       label: "Last name",
-      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][last_name]", child["last_name"], class: "mobile-input", data: { role: "child-last-name", prefilled: child["last_name"].present?.to_s } } %>
+      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][last_name]", child["last_name"], class: "mobile-input", autocomplete: "off", data: { role: "child-last-name", prefilled: child["last_name"].present?.to_s } } %>
   </div>
 <% end %>
 
@@ -51,11 +54,11 @@
   <div class="mobile-inline-grid">
     <%= render "mobile/shared/form_row",
       label: "Their first name",
-      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_parent_other_first_name]", child["co_parent_other_first_name"], class: "mobile-input" } %>
+      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_parent_other_first_name]", child["co_parent_other_first_name"], class: "mobile-input", autocomplete: "off" } %>
 
     <%= render "mobile/shared/form_row",
       label: "Their last name",
-      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_parent_other_last_name]", child["co_parent_other_last_name"], class: "mobile-input" } %>
+      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_parent_other_last_name]", child["co_parent_other_last_name"], class: "mobile-input", autocomplete: "off" } %>
   </div>
 
   <%= render "mobile/shared/picker_field",
@@ -125,19 +128,23 @@
       body: someone_else_body %>
   </div>
 
+  <%# No-first ordering: most children won't have these flags, so the
+      common-case answer leads. Two-up layout keeps the question compact. %>
   <%= render "mobile/shared/choice_group",
     field_name: "onboarding_session[children_payload][#{child_index}][disabled_answer]",
     label: "Is this child disabled?",
     value: child["disabled_answer"],
-    options: [["Yes", "yes"], ["No", "no"]],
+    options: [["No", "no"], ["Yes", "yes"]],
     id_prefix: "child_#{child_index}_disabled",
-    collapsible: true %>
+    collapsible: true,
+    layout: :two_up %>
 
   <%= render "mobile/shared/choice_group",
     field_name: "onboarding_session[children_payload][#{child_index}][lacks_mental_capacity_answer]",
     label: "Does this child lack mental capacity?",
     value: child["lacks_mental_capacity_answer"],
-    options: [["Yes", "yes"], ["No", "no"]],
+    options: [["No", "no"], ["Yes", "yes"]],
     id_prefix: "child_#{child_index}_lacks_mental_capacity",
-    collapsible: true %>
+    collapsible: true,
+    layout: :two_up %>
 </div>

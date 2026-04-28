@@ -3,10 +3,12 @@
   current_value = value.to_s
   group_id = (local_assigns[:id_prefix].presence || field_name.gsub(/[^a-zA-Z0-9]+/, "_").gsub(/\A_|_\z/, ""))
   collapsible = local_assigns.fetch(:collapsible, true)
+  layout = local_assigns.fetch(:layout, :stacked)
+  layout_class = layout == :two_up ? " mobile-radio-group--two-up" : ""
   choice_group_body = capture do
 %>
   <div
-    class="mobile-choice-group mobile-radio-group"
+    class="mobile-choice-group mobile-radio-group<%= layout_class %>"
     data-controller="choice-group"
     data-choice-group-collapsible-value="<%= collapsible %>"
     <%= raw(%(data-role="#{ERB::Util.h(data_role)}")) if local_assigns[:data_role].present? %>>

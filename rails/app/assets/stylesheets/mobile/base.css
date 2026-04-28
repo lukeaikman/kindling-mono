@@ -99,6 +99,21 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* The button-* class rules above set `display: inline-flex` with higher
+   specificity than the user-agent `[hidden] { display: none }` rule, which
+   means buttons toggled via the `hidden` HTML attribute would otherwise
+   stay visible. Restore the expected behaviour. */
+.mobile-button[hidden],
+.mobile-button-secondary[hidden],
+.mobile-button-tertiary[hidden] {
+  display: none;
+}
+
+.mobile-button,
+.mobile-button-secondary,
+.mobile-button-tertiary {
   width: 100%;
   min-height: 3.5rem;
   border: 0;

@@ -57,7 +57,10 @@
   <%
     children_section_body = capture do
   %>
-    <button type="button" class="mobile-button-secondary" data-add-child>Add another</button>
+    <%# Hidden by default — Stimulus shows it once Child 1's first_name has any
+        content (or whenever there's already more than one card). "Add another"
+        is misleading before any child has been started. %>
+    <button type="button" class="mobile-button-secondary" data-add-child hidden>Add another</button>
 
     <div class="mobile-stack" data-children-list>
       <% children_for_form.each_with_index do |child, index| %>
