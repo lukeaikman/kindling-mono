@@ -1,6 +1,37 @@
 <%
-  selected_responsibility = child["responsibility"].presence || default_responsibility
-  responsibility_manual = child["responsibility"].present?
+  # `partner_first_name` carries either the actual partner first name (live)
+  # or a fallback string ("your spouse" / "your civil partner" / "your partner").
+  # The Stimulus controller live-updates this label as the user types in the
+  # partner section. The server-side render uses the at-load value.
+  partner_label = partner_first_name.presence || "your partner"
+  co_parent_type = child["co_parent_type"]
+
+  partnered_options = [
+    ["Yes, with #{partner_label}", "yes_with_partner"],
+    ["Yes, with someone else", "yes_with_other"],
+    ["No — their other parent is deceased", "no_deceased"],
+    ["No, I have sole parental responsibility", "no_sole"]
+  ]
+  unpartnered_options = [
+    ["Yes", "yes_with_other"],
+    ["No — their other parent is deceased", "no_deceased"],
+    ["No, I have sole parental responsibility", "no_sole"]
+  ]
+  active_options = partnered ? partnered_options : unpartnered_options
+
+  child_relationship_options = [
+    ["Biological child", "biological-child"],
+    ["Adopted child", "adopted-child"],
+    ["Step child", "stepchild"],
+    ["Foster child", "foster-child"]
+  ]
+  partner_relationship_to_child_options = [
+    ["Biological parent", "biological"],
+    ["Adoptive parent", "adoptive"],
+    ["Step parent", "step"],
+    ["Foster parent", "foster"]
+  ]
+
   child_name_body = capture do
 %>
   <div class="mobile-inline-grid">
@@ -15,24 +46,28 @@
 <% end %>
 
 <%
-  guardian_details_body = capture do
+  someone_else_body = capture do
 %>
   <div class="mobile-inline-grid">
     <%= render "mobile/shared/form_row",
-      label: "First name",
-      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_guardian_first_name]", child["co_guardian_first_name"], class: "mobile-input" } %>
+      label: "Their first name",
+      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_parent_other_first_name]", child["co_parent_other_first_name"], class: "mobile-input" } %>
 
     <%= render "mobile/shared/form_row",
-      label: "Last name",
-      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_guardian_last_name]", child["co_guardian_last_name"], class: "mobile-input" } %>
+      label: "Their last name",
+      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_parent_other_last_name]", child["co_parent_other_last_name"], class: "mobile-input" } %>
   </div>
 
-  <%= render "mobile/shared/form_row",
-    label: "Relationship (optional)",
-    body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_guardian_relationship]", child["co_guardian_relationship"], class: "mobile-input", placeholder: "Ex-partner, friend, sibling..." } %>
+  <%= render "mobile/shared/picker_field",
+    field_name: "onboarding_session[children_payload][#{child_index}][co_parent_other_relationship_to_child]",
+    label: "Their relationship to this child",
+    value: child["co_parent_other_relationship_to_child"],
+    options: partner_relationship_to_child_options,
+    placeholder: "Select relationship",
+    id_prefix: "child_#{child_index}_co_parent_other_rel" %>
 <% end %>
 
-<div class="mobile-child-card" data-child-card>
+<div class="mobile-child-card" data-child-card data-partnered="<%= partnered %>">
   <div class="mobile-child-topline">
     <h3 class="mobile-child-title">Child <span data-child-number><%= index + 1 %></span></h3>
     <button type="button" class="mobile-remove-button" data-remove-child <%= "hidden" if allow_remove == false %>>Remove</button>
@@ -51,31 +86,44 @@
     min: (Date.current - 100.years),
     max: Date.current %>
 
-  <%= render "mobile/shared/picker_field",
+  <%= render "mobile/shared/choice_group",
     field_name: "onboarding_session[children_payload][#{child_index}][relationship]",
-    label: "Relationship to you",
+    label: "What is this child's relationship to you?",
     value: child["relationship"] || "biological-child",
-    options: [["Biological child", "biological-child"], ["Adopted child", "adopted-child"], ["Stepchild", "stepchild"], ["Foster child", "foster-child"], ["Other", "other"]],
-    placeholder: "Select relationship",
-    id_prefix: "child_#{child_index}_relationship" %>
+    options: child_relationship_options,
+    id_prefix: "child_#{child_index}_relationship",
+    collapsible: true %>
 
-  <%= render "mobile/shared/picker_field",
-    field_name: "onboarding_session[children_payload][#{child_index}][responsibility]",
-    label: "Responsibility",
-    value: selected_responsibility,
-    options: responsibility_options,
-    placeholder: "Select responsibility",
-    id_prefix: "child_#{child_index}_responsibility",
-    data_role: "responsibility",
-    select_data: { role: "responsibility", manual: responsibility_manual.to_s } %>
+  <%# Co-parent radio (always shown — covers ex-partners + previous marriages
+      where current relationship_status doesn't apply). Stimulus re-renders
+      labels as relationship_status / partner-name change. %>
+  <div data-role="co-parent-section">
+    <%= render "mobile/shared/choice_group",
+      field_name: "onboarding_session[children_payload][#{child_index}][co_parent_type]",
+      label: "Do you share legal responsibility for this child?",
+      value: co_parent_type,
+      options: active_options,
+      id_prefix: "child_#{child_index}_co_parent_type",
+      collapsible: true,
+      data_role: "co-parent-type" %>
 
-  <%= render "mobile/shared/picker_field",
-    field_name: "onboarding_session[children_payload][#{child_index}][capacity_status]",
-    label: "Capacity as guardian",
-    value: child["capacity_status"] || "under-18",
-    options: [["Child is under 18", "under-18"], ["Child is over 18 but lacks mental capacity", "over-18-lacks-capacity"], ["Child is over 18 with full capacity", "over-18-full-capacity"], ["Special circumstances", "special-circumstances"]],
-    placeholder: "Select capacity",
-    id_prefix: "child_#{child_index}_capacity_status" %>
+    <div data-role="co-parent-partner-rel" <%= "hidden" unless co_parent_type == "yes_with_partner" %>>
+      <%= render "mobile/shared/picker_field",
+        field_name: "onboarding_session[children_payload][#{child_index}][co_parent_partner_relationship_to_child]",
+        label: "Their relationship to this child",
+        value: child["co_parent_partner_relationship_to_child"],
+        options: partner_relationship_to_child_options,
+        placeholder: "Select relationship",
+        id_prefix: "child_#{child_index}_co_parent_partner_rel" %>
+    </div>
+
+    <div data-role="co-parent-other-fields" <%= "hidden" unless co_parent_type == "yes_with_other" %>>
+      <%= render "mobile/shared/grouped_section",
+        title: "Other parent details",
+        subtle: true,
+        body: someone_else_body %>
+    </div>
+  </div>
 
   <%= render "mobile/shared/choice_group",
     field_name: "onboarding_session[children_payload][#{child_index}][disabled_answer]",
@@ -92,11 +140,4 @@
     options: [["Yes", "yes"], ["No", "no"]],
     id_prefix: "child_#{child_index}_lacks_mental_capacity",
     collapsible: true %>
-
-  <div class="mobile-stack" data-role="co-guardian-fields" <%= "hidden" unless selected_responsibility == "add-co-guardian" %>>
-    <%= render "mobile/shared/grouped_section",
-      title: "Guardian details",
-      subtle: true,
-      body: guardian_details_body %>
-  </div>
 </div>

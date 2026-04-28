@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_24_140455) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_28_085303) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -263,6 +263,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_24_140455) do
     t.integer "number_of_siblings"
     t.string "parents_alive"
     t.string "parents_in_law_alive"
+    t.date "partner_started_at"
     t.datetime "questionnaire_completed_at"
     t.text "raw_url"
     t.string "relationship_status"
@@ -270,6 +271,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_24_140455) do
     t.string "siblings_alive"
     t.string "spouse_first_name"
     t.string "spouse_last_name"
+    t.integer "times_divorced", default: 0, null: false
+    t.integer "times_widowed", default: 0, null: false
     t.string "token", null: false
     t.datetime "updated_at", null: false
     t.datetime "video_completed_at"

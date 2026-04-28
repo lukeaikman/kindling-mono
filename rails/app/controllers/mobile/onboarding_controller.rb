@@ -59,7 +59,6 @@ module Mobile
     end
 
     def family
-      onboarding_session.divorce_status = "no" if onboarding_session.divorce_status.blank?
       touch_onboarding_session!
     end
 
@@ -156,7 +155,9 @@ module Mobile
         :relationship_status,
         :spouse_first_name,
         :spouse_last_name,
-        :divorce_status,
+        :partner_started_at,
+        :times_divorced,
+        :times_widowed,
         :has_children,
         children_payload: %i[
           id
@@ -164,13 +165,14 @@ module Mobile
           last_name
           date_of_birth
           relationship
-          responsibility
           capacity_status
           disabled_answer
           lacks_mental_capacity_answer
-          co_guardian_first_name
-          co_guardian_last_name
-          co_guardian_relationship
+          co_parent_type
+          co_parent_partner_relationship_to_child
+          co_parent_other_first_name
+          co_parent_other_last_name
+          co_parent_other_relationship_to_child
         ]
       )
     end

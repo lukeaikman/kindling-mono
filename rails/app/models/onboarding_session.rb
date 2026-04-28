@@ -13,9 +13,11 @@ class OnboardingSession < ApplicationRecord
 
   before_validation :ensure_token, on: :create
   before_validation :ensure_last_seen_at, on: :create
-  before_validation :ensure_divorce_default
+  before_validation :reset_widowed_count_when_not_widowed
 
   validates :token, presence: true, uniqueness: true
+  validates :times_divorced, :times_widowed,
+    numericality: { only_integer: true, greater_than_or_equal_to: 0 }
 
   with_options on: :welcome_step do
     validates :first_name, :last_name, :date_of_birth, presence: true
@@ -27,8 +29,9 @@ class OnboardingSession < ApplicationRecord
   end
 
   with_options on: :family_step do
-    validates :relationship_status, :divorce_status, :has_children, presence: true
+    validates :relationship_status, :has_children, presence: true
     validate :partner_details_if_required
+    validate :partner_started_at_required_when_cohabiting
     validate :children_payload_for_family_step
   end
 
@@ -145,9 +148,9 @@ class OnboardingSession < ApplicationRecord
 
   def family_complete?
     relationship_status.present? &&
-      divorce_status.present? &&
       has_children.present? &&
       partner_details_complete? &&
+      partner_started_at_complete? &&
       children_section_complete?
   end
 
@@ -162,16 +165,11 @@ class OnboardingSession < ApplicationRecord
     PARTNER_STATUSES.include?(relationship_status)
   end
 
-  def default_child_responsibility
-    has_partner? ? "co-responsibility-with-spouse" : "sole-responsibility"
-  end
-
-  def child_responsibility_options
-    options = []
-    options << ["Co-guardianship with #{partner_guardianship_name}", "co-responsibility-with-spouse"] if has_partner?
-    options << ["Sole guardianship", "sole-responsibility"]
-    options << ["Add guardian", "add-co-guardian"]
-    options
+  # Display name for partner — used by the per-child co-parent radio's smart
+  # labelling ("Yes, with Sarah" / fallback). Stimulus also live-updates on
+  # partner-name edits, but server-side render needs a string too.
+  def partner_display_name
+    spouse_first_name.presence || partner_kind_fallback
   end
 
   def age_allowed?
@@ -191,12 +189,8 @@ class OnboardingSession < ApplicationRecord
     self.last_seen_at ||= Time.current
   end
 
-  def ensure_divorce_default
-    self.divorce_status = "no" if divorce_status.blank?
-  end
-
-  def partner_guardianship_name
-    spouse_first_name.presence || partner_guardianship_fallback
+  def reset_widowed_count_when_not_widowed
+    self.times_widowed = 0 if relationship_status.present? && relationship_status != "widowed"
   end
 
   def apply_startup_hash(attribution)
@@ -218,6 +212,11 @@ class OnboardingSession < ApplicationRecord
     !has_partner? || (spouse_first_name.present? && spouse_last_name.present?)
   end
 
+  def partner_started_at_complete?
+    return true unless relationship_status == "cohabiting"
+    partner_started_at.present?
+  end
+
   def children_section_complete?
     return true if has_children == "no"
 
@@ -227,7 +226,29 @@ class OnboardingSession < ApplicationRecord
         child["last_name"].present? &&
         child["relationship"].present? &&
         %w[yes no].include?(child["disabled_answer"]) &&
-        %w[yes no].include?(child["lacks_mental_capacity_answer"])
+        %w[yes no].include?(child["lacks_mental_capacity_answer"]) &&
+        co_parent_complete?(child)
+    end
+  end
+
+  # Per-child co-parent answers must be coherent. The radio answer comes in as
+  # `co_parent_type`; sub-fields (relationship-to-child, someone-else's name)
+  # depend on the type.
+  def co_parent_complete?(child)
+    type = child["co_parent_type"]
+    return true if type.blank?  # not yet answered → bubbles up via children_section_complete
+
+    case type
+    when "yes_with_partner"
+      has_partner? && child["co_parent_partner_relationship_to_child"].present?
+    when "yes_with_other"
+      child["co_parent_other_first_name"].present? &&
+        child["co_parent_other_last_name"].present? &&
+        child["co_parent_other_relationship_to_child"].present?
+    when "no_deceased", "no_sole"
+      true
+    else
+      false
     end
   end
 
@@ -244,10 +265,16 @@ class OnboardingSession < ApplicationRecord
     errors.add(:spouse_last_name, "is required") if spouse_last_name.blank?
   end
 
+  def partner_started_at_required_when_cohabiting
+    return if partner_started_at_complete?
+
+    errors.add(:partner_started_at, "is required when cohabiting")
+  end
+
   def children_payload_for_family_step
     return if children_section_complete?
 
-    errors.add(:children_payload, "must include disability and mental capacity answers for each child")
+    errors.add(:children_payload, "must include disability, mental capacity, and shared-responsibility answers for each child")
   end
 
   def parents_in_law_if_required
@@ -287,24 +314,29 @@ class OnboardingSession < ApplicationRecord
         "last_name" => raw["last_name"].to_s.strip,
         "date_of_birth" => raw["date_of_birth"].presence,
         "relationship" => raw["relationship"].presence || "biological-child",
-        "responsibility" => raw["responsibility"].presence || "sole-responsibility",
         "capacity_status" => raw["capacity_status"].presence || "under-18",
         "disabled_answer" => raw["disabled_answer"].presence,
         "disabled" => raw["disabled_answer"] == "yes",
         "lacks_mental_capacity_answer" => raw["lacks_mental_capacity_answer"].presence,
         "lacks_mental_capacity" => raw["lacks_mental_capacity_answer"] == "yes",
-        "co_guardian_first_name" => raw["co_guardian_first_name"].to_s.strip.presence,
-        "co_guardian_last_name" => raw["co_guardian_last_name"].to_s.strip.presence,
-        "co_guardian_relationship" => raw["co_guardian_relationship"].to_s.strip.presence
+        # New co-parent capture (replaces the prior responsibility / co_guardian
+        # fields). `co_parent_type` is one of:
+        #   yes_with_partner | yes_with_other | no_deceased | no_sole
+        # Sub-fields populated based on the type chosen.
+        "co_parent_type" => raw["co_parent_type"].presence,
+        "co_parent_partner_relationship_to_child" => raw["co_parent_partner_relationship_to_child"].presence,
+        "co_parent_other_first_name" => raw["co_parent_other_first_name"].to_s.strip.presence,
+        "co_parent_other_last_name" => raw["co_parent_other_last_name"].to_s.strip.presence,
+        "co_parent_other_relationship_to_child" => raw["co_parent_other_relationship_to_child"].presence
       }.compact
 
-      next if normalized.except("id", "relationship", "responsibility", "capacity_status", "disabled", "lacks_mental_capacity").empty?
+      next if normalized.except("id", "relationship", "capacity_status", "disabled", "lacks_mental_capacity").empty?
 
       normalized
     end
   end
 
-  def partner_guardianship_fallback
+  def partner_kind_fallback
     case relationship_status
     when "married"
       "your spouse"

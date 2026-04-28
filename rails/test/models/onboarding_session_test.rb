@@ -27,10 +27,9 @@ class OnboardingSessionTest < ActiveSupport::TestCase
     assert_equal "/mobile/onboarding/extended-family", onboarding_session.first_incomplete_path
   end
 
-  test "family step requires child disability and mental capacity answers" do
+  test "family step requires child disability, mental capacity, and shared-responsibility answers" do
     onboarding_session = OnboardingSession.new(
       relationship_status: "single",
-      divorce_status: "no",
       has_children: "yes",
       children_payload: [
         {
@@ -43,21 +42,139 @@ class OnboardingSessionTest < ActiveSupport::TestCase
     )
 
     assert_not onboarding_session.valid?(:family_step)
-    assert_includes onboarding_session.errors[:children_payload], "must include disability and mental capacity answers for each child"
+    assert_includes onboarding_session.errors[:children_payload],
+      "must include disability, mental capacity, and shared-responsibility answers for each child"
   end
 
-  test "partnered users default child responsibility to co-guardianship with partner first name" do
+  test "partner_display_name uses partner first name when present" do
     onboarding_session = OnboardingSession.new(
       relationship_status: "civil-partnership",
       spouse_first_name: "Alex"
     )
 
-    assert_equal "co-responsibility-with-spouse", onboarding_session.default_child_responsibility
-    assert_equal [
-      ["Co-guardianship with Alex", "co-responsibility-with-spouse"],
-      ["Sole guardianship", "sole-responsibility"],
-      ["Add guardian", "add-co-guardian"]
-    ], onboarding_session.child_responsibility_options
+    assert_equal "Alex", onboarding_session.partner_display_name
+  end
+
+  test "partner_display_name falls back to relationship-kind phrase when name blank" do
+    onboarding_session = OnboardingSession.new(relationship_status: "married")
+    assert_equal "your spouse", onboarding_session.partner_display_name
+
+    onboarding_session.relationship_status = "civil-partnership"
+    assert_equal "your civil partner", onboarding_session.partner_display_name
+
+    onboarding_session.relationship_status = "cohabiting"
+    assert_equal "your partner", onboarding_session.partner_display_name
+  end
+
+  test "co_parent yes_with_partner without partner_relationship_to_child is incomplete" do
+    onboarding_session = OnboardingSession.new(
+      relationship_status: "married",
+      spouse_first_name: "Sarah",
+      spouse_last_name: "Smith",
+      has_children: "yes",
+      children_payload: [
+        {
+          "first_name" => "Charlie",
+          "last_name" => "Smith",
+          "relationship" => "biological-child",
+          "capacity_status" => "under-18",
+          "disabled_answer" => "no",
+          "lacks_mental_capacity_answer" => "no",
+          "co_parent_type" => "yes_with_partner"
+          # NB: no co_parent_partner_relationship_to_child
+        }
+      ]
+    )
+
+    assert_not onboarding_session.valid?(:family_step)
+  end
+
+  test "co_parent yes_with_other requires name + relationship-to-child" do
+    onboarding_session = OnboardingSession.new(
+      relationship_status: "single",
+      has_children: "yes",
+      children_payload: [
+        {
+          "first_name" => "Charlie",
+          "last_name" => "Smith",
+          "relationship" => "biological-child",
+          "capacity_status" => "under-18",
+          "disabled_answer" => "no",
+          "lacks_mental_capacity_answer" => "no",
+          "co_parent_type" => "yes_with_other",
+          "co_parent_other_first_name" => "Bob",
+          "co_parent_other_last_name" => "Jones"
+          # NB: no co_parent_other_relationship_to_child
+        }
+      ]
+    )
+
+    assert_not onboarding_session.valid?(:family_step)
+  end
+
+  test "co_parent no_sole / no_deceased / yes_with_other-with-all-fields are valid" do
+    base = {
+      token: SecureRandom.hex(24),
+      relationship_status: "single",
+      has_children: "yes"
+    }
+    base_child = {
+      "first_name" => "Charlie",
+      "last_name" => "Smith",
+      "relationship" => "biological-child",
+      "capacity_status" => "under-18",
+      "disabled_answer" => "no",
+      "lacks_mental_capacity_answer" => "no"
+    }
+
+    %w[no_sole no_deceased].each do |answer|
+      session = OnboardingSession.new(base.merge(token: SecureRandom.hex(24), children_payload: [base_child.merge("co_parent_type" => answer)]))
+      assert session.valid?(:family_step), "expected #{answer} to be valid (errors: #{session.errors.full_messages})"
+    end
+
+    fully_specified = base_child.merge(
+      "co_parent_type" => "yes_with_other",
+      "co_parent_other_first_name" => "Bob",
+      "co_parent_other_last_name" => "Jones",
+      "co_parent_other_relationship_to_child" => "biological"
+    )
+    session = OnboardingSession.new(base.merge(token: SecureRandom.hex(24), children_payload: [fully_specified]))
+    assert session.valid?(:family_step), "expected yes_with_other (full) to be valid (errors: #{session.errors.full_messages})"
+  end
+
+  test "cohabiting requires partner_started_at on family step" do
+    onboarding_session = OnboardingSession.new(
+      token: SecureRandom.hex(24),
+      relationship_status: "cohabiting",
+      spouse_first_name: "Sam",
+      spouse_last_name: "Partner",
+      has_children: "no"
+      # NB: no partner_started_at
+    )
+
+    assert_not onboarding_session.valid?(:family_step)
+    assert_includes onboarding_session.errors[:partner_started_at], "is required when cohabiting"
+  end
+
+  test "married does not require partner_started_at" do
+    onboarding_session = OnboardingSession.new(
+      token: SecureRandom.hex(24),
+      relationship_status: "married",
+      spouse_first_name: "Sarah",
+      spouse_last_name: "Smith",
+      has_children: "no"
+    )
+
+    assert onboarding_session.valid?(:family_step), "errors: #{onboarding_session.errors.full_messages}"
+  end
+
+  test "times_widowed resets to 0 when relationship_status is not widowed" do
+    onboarding_session = OnboardingSession.new(
+      relationship_status: "married",
+      times_widowed: 3
+    )
+    onboarding_session.valid?  # triggers before_validation
+    assert_equal 0, onboarding_session.times_widowed
   end
 
   test "inactive_for_more_than returns true for stale drafts" do
