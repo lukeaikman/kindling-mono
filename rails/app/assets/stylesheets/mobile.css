@@ -12,6 +12,7 @@
  *= require mobile/components/sticky_actions
  *= require mobile/components/callout
  *= require mobile/components/repeater_card
+ *= require mobile/components/summary_list
  *= require mobile/components/media_frame
  *= require mobile/screens/startup
  *= require mobile/screens/onboarding

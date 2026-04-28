@@ -177,6 +177,111 @@ class OnboardingSessionTest < ActiveSupport::TestCase
     assert_equal 0, onboarding_session.times_widowed
   end
 
+  test "partner_possessive_label uses spouse name with curly apostrophe" do
+    onboarding_session = OnboardingSession.new(
+      relationship_status: "married",
+      spouse_first_name: "Sarah"
+    )
+    assert_equal "Sarah’s", onboarding_session.partner_possessive_label
+  end
+
+  test "partner_possessive_label falls back to relationship-kind phrase" do
+    onboarding_session = OnboardingSession.new(relationship_status: "civil-partnership")
+    assert_equal "your civil partner’s", onboarding_session.partner_possessive_label
+
+    onboarding_session.relationship_status = "cohabiting"
+    assert_equal "your partner’s", onboarding_session.partner_possessive_label
+
+    onboarding_session.relationship_status = "married"
+    assert_equal "your spouse’s", onboarding_session.partner_possessive_label
+  end
+
+  test "partner_possessive_label is nil when not partnered" do
+    onboarding_session = OnboardingSession.new(relationship_status: "single")
+    assert_nil onboarding_session.partner_possessive_label
+
+    onboarding_session.relationship_status = "divorced"
+    assert_nil onboarding_session.partner_possessive_label
+  end
+
+  test "summary_facts includes married partner phrase and child names" do
+    onboarding_session = OnboardingSession.new(
+      first_name: "Luke",
+      last_name: "Aikman",
+      date_of_birth: Date.new(1988, 1, 1),
+      country_of_residence: "england",
+      nationality: "british",
+      domiciled_in_uk: "yes",
+      currently_resident_in_uk: "yes",
+      relationship_status: "married",
+      spouse_first_name: "Sarah",
+      spouse_last_name: "Aikman",
+      has_children: "yes",
+      children_payload: [
+        { "first_name" => "Charlie", "last_name" => "Aikman", "relationship" => "biological-child", "capacity_status" => "under-18" },
+        { "first_name" => "Alex",    "last_name" => "Aikman", "relationship" => "biological-child", "capacity_status" => "under-18" }
+      ],
+      parents_alive: "both",
+      parents_in_law_alive: "one-alive",
+      siblings_alive: "yes",
+      number_of_siblings: 2
+    )
+
+    facts = onboarding_session.summary_facts.index_by { |fact| fact[:label] }
+
+    assert_equal "Luke Aikman, born 1 January 1988", facts["You"][:value]
+    assert_equal "England · British citizen · UK domiciled · UK resident", facts["Location"][:value]
+    assert_equal "Married to Sarah Aikman", facts["Relationship"][:value]
+    assert_equal "Charlie, Alex", facts["Children"][:value]
+    assert_equal "Both alive", facts["Parents"][:value]
+    assert_equal "One alive", facts["In-laws"][:value]
+    assert_equal "2 siblings", facts["Siblings"][:value]
+  end
+
+  test "summary_facts hides children block when none, hides in-laws when not partnered" do
+    onboarding_session = OnboardingSession.new(
+      first_name: "Luke",
+      last_name: "Aikman",
+      date_of_birth: Date.new(1988, 1, 1),
+      country_of_residence: "wales",
+      nationality: "british",
+      domiciled_in_uk: "yes",
+      currently_resident_in_uk: "yes",
+      relationship_status: "single",
+      has_children: "no",
+      parents_alive: "no",
+      siblings_alive: "no"
+    )
+
+    labels = onboarding_session.summary_facts.map { |fact| fact[:label] }
+    assert_equal %w[You Location Relationship Parents Siblings], labels
+
+    facts = onboarding_session.summary_facts.index_by { |fact| fact[:label] }
+    assert_equal "Single", facts["Relationship"][:value]
+    assert_equal "Neither alive", facts["Parents"][:value]
+    assert_equal "None", facts["Siblings"][:value]
+  end
+
+  test "summary_facts pluralises divorced/widowed counts above one" do
+    onboarding_session = OnboardingSession.new(
+      first_name: "Luke",
+      last_name: "Aikman",
+      date_of_birth: Date.new(1988, 1, 1),
+      country_of_residence: "england",
+      nationality: "british",
+      domiciled_in_uk: "yes",
+      currently_resident_in_uk: "yes",
+      relationship_status: "divorced",
+      times_divorced: 2,
+      has_children: "no",
+      parents_alive: "both",
+      siblings_alive: "no"
+    )
+
+    facts = onboarding_session.summary_facts.index_by { |fact| fact[:label] }
+    assert_equal "Divorced (2 times)", facts["Relationship"][:value]
+  end
+
   test "inactive_for_more_than returns true for stale drafts" do
     onboarding_session = OnboardingSession.new(last_seen_at: 4.hours.ago)
 

@@ -1,7 +1,24 @@
 <% content_for :title, "" %>
 
-<% covered_body = capture do %>
-  <p class="mobile-copy">Your core identity, your location, the structure of your family, and the details that change legal outcomes.</p>
+<%
+  first_name = @onboarding_session.first_name.presence
+  hero_title =
+    if first_name
+      "You’ve covered the right ground, #{first_name}."
+    else
+      "You’ve covered the right ground."
+    end
+
+  covered_body = capture do
+%>
+  <dl class="mobile-summary">
+    <% @onboarding_session.summary_facts.each do |fact| %>
+      <div class="mobile-summary__row">
+        <dt class="mobile-summary__label"><%= fact[:label] %></dt>
+        <dd class="mobile-summary__value"><%= fact[:value] %></dd>
+      </div>
+    <% end %>
+  </dl>
 <% end %>
 
 <% next_body = capture do %>
@@ -13,7 +30,7 @@
 
   <div class="mobile-screen__body">
     <%= render "mobile/shared/hero_block",
-      title: "You’ve covered the right ground.",
+      title: hero_title,
       subtitle: "We’ve collected the essential facts. Next comes securing your account so this can become a durable, properly owned plan." %>
 
     <%= render "mobile/shared/grouped_section",

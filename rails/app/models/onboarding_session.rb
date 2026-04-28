@@ -8,6 +8,19 @@ class OnboardingSession < ApplicationRecord
     wrap_up: "/mobile/onboarding/wrap-up"
   }.freeze
   PARTNER_STATUSES = %w[married civil-partnership cohabiting].freeze
+  COUNTRY_LABELS = {
+    "england" => "England",
+    "wales" => "Wales",
+    "scotland" => "Scotland",
+    "northern_ireland" => "Northern Ireland"
+  }.freeze
+  NATIONALITY_LABELS = {
+    "british" => "British",
+    "american" => "American",
+    "canadian" => "Canadian",
+    "australian" => "Australian",
+    "other" => "Other"
+  }.freeze
 
   serialize :children_payload, coder: JSON
 
@@ -170,6 +183,28 @@ class OnboardingSession < ApplicationRecord
   # partner-name edits, but server-side render needs a string too.
   def partner_display_name
     spouse_first_name.presence || partner_kind_fallback
+  end
+
+  # Possessive form for piping into labels — e.g. the parents-in-law question
+  # "Are either of [Sarah's / your spouse's / your civil partner's / your
+  # partner's] parents still alive?". Uses curly apostrophe to match existing
+  # typography. Returns nil when not partnered.
+  def partner_possessive_label
+    return nil unless has_partner?
+    "#{partner_display_name}’s"
+  end
+
+  # Structured facts piped into the wrap-up screen. Returns an array of
+  # `{label:, value:}` hashes — view renders as a definition list. Built once
+  # the session is far enough through onboarding that all the gates have
+  # been answered (wrap-up is only reached when extended_family_complete?).
+  def summary_facts
+    facts = [ you_fact, location_fact, relationship_fact ]
+    facts << children_fact if has_children == "yes"
+    facts << parents_fact
+    facts << parents_in_law_fact if has_partner?
+    facts << siblings_fact
+    facts.compact
   end
 
   def age_allowed?
@@ -345,5 +380,105 @@ class OnboardingSession < ApplicationRecord
     when "cohabiting"
       "your partner"
     end
+  end
+
+  # ---- Wrap-up summary helpers (private — feed `summary_facts`) ----
+
+  def you_fact
+    name = "#{first_name} #{last_name}".strip
+    parts = [ name.presence, formatted_birth_date ].compact
+    { label: "You", value: parts.join(", born ") }
+  end
+
+  def location_fact
+    parts = [ country_label, "#{nationality_label} citizen" ].compact_blank
+    parts << "UK domiciled" if domiciled_in_uk == "yes"
+    parts << "UK resident" if currently_resident_in_uk == "yes"
+    { label: "Location", value: parts.join(" · ") }
+  end
+
+  def relationship_fact
+    value =
+      case relationship_status
+      when "married"           then partner_phrase("Married to")
+      when "civil-partnership" then partner_phrase("Civil partnership with")
+      when "cohabiting"        then partner_phrase("Cohabiting with")
+      when "single"            then "Single"
+      when "divorced"          then divorced_phrase
+      when "widowed"           then widowed_phrase
+      else relationship_status.to_s.humanize.presence || "—"
+      end
+    { label: "Relationship", value: value }
+  end
+
+  def children_fact
+    children = children_payload
+    names = children.map { |c| c["first_name"].to_s.strip.presence }.compact
+    count = children.size
+    value =
+      if names.any?
+        names.join(", ")
+      else
+        "#{count} #{'child'.pluralize(count)}"
+      end
+    { label: "Children", value: value }
+  end
+
+  def parents_fact
+    { label: "Parents", value: alive_label(parents_alive) }
+  end
+
+  def parents_in_law_fact
+    { label: "In-laws", value: alive_label(parents_in_law_alive) }
+  end
+
+  def siblings_fact
+    value =
+      if siblings_alive == "yes"
+        n = number_of_siblings.to_i
+        "#{n} #{'sibling'.pluralize(n)}"
+      else
+        "None"
+      end
+    { label: "Siblings", value: value }
+  end
+
+  def partner_phrase(prefix)
+    full = "#{spouse_first_name} #{spouse_last_name}".strip
+    full.present? ? "#{prefix} #{full}" : prefix.sub(/\s+(to|with)$/, "").strip
+  end
+
+  def divorced_phrase
+    n = times_divorced.to_i
+    n > 1 ? "Divorced (#{n} times)" : "Divorced"
+  end
+
+  def widowed_phrase
+    n = times_widowed.to_i
+    n > 1 ? "Widowed (#{n} times)" : "Widowed"
+  end
+
+  def alive_label(value)
+    case value
+    when "both"      then "Both alive"
+    when "one-alive" then "One alive"
+    when "no"        then "Neither alive"
+    else value.to_s.humanize.presence || "—"
+    end
+  end
+
+  def country_label
+    return nil if country_of_residence.blank?
+    COUNTRY_LABELS.fetch(country_of_residence, country_of_residence.humanize)
+  end
+
+  def nationality_label
+    return nil if nationality.blank?
+    NATIONALITY_LABELS.fetch(nationality, nationality.humanize)
+  end
+
+  def formatted_birth_date
+    return nil if date_of_birth.blank?
+    date_of_birth.strftime("%-d %B %Y")
   end
 end

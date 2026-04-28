@@ -14,16 +14,16 @@
         field_name: "onboarding_session[parents_alive]",
         label: "Are either of your parents still alive?",
         value: @onboarding_session.parents_alive,
-        options: [["Yes", "yes"], ["One alive", "one-alive"], ["No", "no"]],
+        options: [["Both", "both"], ["One alive", "one-alive"], ["No", "no"]],
         id_prefix: "parents_alive",
         collapsible: true %>
 
       <% if @onboarding_session.has_partner? %>
         <%= render "mobile/shared/choice_group",
           field_name: "onboarding_session[parents_in_law_alive]",
-          label: "Are either of your partner’s parents still alive?",
+          label: "Are either of #{@onboarding_session.partner_possessive_label} parents still alive?",
           value: @onboarding_session.parents_in_law_alive,
-          options: [["Yes", "yes"], ["One alive", "one-alive"], ["No", "no"]],
+          options: [["Both", "both"], ["One alive", "one-alive"], ["No", "no"]],
           id_prefix: "parents_in_law_alive",
           collapsible: true %>
       <% end %>

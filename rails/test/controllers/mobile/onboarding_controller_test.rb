@@ -411,7 +411,7 @@ module Mobile
 
       patch mobile_onboarding_extended_family_path, params: {
         onboarding_session: {
-          parents_alive: "yes",
+          parents_alive: "both",
           siblings_alive: "no"
         }
       }
@@ -435,7 +435,7 @@ module Mobile
         relationship_status: "single",
         divorce_status: "no",
         has_children: "no",
-        parents_alive: "yes",
+        parents_alive: "both",
         siblings_alive: "no"
       )
 

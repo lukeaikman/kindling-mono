@@ -1,0 +1,40 @@
+/* Summary list — compact label/value rows used on the wrap-up screen.
+   Each row uses a fixed-width label column and a flexible value column.
+   On narrow screens the label sits above the value. */
+
+.mobile-summary {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--mobile-space-sm);
+}
+
+.mobile-summary__row {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+  gap: var(--mobile-space-md);
+  align-items: baseline;
+}
+
+.mobile-summary__label {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: var(--mobile-weight-semibold);
+  color: var(--mobile-color-text-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.mobile-summary__value {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--mobile-color-text);
+  line-height: 1.45;
+}
+
+@media (max-width: 380px) {
+  .mobile-summary__row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}
