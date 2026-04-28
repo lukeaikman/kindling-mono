@@ -2,7 +2,78 @@ module Mobile
   class BaseController < ApplicationController
     layout "mobile"
 
+    helper_method :current_user
+
+    before_action :touch_user_if_present
+
+    # Wave 2 Commit 2 — anonymous-from-day-one User machinery.
+    #
+    # Why two cookie systems for the moment:
+    # `current_user` (signed `:user_token` cookie) is the unified-shape
+    # path: anonymous Users land here on intro-continue, upgrade in place
+    # at registration. The legacy `onboarding_session` (signed
+    # `OnboardingSession::COOKIE_KEY` cookie) below is what the live
+    # OnboardingController still reads. Commit 3 swaps OnboardingController
+    # over to `current_user` and the legacy cookie machinery deletes.
+    # Until then both code paths coexist.
     private
+
+    def current_user
+      @current_user ||= find_current_user
+    end
+
+    def find_current_user
+      if (user_id = session[:user_id])
+        registered = User.find_by(id: user_id)
+        return registered if registered
+
+        session.delete(:user_id)  # stale id; clear
+      end
+
+      if (cookie_token = cookies.signed[:user_token])
+        anonymous = User.find_by_cookie_token(cookie_token)
+        return anonymous if anonymous && !user_stale?(anonymous)
+
+        cleanup_stale_user!(anonymous) if anonymous
+      end
+
+      nil
+    end
+
+    # Onboarding + auth controllers call this to guarantee a User exists
+    # for the request. Marketing pages (intro, video-intro,
+    # risk-questionnaire) deliberately do NOT call it — they should be
+    # visitable by bots and link-checkers without minting a User row each
+    # time. Q2 fix from the v4 plan.
+    def requires_user!
+      @current_user = current_user || create_anonymous_user!
+    end
+
+    def create_anonymous_user!
+      user = User.create!
+      cookies.signed[:user_token] = {
+        value: user.token,  # plaintext; DB stores token_digest
+        expires: 3.hours.from_now,
+        httponly: true,
+        same_site: :lax,
+        secure: Rails.env.production?
+      }
+      user
+    end
+
+    def user_stale?(user)
+      user.last_seen_at.present? && user.last_seen_at < 3.hours.ago
+    end
+
+    def cleanup_stale_user!(stale_user)
+      stale_user.destroy
+      cookies.delete(:user_token)
+      @current_user = nil
+    end
+
+    def touch_user_if_present
+      current_user&.touch_last_seen! if current_user&.anonymous?
+    end
 
     def request_authentication
       session[:return_to_after_authenticating] = request.url

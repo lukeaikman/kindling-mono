@@ -1,13 +1,7 @@
-<% password_digest = BCrypt::Password.create("password") %>
-
-one:
-  first_name: Test
-  last_name: User
-  email_address: one@example.com
-  password_digest: <%= password_digest %>
-
-two:
-  first_name: Another
-  last_name: User
-  email_address: two@example.com
-  password_digest: <%= password_digest %>
+# Empty by design.
+#
+# Wave 2 introduced `encrypts :email_address` on User. YAML fixtures load
+# directly into the column, bypassing the model — plaintext values land
+# as-is and become unfindable via `find_by(email_address:)` (which
+# encrypts the lookup value). Tests that need a User now build one via
+# `User.create!` in their setup block instead.

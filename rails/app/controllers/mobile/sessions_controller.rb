@@ -14,7 +14,7 @@ module Mobile
     end
 
     def create
-      if (user = User.authenticate_by(params.permit(:email_address, :password)))
+      if (user = User.authenticate_by(**params.permit(:email_address, :password).to_h.symbolize_keys))
         destroy_onboarding_session! if onboarding_session.present?
         start_new_session_for(user)
         redirect_to mobile_dashboard_path

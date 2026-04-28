@@ -1,7 +1,14 @@
 require "test_helper"
 
 class SessionsControllerTest < ActionDispatch::IntegrationTest
-  setup { @user = User.take }
+  setup do
+    @user = User.create!(
+      email_address: "one@example.com",
+      password: "password",
+      first_name: "Test",
+      last_name: "User"
+    )
+  end
 
   test "new" do
     get new_session_path
@@ -23,7 +30,7 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "destroy" do
-    sign_in_as(User.take)
+    sign_in_as(@user)
 
     delete session_path
 

@@ -3,7 +3,12 @@ require "test_helper"
 module Mobile
   class SessionsControllerTest < ActionDispatch::IntegrationTest
     setup do
-      @user = users(:one)
+      @user = User.create!(
+        email_address: "one@example.com",
+        password: "password",
+        first_name: "Test",
+        last_name: "User"
+      )
     end
 
     test "new renders a mobile login screen" do

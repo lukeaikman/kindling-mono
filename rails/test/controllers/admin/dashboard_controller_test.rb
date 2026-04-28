@@ -2,7 +2,15 @@ require "test_helper"
 
 module Admin
   class DashboardControllerTest < ActionDispatch::IntegrationTest
-    setup { sign_in_as(User.take) }
+    setup do
+      user = User.create!(
+        email_address: "admin@example.com",
+        password: "password",
+        first_name: "Admin",
+        last_name: "User"
+      )
+      sign_in_as(user)
+    end
 
     test "index renders without broken bootstrap importmap pins" do
       get admin_dashboard_path

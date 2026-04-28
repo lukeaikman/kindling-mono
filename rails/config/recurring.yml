@@ -1,0 +1,12 @@
+# Solid Queue recurring tasks — see https://github.com/rails/solid_queue#recurring-tasks
+#
+# Production-only: dev / test environments shouldn't be reaping anonymous
+# Users behind your back during local poking-about. If you want to
+# exercise the job in dev, run it manually:
+#
+#   bin/rails runner 'AbandonedAnonymousUserCleanupJob.perform_now'
+
+production:
+  abandoned_anonymous_user_cleanup:
+    class: AbandonedAnonymousUserCleanupJob
+    schedule: every hour
