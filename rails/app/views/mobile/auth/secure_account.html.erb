@@ -1,17 +1,53 @@
 <% content_for :title, "" %>
 
-<section class="mobile-screen mobile-screen--auth">
+<%
+  first_name = current_user.will_maker_person&.first_name.presence
+  hero_title =
+    if first_name
+      "Lock in your account, #{first_name}."
+    else
+      "Lock in your account."
+    end
+%>
+
+<%= form_with model: @user, url: mobile_register_path, method: :post, scope: :user, class: "mobile-screen mobile-screen--auth", html: { id: "mobile-register-form" } do |form| %>
+  <% register_footer = capture do %>
+    <%= form.submit "Create my account", class: "mobile-button", form: "mobile-register-form", data: { controller: "haptic", haptic_style_value: "medium" } %>
+    <%= link_to "Back to my onboarding", current_user.first_incomplete_path, class: "mobile-button-tertiary" %>
+  <% end %>
+
+  <% register_body = capture do %>
+    <%= render "mobile/shared/form_row",
+      label: "Email",
+      for_id: "user_email_address",
+      body: capture { form.email_field :email_address, value: @user.email_address, required: true, autofocus: true, class: "mobile-input", placeholder: "you@example.com", autocomplete: "email" } %>
+
+    <%= render "mobile/shared/form_row",
+      label: "Password",
+      hint: "12 characters or more, with letters and numbers.",
+      for_id: "user_password",
+      body: capture { form.password_field :password, required: true, class: "mobile-input", placeholder: "Choose a password", autocomplete: "new-password" } %>
+
+    <%= render "mobile/shared/form_row",
+      label: "Confirm password",
+      for_id: "user_password_confirmation",
+      body: capture { form.password_field :password_confirmation, required: true, class: "mobile-input", placeholder: "Repeat your password", autocomplete: "new-password" } %>
+  <% end %>
+
+  <% content_for :mobile_footer do %>
+    <%= render "mobile/shared/sticky_actions", body: register_footer %>
+  <% end %>
+
   <%= render "mobile/shared/screen_header", step_number: 5, total_steps: 5 %>
+  <%= render "mobile/shared/form_errors", record: @user %>
 
   <div class="mobile-screen__body">
     <%= render "mobile/shared/hero_block",
-      eyebrow: "Next step",
-      title: "Secure your account.",
-      subtitle: "Your onboarding is complete. Account setup lands here next, and this route now exists as the concrete handoff from Epic 2 onward." %>
+      eyebrow: "Last step",
+      title: hero_title,
+      subtitle: "Set an email and password so this becomes a durable account you can return to and build on." %>
 
-    <%= render "mobile/shared/callout",
-      kind: "info",
-      title: "Current build",
-      body: "Epic 3 will replace this holding page with the real account-creation experience without changing the route or the user journey." %>
+    <%= render "mobile/shared/grouped_section",
+      body: register_body %>
   </div>
-</section>
+<% end %>

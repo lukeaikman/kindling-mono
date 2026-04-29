@@ -12,6 +12,11 @@
   border-color: rgba(47, 117, 90, 0.16);
 }
 
+.mobile-callout--warning {
+  background: rgba(204, 132, 30, 0.10);
+  border-color: rgba(204, 132, 30, 0.24);
+}
+
 .mobile-callout__title {
   margin: 0;
   font-size: 0.98rem;

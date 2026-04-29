@@ -40,5 +40,48 @@ module Mobile
       assert cookies[OnboardingSession::COOKIE_KEY].blank?
       assert cookies[:session_id].present?
     end
+
+    # === Wave 2 Commit 4 ===
+
+    test "successful login destroys the anonymous User cascade + clears user_token cookie" do
+      anonymous = User.create!(current_step: "family")
+      anonymous.people.create!(relationship_kind: "self", first_name: "Mid", last_name: "Onboarding")
+      write_signed_cookie(:user_token, anonymous.token)
+
+      post mobile_login_path, params: { email_address: @user.email_address, password: "password" }
+
+      assert_redirected_to mobile_dashboard_path
+      assert_not User.exists?(anonymous.id), "anonymous User should be destroyed on login"
+      assert cookies[:user_token].blank?
+      assert cookies[:session_id].present?
+    end
+
+    test "login form shows warning when an anonymous User has onboarding data" do
+      anonymous = User.create!(current_step: "location")
+      write_signed_cookie(:user_token, anonymous.token)
+
+      get mobile_login_path
+
+      assert_response :success
+      assert_match(/started onboarding/i, response.body)
+    end
+
+    test "login form shows no warning when no anonymous User present" do
+      get mobile_login_path
+
+      assert_response :success
+      assert_no_match(/started onboarding/i, response.body)
+    end
+
+    test "logout terminates the session and redirects to intro" do
+      session = @user.sessions.create!(user_agent: "test", ip_address: "127.0.0.1")
+      write_signed_cookie(:session_id, session.id)
+
+      delete mobile_logout_path
+
+      assert_redirected_to mobile_intro_path
+      assert cookies[:session_id].blank?
+      assert_not Session.exists?(session.id)
+    end
   end
 end

@@ -30,6 +30,16 @@
       title: "Log in and pick up from your dashboard.",
       subtitle: "Your dashboard lives behind the same Rails session auth as the admin surface, but this mobile view keeps the experience inside the app shell." %>
 
+    <% if @has_onboarding_data %>
+      <%= render "mobile/shared/callout",
+        kind: "warning",
+        title: "You’ve started onboarding.",
+        body: "Logging in to an existing account will discard the answers you’ve given during onboarding so far." %>
+      <div class="mobile-actions">
+        <%= link_to "Pick up onboarding", current_user.first_incomplete_path, class: "mobile-button-secondary" %>
+      </div>
+    <% end %>
+
     <%= render "mobile/shared/grouped_section",
       body: login_body %>
   </div>

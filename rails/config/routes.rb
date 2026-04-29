@@ -26,8 +26,10 @@ Rails.application.routes.draw do
     post "complete-questionnaire", to: "startup#complete_questionnaire", as: :complete_questionnaire
     get "login", to: "sessions#new", as: :login
     post "login", to: "sessions#create"
+    delete "logout", to: "sessions#destroy", as: :logout
     get "dashboard", to: "dashboard#show", as: :dashboard
     get "auth/secure-account", to: "auth#secure_account", as: :secure_account
+    post "auth/secure-account", to: "auth#register", as: :register
 
     get "onboarding", to: "onboarding#index", as: :onboarding
     get "onboarding/welcome", to: "onboarding#welcome", as: :onboarding_welcome
