@@ -30,7 +30,7 @@ module Mobile
       create_onboarding_session(video_intro_version: 1, video_completed_at: Time.current, intro_seen_at: Time.current)
 
       patch mobile_onboarding_welcome_path, params: {
-        onboarding_session: {
+        person: {
           first_name: "Ava",
           last_name: "Young",
           date_of_birth: 17.years.ago.to_date.iso8601
@@ -85,7 +85,7 @@ module Mobile
       )
 
       patch mobile_onboarding_location_path, params: {
-        onboarding_session: {
+        person: {
           country_of_residence: "northern_ireland",
           nationality: "british",
           domiciled_in_uk: "yes",
@@ -410,7 +410,7 @@ module Mobile
       )
 
       patch mobile_onboarding_extended_family_path, params: {
-        onboarding_session: {
+        person: {
           parents_alive: "both",
           siblings_alive: "no"
         }
@@ -420,7 +420,7 @@ module Mobile
       assert_select ".mobile-form-error"
     end
 
-    test "wrap up continue marks the onboarding session complete and redirects to secure account" do
+    test "wrap up continue marks the onboarding session and current_user complete, redirects to secure account" do
       create_onboarding_session(
         video_intro_version: 1,
         video_completed_at: Time.current,
@@ -443,6 +443,8 @@ module Mobile
 
       assert_redirected_to mobile_secure_account_path
       assert OnboardingSession.last.reload.completed_at.present?
+      anonymous = User.where(email_address: nil).order(:created_at).last
+      assert anonymous.completed_at.present?, "current_user.completed_at should be stamped"
     end
 
     private

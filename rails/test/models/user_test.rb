@@ -132,4 +132,125 @@ class UserTest < ActiveSupport::TestCase
     user = User.create!
     assert_match(%r{/mobile/onboarding/welcome\z}, user.first_incomplete_path)
   end
+
+  # === Wave 2 Commit 3a — summary_facts on User ===
+
+  test "summary_facts is empty when will-maker Person not yet created" do
+    user = User.create!
+    assert_equal [], user.summary_facts
+  end
+
+  test "summary_facts builds You + Location + Single + Parents + Siblings rows for a fresh single user" do
+    user = User.create!
+    user.people.create!(
+      relationship_kind: "self",
+      first_name: "Luke",
+      last_name: "Aikman",
+      date_of_birth: Date.new(1988, 1, 1),
+      country_of_residence: "england",
+      nationality: "british",
+      domiciled_in_uk: "yes",
+      currently_resident_in_uk: "yes",
+      parents_alive: "both",
+      siblings_alive: "no"
+    ).tap { |p| user.update!(will_maker_person: p) }
+
+    facts = user.summary_facts.index_by { |f| f[:label] }
+    assert_equal "Luke Aikman, born 1 January 1988", facts["You"][:value]
+    assert_equal "England · British citizen · UK domiciled · UK resident", facts["Location"][:value]
+    assert_equal "Single", facts["Relationship"][:value]
+    assert_equal "Both alive", facts["Parents"][:value]
+    assert_equal "None", facts["Siblings"][:value]
+    assert_nil facts["Children"], "no children block when parentage chain empty"
+    assert_nil facts["In-laws"], "no in-laws block when no active marriage"
+  end
+
+  test "summary_facts pluralises divorced count when greater than 1" do
+    user = User.create!
+    user.people.create!(
+      relationship_kind: "self",
+      first_name: "Luke",
+      last_name: "Aikman",
+      date_of_birth: Date.new(1988, 1, 1),
+      country_of_residence: "england",
+      nationality: "british",
+      domiciled_in_uk: "yes",
+      currently_resident_in_uk: "yes",
+      times_divorced: 2,
+      parents_alive: "no",
+      siblings_alive: "no"
+    ).tap { |p| user.update!(will_maker_person: p) }
+
+    facts = user.summary_facts.index_by { |f| f[:label] }
+    assert_equal "Divorced (2 times)", facts["Relationship"][:value]
+  end
+
+  test "summary_facts shows Married phrase + In-laws when an active marriage exists" do
+    user = User.create!
+    will_maker = user.people.create!(
+      relationship_kind: "self",
+      first_name: "Luke",
+      last_name: "Aikman",
+      date_of_birth: Date.new(1988, 1, 1),
+      country_of_residence: "england",
+      nationality: "british",
+      domiciled_in_uk: "yes",
+      currently_resident_in_uk: "yes",
+      parents_alive: "both",
+      parents_in_law_alive: "one-alive",
+      siblings_alive: "no"
+    )
+    user.update!(will_maker_person: will_maker)
+    spouse = user.people.create!(relationship_kind: "spouse", first_name: "Sarah", last_name: "Aikman")
+    Marriage.create!(
+      will_maker_person: will_maker,
+      partner_person: spouse,
+      kind: "married",
+      phase: "active",
+      started_at: Date.new(2015, 6, 1)
+    )
+
+    facts = user.summary_facts.index_by { |f| f[:label] }
+    assert_equal "Married to Sarah Aikman", facts["Relationship"][:value]
+    assert_equal "One alive", facts["In-laws"][:value]
+  end
+
+  test "summary_facts lists children names from the Parentage chain" do
+    user = User.create!
+    will_maker = user.people.create!(
+      relationship_kind: "self",
+      first_name: "Luke",
+      last_name: "Aikman",
+      date_of_birth: Date.new(1988, 1, 1),
+      country_of_residence: "england",
+      nationality: "british",
+      domiciled_in_uk: "yes",
+      currently_resident_in_uk: "yes",
+      parents_alive: "both",
+      siblings_alive: "no"
+    )
+    user.update!(will_maker_person: will_maker)
+    %w[Charlie Alex].each_with_index do |name, idx|
+      child = user.people.create!(relationship_kind: "child", first_name: name, last_name: "Aikman")
+      Parentage.create!(parent_person: will_maker, child_person: child, kind: "biological", position: idx)
+    end
+
+    facts = user.summary_facts.index_by { |f| f[:label] }
+    assert_equal "Charlie, Alex", facts["Children"][:value]
+  end
+
+  test "active_marriage returns nil when none, returns the active row when present" do
+    user = User.create!
+    assert_nil user.active_marriage
+
+    will_maker = user.people.create!(relationship_kind: "self", first_name: "X", last_name: "Y")
+    user.update!(will_maker_person: will_maker)
+    spouse = user.people.create!(relationship_kind: "spouse", first_name: "S", last_name: "P")
+
+    ended = Marriage.create!(will_maker_person: will_maker, partner_person: spouse, kind: "married", phase: "separated", ended_at: Date.new(2020, 1, 1))
+    assert_nil user.active_marriage, "ended marriages don't count"
+
+    ended.update!(phase: "active", ended_at: nil)
+    assert_equal ended, user.active_marriage
+  end
 end

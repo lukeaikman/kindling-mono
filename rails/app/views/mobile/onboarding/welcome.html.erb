@@ -1,8 +1,8 @@
 <% content_for :title, "" %>
 
-<%= form_with model: @onboarding_session, url: mobile_onboarding_welcome_path, method: :patch, class: "mobile-screen mobile-screen--onboarding" do |form| %>
+<%= form_with model: @person, scope: :person, url: mobile_onboarding_welcome_path, method: :patch, class: "mobile-screen mobile-screen--onboarding" do |form| %>
   <%= render "mobile/shared/screen_header", step_number: 1, total_steps: 5 %>
-  <%= render "mobile/shared/form_errors", record: @onboarding_session %>
+  <%= render "mobile/shared/form_errors", record: @person %>
 
   <div class="mobile-screen__body">
     <%= render "mobile/shared/hero_block",
@@ -12,25 +12,25 @@
     <div class="mobile-stack">
       <%= render "mobile/shared/form_row",
         label: "First name",
-        for_id: "onboarding_session_first_name",
+        for_id: "person_first_name",
         body: capture { form.text_field :first_name, class: "mobile-input", autocomplete: "given-name" } %>
 
       <%= render "mobile/shared/form_row",
         label: "Middle names (optional)",
-        for_id: "onboarding_session_middle_names",
+        for_id: "person_middle_names",
         body: capture { form.text_field :middle_names, class: "mobile-input", autocomplete: "additional-name" } %>
 
       <%= render "mobile/shared/form_row",
         label: "Family name / surname",
-        for_id: "onboarding_session_last_name",
+        for_id: "person_last_name",
         body: capture { form.text_field :last_name, class: "mobile-input", autocomplete: "family-name" } %>
 
       <%= render "mobile/shared/date_field",
-        field_name: "onboarding_session[date_of_birth]",
-        id_prefix: "onboarding_session_date_of_birth",
+        field_name: "person[date_of_birth]",
+        id_prefix: "person_date_of_birth",
         label: "Date of birth",
         hint: "At the moment this flow supports people aged 18 to 90.",
-        value: @onboarding_session.date_of_birth,
+        value: @person.date_of_birth,
         placeholder: "Select your date of birth",
         min: (Date.current - 120.years),
         max: (Date.current - 16.years) %>

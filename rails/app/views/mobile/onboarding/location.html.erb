@@ -1,8 +1,8 @@
 <% content_for :title, "" %>
 
-<%= form_with model: @onboarding_session, url: mobile_onboarding_location_path, method: :patch, class: "mobile-screen mobile-screen--onboarding" do |form| %>
+<%= form_with model: @person, scope: :person, url: mobile_onboarding_location_path, method: :patch, class: "mobile-screen mobile-screen--onboarding" do |form| %>
   <%= render "mobile/shared/screen_header", step_number: 2, total_steps: 5 %>
-  <%= render "mobile/shared/form_errors", record: @onboarding_session %>
+  <%= render "mobile/shared/form_errors", record: @person %>
 
   <div class="mobile-screen__body">
     <%= render "mobile/shared/hero_block",
@@ -11,30 +11,30 @@
 
     <div class="mobile-stack">
       <%= render "mobile/shared/picker_field",
-        field_name: "onboarding_session[country_of_residence]",
+        field_name: "person[country_of_residence]",
         label: "Which part of the UK do you live in?",
-        value: @onboarding_session.country_of_residence,
+        value: @person.country_of_residence,
         options: [["England", "england"], ["Wales", "wales"], ["Scotland", "scotland"], ["Northern Ireland", "northern_ireland"]],
         placeholder: "Select country" %>
 
       <%= render "mobile/shared/picker_field",
-        field_name: "onboarding_session[nationality]",
+        field_name: "person[nationality]",
         label: "What’s your nationality?",
-        value: @onboarding_session.nationality,
+        value: @person.nationality,
         options: [["British", "british"], ["American", "american"], ["Canadian", "canadian"], ["Australian", "australian"], ["Other", "other"]],
         placeholder: "Select nationality" %>
 
       <%= render "mobile/shared/choice_group",
-        field_name: "onboarding_session[domiciled_in_uk]",
+        field_name: "person[domiciled_in_uk]",
         label: "Are you domiciled in the UK?",
-        value: @onboarding_session.domiciled_in_uk,
+        value: @person.domiciled_in_uk,
         options: [["Yes", "yes"], ["No", "no"], ["Not sure", "not-sure"]],
         collapsible: true %>
 
       <%= render "mobile/shared/choice_group",
-        field_name: "onboarding_session[currently_resident_in_uk]",
+        field_name: "person[currently_resident_in_uk]",
         label: "Are you currently resident in the UK?",
-        value: @onboarding_session.currently_resident_in_uk,
+        value: @person.currently_resident_in_uk,
         options: [["Yes", "yes"], ["No", "no"]],
         collapsible: true %>
     </div>

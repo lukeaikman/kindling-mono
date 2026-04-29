@@ -21,7 +21,7 @@ module Mobile
           headers: { "User-Agent" => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" }
 
       assert_response :success
-      assert_match(/<input type="date" name="onboarding_session\[date_of_birth\]"[^>]*class="mobile-input"/, response.body)
+      assert_match(/<input type="date" name="person\[date_of_birth\]"[^>]*class="mobile-input"/, response.body)
       assert_no_match(/data-controller="date-field"/, response.body)
     end
 
@@ -32,7 +32,7 @@ module Mobile
           headers: { "User-Agent" => "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148" }
 
       assert_response :success
-      assert_match(/<input type="date" name="onboarding_session\[date_of_birth\]"[^>]*class="mobile-input"/, response.body)
+      assert_match(/<input type="date" name="person\[date_of_birth\]"[^>]*class="mobile-input"/, response.body)
       assert_no_match(/data-controller="date-field"/, response.body)
     end
 

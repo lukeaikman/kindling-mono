@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_28_150507) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_29_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -302,9 +302,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_28_150507) do
     t.datetime "created_at", null: false
     t.string "kind", null: false
     t.bigint "parent_person_id", null: false
+    t.integer "position", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["child_person_id"], name: "index_parentages_on_child_person_id"
     t.index ["parent_person_id", "child_person_id"], name: "index_parentages_on_parent_person_id_and_child_person_id", unique: true
+    t.index ["parent_person_id", "position"], name: "index_parentages_on_parent_person_id_and_position"
     t.index ["parent_person_id"], name: "index_parentages_on_parent_person_id"
     t.check_constraint "parent_person_id <> child_person_id", name: "parentages_distinct_persons"
   end

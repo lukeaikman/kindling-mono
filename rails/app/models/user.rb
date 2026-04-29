@@ -160,6 +160,54 @@ class User < ApplicationRecord
       ""
   end
 
+  # === Family-shape accessors (Wave 2 Commit 3a) ===
+
+  # Plain method instead of `has_one through: has_one` (which composes
+  # poorly). One SQL query, trivially correct.
+  def active_marriage
+    will_maker_person&.marriages_as_will_maker&.find_by(phase: "active")
+  end
+
+  # Will-maker's children via Parentage rows.
+  def children_via_parentage
+    return Person.none unless will_maker_person
+
+    Person.joins(:inbound_parentages)
+          .where(parentages: { parent_person_id: will_maker_person.id })
+          .order("parentages.position ASC, parentages.id ASC")
+  end
+
+  # === Wrap-up summary ===
+  #
+  # Reads from will_maker_person + active_marriage + Parentage chain to
+  # build the structured definition list rendered on the wrap-up screen.
+  # During Commit 3a (before family-step refactor) `active_marriage` will
+  # always be nil — partner-related rows return "Single" until 3b ships.
+  def summary_facts
+    return [] unless will_maker_person
+
+    facts = [ you_fact, location_fact, relationship_fact ]
+    facts << children_fact if children_via_parentage.exists?
+    facts << parents_fact
+    facts << parents_in_law_fact if active_marriage.present?
+    facts << siblings_fact
+    facts.compact
+  end
+
+  COUNTRY_LABELS = {
+    "england" => "England",
+    "wales" => "Wales",
+    "scotland" => "Scotland",
+    "northern_ireland" => "Northern Ireland"
+  }.freeze
+  NATIONALITY_LABELS = {
+    "british" => "British",
+    "american" => "American",
+    "canadian" => "Canadian",
+    "australian" => "Australian",
+    "other" => "Other"
+  }.freeze
+
   private
 
   def assign_token
@@ -174,5 +222,86 @@ class User < ApplicationRecord
   def password_complexity
     return if password.length >= 12 && password.match?(/[A-Za-z]/) && password.match?(/\d/)
     errors.add(:password, "must be at least 12 characters and include letters and numbers")
+  end
+
+  # === Summary fact builders (called by summary_facts) ===
+
+  def you_fact
+    p = will_maker_person
+    parts = [ p.full_name.presence, p.date_of_birth&.strftime("%-d %B %Y") ].compact
+    { label: "You", value: parts.join(", born ") }
+  end
+
+  def location_fact
+    p = will_maker_person
+    parts = [
+      COUNTRY_LABELS[p.country_of_residence] || p.country_of_residence&.humanize,
+      ("#{NATIONALITY_LABELS[p.nationality] || p.nationality&.humanize} citizen" if p.nationality.present?)
+    ].compact_blank
+    parts << "UK domiciled" if p.domiciled_in_uk == "yes"
+    parts << "UK resident" if p.currently_resident_in_uk == "yes"
+    { label: "Location", value: parts.join(" · ") }
+  end
+
+  def relationship_fact
+    active = active_marriage
+    value =
+      if active
+        partner_name = active.partner_person.full_name
+        kind_phrase =
+          case active.kind
+          when "married" then "Married to"
+          when "civil_partnership" then "Civil partnership with"
+          when "cohabiting" then "Cohabiting with"
+          end
+        partner_name ? "#{kind_phrase} #{partner_name}" : kind_phrase&.sub(/\s+(to|with)$/, "")&.strip
+      else
+        n_div = will_maker_person.times_divorced.to_i
+        n_wid = will_maker_person.times_widowed.to_i
+        if n_div > 0
+          n_div > 1 ? "Divorced (#{n_div} times)" : "Divorced"
+        elsif n_wid > 0
+          n_wid > 1 ? "Widowed (#{n_wid} times)" : "Widowed"
+        else
+          "Single"
+        end
+      end
+    { label: "Relationship", value: value }
+  end
+
+  def children_fact
+    names = children_via_parentage.map { |c| c.first_name.to_s.strip.presence }.compact
+    count = children_via_parentage.size
+    value = names.any? ? names.join(", ") : "#{count} #{'child'.pluralize(count)}"
+    { label: "Children", value: value }
+  end
+
+  def parents_fact
+    { label: "Parents", value: alive_label(will_maker_person.parents_alive) }
+  end
+
+  def parents_in_law_fact
+    { label: "In-laws", value: alive_label(will_maker_person.parents_in_law_alive) }
+  end
+
+  def siblings_fact
+    p = will_maker_person
+    value =
+      if p.siblings_alive == "yes"
+        n = p.number_of_siblings.to_i
+        "#{n} #{'sibling'.pluralize(n)}"
+      else
+        "None"
+      end
+    { label: "Siblings", value: value }
+  end
+
+  def alive_label(value)
+    case value
+    when "both"      then "Both alive"
+    when "one-alive" then "One alive"
+    when "no"        then "Neither alive"
+    else value.to_s.humanize.presence || "—"
+    end
   end
 end

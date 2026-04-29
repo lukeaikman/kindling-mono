@@ -1,8 +1,14 @@
 <% content_for :title, "" %>
 
-<%= form_with model: @onboarding_session, url: mobile_onboarding_extended_family_path, method: :patch, class: "mobile-screen mobile-screen--onboarding", html: { data: { controller: "extended-family-form", action: "change->extended-family-form#changed" } } do |form| %>
+<%# Wave 2 Commit 3a: parents_alive / siblings / number_of_siblings now write
+    to current_user.will_maker_person via @person. The partner-data conditionals
+    below (has_partner? / partner_possessive_label) still read from
+    @onboarding_session because the family step writes are still legacy until
+    Commit 3b — once 3b lands these flip to current_user.has_partner? /
+    current_user.partner_possessive_label and @onboarding_session goes away. %>
+<%= form_with model: @person, scope: :person, url: mobile_onboarding_extended_family_path, method: :patch, class: "mobile-screen mobile-screen--onboarding", html: { data: { controller: "extended-family-form", action: "change->extended-family-form#changed" } } do |form| %>
   <%= render "mobile/shared/screen_header", step_number: 4, total_steps: 5 %>
-  <%= render "mobile/shared/form_errors", record: @onboarding_session %>
+  <%= render "mobile/shared/form_errors", record: @person %>
 
   <div class="mobile-screen__body">
     <%= render "mobile/shared/hero_block",
@@ -11,36 +17,36 @@
 
     <div class="mobile-stack">
       <%= render "mobile/shared/choice_group",
-        field_name: "onboarding_session[parents_alive]",
+        field_name: "person[parents_alive]",
         label: "Are either of your parents still alive?",
-        value: @onboarding_session.parents_alive,
+        value: @person.parents_alive,
         options: [["Both", "both"], ["One alive", "one-alive"], ["No", "no"]],
         id_prefix: "parents_alive",
         collapsible: true %>
 
       <% if @onboarding_session.has_partner? %>
         <%= render "mobile/shared/choice_group",
-          field_name: "onboarding_session[parents_in_law_alive]",
+          field_name: "person[parents_in_law_alive]",
           label: "Are either of #{@onboarding_session.partner_possessive_label} parents still alive?",
-          value: @onboarding_session.parents_in_law_alive,
+          value: @person.parents_in_law_alive,
           options: [["Both", "both"], ["One alive", "one-alive"], ["No", "no"]],
           id_prefix: "parents_in_law_alive",
           collapsible: true %>
       <% end %>
 
       <%= render "mobile/shared/choice_group",
-        field_name: "onboarding_session[siblings_alive]",
+        field_name: "person[siblings_alive]",
         label: "Do you have any brothers or sisters still alive?",
-        value: @onboarding_session.siblings_alive,
+        value: @person.siblings_alive,
         options: [["Yes", "yes"], ["No", "no"]],
         id_prefix: "siblings_alive",
         collapsible: true,
         data_role: "siblings-alive" %>
 
-      <div data-role="siblings-count" <%= "hidden" unless @onboarding_session.siblings_alive == "yes" %>>
+      <div data-role="siblings-count" <%= "hidden" unless @person.siblings_alive == "yes" %>>
         <%= render "mobile/shared/form_row",
           label: "How many siblings are alive?",
-          for_id: "onboarding_session_number_of_siblings",
+          for_id: "person_number_of_siblings",
           body: capture { form.number_field :number_of_siblings, class: "mobile-input-number", min: 1 } %>
       </div>
     </div>

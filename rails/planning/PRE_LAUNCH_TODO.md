@@ -147,6 +147,18 @@ Reusing the dev keys in prod would also defeat the threat model — anyone with 
 
 ---
 
+## Encrypt `Person.date_of_birth` (column-type change)
+
+**What**: change `people.date_of_birth` from `:date` to `:string` (or `:text`) and add `encrypts :date_of_birth, deterministic: true` on the model. The model will need to round-trip the value through `Date.parse` on read and `value.iso8601` on write so existing callers keep treating it as a Date.
+
+**Why**: Wave 2 Commit 3a left `Person.date_of_birth` plaintext because AR encryption serialises encrypted column values as JSON envelopes (`{"p":"...","h":{...}}`) which Postgres rejects when the column type is `date`. Date of birth is direct PII for an estate-planning app — leaving it plaintext at rest is unacceptable for public launch.
+
+**Effort**: half a day. New migration (`change_column :people, :date_of_birth, :string`), model encrypts + virtual-attribute coercion, test that round-tripping works (write a Date, read a Date, assert equality), encryption-at-rest test confirming raw column is ciphertext.
+
+**Origin**: Wave 2 Commit 3a (2026-04-29). Discovered while writing model tests — `PG::InvalidDatetimeFormat: invalid input syntax for type date` against the encrypted JSON.
+
+---
+
 ## Active Record encryption mode audit
 
 **What**: review every `encrypted` column and decide deterministic vs non-deterministic mode based on actual usage.
