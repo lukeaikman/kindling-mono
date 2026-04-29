@@ -216,8 +216,13 @@ module Mobile
       redirect_to mobile_intro_path unless onboarding_session.intro_seen?
     end
 
+    # Wave 2 Commit 3b: drives off current_user.first_incomplete_path,
+    # which reads will_maker_person + current_step (the new shape).
+    # Previously read OnboardingSession.first_incomplete_path — but family
+    # no longer mirror-writes to OS in 3b, so that path stayed "family"
+    # forever after submitting and bounced the user back.
     def redirect_if_step_locked!(requested_step)
-      first_incomplete = onboarding_session.first_incomplete_path
+      first_incomplete = current_user.first_incomplete_path
       first_incomplete_step = path_to_step(first_incomplete)
       return if first_incomplete_step.nil?
       return if STEP_ORDER[requested_step] <= STEP_ORDER[first_incomplete_step]
@@ -225,8 +230,16 @@ module Mobile
       redirect_to first_incomplete
     end
 
+    STEP_PATHS = {
+      welcome: "/mobile/onboarding/welcome",
+      location: "/mobile/onboarding/location",
+      family: "/mobile/onboarding/family",
+      extended_family: "/mobile/onboarding/extended-family",
+      wrap_up: "/mobile/onboarding/wrap-up"
+    }.freeze
+
     def path_to_step(path)
-      OnboardingSession::STEP_PATHS.key(path)
+      STEP_PATHS.key(path)
     end
 
     # Mid-state during Wave 2 Commit 3a: bump `current_user.current_step`

@@ -569,6 +569,18 @@ module Mobile
       User.where(email_address: nil).order(:created_at).last
     end
 
+    # Mirrors what the controller does on each step submit: derives the
+    # furthest-completed step from the seeded fields. Lets tests that
+    # POST to step N succeed against User#first_incomplete_path's
+    # current_step gate.
+    def derive_current_step(attrs)
+      return "wrap_up"          if attrs[:parents_alive].present? || attrs[:siblings_alive].present?
+      return "extended_family"  if attrs[:relationship_status].present? || attrs[:has_children].present?
+      return "family"           if attrs[:country_of_residence].present?
+      return "location"         if attrs[:first_name].present?
+      nil
+    end
+
     PARTNER_KIND_TRANSLATION = {
       "married"           => "married",
       "civil-partnership" => "civil_partnership",
@@ -600,7 +612,8 @@ module Mobile
       user = User.create!(
         intro_seen_at: attrs[:intro_seen_at],
         video_completed_at: attrs[:video_completed_at],
-        questionnaire_completed_at: attrs[:questionnaire_completed_at]
+        questionnaire_completed_at: attrs[:questionnaire_completed_at],
+        current_step: derive_current_step(attrs)
       )
       write_signed_cookie(:user_token, user.token)
 
