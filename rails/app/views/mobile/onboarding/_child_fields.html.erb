@@ -40,11 +40,11 @@
   <div class="mobile-inline-grid">
     <%= render "mobile/shared/form_row",
       label: "First name",
-      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][first_name]", child["first_name"], class: "mobile-input", autocomplete: "off", data: { role: "child-first-name" } } %>
+      body: capture { text_field_tag "children[#{child_index}][first_name]", child["first_name"], class: "mobile-input", autocomplete: "off", data: { role: "child-first-name" } } %>
 
     <%= render "mobile/shared/form_row",
       label: "Last name",
-      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][last_name]", child["last_name"], class: "mobile-input", autocomplete: "off", data: { role: "child-last-name", prefilled: child["last_name"].present?.to_s } } %>
+      body: capture { text_field_tag "children[#{child_index}][last_name]", child["last_name"], class: "mobile-input", autocomplete: "off", data: { role: "child-last-name", prefilled: child["last_name"].present?.to_s } } %>
   </div>
 <% end %>
 
@@ -54,15 +54,15 @@
   <div class="mobile-inline-grid">
     <%= render "mobile/shared/form_row",
       label: "Their first name",
-      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_parent_other_first_name]", child["co_parent_other_first_name"], class: "mobile-input", autocomplete: "off" } %>
+      body: capture { text_field_tag "children[#{child_index}][co_parent_other_first_name]", child["co_parent_other_first_name"], class: "mobile-input", autocomplete: "off" } %>
 
     <%= render "mobile/shared/form_row",
       label: "Their last name",
-      body: capture { text_field_tag "onboarding_session[children_payload][#{child_index}][co_parent_other_last_name]", child["co_parent_other_last_name"], class: "mobile-input", autocomplete: "off" } %>
+      body: capture { text_field_tag "children[#{child_index}][co_parent_other_last_name]", child["co_parent_other_last_name"], class: "mobile-input", autocomplete: "off" } %>
   </div>
 
   <%= render "mobile/shared/picker_field",
-    field_name: "onboarding_session[children_payload][#{child_index}][co_parent_other_relationship_to_child]",
+    field_name: "children[#{child_index}][co_parent_other_relationship_to_child]",
     label: "Their relationship to this child",
     value: child["co_parent_other_relationship_to_child"],
     options: partner_relationship_to_child_options,
@@ -76,12 +76,13 @@
     <button type="button" class="mobile-remove-button" data-remove-child <%= "hidden" if allow_remove == false %>>Remove</button>
   </div>
 
-  <%= hidden_field_tag "onboarding_session[children_payload][#{child_index}][id]", child["id"] %>
+  <%= hidden_field_tag "children[#{child_index}][id]", child["id"] %>
+  <%= hidden_field_tag "children[#{child_index}][position]", child["position"] || child_index %>
 
   <%= child_name_body %>
 
   <%= render "mobile/shared/date_field",
-    field_name: "onboarding_session[children_payload][#{child_index}][date_of_birth]",
+    field_name: "children[#{child_index}][date_of_birth]",
     id_prefix: "child_#{child_index}_date_of_birth",
     label: "Date of birth (optional)",
     value: child["date_of_birth"],
@@ -90,7 +91,7 @@
     max: Date.current %>
 
   <%= render "mobile/shared/choice_group",
-    field_name: "onboarding_session[children_payload][#{child_index}][relationship]",
+    field_name: "children[#{child_index}][relationship]",
     label: "What is this child's relationship to you?",
     value: child["relationship"] || "biological-child",
     options: child_relationship_options,
@@ -103,7 +104,7 @@
       Note: each block below is a direct child of `.mobile-child-card` so the
       grid `gap` rule spaces them uniformly with the surrounding form rows. %>
   <%= render "mobile/shared/choice_group",
-    field_name: "onboarding_session[children_payload][#{child_index}][co_parent_type]",
+    field_name: "children[#{child_index}][co_parent_type]",
     label: "Do you share legal responsibility for this child?",
     value: co_parent_type,
     options: active_options,
@@ -113,7 +114,7 @@
 
   <div data-role="co-parent-partner-rel" <%= "hidden" unless co_parent_type == "yes_with_partner" %>>
     <%= render "mobile/shared/picker_field",
-      field_name: "onboarding_session[children_payload][#{child_index}][co_parent_partner_relationship_to_child]",
+      field_name: "children[#{child_index}][co_parent_partner_relationship_to_child]",
       label: "Their relationship to this child",
       value: child["co_parent_partner_relationship_to_child"],
       options: partner_relationship_to_child_options,
@@ -131,7 +132,7 @@
   <%# No-first ordering: most children won't have these flags, so the
       common-case answer leads. Two-up layout keeps the question compact. %>
   <%= render "mobile/shared/choice_group",
-    field_name: "onboarding_session[children_payload][#{child_index}][disabled_answer]",
+    field_name: "children[#{child_index}][disabled_answer]",
     label: "Is this child disabled?",
     value: child["disabled_answer"],
     options: [["No", "no"], ["Yes", "yes"]],
@@ -140,7 +141,7 @@
     layout: :two_up %>
 
   <%= render "mobile/shared/choice_group",
-    field_name: "onboarding_session[children_payload][#{child_index}][lacks_mental_capacity_answer]",
+    field_name: "children[#{child_index}][lacks_mental_capacity_answer]",
     label: "Does this child lack mental capacity?",
     value: child["lacks_mental_capacity_answer"],
     options: [["No", "no"], ["Yes", "yes"]],

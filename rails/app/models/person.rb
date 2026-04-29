@@ -72,6 +72,14 @@ class Person < ApplicationRecord
       if: :will_maker_with_siblings?
   end
 
+  # Spouse + child + co_parent Persons need first/last name when their
+  # row is being committed during the family step. (Self Person already
+  # has these from welcome.) Co-parent's date_of_birth is optional.
+  with_options on: :family_step do
+    validates :first_name, :last_name, presence: true,
+      if: -> { relationship_kind.in?(%w[spouse child co_parent]) }
+  end
+
   def full_name
     [ first_name, last_name ].compact_blank.join(" ").presence
   end

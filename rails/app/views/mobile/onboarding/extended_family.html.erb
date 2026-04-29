@@ -1,11 +1,7 @@
 <% content_for :title, "" %>
 
-<%# Wave 2 Commit 3a: parents_alive / siblings / number_of_siblings now write
-    to current_user.will_maker_person via @person. The partner-data conditionals
-    below (has_partner? / partner_possessive_label) still read from
-    @onboarding_session because the family step writes are still legacy until
-    Commit 3b — once 3b lands these flip to current_user.has_partner? /
-    current_user.partner_possessive_label and @onboarding_session goes away. %>
+<%# Wave 2 Commit 3b: partner-data conditional now reads from current_user
+    (active_marriage). @onboarding_session no longer carries family state. %>
 <%= form_with model: @person, scope: :person, url: mobile_onboarding_extended_family_path, method: :patch, class: "mobile-screen mobile-screen--onboarding", html: { data: { controller: "extended-family-form", action: "change->extended-family-form#changed" } } do |form| %>
   <%= render "mobile/shared/screen_header", step_number: 4, total_steps: 5 %>
   <%= render "mobile/shared/form_errors", record: @person %>
@@ -24,10 +20,10 @@
         id_prefix: "parents_alive",
         collapsible: true %>
 
-      <% if @onboarding_session.has_partner? %>
+      <% if current_user.has_partner? %>
         <%= render "mobile/shared/choice_group",
           field_name: "person[parents_in_law_alive]",
-          label: "Are either of #{@onboarding_session.partner_possessive_label} parents still alive?",
+          label: "Are either of #{current_user.partner_possessive_label} parents still alive?",
           value: @person.parents_in_law_alive,
           options: [["Both", "both"], ["One alive", "one-alive"], ["No", "no"]],
           id_prefix: "parents_in_law_alive",

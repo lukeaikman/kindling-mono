@@ -15,17 +15,18 @@ export default class extends Controller {
     relationshipKind:   { type: String, default: "" }
   }
 
-  // Date-field label adapts based on relationship_status. Cohabiting needs
+  // Date-field label adapts based on relationship_kind. Cohabiting needs
   // the label to convey we're asking about cohabitation start, not wedding.
+  // Values match Marriage::KINDS — underscore form, not the legacy hyphen.
   static PARTNER_DATE_LABELS = {
-    "married":           "Wedding date",
-    "civil-partnership": "Civil partnership date",
-    "cohabiting":        "When did you start living together?"
+    "married":            "Wedding date",
+    "civil_partnership":  "Civil partnership date",
+    "cohabiting":         "When did you start living together?"
   }
 
   // Co-parent radio option labels per partnered state. Values stay stable
   // regardless of state — only the human-facing label changes.
-  static PARTNERED_KINDS = ["married", "civil-partnership", "cohabiting"]
+  static PARTNERED_KINDS = ["married", "civil_partnership", "cohabiting"]
 
   connect() {
     const form = this.element
@@ -156,10 +157,10 @@ export default class extends Controller {
     if (this.partnerFirstNameValue) return this.partnerFirstNameValue
 
     switch (this.currentRelationshipKind()) {
-      case "married":            return "your spouse"
-      case "civil-partnership":  return "your civil partner"
-      case "cohabiting":         return "your partner"
-      default:                   return "your partner"
+      case "married":             return "your spouse"
+      case "civil_partnership":   return "your civil partner"
+      case "cohabiting":          return "your partner"
+      default:                    return "your partner"
     }
   }
 
@@ -175,7 +176,7 @@ export default class extends Controller {
       }
     } else {
       this.partnerFields.hidden = true
-      this.element.querySelectorAll("[name='onboarding_session[spouse_first_name]'], [name='onboarding_session[spouse_last_name]']").forEach((input) => {
+      this.element.querySelectorAll("[name='partner[first_name]'], [name='partner[last_name]']").forEach((input) => {
         input.value = ""
       })
     }
@@ -268,7 +269,7 @@ export default class extends Controller {
     // renders the radios inside that wrapper; we replace radio rows in place.
     const radioContainer = group  // group is the .mobile-choice-group div itself
     const childIndex = card.dataset.childIndex || this.childIndexFromCard(card)
-    const fieldName = `onboarding_session[children_payload][${childIndex}][co_parent_type]`
+    const fieldName = `children[${childIndex}][co_parent_type]`
 
     radioContainer.innerHTML = options.map(([value, label]) => {
       const optionId = `child_${childIndex}_co_parent_type_${value.replace(/_/g, "-")}`
@@ -288,9 +289,9 @@ export default class extends Controller {
 
   childIndexFromCard(card) {
     // The card's data-child-card attr doesn't carry an index by default.
-    // Derive from any input name within the card.
-    const anyInput = card.querySelector("input[name^='onboarding_session[children_payload]']")
-    const match = anyInput?.name?.match(/children_payload\]\[(\d+)\]/)
+    // Derive from any input name within the card — `children[N][...]`.
+    const anyInput = card.querySelector("input[name^='children[']")
+    const match = anyInput?.name?.match(/children\]?\[(\d+)\]/)
     return match ? match[1] : "0"
   }
 

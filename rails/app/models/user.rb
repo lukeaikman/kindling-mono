@@ -168,6 +168,32 @@ class User < ApplicationRecord
     will_maker_person&.marriages_as_will_maker&.find_by(phase: "active")
   end
 
+  def has_partner?
+    active_marriage.present?
+  end
+
+  # Possessive form for piping into labels — e.g. the parents-in-law question
+  # "Are either of [Sarah's / your spouse's / your civil partner's / your
+  # partner's] parents still alive?". Uses curly apostrophe to match
+  # existing typography. Returns nil when the user has no active marriage.
+  def partner_possessive_label
+    return nil unless has_partner?
+    "#{partner_display_name}’s"
+  end
+
+  def partner_display_name
+    return nil unless has_partner?
+    active_marriage.partner_person.first_name.presence || partner_kind_fallback
+  end
+
+  def partner_kind_fallback
+    case active_marriage&.kind
+    when "married"            then "your spouse"
+    when "civil_partnership"  then "your civil partner"
+    when "cohabiting"         then "your partner"
+    end
+  end
+
   # Will-maker's children via Parentage rows.
   def children_via_parentage
     return Person.none unless will_maker_person

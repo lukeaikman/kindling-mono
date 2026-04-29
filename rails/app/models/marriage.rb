@@ -13,4 +13,16 @@ class Marriage < ApplicationRecord
 
   validates :kind, presence: true, inclusion: { in: KINDS }
   validates :phase, presence: true, inclusion: { in: PHASES }
+  validate :started_at_required_when_cohabiting
+
+  private
+
+  # Cohabiting partnerships need a start date (UK inheritance law uses it
+  # to establish the cohabitation period). Married / civil-partnership
+  # rows can record the wedding/registration date but it isn't required.
+  def started_at_required_when_cohabiting
+    return unless kind == "cohabiting" && phase == "active"
+    return if started_at.present?
+    errors.add(:started_at, "is required when cohabiting")
+  end
 end

@@ -1,29 +1,43 @@
 <% content_for :title, "" %>
 
 <%
-  children_for_form = @onboarding_session.children_payload
-  if @onboarding_session.has_children == "yes" && children_for_form.empty?
+  # Wave 2 Commit 3b — family step writes to Marriage + Parentage rows.
+  # Form fields use direct names (relationship_kind, partner[...],
+  # children[i][...]) instead of being scoped to a single model. The
+  # OnboardingController#update_family transactionally orchestrates
+  # sync_partner! + sync_children!.
+
+  current_kind = @active_marriage&.kind || params[:relationship_kind].presence
+  has_children = (@children_params.any? || params[:has_children] == "yes") ? "yes" : params[:has_children]
+
+  children_for_form = @children_params
+  if has_children == "yes" && children_for_form.empty?
     children_for_form = [{
-      "id" => SecureRandom.hex(6),
+      "id" => nil,
+      "position" => 0,
       "capacity_status" => "under-18",
       "disabled_answer" => nil,
       "lacks_mental_capacity_answer" => nil,
       "co_parent_type" => nil
     }]
   end
+
+  active_partner = @active_marriage&.partner_person
+  partner_first_name = active_partner&.first_name || params.dig(:partner, :first_name)
+  partner_last_name  = active_partner&.last_name  || params.dig(:partner, :last_name)
+  partner_started_at = @active_marriage&.started_at || params.dig(:partner, :started_at)
 %>
 
-<%= form_with model: @onboarding_session,
-  url: mobile_onboarding_family_path,
+<%= form_with url: mobile_onboarding_family_path,
   method: :patch,
   class: "mobile-screen mobile-screen--onboarding",
   html: {
     data: {
       controller: "family-form",
       action: "change->family-form#formChange click->family-form#formClick focusin->family-form#formFocusin input->family-form#formInput",
-      family_form_user_last_name_value: @onboarding_session.last_name.to_s,
-      family_form_partner_first_name_value: @onboarding_session.spouse_first_name.to_s,
-      family_form_relationship_kind_value: @onboarding_session.relationship_status.to_s
+      family_form_user_last_name_value: @person&.last_name.to_s,
+      family_form_partner_first_name_value: partner_first_name.to_s,
+      family_form_relationship_kind_value: current_kind.to_s
     }
   } do |form| %>
   <%
@@ -32,21 +46,21 @@
     <div class="mobile-inline-grid">
       <%= render "mobile/shared/form_row",
         label: "First name",
-        for_id: "onboarding_session_spouse_first_name",
-        body: capture { form.text_field :spouse_first_name, class: "mobile-input", autocomplete: "off", data: { role: "spouse-first-name" } } %>
+        for_id: "partner_first_name",
+        body: capture { text_field_tag "partner[first_name]", partner_first_name, class: "mobile-input", id: "partner_first_name", autocomplete: "off", data: { role: "spouse-first-name" } } %>
 
       <%= render "mobile/shared/form_row",
         label: "Last name",
-        for_id: "onboarding_session_spouse_last_name",
-        body: capture { form.text_field :spouse_last_name, class: "mobile-input", autocomplete: "off", data: { role: "spouse-last-name", prefilled: (@onboarding_session.spouse_last_name.present? && @onboarding_session.spouse_last_name == @onboarding_session.last_name).to_s } } %>
+        for_id: "partner_last_name",
+        body: capture { text_field_tag "partner[last_name]", partner_last_name, class: "mobile-input", id: "partner_last_name", autocomplete: "off", data: { role: "spouse-last-name", prefilled: (partner_last_name.present? && partner_last_name == @person&.last_name).to_s } } %>
     </div>
 
     <%= render "mobile/shared/date_field",
-      field_name: "onboarding_session[partner_started_at]",
-      id_prefix: "onboarding_session_partner_started_at",
+      field_name: "partner[started_at]",
+      id_prefix: "partner_started_at",
       label: "Wedding date",
       hint: nil,
-      value: @onboarding_session.partner_started_at,
+      value: partner_started_at,
       placeholder: "Select date",
       min: (Date.current - 100.years),
       max: Date.current,
@@ -64,30 +78,28 @@
           child_index: index,
           index: index,
           allow_remove: children_for_form.size > 1,
-          partnered: @onboarding_session.has_partner?,
-          partner_first_name: @onboarding_session.partner_display_name %>
+          partnered: current_user.has_partner?,
+          partner_first_name: current_user.partner_display_name %>
       <% end %>
     </div>
 
-    <%# Sits below the cards: a single Child 1 reads as "complete and you can
-        add more" rather than "this empty button is the start of something".
-        Hidden by default — Stimulus reveals it once Child 1's first_name has
+    <%# Hidden by default — Stimulus reveals once Child 1's first_name has any
         content (or whenever there's already more than one card). %>
     <button type="button" class="mobile-button-secondary" data-add-child hidden>Add another</button>
 
     <template data-child-template>
       <%= render "child_fields",
-        child: { "id" => "__CHILD_ID__", "capacity_status" => "under-18", "disabled_answer" => nil, "lacks_mental_capacity_answer" => nil, "co_parent_type" => nil },
+        child: { "id" => nil, "position" => "__INDEX__", "capacity_status" => "under-18", "disabled_answer" => nil, "lacks_mental_capacity_answer" => nil, "co_parent_type" => nil },
         child_index: "__INDEX__",
         index: 0,
         allow_remove: true,
-        partnered: @onboarding_session.has_partner?,
-        partner_first_name: @onboarding_session.partner_display_name %>
+        partnered: current_user.has_partner?,
+        partner_first_name: current_user.partner_display_name %>
     </template>
   <% end %>
 
   <%= render "mobile/shared/screen_header", step_number: 3, total_steps: 5 %>
-  <%= render "mobile/shared/form_errors", record: @onboarding_session %>
+  <%= render "mobile/shared/form_errors", record: @person %>
 
   <div class="mobile-screen__body">
     <%= render "mobile/shared/hero_block",
@@ -96,15 +108,15 @@
 
     <div class="mobile-stack">
       <%= render "mobile/shared/choice_group",
-        field_name: "onboarding_session[relationship_status]",
+        field_name: "relationship_kind",
         label: "Which best describes your current situation?",
-        value: @onboarding_session.relationship_status,
-        options: [["Single", "single"], ["Married", "married"], ["Civil partnership", "civil-partnership"], ["Cohabiting", "cohabiting"], ["Widowed", "widowed"]],
-        id_prefix: "relationship_status",
+        value: current_kind,
+        options: [["Single", "single"], ["Married", "married"], ["Civil partnership", "civil_partnership"], ["Cohabiting", "cohabiting"], ["Widowed", "widowed"]],
+        id_prefix: "relationship_kind",
         collapsible: true,
         data_role: "relationship-status" %>
 
-      <div data-role="partner-fields" <%= "hidden" unless @onboarding_session.has_partner? %>>
+      <div data-role="partner-fields" <%= "hidden" unless current_user.has_partner? %>>
         <%= render "mobile/shared/grouped_section",
           title: "Partner details",
           subtle: true,
@@ -113,20 +125,20 @@
 
       <%= render "mobile/shared/form_row",
         label: "How many times have you been divorced?",
-        for_id: "onboarding_session_times_divorced",
+        for_id: "times_divorced",
         body: capture {
-          form.number_field :times_divorced,
+          number_field_tag "times_divorced", @person&.times_divorced.to_i,
             min: 0, step: 1,
             class: "mobile-input mobile-input--narrow",
             data: { role: "times-divorced" }
         } %>
 
-      <div data-role="times-widowed-row" <%= "hidden" unless @onboarding_session.relationship_status == "widowed" %>>
+      <div data-role="times-widowed-row" <%= "hidden" unless current_kind == "widowed" %>>
         <%= render "mobile/shared/form_row",
           label: "How many times have you been widowed?",
-          for_id: "onboarding_session_times_widowed",
+          for_id: "times_widowed",
           body: capture {
-            form.number_field :times_widowed,
+            number_field_tag "times_widowed", @person&.times_widowed.to_i,
               min: 0, step: 1,
               class: "mobile-input mobile-input--narrow",
               data: { role: "times-widowed" }
@@ -134,16 +146,16 @@
       </div>
 
       <%= render "mobile/shared/choice_group",
-        field_name: "onboarding_session[has_children]",
+        field_name: "has_children",
         label: "Do you have children or guardianship responsibilities?",
-        value: @onboarding_session.has_children,
+        value: has_children,
         options: [["Yes", "yes"], ["No", "no"]],
         id_prefix: "has_children",
         collapsible: true,
         data_role: "has-children" %>
     </div>
 
-    <div data-role="children-section" <%= "hidden" unless @onboarding_session.has_children == "yes" %>>
+    <div data-role="children-section" <%= "hidden" unless has_children == "yes" %>>
       <%= render "mobile/shared/grouped_section",
         title: "Tell us about those in your care",
         body: children_section_body %>
