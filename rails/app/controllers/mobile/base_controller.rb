@@ -34,7 +34,16 @@ module Mobile
         anonymous = User.find_by_cookie_token(cookie_token)
         return anonymous if anonymous && !user_stale?(anonymous)
 
-        cleanup_stale_user!(anonymous) if anonymous
+        # Cookie present but no matching anonymous User — either an admin
+        # deleted the row in Motor / console, or the cleanup job got there
+        # first. Either way the cookie is dead; clear it (and the legacy
+        # OnboardingSession cookie + row, since they reference each other
+        # via the user's browser session).
+        if anonymous
+          cleanup_stale_user!(anonymous)
+        else
+          clear_orphaned_user_cookies!
+        end
       end
 
       nil
@@ -67,7 +76,18 @@ module Mobile
 
     def cleanup_stale_user!(stale_user)
       stale_user.destroy
+      clear_orphaned_user_cookies!
+    end
+
+    # Clears the user_token cookie + the legacy OnboardingSession state
+    # (cookie and row), so the next request starts onboarding from
+    # welcome instead of routing back into a partially-completed flow
+    # that no longer has a User behind it. Used both when the cookie is
+    # present-but-orphaned (User deleted out from under us) and when the
+    # User row was just destroyed by the cleanup-job path.
+    def clear_orphaned_user_cookies!
       cookies.delete(:user_token)
+      destroy_onboarding_session! if onboarding_session.present?
       @current_user = nil
     end
 
