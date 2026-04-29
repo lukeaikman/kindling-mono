@@ -239,6 +239,28 @@ class UserTest < ActiveSupport::TestCase
     assert_equal "Charlie, Alex", facts["Children"][:value]
   end
 
+  test "destroying a User cascades to people, marriages, parentages, wills, sessions" do
+    user = User.create!
+    will_maker = user.people.create!(relationship_kind: "self", first_name: "Luke", last_name: "Aikman")
+    user.update!(will_maker_person: will_maker)
+    spouse = user.people.create!(relationship_kind: "spouse", first_name: "Sarah")
+    Marriage.create!(will_maker_person: will_maker, partner_person: spouse, kind: "married", phase: "active")
+    child = user.people.create!(relationship_kind: "child", first_name: "Charlie")
+    Parentage.create!(parent_person: will_maker, child_person: child, kind: "biological")
+
+    will_id = user.draft_will.id
+    user_id = user.id
+
+    user.destroy!
+
+    assert_not User.exists?(user_id), "user gone"
+    assert_equal 0, Person.where(user_id: user_id).count, "all people gone"
+    assert_equal 0, Marriage.where(will_maker_person_id: will_maker.id).count, "marriages gone"
+    assert_equal 0, Parentage.where(parent_person_id: will_maker.id).count, "outbound parentages gone"
+    assert_equal 0, Parentage.where(child_person_id: child.id).count, "inbound parentages gone"
+    assert_not Will.exists?(will_id), "draft will gone"
+  end
+
   test "active_marriage returns nil when none, returns the active row when present" do
     user = User.create!
     assert_nil user.active_marriage

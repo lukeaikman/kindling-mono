@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_29_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_29_153205) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -411,7 +411,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_29_120000) do
   add_foreign_key "parentages", "people", column: "parent_person_id"
   add_foreign_key "people", "users"
   add_foreign_key "sessions", "users"
-  add_foreign_key "users", "people", column: "will_maker_person_id"
+  add_foreign_key "users", "people", column: "will_maker_person_id", on_delete: :nullify
   add_foreign_key "wills", "users"
   add_foreign_key "wills", "wills", column: "supersedes_id"
 end
